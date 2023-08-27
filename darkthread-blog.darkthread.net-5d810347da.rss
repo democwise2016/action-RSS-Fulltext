@@ -1,0 +1,438 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:googleplay="http://www.google.com/schemas/play-podcasts/1.0" xmlns:media="http://www.rssboard.org/media-rss" version="2.0">
+  <channel>
+    <title><![CDATA[黑暗執行緒[RSS+]]]></title>
+    <link>undefined</link>
+    <image>
+      <url>https://blog.darkthread.net/img/icon512x512.png</url>
+      <title>黑暗執行緒[RSS+]</title>
+      <link>undefined</link>
+    </image>
+    <language>en-us</language>
+    <atom:link href="https://blog.darkthread.net/feed/rss/" rel="self" type="application/rss+xml"/>
+    <copyright><![CDATA[黑暗執行緒[RSS+]]]></copyright>
+    <itunes:author><![CDATA[黑暗執行緒[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[
+      黑暗執行緒部落格 - 一位在技術領域打滾多年老士官長的生活點滴<br />
+<br />
+<a href="https://blog.darkthread.net/feed/rss/" target="_blank">https://blog.darkthread.net/feed/rss/</a>
+      ]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[
+      黑暗執行緒部落格 - 一位在技術領域打滾多年老士官長的生活點滴<br />
+<br />
+<a href="https://blog.darkthread.net/feed/rss/" target="_blank">https://blog.darkthread.net/feed/rss/</a>
+      ]]>
+    </description>
+    <itunes:owner>
+      <itunes:name><![CDATA[黑暗執行緒[RSS+]]]></itunes:name>
+    </itunes:owner>
+    <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
+<item>
+      <title><![CDATA[AD 跨界整合 - 使用 AD 登入第三方網站]]></title>
+      <link>https://blog.darkthread.net/blog/aspnet-adfs-sso/</link>
+      <itunes:title><![CDATA[AD 跨界整合 - 使用 AD 登入第三方網站]]></itunes:title>
+      <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>上篇文章 <a href="/blog/adfs-setup">辛苦安裝完 AD FS</a>，接下來試試 AD FS 跨界整合的威力。</p> <p>AD FS 支援多種登入協定，包含 WS-FED、SAML-P、OAuth 等，但 OAtuh 已成當今業界標準，聚焦 OAuth 就好。AD FS 認證身分取得授權的 OAuth 流程有以下幾種：</p> <ol><li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#implicit-grant-flow">Implicit Grant Flow</a><br> 適用純前端(如SPA)，依循 OAuth 2.0 規格，不需要後端伺服器認證交換，讓前端維持登入身分並獲得授權存取 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#authorization-code-grant-flow">Authorization Code Grant Flow</a><br> 適用大部分網站、App，分兩階段取得 authorization_code 及 access_token</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#on-behalf-of-flow">On-Behalf-Of Flow</a><br> WebAPI 代表用者呼叫其他 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#client-credentials-grant-flow">Client Credentials Grant Flow</a><br> 通常用於伺服器對伺服器間互動，背景程式執行期間沒有使用者參與，以應用程式的身分存取其他資源 (AD FS 也允許用憑證取代 Secret 提高安全性)</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#device-code-flow">Device Code Flow</a><br> 用於輸入受限裝置的登入(例如：Smart TV, IoT, 印表機)，使用者在其他裝置開瀏覽器輸入裝置代碼及登入，讓裝置取得授權。</li></ol> <p>以下是一些經典的 AD FS 應用場景：</p> <ul><li>SPA (Single Page Application) 純 JavaScript 開發，使用 MSAL 登入取得權限以存取 MS Graph API、企業 API 等資源</li> <li>網頁應用程式登入</li> <li>原生 App 登入取得授權存取 WebAPI</li> <li>網頁應用程式取得授權存取 WebAPI</li> <li>WebAPI 代表使用者呼叫其他 WebAPI (OBO, On Behalf Of)</li> <li>背景服務呼叫 Web API (使用 Client Credentials)</li> <li>網頁應用程式使用 Client Credentials 呼叫 WebAPI</li> <li>無瀏覽器 App 呼叫 Web API (使用 Device Code)</li></ul> <p>為了簡化開發，微軟提供通用的驗證程式庫 - MSAL - <a href="https://learn.microsoft.com/en-us/entra/msal/overview?WT.mc_id=DOP-MVP-37580">Microsoft Authentication Library</a>，支援 .NET/Java/JavaScript/Python/Android/Go/iOS，除了方便串接 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/v2-overview?WT.mc_id=DOP-MVP-37580">Microsft Identity Platform</a> (v2.0) Endpoint，整合 Azure AD、AD FS，也能整合 MS Account、FB/Google/Linkedin 帳號進行身分認證。</p> <p><img src="/Posts/files/2023/Fig1_638287455575299864.png"><br> <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-migration?WT.mc_id=DOP-MVP-37580#why-switch-to-msal">圖片來源</a></p> <p>要用 MSAL.NET 整合 AD FS 有兩種做法：透過 Azure AD (Azure AD 與 AD FS 同盟，取得地端帳號、群組資料)，或直接與 AD FS 通訊(AD FS 2019+，要直接連 AD FS 2016 的話要用 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/azuread-dev/active-directory-authentication-libraries?WT.mc_id=DOP-MVP-37580#microsoft-supported-client-libraries">ADAL.NET</a>。<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/msal-net-adfs-support?WT.mc_id=DOP-MVP-37580">參考</a></p> <p>研究了一下，要在雲端使用地端 AD，由 Azure AD 主導身分認證是未來的主流。以 MFA 為例，AD FS 也是<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/authentication/how-to-migrate-mfa-server-to-mfa-with-federation?source=recommendations&amp;WT.mc_id=DOP-MVP-37580#configure-azure-ad-mfa-as-an-authentication-provider-in-ad-fs">靠 Azure AD 加入 MFA 多因子驗證</a> (或是依賴 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/operations/configure-additional-authentication-methods-for-ad-fs?WT.mc_id=DOP-MVP-37580#microsoft-and-third-party-authentication-methods">MFA 協力廠商方案</a>)，前一段提到 MSAL.NET 可支援直接連 AD FS 2019，但查不到範例，幾乎都是 MSAL.NET 整合 Azure AD。</p> <p>我決定這篇文章先用 Microsoft.AspNetCore.Authentication.OpenIdConnect 簡單實現直連 AD FS，之後再玩 Azure AD。</p> <p>新建一個 MVC 專案，<code>dotnet add package Microsoft.AspNetCore.Authentication.OpenIdConnect</code> 引用套件。動手改程式前，先連上 AD FS 新增 Application Gruop：</p> <p><img src="/Posts/files/2023/Fig2_638287455577142855.png"></p> <p>輸入名稱，範本選 Web browser accessing a web application：</p> <p><img src="/Posts/files/2023/Fig3_638287455579332843.png"></p> <p>系統會自動產生 Client Identifier，這個要記下來，稍後程式會用到。Redirect URI 輸入要整合 AD FS 做登入的網站網址，我先在 Visual Studio 測試，填入偵錯模式網址 URL。若已知日後要部署的 URL，也可一併輸入：</p> <p><img src="/Posts/files/2023/Fig4_638287455581170278.png"></p> <p>存取控制有多組預設原則，我們先選 Permit everyone，之後若要強制啟用 MFA，可在此設定：</p> <p><img src="/Posts/files/2023/Fig5_638287455583154251.png"></p> <p>完成這些設定後，網站呼叫 AD FS 完成登入後，由 User.Claims 只會取得使用者帳號，我們可以調整下圖中的 Web Application 設定，把群組資料也帶入：</p> <p><img src="/Posts/files/2023/Fig6_638287455585027639.png"></p> <p>頁籤 Issuance Transform Rules 可設定要從 AD 傳送哪些 Claims 資料出去，我們的目的是送出帳號姓名及所屬群組：</p> <p><img src="/Posts/files/2023/Fig7_638287455586844393.png"></p> <p>做法是按 Add Rule，選 Send LDAP Attributes as Claims：</p> <p><img src="/Posts/files/2023/Fig8_638287455588763427.png"></p> <p>填入 Claim rule name，Attribute store 選 Active Directory，加入 Display-Name 轉 Common Name、Token-Groups - Unqualified Names 轉 Role 兩條設定。</p> <p><img src="/Posts/files/2023/Fig9_638287455590569401.png"></p> <p>至此，AD FS 這邊就設定好了。</p> <p>程式的話，先在 Program.cs 加入中文註解部分的程式碼啟用 OpenIdConnect 認證：</p> <pre><code>using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+var builder = WebApplication.CreateBuilder(args);
+// 加入 Cookie / OpenIdConnection 認證
+builder.Services.AddAuthentication(options =&gt;
+{
+options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie(options =&gt;
+{
+options.AccessDeniedPath = "/";
+options.LogoutPath = "/";
+})
+.AddOpenIdConnect(options =&gt;
+{
+// 由設定檔取得 Metadata URL https://adfs.&lt;domain-name&gt;/adfs/.well-known/openid-configuration
+options.MetadataAddress = builder.Configuration["Adfs:MetadataAddress"];
+// 由設定檔取得在 AD FS 建立 Appication Group 產生的 Client Id
+options.ClientId = builder.Configuration["Adfs:ClientId"];
+options.SignInScheme = "Cookies";
+options.ResponseType = OpenIdConnectResponseType.Code;
+options.UsePkce = false;
+options.Scope.Clear();
+options.Scope.Add("openid"); // 只要取得 OpenId 身分資料就好
+options.SaveTokens = true;
+});
+// Add services to the container.
+builder.Services.AddControllersWithViews();
+var app = builder.Build();
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+app.UseExceptionHandler("/Home/Error");
+// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+//  啟用身分認證
+app.UseAuthorization();
+app.UseAuthorization();
+app.MapControllerRoute(
+name: "default",
+pattern: "{controller=Home}/{action=Index}/{id?}");
+app.Run();
+</code></pre> <p>HomeController 的話，借用 Privacy Action，加上 [Authorize] 要求登入，</p> <pre><code>using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using adfs_sso.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+namespace adfs_sso.Controllers;
+public class HomeController : Controller
+{
+private readonly ILogger&lt;HomeController&gt; _logger;
+public HomeController(ILogger&lt;HomeController&gt; logger)
+{
+_logger = logger;
+}
+public IActionResult Index()
+{
+return View();
+}
+[Authorize] //要求登入
+public IActionResult Privacy()
+{
+return View();
+}
+// 實作登出
+public IActionResult Logout()
+{
+return SignOut(CookieAuthenticationDefaults.AuthenticationScheme,
+OpenIdConnectDefaults.AuthenticationScheme);
+}
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+public IActionResult Error()
+{
+return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+}
+}
+</code></pre> <p>_Layout.cshtml 加上一個 Logout 連結，在登入模式下才顯示：</p> <pre><code>&lt;ul class="navbar-nav flex-grow-1"&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index"&gt;Home&lt;/a&gt;
+&lt;/li&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy"&gt;Privacy&lt;/a&gt;
+&lt;/li&gt;
+@if (Context.User.Identity.IsAuthenticated)
+{
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Logout"&gt;Logout&lt;/a&gt;
+&lt;/li&gt;
+}
+&lt;/ul&gt;
+</code></pre> <p>至於 Privacy.cshtml，則換成以下內容：</p> <pre><code>@using System.Security.Claims
+&lt;div&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;User Info&lt;/legend&gt;
+&lt;div&gt;User.Identity.Name = @User.Identity.Name&lt;/div&gt;
+&lt;div&gt;
+Common Name =
+@User.FindFirstValue("http://schemas.xmlsoap.org/claims/CommonName")&lt;/div&gt;
+&lt;div&gt;Is DomainUsers = @User.IsInRole("Domain Users")&lt;/div&gt;
+&lt;div&gt;Is DomainAdmins = @User.IsInRole("Domain Admins")&lt;/div&gt;
+&lt;/fieldset&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;Claims&lt;/legend&gt;
+@foreach (var claim in User.Claims)
+{
+&lt;div&gt;@claim.Type : @claim.Value&lt;/div&gt;
+}
+&lt;/fieldset&gt;
+&lt;/div&gt;
+</code></pre> <p>好戲上場。在以下展示中，開啟 Privacy 頁面會被導向 AD FS 登入畫面，輸入 AD 帳號密碼後，回到 Privacy 頁，由 User.Identity.Name、User.Claims 可取得傳回 Claims，而人員所屬群組 (Domain Users) 也被傳回，並可用 User.IsInRole("Domain Users") 成功簽測。</p> <p><a href="https://www.youtube.com/watch?v=_WewPbI-6VU">操作展示</a></p> <p>下一篇，我們再來看如何整合 Azure AD。</p> <p data-slug="aspnet-adfs-sso" data-title-en="Sign in ASP.NET Core with AD FS" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/02/16/13/50/ice-climbing-4000385_960_720.jpg#960#720">Example of ASP.NET Core authentication with AD FS via OpenIdConnect.</p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>上篇文章 <a href="/blog/adfs-setup">辛苦安裝完 AD FS</a>，接下來試試 AD FS 跨界整合的威力。</p> <p>AD FS 支援多種登入協定，包含 WS-FED、SAML-P、OAuth 等，但 OAtuh 已成當今業界標準，聚焦 OAuth 就好。AD FS 認證身分取得授權的 OAuth 流程有以下幾種：</p> <ol><li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#implicit-grant-flow">Implicit Grant Flow</a><br> 適用純前端(如SPA)，依循 OAuth 2.0 規格，不需要後端伺服器認證交換，讓前端維持登入身分並獲得授權存取 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#authorization-code-grant-flow">Authorization Code Grant Flow</a><br> 適用大部分網站、App，分兩階段取得 authorization_code 及 access_token</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#on-behalf-of-flow">On-Behalf-Of Flow</a><br> WebAPI 代表用者呼叫其他 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#client-credentials-grant-flow">Client Credentials Grant Flow</a><br> 通常用於伺服器對伺服器間互動，背景程式執行期間沒有使用者參與，以應用程式的身分存取其他資源 (AD FS 也允許用憑證取代 Secret 提高安全性)</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#device-code-flow">Device Code Flow</a><br> 用於輸入受限裝置的登入(例如：Smart TV, IoT, 印表機)，使用者在其他裝置開瀏覽器輸入裝置代碼及登入，讓裝置取得授權。</li></ol> <p>以下是一些經典的 AD FS 應用場景：</p> <ul><li>SPA (Single Page Application) 純 JavaScript 開發，使用 MSAL 登入取得權限以存取 MS Graph API、企業 API 等資源</li> <li>網頁應用程式登入</li> <li>原生 App 登入取得授權存取 WebAPI</li> <li>網頁應用程式取得授權存取 WebAPI</li> <li>WebAPI 代表使用者呼叫其他 WebAPI (OBO, On Behalf Of)</li> <li>背景服務呼叫 Web API (使用 Client Credentials)</li> <li>網頁應用程式使用 Client Credentials 呼叫 WebAPI</li> <li>無瀏覽器 App 呼叫 Web API (使用 Device Code)</li></ul> <p>為了簡化開發，微軟提供通用的驗證程式庫 - MSAL - <a href="https://learn.microsoft.com/en-us/entra/msal/overview?WT.mc_id=DOP-MVP-37580">Microsoft Authentication Library</a>，支援 .NET/Java/JavaScript/Python/Android/Go/iOS，除了方便串接 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/v2-overview?WT.mc_id=DOP-MVP-37580">Microsft Identity Platform</a> (v2.0) Endpoint，整合 Azure AD、AD FS，也能整合 MS Account、FB/Google/Linkedin 帳號進行身分認證。</p> <p><img src="/Posts/files/2023/Fig1_638287455575299864.png"><br> <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-migration?WT.mc_id=DOP-MVP-37580#why-switch-to-msal">圖片來源</a></p> <p>要用 MSAL.NET 整合 AD FS 有兩種做法：透過 Azure AD (Azure AD 與 AD FS 同盟，取得地端帳號、群組資料)，或直接與 AD FS 通訊(AD FS 2019+，要直接連 AD FS 2016 的話要用 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/azuread-dev/active-directory-authentication-libraries?WT.mc_id=DOP-MVP-37580#microsoft-supported-client-libraries">ADAL.NET</a>。<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/msal-net-adfs-support?WT.mc_id=DOP-MVP-37580">參考</a></p> <p>研究了一下，要在雲端使用地端 AD，由 Azure AD 主導身分認證是未來的主流。以 MFA 為例，AD FS 也是<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/authentication/how-to-migrate-mfa-server-to-mfa-with-federation?source=recommendations&amp;WT.mc_id=DOP-MVP-37580#configure-azure-ad-mfa-as-an-authentication-provider-in-ad-fs">靠 Azure AD 加入 MFA 多因子驗證</a> (或是依賴 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/operations/configure-additional-authentication-methods-for-ad-fs?WT.mc_id=DOP-MVP-37580#microsoft-and-third-party-authentication-methods">MFA 協力廠商方案</a>)，前一段提到 MSAL.NET 可支援直接連 AD FS 2019，但查不到範例，幾乎都是 MSAL.NET 整合 Azure AD。</p> <p>我決定這篇文章先用 Microsoft.AspNetCore.Authentication.OpenIdConnect 簡單實現直連 AD FS，之後再玩 Azure AD。</p> <p>新建一個 MVC 專案，<code>dotnet add package Microsoft.AspNetCore.Authentication.OpenIdConnect</code> 引用套件。動手改程式前，先連上 AD FS 新增 Application Gruop：</p> <p><img src="/Posts/files/2023/Fig2_638287455577142855.png"></p> <p>輸入名稱，範本選 Web browser accessing a web application：</p> <p><img src="/Posts/files/2023/Fig3_638287455579332843.png"></p> <p>系統會自動產生 Client Identifier，這個要記下來，稍後程式會用到。Redirect URI 輸入要整合 AD FS 做登入的網站網址，我先在 Visual Studio 測試，填入偵錯模式網址 URL。若已知日後要部署的 URL，也可一併輸入：</p> <p><img src="/Posts/files/2023/Fig4_638287455581170278.png"></p> <p>存取控制有多組預設原則，我們先選 Permit everyone，之後若要強制啟用 MFA，可在此設定：</p> <p><img src="/Posts/files/2023/Fig5_638287455583154251.png"></p> <p>完成這些設定後，網站呼叫 AD FS 完成登入後，由 User.Claims 只會取得使用者帳號，我們可以調整下圖中的 Web Application 設定，把群組資料也帶入：</p> <p><img src="/Posts/files/2023/Fig6_638287455585027639.png"></p> <p>頁籤 Issuance Transform Rules 可設定要從 AD 傳送哪些 Claims 資料出去，我們的目的是送出帳號姓名及所屬群組：</p> <p><img src="/Posts/files/2023/Fig7_638287455586844393.png"></p> <p>做法是按 Add Rule，選 Send LDAP Attributes as Claims：</p> <p><img src="/Posts/files/2023/Fig8_638287455588763427.png"></p> <p>填入 Claim rule name，Attribute store 選 Active Directory，加入 Display-Name 轉 Common Name、Token-Groups - Unqualified Names 轉 Role 兩條設定。</p> <p><img src="/Posts/files/2023/Fig9_638287455590569401.png"></p> <p>至此，AD FS 這邊就設定好了。</p> <p>程式的話，先在 Program.cs 加入中文註解部分的程式碼啟用 OpenIdConnect 認證：</p> <pre><code>using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+var builder = WebApplication.CreateBuilder(args);
+// 加入 Cookie / OpenIdConnection 認證
+builder.Services.AddAuthentication(options =&gt;
+{
+options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie(options =&gt;
+{
+options.AccessDeniedPath = "/";
+options.LogoutPath = "/";
+})
+.AddOpenIdConnect(options =&gt;
+{
+// 由設定檔取得 Metadata URL https://adfs.&lt;domain-name&gt;/adfs/.well-known/openid-configuration
+options.MetadataAddress = builder.Configuration["Adfs:MetadataAddress"];
+// 由設定檔取得在 AD FS 建立 Appication Group 產生的 Client Id
+options.ClientId = builder.Configuration["Adfs:ClientId"];
+options.SignInScheme = "Cookies";
+options.ResponseType = OpenIdConnectResponseType.Code;
+options.UsePkce = false;
+options.Scope.Clear();
+options.Scope.Add("openid"); // 只要取得 OpenId 身分資料就好
+options.SaveTokens = true;
+});
+// Add services to the container.
+builder.Services.AddControllersWithViews();
+var app = builder.Build();
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+app.UseExceptionHandler("/Home/Error");
+// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+//  啟用身分認證
+app.UseAuthorization();
+app.UseAuthorization();
+app.MapControllerRoute(
+name: "default",
+pattern: "{controller=Home}/{action=Index}/{id?}");
+app.Run();
+</code></pre> <p>HomeController 的話，借用 Privacy Action，加上 [Authorize] 要求登入，</p> <pre><code>using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using adfs_sso.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+namespace adfs_sso.Controllers;
+public class HomeController : Controller
+{
+private readonly ILogger&lt;HomeController&gt; _logger;
+public HomeController(ILogger&lt;HomeController&gt; logger)
+{
+_logger = logger;
+}
+public IActionResult Index()
+{
+return View();
+}
+[Authorize] //要求登入
+public IActionResult Privacy()
+{
+return View();
+}
+// 實作登出
+public IActionResult Logout()
+{
+return SignOut(CookieAuthenticationDefaults.AuthenticationScheme,
+OpenIdConnectDefaults.AuthenticationScheme);
+}
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+public IActionResult Error()
+{
+return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+}
+}
+</code></pre> <p>_Layout.cshtml 加上一個 Logout 連結，在登入模式下才顯示：</p> <pre><code>&lt;ul class="navbar-nav flex-grow-1"&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index"&gt;Home&lt;/a&gt;
+&lt;/li&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy"&gt;Privacy&lt;/a&gt;
+&lt;/li&gt;
+@if (Context.User.Identity.IsAuthenticated)
+{
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Logout"&gt;Logout&lt;/a&gt;
+&lt;/li&gt;
+}
+&lt;/ul&gt;
+</code></pre> <p>至於 Privacy.cshtml，則換成以下內容：</p> <pre><code>@using System.Security.Claims
+&lt;div&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;User Info&lt;/legend&gt;
+&lt;div&gt;User.Identity.Name = @User.Identity.Name&lt;/div&gt;
+&lt;div&gt;
+Common Name =
+@User.FindFirstValue("http://schemas.xmlsoap.org/claims/CommonName")&lt;/div&gt;
+&lt;div&gt;Is DomainUsers = @User.IsInRole("Domain Users")&lt;/div&gt;
+&lt;div&gt;Is DomainAdmins = @User.IsInRole("Domain Admins")&lt;/div&gt;
+&lt;/fieldset&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;Claims&lt;/legend&gt;
+@foreach (var claim in User.Claims)
+{
+&lt;div&gt;@claim.Type : @claim.Value&lt;/div&gt;
+}
+&lt;/fieldset&gt;
+&lt;/div&gt;
+</code></pre> <p>好戲上場。在以下展示中，開啟 Privacy 頁面會被導向 AD FS 登入畫面，輸入 AD 帳號密碼後，回到 Privacy 頁，由 User.Identity.Name、User.Claims 可取得傳回 Claims，而人員所屬群組 (Domain Users) 也被傳回，並可用 User.IsInRole("Domain Users") 成功簽測。</p> <p><a href="https://www.youtube.com/watch?v=_WewPbI-6VU">操作展示</a></p> <p>下一篇，我們再來看如何整合 Azure AD。</p> <p data-slug="aspnet-adfs-sso" data-title-en="Sign in ASP.NET Core with AD FS" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/02/16/13/50/ice-climbing-4000385_960_720.jpg#960#720">Example of ASP.NET Core authentication with AD FS via OpenIdConnect.</p>]]>
+      </description>
+      <content:encoded><![CDATA[<p>上篇文章 <a href="/blog/adfs-setup">辛苦安裝完 AD FS</a>，接下來試試 AD FS 跨界整合的威力。</p> <p>AD FS 支援多種登入協定，包含 WS-FED、SAML-P、OAuth 等，但 OAtuh 已成當今業界標準，聚焦 OAuth 就好。AD FS 認證身分取得授權的 OAuth 流程有以下幾種：</p> <ol><li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#implicit-grant-flow">Implicit Grant Flow</a><br> 適用純前端(如SPA)，依循 OAuth 2.0 規格，不需要後端伺服器認證交換，讓前端維持登入身分並獲得授權存取 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#authorization-code-grant-flow">Authorization Code Grant Flow</a><br> 適用大部分網站、App，分兩階段取得 authorization_code 及 access_token</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#on-behalf-of-flow">On-Behalf-Of Flow</a><br> WebAPI 代表用者呼叫其他 WebAPI</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#client-credentials-grant-flow">Client Credentials Grant Flow</a><br> 通常用於伺服器對伺服器間互動，背景程式執行期間沒有使用者參與，以應用程式的身分存取其他資源 (AD FS 也允許用憑證取代 Secret 提高安全性)</li> <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/overview/ad-fs-openid-connect-oauth-flows-scenarios?WT.mc_id=DOP-MVP-37580#device-code-flow">Device Code Flow</a><br> 用於輸入受限裝置的登入(例如：Smart TV, IoT, 印表機)，使用者在其他裝置開瀏覽器輸入裝置代碼及登入，讓裝置取得授權。</li></ol> <p>以下是一些經典的 AD FS 應用場景：</p> <ul><li>SPA (Single Page Application) 純 JavaScript 開發，使用 MSAL 登入取得權限以存取 MS Graph API、企業 API 等資源</li> <li>網頁應用程式登入</li> <li>原生 App 登入取得授權存取 WebAPI</li> <li>網頁應用程式取得授權存取 WebAPI</li> <li>WebAPI 代表使用者呼叫其他 WebAPI (OBO, On Behalf Of)</li> <li>背景服務呼叫 Web API (使用 Client Credentials)</li> <li>網頁應用程式使用 Client Credentials 呼叫 WebAPI</li> <li>無瀏覽器 App 呼叫 Web API (使用 Device Code)</li></ul> <p>為了簡化開發，微軟提供通用的驗證程式庫 - MSAL - <a href="https://learn.microsoft.com/en-us/entra/msal/overview?WT.mc_id=DOP-MVP-37580">Microsoft Authentication Library</a>，支援 .NET/Java/JavaScript/Python/Android/Go/iOS，除了方便串接 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/v2-overview?WT.mc_id=DOP-MVP-37580">Microsft Identity Platform</a> (v2.0) Endpoint，整合 Azure AD、AD FS，也能整合 MS Account、FB/Google/Linkedin 帳號進行身分認證。</p> <p><img src="/Posts/files/2023/Fig1_638287455575299864.png"><br> <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-migration?WT.mc_id=DOP-MVP-37580#why-switch-to-msal">圖片來源</a></p> <p>要用 MSAL.NET 整合 AD FS 有兩種做法：透過 Azure AD (Azure AD 與 AD FS 同盟，取得地端帳號、群組資料)，或直接與 AD FS 通訊(AD FS 2019+，要直接連 AD FS 2016 的話要用 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/azuread-dev/active-directory-authentication-libraries?WT.mc_id=DOP-MVP-37580#microsoft-supported-client-libraries">ADAL.NET</a>。<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/develop/msal-net-adfs-support?WT.mc_id=DOP-MVP-37580">參考</a></p> <p>研究了一下，要在雲端使用地端 AD，由 Azure AD 主導身分認證是未來的主流。以 MFA 為例，AD FS 也是<a href="https://learn.microsoft.com/zh-tw/azure/active-directory/authentication/how-to-migrate-mfa-server-to-mfa-with-federation?source=recommendations&amp;WT.mc_id=DOP-MVP-37580#configure-azure-ad-mfa-as-an-authentication-provider-in-ad-fs">靠 Azure AD 加入 MFA 多因子驗證</a> (或是依賴 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/operations/configure-additional-authentication-methods-for-ad-fs?WT.mc_id=DOP-MVP-37580#microsoft-and-third-party-authentication-methods">MFA 協力廠商方案</a>)，前一段提到 MSAL.NET 可支援直接連 AD FS 2019，但查不到範例，幾乎都是 MSAL.NET 整合 Azure AD。</p> <p>我決定這篇文章先用 Microsoft.AspNetCore.Authentication.OpenIdConnect 簡單實現直連 AD FS，之後再玩 Azure AD。</p> <p>新建一個 MVC 專案，<code>dotnet add package Microsoft.AspNetCore.Authentication.OpenIdConnect</code> 引用套件。動手改程式前，先連上 AD FS 新增 Application Gruop：</p> <p><img src="/Posts/files/2023/Fig2_638287455577142855.png"></p> <p>輸入名稱，範本選 Web browser accessing a web application：</p> <p><img src="/Posts/files/2023/Fig3_638287455579332843.png"></p> <p>系統會自動產生 Client Identifier，這個要記下來，稍後程式會用到。Redirect URI 輸入要整合 AD FS 做登入的網站網址，我先在 Visual Studio 測試，填入偵錯模式網址 URL。若已知日後要部署的 URL，也可一併輸入：</p> <p><img src="/Posts/files/2023/Fig4_638287455581170278.png"></p> <p>存取控制有多組預設原則，我們先選 Permit everyone，之後若要強制啟用 MFA，可在此設定：</p> <p><img src="/Posts/files/2023/Fig5_638287455583154251.png"></p> <p>完成這些設定後，網站呼叫 AD FS 完成登入後，由 User.Claims 只會取得使用者帳號，我們可以調整下圖中的 Web Application 設定，把群組資料也帶入：</p> <p><img src="/Posts/files/2023/Fig6_638287455585027639.png"></p> <p>頁籤 Issuance Transform Rules 可設定要從 AD 傳送哪些 Claims 資料出去，我們的目的是送出帳號姓名及所屬群組：</p> <p><img src="/Posts/files/2023/Fig7_638287455586844393.png"></p> <p>做法是按 Add Rule，選 Send LDAP Attributes as Claims：</p> <p><img src="/Posts/files/2023/Fig8_638287455588763427.png"></p> <p>填入 Claim rule name，Attribute store 選 Active Directory，加入 Display-Name 轉 Common Name、Token-Groups - Unqualified Names 轉 Role 兩條設定。</p> <p><img src="/Posts/files/2023/Fig9_638287455590569401.png"></p> <p>至此，AD FS 這邊就設定好了。</p> <p>程式的話，先在 Program.cs 加入中文註解部分的程式碼啟用 OpenIdConnect 認證：</p> <pre><code>using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+var builder = WebApplication.CreateBuilder(args);
+// 加入 Cookie / OpenIdConnection 認證
+builder.Services.AddAuthentication(options =&gt;
+{
+options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie(options =&gt;
+{
+options.AccessDeniedPath = "/";
+options.LogoutPath = "/";
+})
+.AddOpenIdConnect(options =&gt;
+{
+// 由設定檔取得 Metadata URL https://adfs.&lt;domain-name&gt;/adfs/.well-known/openid-configuration
+options.MetadataAddress = builder.Configuration["Adfs:MetadataAddress"];
+// 由設定檔取得在 AD FS 建立 Appication Group 產生的 Client Id
+options.ClientId = builder.Configuration["Adfs:ClientId"];
+options.SignInScheme = "Cookies";
+options.ResponseType = OpenIdConnectResponseType.Code;
+options.UsePkce = false;
+options.Scope.Clear();
+options.Scope.Add("openid"); // 只要取得 OpenId 身分資料就好
+options.SaveTokens = true;
+});
+// Add services to the container.
+builder.Services.AddControllersWithViews();
+var app = builder.Build();
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+app.UseExceptionHandler("/Home/Error");
+// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+//  啟用身分認證
+app.UseAuthorization();
+app.UseAuthorization();
+app.MapControllerRoute(
+name: "default",
+pattern: "{controller=Home}/{action=Index}/{id?}");
+app.Run();
+</code></pre> <p>HomeController 的話，借用 Privacy Action，加上 [Authorize] 要求登入，</p> <pre><code>using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using adfs_sso.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+namespace adfs_sso.Controllers;
+public class HomeController : Controller
+{
+private readonly ILogger&lt;HomeController&gt; _logger;
+public HomeController(ILogger&lt;HomeController&gt; logger)
+{
+_logger = logger;
+}
+public IActionResult Index()
+{
+return View();
+}
+[Authorize] //要求登入
+public IActionResult Privacy()
+{
+return View();
+}
+// 實作登出
+public IActionResult Logout()
+{
+return SignOut(CookieAuthenticationDefaults.AuthenticationScheme,
+OpenIdConnectDefaults.AuthenticationScheme);
+}
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+public IActionResult Error()
+{
+return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+}
+}
+</code></pre> <p>_Layout.cshtml 加上一個 Logout 連結，在登入模式下才顯示：</p> <pre><code>&lt;ul class="navbar-nav flex-grow-1"&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index"&gt;Home&lt;/a&gt;
+&lt;/li&gt;
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy"&gt;Privacy&lt;/a&gt;
+&lt;/li&gt;
+@if (Context.User.Identity.IsAuthenticated)
+{
+&lt;li class="nav-item"&gt;
+&lt;a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Logout"&gt;Logout&lt;/a&gt;
+&lt;/li&gt;
+}
+&lt;/ul&gt;
+</code></pre> <p>至於 Privacy.cshtml，則換成以下內容：</p> <pre><code>@using System.Security.Claims
+&lt;div&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;User Info&lt;/legend&gt;
+&lt;div&gt;User.Identity.Name = @User.Identity.Name&lt;/div&gt;
+&lt;div&gt;
+Common Name =
+@User.FindFirstValue("http://schemas.xmlsoap.org/claims/CommonName")&lt;/div&gt;
+&lt;div&gt;Is DomainUsers = @User.IsInRole("Domain Users")&lt;/div&gt;
+&lt;div&gt;Is DomainAdmins = @User.IsInRole("Domain Admins")&lt;/div&gt;
+&lt;/fieldset&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;Claims&lt;/legend&gt;
+@foreach (var claim in User.Claims)
+{
+&lt;div&gt;@claim.Type : @claim.Value&lt;/div&gt;
+}
+&lt;/fieldset&gt;
+&lt;/div&gt;
+</code></pre> <p>好戲上場。在以下展示中，開啟 Privacy 頁面會被導向 AD FS 登入畫面，輸入 AD 帳號密碼後，回到 Privacy 頁，由 User.Identity.Name、User.Claims 可取得傳回 Claims，而人員所屬群組 (Domain Users) 也被傳回，並可用 User.IsInRole("Domain Users") 成功簽測。</p> <p><a href="https://www.youtube.com/watch?v=_WewPbI-6VU">操作展示</a></p> <p>下一篇，我們再來看如何整合 Azure AD。</p> <p data-slug="aspnet-adfs-sso" data-title-en="Sign in ASP.NET Core with AD FS" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/02/16/13/50/ice-climbing-4000385_960_720.jpg#960#720">Example of ASP.NET Core authentication with AD FS via OpenIdConnect.</p>]]></content:encoded>
+      <itunes:image href="/Posts/files/2023/Fig1_638287455575299864.png"/>
+        <media:content url="/Posts/files/2023/Fig1_638287455575299864.png" medium="image"/>
+      <pubDate>Sun, 27 Aug 2023 14:53:23 GMT</pubDate>
+    </item><item>
+      <title><![CDATA[AD 跨界整合 - AD FS 服務安裝]]></title>
+      <link>https://blog.darkthread.net/blog/adfs-setup/</link>
+      <itunes:title><![CDATA[AD 跨界整合 - AD FS 服務安裝]]></itunes:title>
+      <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>最近頻頻聽到新名詞 - ADFS，腦中卻沒什麼概念，甚為惶恐，趕緊研究做點 Lab 壓壓驚。</p> <p>AD FS 是 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/ad-fs-overview?WT.mc_id=DOP-MVP-37580">Active Directory Federation Service</a> 的縮寫，用白話解釋，傳統印象中，原本只能企業內部限定 Windows 使用的 AD，透過 AD FS 可拓展到公司外部實現身分認證、權限控管、單一登入(Single Sign On, SSO)，讓員工、客戶、供應商使用 AD 帳號存取企業的對外服務，甚至一些第三方 SaaS 服務 (Teams、Office 365、Salesforce)。</p> <p>由於 AD FS 是走 HTTPS 協定並支援 OAuth 標準，原本受限封閉內網使用的 AD 帳號一下子變得開放，可拿來登入 Internet 網站、管控 WebAPI 存取、手機 App 登入、甚至 IoT 裝置。這篇筆記打算在實驗環境把它裝起來，後面幾篇會寫幾行程式，試試跨平台整合 AD 帳號登入。</p> <p>AD FS 的安裝細節有點繁瑣，術語名詞又多，只看官方文件的<a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/deployment/windows-server-2012-r2-ad-fs-deployment-guide?WT.mc_id=DOP-MVP-37580">部署指南</a>要完成有點吃力，我參考了不少文件、YouTube 影片(像是<a href="https://www.youtube.com/watch?v=exv-V462Ppw">這支</a>，體驗傳說中被 YouTube 上有口音的印度小哥拯救)，及 Pluralsight 的<a href="https://app.pluralsight.com/library/courses/implement-windows-server-2019-identity-federation-access-solutions/table-of-contents">教學課程</a>，才摸出頭緒。這個過程，絕對值得寫成筆記。</p> <p>安裝 AD FS 的第一個關卡是要搞定憑證。在建好 DC 主機、建立 AD 網域，備好另一台 AD FS 主機並加入網域後，在 DC <a href="/blog/setup-ad-n-ca/">安裝 CA 服務</a>，開啟 CA 管理介面，在 Certificate Templates 資料夾按右鍵選 Manage，然後在 Certificate Templates Console 找到 Web Server，以其為範本 Duplicate Template 複製修改出 ADFS 用的範本：</p> <p><img src="/Posts/files/2023/Fig1_638286585197893082.png"></p> <p>在 General 頁籤，設定名稱為 ADFS Template：</p> <p><img src="/Posts/files/2023/Fig2_638286585199851927.png"></p> <p>勾選「Allow private key to be exported」：</p> <p><img src="/Posts/files/2023/Fig3_638286585201808849.png"></p> <p>權限部分要讓 Domain Comupters 具有 Enroll 權限：</p> <p><img src="/Posts/files/2023/Fig4_638286585203657494.png"></p> <p>設定好儲存後，用右鍵選單 New / Certificate Template to Issue 將剛才建立的 ADFS Template 加入 Certificate Templates 資料夾：</p> <p><img src="/Posts/files/2023/Fig6_638286585205661825.png"></p> <p>到這裡 CA 準備好了。</p> <p>接著我們連到 AD FS 主機產生 <code>adfs.&lt;domain-name&gt;</code> 憑證。</p> <p>關於 AD FS 的 DNS 名稱，由於後面會用到子網域名稱(如 <code>certauth.adfs.&lt;domain-name&gt;</code>)，故 <code>adfs.&lt;domain-name&gt;</code> 要保留對外使用，AD FS 主機我們命名為 <code>adfs1.&lt;domain-name&gt;</code> 與之區隔，實驗環境只有單一主機，故在 DNS 加入一筆 A 記錄將 adfs 對映到 adfs1 的 IP：</p> <p><img src="/Posts/files/2023/FigL_638286585207629290.png"></p> <p>DNS 設好後，登入 AD FS 主機(記得要先加入網域)，執行 certlm.msc 開啟 Local Computer 的憑證管理介面，在 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證：</p> <p><img src="/Posts/files/2023/Fig7_638286585209545442.png"></p> <p>憑證註冊介面：</p> <p><img src="/Posts/files/2023/Fig8_638286585211375398.png"></p> <p><img src="/Posts/files/2023/Fig5_638286585213304385.png"></p> <p>ADFS Template 需要填寫 Common Name、DNS 等資料：</p> <p><img src="/Posts/files/2023/FigA_638286585215134256.png"></p> <p>建立 Common Name = <code>adfs.&lt;domain-name&gt;</code> 跟三筆 DNS <code>adfs.&lt;domain-name&gt;</code>、 <code>enterpriseregistration.&lt;domain-name&gt;</code>、 <code>certauth.adfs.&lt;domain-name&gt;</code></p> <p><img src="/Posts/files/2023/FigB_638286585217053322.png"></p> <p>取個 Friendly Name：</p> <p><img src="/Posts/files/2023/FigC_638286585218837568.png"></p> <p>程式會連上 CA 取得憑證並存入 Local Computer 憑證儲存區：</p> <p><img src="/Posts/files/2023/FigD_638286585220671876.png"></p> <p>再來，我們希望 AD FS 服務用 <a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview?WT.mc_id=DOP-MVP-37580">Group Managed Service Account</a> (gMSA，無密碼帳號，由作業系統自動管理密碼，解決惱人的密碼定期變更問題，很適合用於服務或排程，這個未來有機會再專門寫一篇為大家講解) 執行，準備工作是要登入 DC 建立 Key Distribution Service 的 Root Key。</p> <pre><code># 預設 10 小時後啟用(考量AD複寫時間)，測試環境將時間設定 10 小時前以便馬上使用
+Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>終於，前置作業完成，可以安裝 AD FS 了。Add Roles and Feature Wizards 新增完 AD FS 會提示需要設定：</p> <p><img src="/Posts/files/2023/FigE_638286585222794605.png"></p> <p>選擇這是 Web Farm 的第一台：</p> <p><img src="/Posts/files/2023/FigF_638286585224993060.png"></p> <p>提供具有管理者權限的網域帳號進行設定：</p> <p><img src="/Posts/files/2023/FigG_638286585226873114.png"></p> <p>選取剛才裝好的 SSL 憑證：</p> <p><img src="/Posts/files/2023/FigH_638286585228985227.png"></p> <p>執行身分選擇新建一個 gMSA 帳號：</p> <p><img src="/Posts/files/2023/FigI_638286585230906088.png"></p> <p>資料庫選擇 Windows Internal Database 即可(漏抓圖)，多台 AD FS 主機時可存在 SQL Server。執行前會再次確認所有設定：</p> <p><img src="/Posts/files/2023/FigJ_638286585232866312.png"></p> <p>由於我們剛建完 Root Key 不到 10-小時就要用 gMSA，隨時改了生效時間，但因建立時間太短會有警告(可忽略)：</p> <p><img src="/Posts/files/2023/FigK_638286585235222141.png"></p> <p>如果沒意外，AD FS 就裝好了。</p> <p>要檢測 AD FS 是否正常，最簡單的方法是使用 IdP Initiated Signon Page 測試，它預設未啟用，需使用以下 PowerShell 指令啟用：</p> <pre><code>Set-AdfsProperties -EnableIdPInitiatedSignonPage $true
+</code></pre> <p><img src="/Posts/files/2023/FigN_638286585237033833.png"></p> <p>使用瀏覽器連上 <code>https://adfs.&lt;domain-name&gt;</code>，沒意外的話，你會看到登入畫面，按 Sign In 出現帳號密碼，試試若能 AD 帳號登入，成功!</p> <p><img src="/Posts/files/2023/FigM_638286585243683692.png"></p> <p data-slug="adfs-setup" data-title-en="AD FS notes - installation" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/09/23/13/11/iceberg-4498548_960_720.jpg#960#720">Notes of AD FS installation.</p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>最近頻頻聽到新名詞 - ADFS，腦中卻沒什麼概念，甚為惶恐，趕緊研究做點 Lab 壓壓驚。</p> <p>AD FS 是 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/ad-fs-overview?WT.mc_id=DOP-MVP-37580">Active Directory Federation Service</a> 的縮寫，用白話解釋，傳統印象中，原本只能企業內部限定 Windows 使用的 AD，透過 AD FS 可拓展到公司外部實現身分認證、權限控管、單一登入(Single Sign On, SSO)，讓員工、客戶、供應商使用 AD 帳號存取企業的對外服務，甚至一些第三方 SaaS 服務 (Teams、Office 365、Salesforce)。</p> <p>由於 AD FS 是走 HTTPS 協定並支援 OAuth 標準，原本受限封閉內網使用的 AD 帳號一下子變得開放，可拿來登入 Internet 網站、管控 WebAPI 存取、手機 App 登入、甚至 IoT 裝置。這篇筆記打算在實驗環境把它裝起來，後面幾篇會寫幾行程式，試試跨平台整合 AD 帳號登入。</p> <p>AD FS 的安裝細節有點繁瑣，術語名詞又多，只看官方文件的<a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/deployment/windows-server-2012-r2-ad-fs-deployment-guide?WT.mc_id=DOP-MVP-37580">部署指南</a>要完成有點吃力，我參考了不少文件、YouTube 影片(像是<a href="https://www.youtube.com/watch?v=exv-V462Ppw">這支</a>，體驗傳說中被 YouTube 上有口音的印度小哥拯救)，及 Pluralsight 的<a href="https://app.pluralsight.com/library/courses/implement-windows-server-2019-identity-federation-access-solutions/table-of-contents">教學課程</a>，才摸出頭緒。這個過程，絕對值得寫成筆記。</p> <p>安裝 AD FS 的第一個關卡是要搞定憑證。在建好 DC 主機、建立 AD 網域，備好另一台 AD FS 主機並加入網域後，在 DC <a href="/blog/setup-ad-n-ca/">安裝 CA 服務</a>，開啟 CA 管理介面，在 Certificate Templates 資料夾按右鍵選 Manage，然後在 Certificate Templates Console 找到 Web Server，以其為範本 Duplicate Template 複製修改出 ADFS 用的範本：</p> <p><img src="/Posts/files/2023/Fig1_638286585197893082.png"></p> <p>在 General 頁籤，設定名稱為 ADFS Template：</p> <p><img src="/Posts/files/2023/Fig2_638286585199851927.png"></p> <p>勾選「Allow private key to be exported」：</p> <p><img src="/Posts/files/2023/Fig3_638286585201808849.png"></p> <p>權限部分要讓 Domain Comupters 具有 Enroll 權限：</p> <p><img src="/Posts/files/2023/Fig4_638286585203657494.png"></p> <p>設定好儲存後，用右鍵選單 New / Certificate Template to Issue 將剛才建立的 ADFS Template 加入 Certificate Templates 資料夾：</p> <p><img src="/Posts/files/2023/Fig6_638286585205661825.png"></p> <p>到這裡 CA 準備好了。</p> <p>接著我們連到 AD FS 主機產生 <code>adfs.&lt;domain-name&gt;</code> 憑證。</p> <p>關於 AD FS 的 DNS 名稱，由於後面會用到子網域名稱(如 <code>certauth.adfs.&lt;domain-name&gt;</code>)，故 <code>adfs.&lt;domain-name&gt;</code> 要保留對外使用，AD FS 主機我們命名為 <code>adfs1.&lt;domain-name&gt;</code> 與之區隔，實驗環境只有單一主機，故在 DNS 加入一筆 A 記錄將 adfs 對映到 adfs1 的 IP：</p> <p><img src="/Posts/files/2023/FigL_638286585207629290.png"></p> <p>DNS 設好後，登入 AD FS 主機(記得要先加入網域)，執行 certlm.msc 開啟 Local Computer 的憑證管理介面，在 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證：</p> <p><img src="/Posts/files/2023/Fig7_638286585209545442.png"></p> <p>憑證註冊介面：</p> <p><img src="/Posts/files/2023/Fig8_638286585211375398.png"></p> <p><img src="/Posts/files/2023/Fig5_638286585213304385.png"></p> <p>ADFS Template 需要填寫 Common Name、DNS 等資料：</p> <p><img src="/Posts/files/2023/FigA_638286585215134256.png"></p> <p>建立 Common Name = <code>adfs.&lt;domain-name&gt;</code> 跟三筆 DNS <code>adfs.&lt;domain-name&gt;</code>、 <code>enterpriseregistration.&lt;domain-name&gt;</code>、 <code>certauth.adfs.&lt;domain-name&gt;</code></p> <p><img src="/Posts/files/2023/FigB_638286585217053322.png"></p> <p>取個 Friendly Name：</p> <p><img src="/Posts/files/2023/FigC_638286585218837568.png"></p> <p>程式會連上 CA 取得憑證並存入 Local Computer 憑證儲存區：</p> <p><img src="/Posts/files/2023/FigD_638286585220671876.png"></p> <p>再來，我們希望 AD FS 服務用 <a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview?WT.mc_id=DOP-MVP-37580">Group Managed Service Account</a> (gMSA，無密碼帳號，由作業系統自動管理密碼，解決惱人的密碼定期變更問題，很適合用於服務或排程，這個未來有機會再專門寫一篇為大家講解) 執行，準備工作是要登入 DC 建立 Key Distribution Service 的 Root Key。</p> <pre><code># 預設 10 小時後啟用(考量AD複寫時間)，測試環境將時間設定 10 小時前以便馬上使用
+Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>終於，前置作業完成，可以安裝 AD FS 了。Add Roles and Feature Wizards 新增完 AD FS 會提示需要設定：</p> <p><img src="/Posts/files/2023/FigE_638286585222794605.png"></p> <p>選擇這是 Web Farm 的第一台：</p> <p><img src="/Posts/files/2023/FigF_638286585224993060.png"></p> <p>提供具有管理者權限的網域帳號進行設定：</p> <p><img src="/Posts/files/2023/FigG_638286585226873114.png"></p> <p>選取剛才裝好的 SSL 憑證：</p> <p><img src="/Posts/files/2023/FigH_638286585228985227.png"></p> <p>執行身分選擇新建一個 gMSA 帳號：</p> <p><img src="/Posts/files/2023/FigI_638286585230906088.png"></p> <p>資料庫選擇 Windows Internal Database 即可(漏抓圖)，多台 AD FS 主機時可存在 SQL Server。執行前會再次確認所有設定：</p> <p><img src="/Posts/files/2023/FigJ_638286585232866312.png"></p> <p>由於我們剛建完 Root Key 不到 10-小時就要用 gMSA，隨時改了生效時間，但因建立時間太短會有警告(可忽略)：</p> <p><img src="/Posts/files/2023/FigK_638286585235222141.png"></p> <p>如果沒意外，AD FS 就裝好了。</p> <p>要檢測 AD FS 是否正常，最簡單的方法是使用 IdP Initiated Signon Page 測試，它預設未啟用，需使用以下 PowerShell 指令啟用：</p> <pre><code>Set-AdfsProperties -EnableIdPInitiatedSignonPage $true
+</code></pre> <p><img src="/Posts/files/2023/FigN_638286585237033833.png"></p> <p>使用瀏覽器連上 <code>https://adfs.&lt;domain-name&gt;</code>，沒意外的話，你會看到登入畫面，按 Sign In 出現帳號密碼，試試若能 AD 帳號登入，成功!</p> <p><img src="/Posts/files/2023/FigM_638286585243683692.png"></p> <p data-slug="adfs-setup" data-title-en="AD FS notes - installation" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/09/23/13/11/iceberg-4498548_960_720.jpg#960#720">Notes of AD FS installation.</p>]]>
+      </description>
+      <content:encoded><![CDATA[<p>最近頻頻聽到新名詞 - ADFS，腦中卻沒什麼概念，甚為惶恐，趕緊研究做點 Lab 壓壓驚。</p> <p>AD FS 是 <a href="https://learn.microsoft.com/zh-tw/windows-server/identity/ad-fs/ad-fs-overview?WT.mc_id=DOP-MVP-37580">Active Directory Federation Service</a> 的縮寫，用白話解釋，傳統印象中，原本只能企業內部限定 Windows 使用的 AD，透過 AD FS 可拓展到公司外部實現身分認證、權限控管、單一登入(Single Sign On, SSO)，讓員工、客戶、供應商使用 AD 帳號存取企業的對外服務，甚至一些第三方 SaaS 服務 (Teams、Office 365、Salesforce)。</p> <p>由於 AD FS 是走 HTTPS 協定並支援 OAuth 標準，原本受限封閉內網使用的 AD 帳號一下子變得開放，可拿來登入 Internet 網站、管控 WebAPI 存取、手機 App 登入、甚至 IoT 裝置。這篇筆記打算在實驗環境把它裝起來，後面幾篇會寫幾行程式，試試跨平台整合 AD 帳號登入。</p> <p>AD FS 的安裝細節有點繁瑣，術語名詞又多，只看官方文件的<a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/deployment/windows-server-2012-r2-ad-fs-deployment-guide?WT.mc_id=DOP-MVP-37580">部署指南</a>要完成有點吃力，我參考了不少文件、YouTube 影片(像是<a href="https://www.youtube.com/watch?v=exv-V462Ppw">這支</a>，體驗傳說中被 YouTube 上有口音的印度小哥拯救)，及 Pluralsight 的<a href="https://app.pluralsight.com/library/courses/implement-windows-server-2019-identity-federation-access-solutions/table-of-contents">教學課程</a>，才摸出頭緒。這個過程，絕對值得寫成筆記。</p> <p>安裝 AD FS 的第一個關卡是要搞定憑證。在建好 DC 主機、建立 AD 網域，備好另一台 AD FS 主機並加入網域後，在 DC <a href="/blog/setup-ad-n-ca/">安裝 CA 服務</a>，開啟 CA 管理介面，在 Certificate Templates 資料夾按右鍵選 Manage，然後在 Certificate Templates Console 找到 Web Server，以其為範本 Duplicate Template 複製修改出 ADFS 用的範本：</p> <p><img src="/Posts/files/2023/Fig1_638286585197893082.png"></p> <p>在 General 頁籤，設定名稱為 ADFS Template：</p> <p><img src="/Posts/files/2023/Fig2_638286585199851927.png"></p> <p>勾選「Allow private key to be exported」：</p> <p><img src="/Posts/files/2023/Fig3_638286585201808849.png"></p> <p>權限部分要讓 Domain Comupters 具有 Enroll 權限：</p> <p><img src="/Posts/files/2023/Fig4_638286585203657494.png"></p> <p>設定好儲存後，用右鍵選單 New / Certificate Template to Issue 將剛才建立的 ADFS Template 加入 Certificate Templates 資料夾：</p> <p><img src="/Posts/files/2023/Fig6_638286585205661825.png"></p> <p>到這裡 CA 準備好了。</p> <p>接著我們連到 AD FS 主機產生 <code>adfs.&lt;domain-name&gt;</code> 憑證。</p> <p>關於 AD FS 的 DNS 名稱，由於後面會用到子網域名稱(如 <code>certauth.adfs.&lt;domain-name&gt;</code>)，故 <code>adfs.&lt;domain-name&gt;</code> 要保留對外使用，AD FS 主機我們命名為 <code>adfs1.&lt;domain-name&gt;</code> 與之區隔，實驗環境只有單一主機，故在 DNS 加入一筆 A 記錄將 adfs 對映到 adfs1 的 IP：</p> <p><img src="/Posts/files/2023/FigL_638286585207629290.png"></p> <p>DNS 設好後，登入 AD FS 主機(記得要先加入網域)，執行 certlm.msc 開啟 Local Computer 的憑證管理介面，在 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證：</p> <p><img src="/Posts/files/2023/Fig7_638286585209545442.png"></p> <p>憑證註冊介面：</p> <p><img src="/Posts/files/2023/Fig8_638286585211375398.png"></p> <p><img src="/Posts/files/2023/Fig5_638286585213304385.png"></p> <p>ADFS Template 需要填寫 Common Name、DNS 等資料：</p> <p><img src="/Posts/files/2023/FigA_638286585215134256.png"></p> <p>建立 Common Name = <code>adfs.&lt;domain-name&gt;</code> 跟三筆 DNS <code>adfs.&lt;domain-name&gt;</code>、 <code>enterpriseregistration.&lt;domain-name&gt;</code>、 <code>certauth.adfs.&lt;domain-name&gt;</code></p> <p><img src="/Posts/files/2023/FigB_638286585217053322.png"></p> <p>取個 Friendly Name：</p> <p><img src="/Posts/files/2023/FigC_638286585218837568.png"></p> <p>程式會連上 CA 取得憑證並存入 Local Computer 憑證儲存區：</p> <p><img src="/Posts/files/2023/FigD_638286585220671876.png"></p> <p>再來，我們希望 AD FS 服務用 <a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview?WT.mc_id=DOP-MVP-37580">Group Managed Service Account</a> (gMSA，無密碼帳號，由作業系統自動管理密碼，解決惱人的密碼定期變更問題，很適合用於服務或排程，這個未來有機會再專門寫一篇為大家講解) 執行，準備工作是要登入 DC 建立 Key Distribution Service 的 Root Key。</p> <pre><code># 預設 10 小時後啟用(考量AD複寫時間)，測試環境將時間設定 10 小時前以便馬上使用
+Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>終於，前置作業完成，可以安裝 AD FS 了。Add Roles and Feature Wizards 新增完 AD FS 會提示需要設定：</p> <p><img src="/Posts/files/2023/FigE_638286585222794605.png"></p> <p>選擇這是 Web Farm 的第一台：</p> <p><img src="/Posts/files/2023/FigF_638286585224993060.png"></p> <p>提供具有管理者權限的網域帳號進行設定：</p> <p><img src="/Posts/files/2023/FigG_638286585226873114.png"></p> <p>選取剛才裝好的 SSL 憑證：</p> <p><img src="/Posts/files/2023/FigH_638286585228985227.png"></p> <p>執行身分選擇新建一個 gMSA 帳號：</p> <p><img src="/Posts/files/2023/FigI_638286585230906088.png"></p> <p>資料庫選擇 Windows Internal Database 即可(漏抓圖)，多台 AD FS 主機時可存在 SQL Server。執行前會再次確認所有設定：</p> <p><img src="/Posts/files/2023/FigJ_638286585232866312.png"></p> <p>由於我們剛建完 Root Key 不到 10-小時就要用 gMSA，隨時改了生效時間，但因建立時間太短會有警告(可忽略)：</p> <p><img src="/Posts/files/2023/FigK_638286585235222141.png"></p> <p>如果沒意外，AD FS 就裝好了。</p> <p>要檢測 AD FS 是否正常，最簡單的方法是使用 IdP Initiated Signon Page 測試，它預設未啟用，需使用以下 PowerShell 指令啟用：</p> <pre><code>Set-AdfsProperties -EnableIdPInitiatedSignonPage $true
+</code></pre> <p><img src="/Posts/files/2023/FigN_638286585237033833.png"></p> <p>使用瀏覽器連上 <code>https://adfs.&lt;domain-name&gt;</code>，沒意外的話，你會看到登入畫面，按 Sign In 出現帳號密碼，試試若能 AD 帳號登入，成功!</p> <p><img src="/Posts/files/2023/FigM_638286585243683692.png"></p> <p data-slug="adfs-setup" data-title-en="AD FS notes - installation" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2019/09/23/13/11/iceberg-4498548_960_720.jpg#960#720">Notes of AD FS installation.</p>]]></content:encoded>
+      <itunes:image href="/Posts/files/2023/Fig1_638286585197893082.png"/>
+        <media:content url="/Posts/files/2023/Fig1_638286585197893082.png" medium="image"/>
+      <pubDate>Sat, 26 Aug 2023 14:55:55 GMT</pubDate>
+    </item><item>
+      <title><![CDATA[【茶包射手雜記】Azure DevOps Server ElasticSearch 記憶體上限問題]]></title>
+      <link>https://blog.darkthread.net/blog/elasticsearch-max-memory/</link>
+      <itunes:title><![CDATA[【茶包射手雜記】Azure DevOps Server ElasticSearch 記憶體上限問題]]></itunes:title>
+      <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>幫忙看了一起 Azure DevOps Server 主機剩餘記憶體不足發出告警的案例。(註：Azure DevOps Server 就是 TFS Server 啦，TFS <a href="https://learn.microsoft.com/zh-tw/azure/devops/server/tfs-is-now-azure-devops-server?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">從 2019 版改名</a>叫 Azure DevOps Server，雖有 Azure 之名，但可安裝在地端)</p> <p>重新認識幾件事：</p> <ol><li>Azure DevOps Server/TFS 2018 的程式碼、Wiki 網頁及工作項目的搜尋功能是<a href="https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">靠 ElasticSearch 完成的</a></li> <li>ElasticSearch 是個資料庫服務，跟全天下的資料庫一樣，策略上會積極佔用實體記憶體提升效能(也沒錯啦，RAM 買了都買了，拿來當 Cache 加速才不會浪費)</li> <li>Azure DevOps Server 安裝時預設會依主機記憶體多寡，設定 ElasticSearch 使用量</li></ol> <p>案例是台 16G RAM Azure DevOps Server，運作一段時間後出現可用記憶體低於 10% 告警，看了一下，elasticsearch-service-x64.exe 吃掉 5GB 是最大宗，加上 SQL、IIS 都是記憶體大戶，加上 OS 的檔案 Cache 等，導致記憶體剩餘量過低。註：作業系統 Cache 如 Mapped File、Metafile 等理應會在記憶體吃緊時逐步釋出 (參考：<a href="/blog/where-have-all-the-memory-gone/">Windows記憶體都用到哪裡去了?</a>)，但警報一直響很困擾。</p> <p>對照我手上的 VM，ElasticSearch 吃了 2.8GB，沒到 5G 那麼誇張。想了一下，應該是我 VM 一開始只配了 8G RAM，後來發現不夠才調到 16G，因此配給 ElasticSearch 的記憶體較少。</p> <p><img src="/Posts/files/2023/Fig1_638285175103327613.png"></p> <p>爬文查到可使用 <code>C:\Program Files\Azure DevOps Server 2022\Search\ES\v7.17\bin\ealsticsearch-service.bat manager</code> 叫出管理 UI 查看及修改設定，如下圖，我的 VM Initial memory pool 及 Maximum memory pool 都是 2400 MB；而案例中的主機是 4800，剛好兩倍，推測與安裝時主機 RAM 大小成正比。</p> <p><img src="/Posts/files/2023/Fig2_638285175107170451.png"></p> <p>基於不想常收到告警跟 Azure DevOps Server 使用者不多、搜索需求不大，將案例主機的設定也調至 2400 解決問題。結案。</p> <p>補充：由於 ElasticSearch 記憶體用量上限不會自動調整，因效能不足加 RAM 後記得調設定。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/42906451/288936">How to set memory limit to ElasticSearch in Windows? - stackoverflow</a></li> <li><a href="https://www.codewrecks.com/post/old/2018/01/increase-ram-for-elasticsearch-for-tfs-search/">Increase RAM for ElasticSearch for TFS Search - Codewrecks</a></li></ul> <p data-slug="elasticsearch-max-memory" data-fbimg="https://cdn.pixabay.com/photo/2014/12/28/02/23/mother-board-581597_960_720.jpg#960#720"> </p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>幫忙看了一起 Azure DevOps Server 主機剩餘記憶體不足發出告警的案例。(註：Azure DevOps Server 就是 TFS Server 啦，TFS <a href="https://learn.microsoft.com/zh-tw/azure/devops/server/tfs-is-now-azure-devops-server?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">從 2019 版改名</a>叫 Azure DevOps Server，雖有 Azure 之名，但可安裝在地端)</p> <p>重新認識幾件事：</p> <ol><li>Azure DevOps Server/TFS 2018 的程式碼、Wiki 網頁及工作項目的搜尋功能是<a href="https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">靠 ElasticSearch 完成的</a></li> <li>ElasticSearch 是個資料庫服務，跟全天下的資料庫一樣，策略上會積極佔用實體記憶體提升效能(也沒錯啦，RAM 買了都買了，拿來當 Cache 加速才不會浪費)</li> <li>Azure DevOps Server 安裝時預設會依主機記憶體多寡，設定 ElasticSearch 使用量</li></ol> <p>案例是台 16G RAM Azure DevOps Server，運作一段時間後出現可用記憶體低於 10% 告警，看了一下，elasticsearch-service-x64.exe 吃掉 5GB 是最大宗，加上 SQL、IIS 都是記憶體大戶，加上 OS 的檔案 Cache 等，導致記憶體剩餘量過低。註：作業系統 Cache 如 Mapped File、Metafile 等理應會在記憶體吃緊時逐步釋出 (參考：<a href="/blog/where-have-all-the-memory-gone/">Windows記憶體都用到哪裡去了?</a>)，但警報一直響很困擾。</p> <p>對照我手上的 VM，ElasticSearch 吃了 2.8GB，沒到 5G 那麼誇張。想了一下，應該是我 VM 一開始只配了 8G RAM，後來發現不夠才調到 16G，因此配給 ElasticSearch 的記憶體較少。</p> <p><img src="/Posts/files/2023/Fig1_638285175103327613.png"></p> <p>爬文查到可使用 <code>C:\Program Files\Azure DevOps Server 2022\Search\ES\v7.17\bin\ealsticsearch-service.bat manager</code> 叫出管理 UI 查看及修改設定，如下圖，我的 VM Initial memory pool 及 Maximum memory pool 都是 2400 MB；而案例中的主機是 4800，剛好兩倍，推測與安裝時主機 RAM 大小成正比。</p> <p><img src="/Posts/files/2023/Fig2_638285175107170451.png"></p> <p>基於不想常收到告警跟 Azure DevOps Server 使用者不多、搜索需求不大，將案例主機的設定也調至 2400 解決問題。結案。</p> <p>補充：由於 ElasticSearch 記憶體用量上限不會自動調整，因效能不足加 RAM 後記得調設定。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/42906451/288936">How to set memory limit to ElasticSearch in Windows? - stackoverflow</a></li> <li><a href="https://www.codewrecks.com/post/old/2018/01/increase-ram-for-elasticsearch-for-tfs-search/">Increase RAM for ElasticSearch for TFS Search - Codewrecks</a></li></ul> <p data-slug="elasticsearch-max-memory" data-fbimg="https://cdn.pixabay.com/photo/2014/12/28/02/23/mother-board-581597_960_720.jpg#960#720"> </p>]]>
+      </description>
+      <content:encoded><![CDATA[<p>幫忙看了一起 Azure DevOps Server 主機剩餘記憶體不足發出告警的案例。(註：Azure DevOps Server 就是 TFS Server 啦，TFS <a href="https://learn.microsoft.com/zh-tw/azure/devops/server/tfs-is-now-azure-devops-server?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">從 2019 版改名</a>叫 Azure DevOps Server，雖有 Azure 之名，但可安裝在地端)</p> <p>重新認識幾件事：</p> <ol><li>Azure DevOps Server/TFS 2018 的程式碼、Wiki 網頁及工作項目的搜尋功能是<a href="https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">靠 ElasticSearch 完成的</a></li> <li>ElasticSearch 是個資料庫服務，跟全天下的資料庫一樣，策略上會積極佔用實體記憶體提升效能(也沒錯啦，RAM 買了都買了，拿來當 Cache 加速才不會浪費)</li> <li>Azure DevOps Server 安裝時預設會依主機記憶體多寡，設定 ElasticSearch 使用量</li></ol> <p>案例是台 16G RAM Azure DevOps Server，運作一段時間後出現可用記憶體低於 10% 告警，看了一下，elasticsearch-service-x64.exe 吃掉 5GB 是最大宗，加上 SQL、IIS 都是記憶體大戶，加上 OS 的檔案 Cache 等，導致記憶體剩餘量過低。註：作業系統 Cache 如 Mapped File、Metafile 等理應會在記憶體吃緊時逐步釋出 (參考：<a href="/blog/where-have-all-the-memory-gone/">Windows記憶體都用到哪裡去了?</a>)，但警報一直響很困擾。</p> <p>對照我手上的 VM，ElasticSearch 吃了 2.8GB，沒到 5G 那麼誇張。想了一下，應該是我 VM 一開始只配了 8G RAM，後來發現不夠才調到 16G，因此配給 ElasticSearch 的記憶體較少。</p> <p><img src="/Posts/files/2023/Fig1_638285175103327613.png"></p> <p>爬文查到可使用 <code>C:\Program Files\Azure DevOps Server 2022\Search\ES\v7.17\bin\ealsticsearch-service.bat manager</code> 叫出管理 UI 查看及修改設定，如下圖，我的 VM Initial memory pool 及 Maximum memory pool 都是 2400 MB；而案例中的主機是 4800，剛好兩倍，推測與安裝時主機 RAM 大小成正比。</p> <p><img src="/Posts/files/2023/Fig2_638285175107170451.png"></p> <p>基於不想常收到告警跟 Azure DevOps Server 使用者不多、搜索需求不大，將案例主機的設定也調至 2400 解決問題。結案。</p> <p>補充：由於 ElasticSearch 記憶體用量上限不會自動調整，因效能不足加 RAM 後記得調設定。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/42906451/288936">How to set memory limit to ElasticSearch in Windows? - stackoverflow</a></li> <li><a href="https://www.codewrecks.com/post/old/2018/01/increase-ram-for-elasticsearch-for-tfs-search/">Increase RAM for ElasticSearch for TFS Search - Codewrecks</a></li></ul> <p data-slug="elasticsearch-max-memory" data-fbimg="https://cdn.pixabay.com/photo/2014/12/28/02/23/mother-board-581597_960_720.jpg#960#720"> </p>]]></content:encoded>
+      <itunes:image href="/Posts/files/2023/Fig1_638285175103327613.png"/>
+        <media:content url="/Posts/files/2023/Fig1_638285175103327613.png" medium="image"/>
+      <pubDate>Thu, 24 Aug 2023 23:44:27 GMT</pubDate>
+    </item></channel>
+</rss>
