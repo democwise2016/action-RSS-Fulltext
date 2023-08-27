@@ -782,5 +782,1329 @@ console.log( 'tableObject ',tableObject )</code></pre>
       <itunes:image href="https://mesak.tw/wp-content/uploads/2023/01/image.png"/>
         <media:content url="https://mesak.tw/wp-content/uploads/2023/01/image.png" medium="image"/>
       <pubDate>Wed, 11 Jan 2023 13:53:34 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[JS] Table 轉 Object 練習 part1]]></title>
+      <link>https://mesak.tw/code/javascript/11932/js-table-convert-to-object-part1</link>
+      <itunes:title><![CDATA[[JS] Table 轉 Object 練習 part1]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>自從工作開始分前後端分離之後，JavaScript 的東西就比較少去鑽研。但近期工作又開始大量使用到 JavaScript ，開發的途中會需要重複使用一些迴圈函數。還記得為了因應瀏覽器的變化以及複雜程度， jQuery 的出現就讓開發者省去不少事情，DOM 的迴圈 each 可以直接從選擇器的 $(dom).each 來使用，演變到現在瀏覽器大多直接使用 querySelectorAll 的方法來跑 forEach， ECMAScript 的演化大大降低了對 jQuery 的依賴程度，開發前端開始探究起 JavaScript 的深度，進而演變許多框架，想要學好JavaScript <a href="https://developer.mozilla.org/zh-TW/">MDN </a>就是個很好用的工具。</p>
+<p>寫程式不需要一步到位，逐步漸進的達成目的，有機會再去把程式碼精簡調校，能夠理解其原理才會是最好的解法</p>
+<p>這次就用個簡單的範例，當遇到表格的時候，要怎麼轉成 一般的 Plain Object ，這個例子也是我使用 Greasemonkey 腳本開發的時候，要將 DOM 的內容轉換成可以快速重複利用資料的做法，當使用腳本的時候，需要分解的網頁會是結果，要轉換成可利用的資料還需要經過一番抓取變換，熟悉操作之後就可以很容易地將資料轉換成畫面。</p>
+<p>首先來一個範例：</p>
+<pre><code>&lt;table border=1&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Company&lt;/th&gt;
+&lt;th&gt;Contact&lt;/th&gt;
+&lt;th&gt;Country&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Alfreds Futterkiste&lt;/td&gt;
+&lt;td&gt;Maria Anders&lt;/td&gt;
+&lt;td&gt;Germany&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Centro comercial Moctezuma&lt;/td&gt;
+&lt;td&gt;Francisco Chang&lt;/td&gt;
+&lt;td&gt;Mexico&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+<p>這算是最簡單的表格，不會有太多錯誤例外判斷，簡單分成 thead 跟 tbody ，標題跟內容都很好的分塊了</p>
+<p>以以往最直觀的 jQuery寫法 ，首先取得標題</p>
+<pre><code>let heads  = [];
+$('thead th').each( function(i,node) {
+heads.push( $(node).text() )
+})</code></pre>
+<p>接著，建立物件，把標題帶成 key 值，跑兩次迴圈把資料帶出</p>
+<pre><code>let tableObject = []
+$('tbody tr').each( function(i,trNode) {
+let data = {}
+$(trNode).find('td').each( function(index, tdNode) {
+data[ heads[index] ] =  $(tdNode).text()
+})
+tableObject.push(data)
+})
+console.log( tableObject );</code></pre>
+<p>以下為範例，因為是 console 可能要開啟編輯器來看</p>
+<p>當然現在主流都是寫原生，原生開發已經占去大多數的程式碼占比，所以該是拋開原生的時候了</p>
+<p>範例程式碼：</p>
+<pre><code>let headData = Array.from(document.querySelectorAll('thead &gt; tr &gt; th')).map(n=&gt;n.innerText)
+console.log('headData', headData )
+let tableObject = []
+for(let trNode of document.querySelectorAll('tbody &gt; tr') ){
+let data = {};
+Array.from(trNode.querySelectorAll('td')).forEach((n , index)=&gt;{
+data[ headData[index] ] = n.innerText
+})
+tableObject.push(data)
+}
+console.log( 'tableObject ',tableObject )
+</code></pre>
+<p>這邊可以看到我用了大量的 <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript">ES6 </a>語法，為了取得內容並轉換回陣列，使用了  Array.from ，可以看<a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Array/from"> MDN 文件</a>或是<a href="https://medium.com/%E5%B0%8F%E9%83%AD-%E0%B9%80%E0%B8%88%E0%B8%99/%E8%8F%9C%E9%B3%A5%E5%B7%A5%E7%A8%8B%E5%B8%AB-array-from-%E6%96%B9%E6%B3%95%E4%BB%8B%E7%B4%B9-c00568852a44">文章</a>，主要會這樣用是因為 querySelectorAll 回傳的會是 <a href="https://developer.mozilla.org/zh-TW/docs/Web/API/NodeList">NodeList </a>，想要跑迴圈加上回傳數值就可以放到 Array.from 裡面當成 array 來跑，最後用了 map 方法，把資料內容回傳變成 陣列</p>
+<p>接著用了<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of"> for of</a>  方法把 NodeList 給進行迭代，接著用相同方法把 head 的 值給取出來，塞給 data，然後把數值塞入 td 的文字</p>
+<p>最後push 到陣列中，這樣完成了一個 表格轉物件的方法，後面幾篇將會用不同方法給實現這幾段語法</p>
+<div>
+<blockquote data-secret="QhDcLG2Amj"><a href="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2">[JS] Table 轉 Object 練習 part2</a></blockquote><iframe sandbox="allow-scripts" security="restricted" title="[JS] Table 轉 Object 練習 part2 — 米薩克" src="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2/embed#?secret=0SFz68GrLB#?secret=QhDcLG2Amj" data-secret="QhDcLG2Amj" frameborder="0" marginwidth="0" marginheight="0" scrolling="no"></iframe>
+</div>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>自從工作開始分前後端分離之後，JavaScript 的東西就比較少去鑽研。但近期工作又開始大量使用到 JavaScript ，開發的途中會需要重複使用一些迴圈函數。還記得為了因應瀏覽器的變化以及複雜程度， jQuery 的出現就讓開發者省去不少事情，DOM 的迴圈 each 可以直接從選擇器的 $(dom).each 來使用，演變到現在瀏覽器大多直接使用 querySelectorAll 的方法來跑 forEach， ECMAScript 的演化大大降低了對 jQuery 的依賴程度，開發前端開始探究起 JavaScript 的深度，進而演變許多框架，想要學好JavaScript <a href="https://developer.mozilla.org/zh-TW/">MDN </a>就是個很好用的工具。</p>
+<p>寫程式不需要一步到位，逐步漸進的達成目的，有機會再去把程式碼精簡調校，能夠理解其原理才會是最好的解法</p>
+<p>這次就用個簡單的範例，當遇到表格的時候，要怎麼轉成 一般的 Plain Object ，這個例子也是我使用 Greasemonkey 腳本開發的時候，要將 DOM 的內容轉換成可以快速重複利用資料的做法，當使用腳本的時候，需要分解的網頁會是結果，要轉換成可利用的資料還需要經過一番抓取變換，熟悉操作之後就可以很容易地將資料轉換成畫面。</p>
+<p>首先來一個範例：</p>
+<pre><code>&lt;table border=1&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Company&lt;/th&gt;
+&lt;th&gt;Contact&lt;/th&gt;
+&lt;th&gt;Country&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Alfreds Futterkiste&lt;/td&gt;
+&lt;td&gt;Maria Anders&lt;/td&gt;
+&lt;td&gt;Germany&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Centro comercial Moctezuma&lt;/td&gt;
+&lt;td&gt;Francisco Chang&lt;/td&gt;
+&lt;td&gt;Mexico&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+<p>這算是最簡單的表格，不會有太多錯誤例外判斷，簡單分成 thead 跟 tbody ，標題跟內容都很好的分塊了</p>
+<p>以以往最直觀的 jQuery寫法 ，首先取得標題</p>
+<pre><code>let heads  = [];
+$('thead th').each( function(i,node) {
+heads.push( $(node).text() )
+})</code></pre>
+<p>接著，建立物件，把標題帶成 key 值，跑兩次迴圈把資料帶出</p>
+<pre><code>let tableObject = []
+$('tbody tr').each( function(i,trNode) {
+let data = {}
+$(trNode).find('td').each( function(index, tdNode) {
+data[ heads[index] ] =  $(tdNode).text()
+})
+tableObject.push(data)
+})
+console.log( tableObject );</code></pre>
+<p>以下為範例，因為是 console 可能要開啟編輯器來看</p>
+<p>當然現在主流都是寫原生，原生開發已經占去大多數的程式碼占比，所以該是拋開原生的時候了</p>
+<p>範例程式碼：</p>
+<pre><code>let headData = Array.from(document.querySelectorAll('thead &gt; tr &gt; th')).map(n=&gt;n.innerText)
+console.log('headData', headData )
+let tableObject = []
+for(let trNode of document.querySelectorAll('tbody &gt; tr') ){
+let data = {};
+Array.from(trNode.querySelectorAll('td')).forEach((n , index)=&gt;{
+data[ headData[index] ] = n.innerText
+})
+tableObject.push(data)
+}
+console.log( 'tableObject ',tableObject )
+</code></pre>
+<p>這邊可以看到我用了大量的 <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript">ES6 </a>語法，為了取得內容並轉換回陣列，使用了  Array.from ，可以看<a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Array/from"> MDN 文件</a>或是<a href="https://medium.com/%E5%B0%8F%E9%83%AD-%E0%B9%80%E0%B8%88%E0%B8%99/%E8%8F%9C%E9%B3%A5%E5%B7%A5%E7%A8%8B%E5%B8%AB-array-from-%E6%96%B9%E6%B3%95%E4%BB%8B%E7%B4%B9-c00568852a44">文章</a>，主要會這樣用是因為 querySelectorAll 回傳的會是 <a href="https://developer.mozilla.org/zh-TW/docs/Web/API/NodeList">NodeList </a>，想要跑迴圈加上回傳數值就可以放到 Array.from 裡面當成 array 來跑，最後用了 map 方法，把資料內容回傳變成 陣列</p>
+<p>接著用了<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of"> for of</a>  方法把 NodeList 給進行迭代，接著用相同方法把 head 的 值給取出來，塞給 data，然後把數值塞入 td 的文字</p>
+<p>最後push 到陣列中，這樣完成了一個 表格轉物件的方法，後面幾篇將會用不同方法給實現這幾段語法</p>
+<div>
+<blockquote data-secret="QhDcLG2Amj"><a href="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2">[JS] Table 轉 Object 練習 part2</a></blockquote><iframe sandbox="allow-scripts" security="restricted" title="[JS] Table 轉 Object 練習 part2 — 米薩克" src="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2/embed#?secret=0SFz68GrLB#?secret=QhDcLG2Amj" data-secret="QhDcLG2Amj" frameborder="0" marginwidth="0" marginheight="0" scrolling="no"></iframe>
+</div>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>自從工作開始分前後端分離之後，JavaScript 的東西就比較少去鑽研。但近期工作又開始大量使用到 JavaScript ，開發的途中會需要重複使用一些迴圈函數。還記得為了因應瀏覽器的變化以及複雜程度， jQuery 的出現就讓開發者省去不少事情，DOM 的迴圈 each 可以直接從選擇器的 $(dom).each 來使用，演變到現在瀏覽器大多直接使用 querySelectorAll 的方法來跑 forEach， ECMAScript 的演化大大降低了對 jQuery 的依賴程度，開發前端開始探究起 JavaScript 的深度，進而演變許多框架，想要學好JavaScript <a href="https://developer.mozilla.org/zh-TW/">MDN </a>就是個很好用的工具。</p>
+<p>寫程式不需要一步到位，逐步漸進的達成目的，有機會再去把程式碼精簡調校，能夠理解其原理才會是最好的解法</p>
+<p>這次就用個簡單的範例，當遇到表格的時候，要怎麼轉成 一般的 Plain Object ，這個例子也是我使用 Greasemonkey 腳本開發的時候，要將 DOM 的內容轉換成可以快速重複利用資料的做法，當使用腳本的時候，需要分解的網頁會是結果，要轉換成可利用的資料還需要經過一番抓取變換，熟悉操作之後就可以很容易地將資料轉換成畫面。</p>
+<p>首先來一個範例：</p>
+<pre><code>&lt;table border=1&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Company&lt;/th&gt;
+&lt;th&gt;Contact&lt;/th&gt;
+&lt;th&gt;Country&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Alfreds Futterkiste&lt;/td&gt;
+&lt;td&gt;Maria Anders&lt;/td&gt;
+&lt;td&gt;Germany&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Centro comercial Moctezuma&lt;/td&gt;
+&lt;td&gt;Francisco Chang&lt;/td&gt;
+&lt;td&gt;Mexico&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+<p>這算是最簡單的表格，不會有太多錯誤例外判斷，簡單分成 thead 跟 tbody ，標題跟內容都很好的分塊了</p>
+<p>以以往最直觀的 jQuery寫法 ，首先取得標題</p>
+<pre><code>let heads  = [];
+$('thead th').each( function(i,node) {
+heads.push( $(node).text() )
+})</code></pre>
+<p>接著，建立物件，把標題帶成 key 值，跑兩次迴圈把資料帶出</p>
+<pre><code>let tableObject = []
+$('tbody tr').each( function(i,trNode) {
+let data = {}
+$(trNode).find('td').each( function(index, tdNode) {
+data[ heads[index] ] =  $(tdNode).text()
+})
+tableObject.push(data)
+})
+console.log( tableObject );</code></pre>
+<p>以下為範例，因為是 console 可能要開啟編輯器來看</p>
+<p>當然現在主流都是寫原生，原生開發已經占去大多數的程式碼占比，所以該是拋開原生的時候了</p>
+<p>範例程式碼：</p>
+<pre><code>let headData = Array.from(document.querySelectorAll('thead &gt; tr &gt; th')).map(n=&gt;n.innerText)
+console.log('headData', headData )
+let tableObject = []
+for(let trNode of document.querySelectorAll('tbody &gt; tr') ){
+let data = {};
+Array.from(trNode.querySelectorAll('td')).forEach((n , index)=&gt;{
+data[ headData[index] ] = n.innerText
+})
+tableObject.push(data)
+}
+console.log( 'tableObject ',tableObject )
+</code></pre>
+<p>這邊可以看到我用了大量的 <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript">ES6 </a>語法，為了取得內容並轉換回陣列，使用了  Array.from ，可以看<a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Array/from"> MDN 文件</a>或是<a href="https://medium.com/%E5%B0%8F%E9%83%AD-%E0%B9%80%E0%B8%88%E0%B8%99/%E8%8F%9C%E9%B3%A5%E5%B7%A5%E7%A8%8B%E5%B8%AB-array-from-%E6%96%B9%E6%B3%95%E4%BB%8B%E7%B4%B9-c00568852a44">文章</a>，主要會這樣用是因為 querySelectorAll 回傳的會是 <a href="https://developer.mozilla.org/zh-TW/docs/Web/API/NodeList">NodeList </a>，想要跑迴圈加上回傳數值就可以放到 Array.from 裡面當成 array 來跑，最後用了 map 方法，把資料內容回傳變成 陣列</p>
+<p>接著用了<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of"> for of</a>  方法把 NodeList 給進行迭代，接著用相同方法把 head 的 值給取出來，塞給 data，然後把數值塞入 td 的文字</p>
+<p>最後push 到陣列中，這樣完成了一個 表格轉物件的方法，後面幾篇將會用不同方法給實現這幾段語法</p>
+<div>
+<blockquote data-secret="QhDcLG2Amj"><a href="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2">[JS] Table 轉 Object 練習 part2</a></blockquote><iframe sandbox="allow-scripts" security="restricted" title="[JS] Table 轉 Object 練習 part2 — 米薩克" src="https://mesak.tw/code/javascript/11933/js-table-convert-to-object-part2/embed#?secret=0SFz68GrLB#?secret=QhDcLG2Amj" data-secret="QhDcLG2Amj" frameborder="0" marginwidth="0" marginheight="0" scrolling="no"></iframe>
+</div>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]></content:encoded>
+      
+      <pubDate>Tue, 10 Jan 2023 15:29:43 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[軟體] 在 Synology 群暉 Nas 上利用 Docker 安裝 Gitea]]></title>
+      <link>https://mesak.tw/software/11917/installing-gitea-on-synology-nas-using-docker</link>
+      <itunes:title><![CDATA[[軟體] 在 Synology 群暉 Nas 上利用 Docker 安裝 Gitea]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>前一篇介紹利用  <a href="https://mesak.tw/software/11894/installing-home-assistant-on-synology-nas-using-docker">Docker 來安裝 Home Assistant</a>，可以看到有了 docker 之後，要架設服務是有多簡單的事情，今天要來介紹，在  Synology 群暉 Nas 上利用 Docker 安裝 Gitea。</p>
+<p>也是相當簡單，本來我也想跑一下 gitlab ，不過群輝上的套件中心 gitlab server 裝起來卻沒有找到相關用法，找著找著就看到一篇 <a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a> 看來又是個 docker 的工具，而且網路上介紹 gitlab 都採用 docker 架設居多，秉持著冒險精神，就先在 Nas上建立看看 Gitea 吧。</p>
+<p>進入 nas 打開 docker，搜尋 gitea</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cc98bfe2b7.jpg">
+<p>在第一個 image 裡面，按下下載，直接預設選擇 latest</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ef736b6f60.jpg">
+<p>等待下載完畢，大約 255 mb ，完畢之後就可以按下部屬</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2a53c979b4.jpg">
+<p>選擇網路，如果沒特別設定的話直接用與 dokcer host 相同網路就可。接著下一步</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4f914509e0.jpg">
+<p>自動重啟就自行考量需求，進階設定這邊一定要調一下。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e69091b795.jpg">
+<p>根據<a href="https://docs.gitea.io/en-us/install-with-docker/"> gitea 官方文件</a>的內容，最好一定要設定下列環境變數，避免寫入問題</p>
+<pre><code>USER_UID=1000
+USER_GID=1000</code></pre>
+<p>接著三個參數 SSH_POST、DISABLE_SSH、HTTP_PORT，就自行斟酌使用，HTTP_PORT 可以改變預設進入的 PORT</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c3b8e2b271.jpg">
+<p>接著儲存空間設定，我是新增一個 /data，對應到實體的 /docker/gitea 目錄，不設定也可以，記得備份</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d77f8bf00f.jpg">
+<p>確認一下內容就可以啟動完成。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-167260a5a0.jpg">
+<p>完成之後可以看到容器裡面有一個掛載上去的容器</p>
+<p>接著用同 IP 執行換 port 輸入剛剛 設定的 port</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2658578898.jpg">
+<p>這樣安裝就完成嚕，一進來就會引導進入設定參數，在這邊設定你要的參數或是設定值就可以嚕</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0d1b608290.jpg">
+<p>記得基本 URL 跟 伺服器域名要修改，可選設定要設定管理員帳號。</p>
+<p>是不是相當簡單呀</p>
+<p>有了 docker之後一堆設定項目都變得超簡單的，快弄台機器來玩吧，沒有機器也可以用 Windows WSL 來跑一下試試看</p>
+<p>參考資料：</p>
+<ul>
+<li><a href="https://docs.gitea.io/zh-tw/install-with-docker">https://docs.gitea.io/zh-tw/install-with-docker</a></li>
+<li><a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a></li>
+<li><a href="https://www.imlc.me/%E7%BE%A4%E6%99%96NAS%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85gitea/">群晖(Synology) NAS 如何安装 gitea</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/git">git</a><a href="https://mesak.tw/tag/gitea">gitea</a><a href="https://mesak.tw/tag/synology">Synology</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>前一篇介紹利用  <a href="https://mesak.tw/software/11894/installing-home-assistant-on-synology-nas-using-docker">Docker 來安裝 Home Assistant</a>，可以看到有了 docker 之後，要架設服務是有多簡單的事情，今天要來介紹，在  Synology 群暉 Nas 上利用 Docker 安裝 Gitea。</p>
+<p>也是相當簡單，本來我也想跑一下 gitlab ，不過群輝上的套件中心 gitlab server 裝起來卻沒有找到相關用法，找著找著就看到一篇 <a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a> 看來又是個 docker 的工具，而且網路上介紹 gitlab 都採用 docker 架設居多，秉持著冒險精神，就先在 Nas上建立看看 Gitea 吧。</p>
+<p>進入 nas 打開 docker，搜尋 gitea</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cc98bfe2b7.jpg">
+<p>在第一個 image 裡面，按下下載，直接預設選擇 latest</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ef736b6f60.jpg">
+<p>等待下載完畢，大約 255 mb ，完畢之後就可以按下部屬</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2a53c979b4.jpg">
+<p>選擇網路，如果沒特別設定的話直接用與 dokcer host 相同網路就可。接著下一步</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4f914509e0.jpg">
+<p>自動重啟就自行考量需求，進階設定這邊一定要調一下。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e69091b795.jpg">
+<p>根據<a href="https://docs.gitea.io/en-us/install-with-docker/"> gitea 官方文件</a>的內容，最好一定要設定下列環境變數，避免寫入問題</p>
+<pre><code>USER_UID=1000
+USER_GID=1000</code></pre>
+<p>接著三個參數 SSH_POST、DISABLE_SSH、HTTP_PORT，就自行斟酌使用，HTTP_PORT 可以改變預設進入的 PORT</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c3b8e2b271.jpg">
+<p>接著儲存空間設定，我是新增一個 /data，對應到實體的 /docker/gitea 目錄，不設定也可以，記得備份</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d77f8bf00f.jpg">
+<p>確認一下內容就可以啟動完成。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-167260a5a0.jpg">
+<p>完成之後可以看到容器裡面有一個掛載上去的容器</p>
+<p>接著用同 IP 執行換 port 輸入剛剛 設定的 port</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2658578898.jpg">
+<p>這樣安裝就完成嚕，一進來就會引導進入設定參數，在這邊設定你要的參數或是設定值就可以嚕</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0d1b608290.jpg">
+<p>記得基本 URL 跟 伺服器域名要修改，可選設定要設定管理員帳號。</p>
+<p>是不是相當簡單呀</p>
+<p>有了 docker之後一堆設定項目都變得超簡單的，快弄台機器來玩吧，沒有機器也可以用 Windows WSL 來跑一下試試看</p>
+<p>參考資料：</p>
+<ul>
+<li><a href="https://docs.gitea.io/zh-tw/install-with-docker">https://docs.gitea.io/zh-tw/install-with-docker</a></li>
+<li><a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a></li>
+<li><a href="https://www.imlc.me/%E7%BE%A4%E6%99%96NAS%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85gitea/">群晖(Synology) NAS 如何安装 gitea</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/git">git</a><a href="https://mesak.tw/tag/gitea">gitea</a><a href="https://mesak.tw/tag/synology">Synology</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>前一篇介紹利用  <a href="https://mesak.tw/software/11894/installing-home-assistant-on-synology-nas-using-docker">Docker 來安裝 Home Assistant</a>，可以看到有了 docker 之後，要架設服務是有多簡單的事情，今天要來介紹，在  Synology 群暉 Nas 上利用 Docker 安裝 Gitea。</p>
+<p>也是相當簡單，本來我也想跑一下 gitlab ，不過群輝上的套件中心 gitlab server 裝起來卻沒有找到相關用法，找著找著就看到一篇 <a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a> 看來又是個 docker 的工具，而且網路上介紹 gitlab 都採用 docker 架設居多，秉持著冒險精神，就先在 Nas上建立看看 Gitea 吧。</p>
+<p>進入 nas 打開 docker，搜尋 gitea</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cc98bfe2b7.jpg">
+<p>在第一個 image 裡面，按下下載，直接預設選擇 latest</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ef736b6f60.jpg">
+<p>等待下載完畢，大約 255 mb ，完畢之後就可以按下部屬</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2a53c979b4.jpg">
+<p>選擇網路，如果沒特別設定的話直接用與 dokcer host 相同網路就可。接著下一步</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4f914509e0.jpg">
+<p>自動重啟就自行考量需求，進階設定這邊一定要調一下。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e69091b795.jpg">
+<p>根據<a href="https://docs.gitea.io/en-us/install-with-docker/"> gitea 官方文件</a>的內容，最好一定要設定下列環境變數，避免寫入問題</p>
+<pre><code>USER_UID=1000
+USER_GID=1000</code></pre>
+<p>接著三個參數 SSH_POST、DISABLE_SSH、HTTP_PORT，就自行斟酌使用，HTTP_PORT 可以改變預設進入的 PORT</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c3b8e2b271.jpg">
+<p>接著儲存空間設定，我是新增一個 /data，對應到實體的 /docker/gitea 目錄，不設定也可以，記得備份</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d77f8bf00f.jpg">
+<p>確認一下內容就可以啟動完成。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-167260a5a0.jpg">
+<p>完成之後可以看到容器裡面有一個掛載上去的容器</p>
+<p>接著用同 IP 執行換 port 輸入剛剛 設定的 port</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2658578898.jpg">
+<p>這樣安裝就完成嚕，一進來就會引導進入設定參數，在這邊設定你要的參數或是設定值就可以嚕</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0d1b608290.jpg">
+<p>記得基本 URL 跟 伺服器域名要修改，可選設定要設定管理員帳號。</p>
+<p>是不是相當簡單呀</p>
+<p>有了 docker之後一堆設定項目都變得超簡單的，快弄台機器來玩吧，沒有機器也可以用 Windows WSL 來跑一下試試看</p>
+<p>參考資料：</p>
+<ul>
+<li><a href="https://docs.gitea.io/zh-tw/install-with-docker">https://docs.gitea.io/zh-tw/install-with-docker</a></li>
+<li><a href="https://blog.wu-boy.com/2020/02/install-gitea-using-docker/">使用 Docker 五分鐘安裝好 Gitea (自架 Git Hosting 最佳選擇)</a></li>
+<li><a href="https://www.imlc.me/%E7%BE%A4%E6%99%96NAS%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85gitea/">群晖(Synology) NAS 如何安装 gitea</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/git">git</a><a href="https://mesak.tw/tag/gitea">gitea</a><a href="https://mesak.tw/tag/synology">Synology</a>					</div>
+</div>]]></content:encoded>
+      <itunes:image href="https://mesak.tw/wp-content/uploads/2022/11/nas_docker_gitea_01.jpg"/>
+        <media:content url="https://mesak.tw/wp-content/uploads/2022/11/nas_docker_gitea_01.jpg" medium="image"/>
+      <pubDate>Thu, 24 Nov 2022 01:00:00 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[軟體] 在 Synology 群暉 Nas 上利用 Docker 安裝 Home Assistant]]></title>
+      <link>https://mesak.tw/software/11894/installing-home-assistant-on-synology-nas-using-docker</link>
+      <itunes:title><![CDATA[[軟體] 在 Synology 群暉 Nas 上利用 Docker 安裝 Home Assistant]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>現在應該有不少人想把家裡的家電利用一些智能家電的功能連線到所謂的網關裡面，但是常常又看到一些玩家說可以利用場景模式套出更多功能來，但是又不知道要怎麼實現這種作法，通常找到一些資訊都會說安裝 HA</p>
+<p>HA 全名為 Home Assistant，主要就是一個開放式原始碼的網關軟體，他強大的社群開發，讓不少 IoT 智能家居設備都可以透過它來連接，不過大多數人會跟你說你需要一台 樹莓派來安裝這個系統</p>
+<p>但是現在樹莓派一台已經溢價一個誇張的程度，用樹莓派還划算嗎，之前我曾經利用 Linux 的系統安裝 docker 來執行，不過光是要把一些檔案拖曳到系統中就夠折騰我了，還有什麼更方便的方法嗎？</p>
+<p>有的！買一台  Synology 群暉 ，就能搞定，新的 DSM 版本支援 Docker 安裝，只要你的機型符合，就可以安裝 Docker 套件來跑，Docker 是什麼呢？最簡單的來說，它就是台虛擬機的功能。</p>
+<p>利用  Synology 群暉 的套件中心，直接安裝 Docker ！</p>
+<p>在套件中心安裝好 Docker 之後，直接執行該應用程式</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-baa0556de7.jpg">
+<p>進入之後可以看到首頁，可以看到目前執行中的容器它的硬體占用概況，這時候點選 <strong>倉庫伺服器</strong> (Hub)</p>
+<p>這些 倉庫都是 Docker 官方可以讓使用者上傳的<a href="https://hub.docker.com/">映像檔倉庫</a> ，未來也可以自建或是抓別人建好的來玩玩</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4ddade09ed.jpg">
+<p>右邊有個搜尋框輸入 <strong>Home Assistant</strong> ，點選第二個  <a href="https://hub.docker.com/r/homeassistant/home-assistant">homeassistant/home-assistant</a> 項目</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-408558a585.jpg">
+<p>接著在該項目按下右鍵，<strong>下載此映像檔</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5381065eba.jpg">
+<p>接著要選擇版本，在 倉庫裡面稱為標籤，是建立者根據不同版本建立的標籤號碼，沒有特別選擇的話，建議就用 <strong>latest </strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-84f8ff31bc.jpg">
+<p>選擇好之後，等待安裝，映像檔右邊會顯示已經下載的容量</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-55a4a2520c.jpg">
+<p>總共 1G 安裝完畢，接著佈署就可以按下，按下之後準備佈署</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d97b5ea44d.jpg">
+<p>按下佈署之後會需要設定，以往使用 docker 都需要打參數，這邊直接有 UI 介面，直接在佈署名稱取一個你好辨識的名稱，我取名叫做 <strong>homeassistant</strong>，接著按下進階設定，記得啟動自動重啟也需要確認有勾選</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ddeee01625.jpg">
+<p>接著 新增一個設定叫做 TZ，內容輸入 <strong>Asia/Taipei </strong>，設定伺服器預設時區。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-edaa1c5922.jpg">
+<p>接著 docker 安裝套件之後，會自動幫你建立一個 docker 的資料夾，建議根據專案來分開，這邊在 docker 資料夾下直接建立一個 <strong>homeassistant</strong>，在下層目錄再建立一個 <strong>config</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7ffeb92ae0.jpg">
+<p>下一步就是對應到哪個目錄，這個木目錄通常需要 docker image 來指定，有時候指了沒啥用也挺尷尬的，這邊指的是設定檔，映像檔到時候更新或是重新載入，都靠這個設定檔</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8388ea7743.jpg">
+<p>輸入完畢之後，會有一個確認畫面，這邊確認填寫無誤之後，直接按完成。</p>
+<p>接著啟動之後 輸入 你的 nas IP 位置，然後 port:8123 就可以進入了</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2b7d401421.jpg">
+<p>就跟新安裝好的 HA 一樣，註冊帳號。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ff30635e7f.jpg">
+<p>選擇要不要回傳分析資料。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3e005163a4.jpg">
+<p>系統會自動掃描適合你的裝置，來進行自動載入組件</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1f66f1ec11.jpg">
+<p>大功告成，是不是非常簡單。</p>
+<p>後面要安裝套件，也直接操作 File Station 把檔案傳進去去之後，在容器那邊直接重新啟動即可</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cb87337a12.jpg">
+<p>後面進入 Nas 點選概況，都可以在這邊看到占用的記憶體，CPU的使用率等等資料</p>
+<p>這樣就相當簡單架設好了 HA 系統拉，如果想要更進階的調整，可以參考下列資料，利用排程的方式呼叫也是可行的喔</p>
+<p>參考資料</p>
+<ul>
+<li><a href="https://www.home-assistant.io/installation/alternative">https://www.home-assistant.io/installation/alternative</a></li>
+<li><a href="https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/">https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/</a></li>
+<li><a href="https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/">https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/homeassistant">HomeAssistant</a><a href="https://mesak.tw/tag/synology">Synology</a><a href="https://mesak.tw/tag/%e8%bb%9f%e9%ab%94">軟體</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>現在應該有不少人想把家裡的家電利用一些智能家電的功能連線到所謂的網關裡面，但是常常又看到一些玩家說可以利用場景模式套出更多功能來，但是又不知道要怎麼實現這種作法，通常找到一些資訊都會說安裝 HA</p>
+<p>HA 全名為 Home Assistant，主要就是一個開放式原始碼的網關軟體，他強大的社群開發，讓不少 IoT 智能家居設備都可以透過它來連接，不過大多數人會跟你說你需要一台 樹莓派來安裝這個系統</p>
+<p>但是現在樹莓派一台已經溢價一個誇張的程度，用樹莓派還划算嗎，之前我曾經利用 Linux 的系統安裝 docker 來執行，不過光是要把一些檔案拖曳到系統中就夠折騰我了，還有什麼更方便的方法嗎？</p>
+<p>有的！買一台  Synology 群暉 ，就能搞定，新的 DSM 版本支援 Docker 安裝，只要你的機型符合，就可以安裝 Docker 套件來跑，Docker 是什麼呢？最簡單的來說，它就是台虛擬機的功能。</p>
+<p>利用  Synology 群暉 的套件中心，直接安裝 Docker ！</p>
+<p>在套件中心安裝好 Docker 之後，直接執行該應用程式</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-baa0556de7.jpg">
+<p>進入之後可以看到首頁，可以看到目前執行中的容器它的硬體占用概況，這時候點選 <strong>倉庫伺服器</strong> (Hub)</p>
+<p>這些 倉庫都是 Docker 官方可以讓使用者上傳的<a href="https://hub.docker.com/">映像檔倉庫</a> ，未來也可以自建或是抓別人建好的來玩玩</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4ddade09ed.jpg">
+<p>右邊有個搜尋框輸入 <strong>Home Assistant</strong> ，點選第二個  <a href="https://hub.docker.com/r/homeassistant/home-assistant">homeassistant/home-assistant</a> 項目</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-408558a585.jpg">
+<p>接著在該項目按下右鍵，<strong>下載此映像檔</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5381065eba.jpg">
+<p>接著要選擇版本，在 倉庫裡面稱為標籤，是建立者根據不同版本建立的標籤號碼，沒有特別選擇的話，建議就用 <strong>latest </strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-84f8ff31bc.jpg">
+<p>選擇好之後，等待安裝，映像檔右邊會顯示已經下載的容量</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-55a4a2520c.jpg">
+<p>總共 1G 安裝完畢，接著佈署就可以按下，按下之後準備佈署</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d97b5ea44d.jpg">
+<p>按下佈署之後會需要設定，以往使用 docker 都需要打參數，這邊直接有 UI 介面，直接在佈署名稱取一個你好辨識的名稱，我取名叫做 <strong>homeassistant</strong>，接著按下進階設定，記得啟動自動重啟也需要確認有勾選</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ddeee01625.jpg">
+<p>接著 新增一個設定叫做 TZ，內容輸入 <strong>Asia/Taipei </strong>，設定伺服器預設時區。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-edaa1c5922.jpg">
+<p>接著 docker 安裝套件之後，會自動幫你建立一個 docker 的資料夾，建議根據專案來分開，這邊在 docker 資料夾下直接建立一個 <strong>homeassistant</strong>，在下層目錄再建立一個 <strong>config</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7ffeb92ae0.jpg">
+<p>下一步就是對應到哪個目錄，這個木目錄通常需要 docker image 來指定，有時候指了沒啥用也挺尷尬的，這邊指的是設定檔，映像檔到時候更新或是重新載入，都靠這個設定檔</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8388ea7743.jpg">
+<p>輸入完畢之後，會有一個確認畫面，這邊確認填寫無誤之後，直接按完成。</p>
+<p>接著啟動之後 輸入 你的 nas IP 位置，然後 port:8123 就可以進入了</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2b7d401421.jpg">
+<p>就跟新安裝好的 HA 一樣，註冊帳號。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ff30635e7f.jpg">
+<p>選擇要不要回傳分析資料。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3e005163a4.jpg">
+<p>系統會自動掃描適合你的裝置，來進行自動載入組件</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1f66f1ec11.jpg">
+<p>大功告成，是不是非常簡單。</p>
+<p>後面要安裝套件，也直接操作 File Station 把檔案傳進去去之後，在容器那邊直接重新啟動即可</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cb87337a12.jpg">
+<p>後面進入 Nas 點選概況，都可以在這邊看到占用的記憶體，CPU的使用率等等資料</p>
+<p>這樣就相當簡單架設好了 HA 系統拉，如果想要更進階的調整，可以參考下列資料，利用排程的方式呼叫也是可行的喔</p>
+<p>參考資料</p>
+<ul>
+<li><a href="https://www.home-assistant.io/installation/alternative">https://www.home-assistant.io/installation/alternative</a></li>
+<li><a href="https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/">https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/</a></li>
+<li><a href="https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/">https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/homeassistant">HomeAssistant</a><a href="https://mesak.tw/tag/synology">Synology</a><a href="https://mesak.tw/tag/%e8%bb%9f%e9%ab%94">軟體</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>現在應該有不少人想把家裡的家電利用一些智能家電的功能連線到所謂的網關裡面，但是常常又看到一些玩家說可以利用場景模式套出更多功能來，但是又不知道要怎麼實現這種作法，通常找到一些資訊都會說安裝 HA</p>
+<p>HA 全名為 Home Assistant，主要就是一個開放式原始碼的網關軟體，他強大的社群開發，讓不少 IoT 智能家居設備都可以透過它來連接，不過大多數人會跟你說你需要一台 樹莓派來安裝這個系統</p>
+<p>但是現在樹莓派一台已經溢價一個誇張的程度，用樹莓派還划算嗎，之前我曾經利用 Linux 的系統安裝 docker 來執行，不過光是要把一些檔案拖曳到系統中就夠折騰我了，還有什麼更方便的方法嗎？</p>
+<p>有的！買一台  Synology 群暉 ，就能搞定，新的 DSM 版本支援 Docker 安裝，只要你的機型符合，就可以安裝 Docker 套件來跑，Docker 是什麼呢？最簡單的來說，它就是台虛擬機的功能。</p>
+<p>利用  Synology 群暉 的套件中心，直接安裝 Docker ！</p>
+<p>在套件中心安裝好 Docker 之後，直接執行該應用程式</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-baa0556de7.jpg">
+<p>進入之後可以看到首頁，可以看到目前執行中的容器它的硬體占用概況，這時候點選 <strong>倉庫伺服器</strong> (Hub)</p>
+<p>這些 倉庫都是 Docker 官方可以讓使用者上傳的<a href="https://hub.docker.com/">映像檔倉庫</a> ，未來也可以自建或是抓別人建好的來玩玩</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-4ddade09ed.jpg">
+<p>右邊有個搜尋框輸入 <strong>Home Assistant</strong> ，點選第二個  <a href="https://hub.docker.com/r/homeassistant/home-assistant">homeassistant/home-assistant</a> 項目</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-408558a585.jpg">
+<p>接著在該項目按下右鍵，<strong>下載此映像檔</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5381065eba.jpg">
+<p>接著要選擇版本，在 倉庫裡面稱為標籤，是建立者根據不同版本建立的標籤號碼，沒有特別選擇的話，建議就用 <strong>latest </strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-84f8ff31bc.jpg">
+<p>選擇好之後，等待安裝，映像檔右邊會顯示已經下載的容量</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-55a4a2520c.jpg">
+<p>總共 1G 安裝完畢，接著佈署就可以按下，按下之後準備佈署</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d97b5ea44d.jpg">
+<p>按下佈署之後會需要設定，以往使用 docker 都需要打參數，這邊直接有 UI 介面，直接在佈署名稱取一個你好辨識的名稱，我取名叫做 <strong>homeassistant</strong>，接著按下進階設定，記得啟動自動重啟也需要確認有勾選</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ddeee01625.jpg">
+<p>接著 新增一個設定叫做 TZ，內容輸入 <strong>Asia/Taipei </strong>，設定伺服器預設時區。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-edaa1c5922.jpg">
+<p>接著 docker 安裝套件之後，會自動幫你建立一個 docker 的資料夾，建議根據專案來分開，這邊在 docker 資料夾下直接建立一個 <strong>homeassistant</strong>，在下層目錄再建立一個 <strong>config</strong></p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7ffeb92ae0.jpg">
+<p>下一步就是對應到哪個目錄，這個木目錄通常需要 docker image 來指定，有時候指了沒啥用也挺尷尬的，這邊指的是設定檔，映像檔到時候更新或是重新載入，都靠這個設定檔</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8388ea7743.jpg">
+<p>輸入完畢之後，會有一個確認畫面，這邊確認填寫無誤之後，直接按完成。</p>
+<p>接著啟動之後 輸入 你的 nas IP 位置，然後 port:8123 就可以進入了</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-2b7d401421.jpg">
+<p>就跟新安裝好的 HA 一樣，註冊帳號。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ff30635e7f.jpg">
+<p>選擇要不要回傳分析資料。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3e005163a4.jpg">
+<p>系統會自動掃描適合你的裝置，來進行自動載入組件</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1f66f1ec11.jpg">
+<p>大功告成，是不是非常簡單。</p>
+<p>後面要安裝套件，也直接操作 File Station 把檔案傳進去去之後，在容器那邊直接重新啟動即可</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-cb87337a12.jpg">
+<p>後面進入 Nas 點選概況，都可以在這邊看到占用的記憶體，CPU的使用率等等資料</p>
+<p>這樣就相當簡單架設好了 HA 系統拉，如果想要更進階的調整，可以參考下列資料，利用排程的方式呼叫也是可行的喔</p>
+<p>參考資料</p>
+<ul>
+<li><a href="https://www.home-assistant.io/installation/alternative">https://www.home-assistant.io/installation/alternative</a></li>
+<li><a href="https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/">https://smarthomeaddict.co.uk/2022/09/installing-home-assistant-on-synology-nas-using-docker/</a></li>
+<li><a href="https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/">https://mariushosting.com/how-to-install-home-assistant-on-your-synology-nas/</a></li>
+</ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/docker">docker</a><a href="https://mesak.tw/tag/homeassistant">HomeAssistant</a><a href="https://mesak.tw/tag/synology">Synology</a><a href="https://mesak.tw/tag/%e8%bb%9f%e9%ab%94">軟體</a>					</div>
+</div>]]></content:encoded>
+      <itunes:image href="https://mesak.tw/wp-content/uploads/2022/11/nas_docker_ha_01.jpg"/>
+        <media:content url="https://mesak.tw/wp-content/uploads/2022/11/nas_docker_ha_01.jpg" medium="image"/>
+      <pubDate>Thu, 17 Nov 2022 01:00:00 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[PHP] Laravel Controller callAction 應用]]></title>
+      <link>https://mesak.tw/code/php/11888/php-laravel-controller-callaction</link>
+      <itunes:title><![CDATA[[PHP] Laravel Controller callAction 應用]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>前陣子在爬 Laravel 的路由，發現在呼叫 Controller 的時候，並不是直接執行，而是採用 callback function 去呼叫的模式，在路由裡面有一段路徑：</p>
+<div><p><code>Illuminate\Routing\ControllerDispatcher</code></p>
+</div>
+<div><pre><code>    public function dispatch(Route $route, $controller, $method)
+{
+$parameters = $this-&gt;resolveClassMethodDependencies(
+$route-&gt;parametersWithoutNulls(), $controller, $method
+);
+if (method_exists($controller, 'callAction')) {
+return $controller-&gt;callAction($method, $parameters);
+}
+return $controller-&gt;{$method}(...array_values($parameters));
+}
+</code></pre>
+</div>
+<p>可以看到 Controller 在執行之前會先去檢查你的 Controller 有沒有一個叫做 callAtion 的 function 沒有就回傳並呼叫路由指定的 Controller method。</p>
+<p>這就引發了我的一個想法，Controller 在實作的時候不管是 API 還是 WEB 路由，都必須要回傳一個 response 類別來顯示內容</p>
+<p>其中 API 的回傳，大部分的人都會統一 json，但是內容選擇性相當的多樣，不少人都自訂自己的 JSON Response Schema ，或是利用 <a href="https://medium.com/@JoubranJad/laravel-response-macros-for-apis-260198b3114f" target="_blank">Response::macro</a> 的方式去新建一個 API Response。</p>
+<p>callAtion 最主要的功能，就是將你的 method 先攔截一次再執行，跟  middleware 作用有點像，但是只給 Controller 專屬利用，這跟我看到有些專案在 Web 裡面先塞入 一些基本頁面參數的數值，這樣省事很多。</p>
+<h2>API Controller</h2>
+<p>以我自己的專案，我建立了一個 ApiController，讓路由中 API 的資料夾下的內容全部繼承 ApiController，攔截所有結果，轉換成 API Response 。</p>
+<p>之前看過有個方法  <a href="https://dev.to/bawa_geek/laravel-api-the-best-way-to-return-the-uniform-response-for-all-type-of-requests-2ao1" target="_blank">Laravel API – The best way to Return the uniform Response for all type of Requests</a> ，裡面直接在每個 API 加上一個  ApiResponseTrait 特徵，讓每個 Controller method 都去呼叫 respondWithResource 這個方法，這樣其實一開始很方便，但是當你維護的程式碼一龐大，就很恐怖了。</p>
+<p>假設我們先以 api 版本 做為開發設計，JSON Response Schema 都需要訂一個版本，可以給 手機一個版本，給 Web 一個版本，或是版本更新的問題，以這樣的前提之下去設計，同一維護 JSON Response Schema 就很重要，因此 ApiController callAtion  就可以很好的重複利用，你可以在每個路由建立不同的 ApiController ，呼叫自訂的  JSON Response Schema ，讓 Controller 去專注的回傳 Resource 或是 Collection ：</p>
+<div><pre><code>    public function callAction($method, $parameters)
+{
+$result =  $this-&gt;{$method}(...array_values($parameters));
+$httpStatus = ($method  === 'store') ? 201 : 200;
+if ($result instanceof ResponseSchema) {
+$response = &amp;$result;
+} else {
+$response = new ResponseSchema($result);
+}
+$response-&gt;setStatus($httpStatus);
+return response()-&gt;json($response, $httpStatus);
+}
+</code></pre>
+</div>
+<p>我建立了一個 ResponseSchema 的類別，專門定義 JSON Schema 格式，然後統一回傳，Controller 回傳的內容都會是 執行成功後的結果，唯一有一點小差異的是 新增的method 統一我叫做 store ，會把 http status code 回傳 201。</p>
+<p>由於這邊只回傳 成功的資訊，所以 Controller 就不用寫一堆 try catch，專注的把必要的資訊回傳就可以了</p>
+<h2>Error Handler 錯誤處理</h2>
+<p>錯誤處理該如何處理呢，根據官方網站所提到 <a href="https://laravel.com/docs/8.x/errors#the-exception-handler" target="_blank">the-exception-handler</a>，錯誤有專門的錯誤處理 Handler ，所以只需要在 </p>
+<div><p><code>App\Exceptions\Handler</code></p>
+</div>
+<p>這支程式裡面專注的去處理錯誤，在 render function 裡面去載入 ResponseSchema 吐出相應的方法，就可以統一  JSON Response Schema </p>
+<div><pre><code>    public function render($request, Throwable $exception)
+{
+$responseSchema = new ResponseSchema();
+$statusCode = 500;
+$responseSchema-&gt;setException($exception);
+$responseSchema-&gt;setMessage('Server Error');
+$responseSchema-&gt;setStatus($statusCode);
+if ($request-&gt;is(['api/*', 'oauth/*'])) {
+$request-&gt;headers-&gt;set('Accept', 'application/json');
+return response($responseSchema-&gt;toArray(), $statusCode);
+}
+return parent::render($request, $exception);
+}
+</code></pre>
+</div>
+<p>目前這方法是我早期實作 API Response 的方法，這樣可以專注在 Controller 寫作上，達到分層分工的目的</p>
+<p>目前專案透過這種 API 實作後的內容結構都長這樣：</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f70280f915.png">
+<p>因為錯誤都會丟到 Exceptions 去處理，所以也不用處理太多判斷邏輯，Request 近來之前就可以擋掉不少錯誤，取出模組的時候也可以用  findOrFail 去處理，錯誤就會直接拋錯，最後回傳 Resource 就搞定</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/laravel">laravel</a><a href="https://mesak.tw/tag/php">php</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>前陣子在爬 Laravel 的路由，發現在呼叫 Controller 的時候，並不是直接執行，而是採用 callback function 去呼叫的模式，在路由裡面有一段路徑：</p>
+<div><p><code>Illuminate\Routing\ControllerDispatcher</code></p>
+</div>
+<div><pre><code>    public function dispatch(Route $route, $controller, $method)
+{
+$parameters = $this-&gt;resolveClassMethodDependencies(
+$route-&gt;parametersWithoutNulls(), $controller, $method
+);
+if (method_exists($controller, 'callAction')) {
+return $controller-&gt;callAction($method, $parameters);
+}
+return $controller-&gt;{$method}(...array_values($parameters));
+}
+</code></pre>
+</div>
+<p>可以看到 Controller 在執行之前會先去檢查你的 Controller 有沒有一個叫做 callAtion 的 function 沒有就回傳並呼叫路由指定的 Controller method。</p>
+<p>這就引發了我的一個想法，Controller 在實作的時候不管是 API 還是 WEB 路由，都必須要回傳一個 response 類別來顯示內容</p>
+<p>其中 API 的回傳，大部分的人都會統一 json，但是內容選擇性相當的多樣，不少人都自訂自己的 JSON Response Schema ，或是利用 <a href="https://medium.com/@JoubranJad/laravel-response-macros-for-apis-260198b3114f" target="_blank">Response::macro</a> 的方式去新建一個 API Response。</p>
+<p>callAtion 最主要的功能，就是將你的 method 先攔截一次再執行，跟  middleware 作用有點像，但是只給 Controller 專屬利用，這跟我看到有些專案在 Web 裡面先塞入 一些基本頁面參數的數值，這樣省事很多。</p>
+<h2>API Controller</h2>
+<p>以我自己的專案，我建立了一個 ApiController，讓路由中 API 的資料夾下的內容全部繼承 ApiController，攔截所有結果，轉換成 API Response 。</p>
+<p>之前看過有個方法  <a href="https://dev.to/bawa_geek/laravel-api-the-best-way-to-return-the-uniform-response-for-all-type-of-requests-2ao1" target="_blank">Laravel API – The best way to Return the uniform Response for all type of Requests</a> ，裡面直接在每個 API 加上一個  ApiResponseTrait 特徵，讓每個 Controller method 都去呼叫 respondWithResource 這個方法，這樣其實一開始很方便，但是當你維護的程式碼一龐大，就很恐怖了。</p>
+<p>假設我們先以 api 版本 做為開發設計，JSON Response Schema 都需要訂一個版本，可以給 手機一個版本，給 Web 一個版本，或是版本更新的問題，以這樣的前提之下去設計，同一維護 JSON Response Schema 就很重要，因此 ApiController callAtion  就可以很好的重複利用，你可以在每個路由建立不同的 ApiController ，呼叫自訂的  JSON Response Schema ，讓 Controller 去專注的回傳 Resource 或是 Collection ：</p>
+<div><pre><code>    public function callAction($method, $parameters)
+{
+$result =  $this-&gt;{$method}(...array_values($parameters));
+$httpStatus = ($method  === 'store') ? 201 : 200;
+if ($result instanceof ResponseSchema) {
+$response = &amp;$result;
+} else {
+$response = new ResponseSchema($result);
+}
+$response-&gt;setStatus($httpStatus);
+return response()-&gt;json($response, $httpStatus);
+}
+</code></pre>
+</div>
+<p>我建立了一個 ResponseSchema 的類別，專門定義 JSON Schema 格式，然後統一回傳，Controller 回傳的內容都會是 執行成功後的結果，唯一有一點小差異的是 新增的method 統一我叫做 store ，會把 http status code 回傳 201。</p>
+<p>由於這邊只回傳 成功的資訊，所以 Controller 就不用寫一堆 try catch，專注的把必要的資訊回傳就可以了</p>
+<h2>Error Handler 錯誤處理</h2>
+<p>錯誤處理該如何處理呢，根據官方網站所提到 <a href="https://laravel.com/docs/8.x/errors#the-exception-handler" target="_blank">the-exception-handler</a>，錯誤有專門的錯誤處理 Handler ，所以只需要在 </p>
+<div><p><code>App\Exceptions\Handler</code></p>
+</div>
+<p>這支程式裡面專注的去處理錯誤，在 render function 裡面去載入 ResponseSchema 吐出相應的方法，就可以統一  JSON Response Schema </p>
+<div><pre><code>    public function render($request, Throwable $exception)
+{
+$responseSchema = new ResponseSchema();
+$statusCode = 500;
+$responseSchema-&gt;setException($exception);
+$responseSchema-&gt;setMessage('Server Error');
+$responseSchema-&gt;setStatus($statusCode);
+if ($request-&gt;is(['api/*', 'oauth/*'])) {
+$request-&gt;headers-&gt;set('Accept', 'application/json');
+return response($responseSchema-&gt;toArray(), $statusCode);
+}
+return parent::render($request, $exception);
+}
+</code></pre>
+</div>
+<p>目前這方法是我早期實作 API Response 的方法，這樣可以專注在 Controller 寫作上，達到分層分工的目的</p>
+<p>目前專案透過這種 API 實作後的內容結構都長這樣：</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f70280f915.png">
+<p>因為錯誤都會丟到 Exceptions 去處理，所以也不用處理太多判斷邏輯，Request 近來之前就可以擋掉不少錯誤，取出模組的時候也可以用  findOrFail 去處理，錯誤就會直接拋錯，最後回傳 Resource 就搞定</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/laravel">laravel</a><a href="https://mesak.tw/tag/php">php</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>前陣子在爬 Laravel 的路由，發現在呼叫 Controller 的時候，並不是直接執行，而是採用 callback function 去呼叫的模式，在路由裡面有一段路徑：</p>
+<div><p><code>Illuminate\Routing\ControllerDispatcher</code></p>
+</div>
+<div><pre><code>    public function dispatch(Route $route, $controller, $method)
+{
+$parameters = $this-&gt;resolveClassMethodDependencies(
+$route-&gt;parametersWithoutNulls(), $controller, $method
+);
+if (method_exists($controller, 'callAction')) {
+return $controller-&gt;callAction($method, $parameters);
+}
+return $controller-&gt;{$method}(...array_values($parameters));
+}
+</code></pre>
+</div>
+<p>可以看到 Controller 在執行之前會先去檢查你的 Controller 有沒有一個叫做 callAtion 的 function 沒有就回傳並呼叫路由指定的 Controller method。</p>
+<p>這就引發了我的一個想法，Controller 在實作的時候不管是 API 還是 WEB 路由，都必須要回傳一個 response 類別來顯示內容</p>
+<p>其中 API 的回傳，大部分的人都會統一 json，但是內容選擇性相當的多樣，不少人都自訂自己的 JSON Response Schema ，或是利用 <a href="https://medium.com/@JoubranJad/laravel-response-macros-for-apis-260198b3114f" target="_blank">Response::macro</a> 的方式去新建一個 API Response。</p>
+<p>callAtion 最主要的功能，就是將你的 method 先攔截一次再執行，跟  middleware 作用有點像，但是只給 Controller 專屬利用，這跟我看到有些專案在 Web 裡面先塞入 一些基本頁面參數的數值，這樣省事很多。</p>
+<h2>API Controller</h2>
+<p>以我自己的專案，我建立了一個 ApiController，讓路由中 API 的資料夾下的內容全部繼承 ApiController，攔截所有結果，轉換成 API Response 。</p>
+<p>之前看過有個方法  <a href="https://dev.to/bawa_geek/laravel-api-the-best-way-to-return-the-uniform-response-for-all-type-of-requests-2ao1" target="_blank">Laravel API – The best way to Return the uniform Response for all type of Requests</a> ，裡面直接在每個 API 加上一個  ApiResponseTrait 特徵，讓每個 Controller method 都去呼叫 respondWithResource 這個方法，這樣其實一開始很方便，但是當你維護的程式碼一龐大，就很恐怖了。</p>
+<p>假設我們先以 api 版本 做為開發設計，JSON Response Schema 都需要訂一個版本，可以給 手機一個版本，給 Web 一個版本，或是版本更新的問題，以這樣的前提之下去設計，同一維護 JSON Response Schema 就很重要，因此 ApiController callAtion  就可以很好的重複利用，你可以在每個路由建立不同的 ApiController ，呼叫自訂的  JSON Response Schema ，讓 Controller 去專注的回傳 Resource 或是 Collection ：</p>
+<div><pre><code>    public function callAction($method, $parameters)
+{
+$result =  $this-&gt;{$method}(...array_values($parameters));
+$httpStatus = ($method  === 'store') ? 201 : 200;
+if ($result instanceof ResponseSchema) {
+$response = &amp;$result;
+} else {
+$response = new ResponseSchema($result);
+}
+$response-&gt;setStatus($httpStatus);
+return response()-&gt;json($response, $httpStatus);
+}
+</code></pre>
+</div>
+<p>我建立了一個 ResponseSchema 的類別，專門定義 JSON Schema 格式，然後統一回傳，Controller 回傳的內容都會是 執行成功後的結果，唯一有一點小差異的是 新增的method 統一我叫做 store ，會把 http status code 回傳 201。</p>
+<p>由於這邊只回傳 成功的資訊，所以 Controller 就不用寫一堆 try catch，專注的把必要的資訊回傳就可以了</p>
+<h2>Error Handler 錯誤處理</h2>
+<p>錯誤處理該如何處理呢，根據官方網站所提到 <a href="https://laravel.com/docs/8.x/errors#the-exception-handler" target="_blank">the-exception-handler</a>，錯誤有專門的錯誤處理 Handler ，所以只需要在 </p>
+<div><p><code>App\Exceptions\Handler</code></p>
+</div>
+<p>這支程式裡面專注的去處理錯誤，在 render function 裡面去載入 ResponseSchema 吐出相應的方法，就可以統一  JSON Response Schema </p>
+<div><pre><code>    public function render($request, Throwable $exception)
+{
+$responseSchema = new ResponseSchema();
+$statusCode = 500;
+$responseSchema-&gt;setException($exception);
+$responseSchema-&gt;setMessage('Server Error');
+$responseSchema-&gt;setStatus($statusCode);
+if ($request-&gt;is(['api/*', 'oauth/*'])) {
+$request-&gt;headers-&gt;set('Accept', 'application/json');
+return response($responseSchema-&gt;toArray(), $statusCode);
+}
+return parent::render($request, $exception);
+}
+</code></pre>
+</div>
+<p>目前這方法是我早期實作 API Response 的方法，這樣可以專注在 Controller 寫作上，達到分層分工的目的</p>
+<p>目前專案透過這種 API 實作後的內容結構都長這樣：</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f70280f915.png">
+<p>因為錯誤都會丟到 Exceptions 去處理，所以也不用處理太多判斷邏輯，Request 近來之前就可以擋掉不少錯誤，取出模組的時候也可以用  findOrFail 去處理，錯誤就會直接拋錯，最後回傳 Resource 就搞定</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/laravel">laravel</a><a href="https://mesak.tw/tag/php">php</a>					</div>
+</div>]]></content:encoded>
+      <itunes:image href="https://mesak.tw/wp-content/uploads/2022/07/Screenshot-2022-07-29-221031-1.png"/>
+        <media:content url="https://mesak.tw/wp-content/uploads/2022/07/Screenshot-2022-07-29-221031-1.png" medium="image"/>
+      <pubDate>Fri, 29 Jul 2022 04:34:05 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[JS] 利用 ES6 的 Classes 切割 API Data 建立乾淨的架構]]></title>
+      <link>https://mesak.tw/code/javascript/11884/use-js-es6-classes-to-clean-architecture-for-data-layout</link>
+      <itunes:title><![CDATA[[JS] 利用 ES6 的 Classes 切割 API Data 建立乾淨的架構]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>前端開發中的時候，很容易把 API 事件寫在同一個 component 裡面，大部分人會進行封裝，讓傳送 API 的方法變得更簡單</p>
+<p>先前碰到同事裡用前端框架系統 Vue 的時候，則是把 API 放到 Vuex 裡面，之前看過 React 裡面，如果上下層傳遞有點過於遙遠或是複雜，通常會用 State 來管控， Vue 使用 Vuex ，React  則是用 redux 來表達貫穿這個元件的參數。</p>
+<p>不過正如上面說的 Vuex 跟 redux 都是用來放狀態的，如果拿來放其他東西，並不是說不可以，只是如果在物件導向的裡面中，這樣就違反了 單一功能原則的項目，狀態管理就不再是狀態管理。</p>
+<p>自從看了一點 Clean Code的書之後，開始針對 Clean Architecture 很感興趣，原本我主要寫後端跟一點點的前端，開始把後端架構邏輯設計延伸到了前端，開始修正前端同事的程式碼。</p>
+<p>Clean Architecture：</p>
+<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-832111bff4.png" alt="Clean Architectur"></a><figcaption>From<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"> Layers and Inversion of Control</a></figcaption>
+<p>回到正題 要實現乾淨的架設設計，首先先把專案中的 Vuex 裡面，包了一堆 API 的模式給抽離開來，去年我重新理解一次 新的 JavaScript 的時候，發現 ES6 有個相當好用的東西叫做  <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Classes">Classes </a>如果你懂一點物件導向就可以知道這個東西是用來做什麼的。</p>
+<p>實際操作了一下真的讓我感動到哭，很久很久以前操作 JavaScript  的時候要實現到類似的事情必須要 function<a href="https://www.ruanyifeng.com/blog/2012/07/three_ways_to_define_a_javascript_class.html"> 一層包了一層</a>才有可能實現這件事情，現在原生 JS 支援把這個東西當成特別的 function 讓你使用更簡潔的方式建立物件，以及處理繼承，真的相當方便</p>
+<p>這邊先設計一個範例，採用  <a href="https://reqres.in/">https://reqres.in</a> 來顯示 REST API 的方式，這個資源是隨意 Google到的，要套用現有的 資源應該也不是問題。</p>
+<h2>範例</h2>
+<p>JavaScript 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-mc4epc">https://codesandbox.io/s/simple-restapi-mc4epc</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI" src="https://codesandbox.io/embed/simple-restapi-mc4epc#?secret=37XRDjTEuz" data-secret="37XRDjTEuz"></iframe>
+</div>
+<p>Vue 3 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-vue-gcilc6">https://codesandbox.io/s/simple-restapi-vue-gcilc6</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI Vue" src="https://codesandbox.io/embed/simple-restapi-vue-gcilc6#?secret=JYz0xZ7C91" data-secret="JYz0xZ7C91"></iframe>
+</div>
+<h2>說明</h2>
+<p>首先先把 API 封裝，網路受有不少封裝教學，根據你專案所需要的封裝的內容，各有差異，這邊就不多做解釋，最多封裝的套件應該就是 <a href="https://github.com/axios/axios">axios </a>了 ，可以參考範例的 codesandbox，<code>/src/utils/axios.js</code> </p>
+<p>程式中最終輸出了 <code>export { axios, api };</code> 這一點主要是，你永遠不知道什麼時候會換一組 api 來打，所以把 axios 輸出，可以快速的重複取用，正常主網站會走 api  這個變數，如果你想叫 http 、 request 變數都可以，只要可以接上就行。</p>
+<p>接著建立一組 Base Class ， <code>src/api/index.js</code>，這檔案是所有 API 的底層，所有 API 都引入他，如果這支 Class 他擴充了新的 function ，其他繼承的子類別都會擁有一樣的 function，所以要處理往後端打的 參數，網址等事項處理都相當方便，另外他在啟動的時候會賦予一些基本的參數，定義在 <code>constructor </code>這個 function，所以基本我給他定一個 method = ‘get’ 、接著是路徑，其他可根據需求調整。</p>
+<p>這邊定義了一隻 action functon，主要是呼叫 axios 封裝後的 api，基本上這 function 會組成你需要的參數，接著回傳 axios。</p>
+<p>呼叫範例都採用<code> /src/api/User.js </code>這隻來參考，User 這隻 API 可以看到一些固定的 function 跟 傳送的路徑名稱、method</p>
+<p>因為我的後端採用 Laravel 的設計，基本預設的 REST API resource 的幾隻 method 就是 index、store、update、delete ，所以我照這幾個名稱加上參考 <a href="https://cloud.google.com/apis/design">Google 的 API design guide</a> ，裡面有清楚建議一些 API 的統一規範，如果你的專案有辦法所有團隊統一，那麼這些 API Function 就可以很固定。</p>
+<p><code>User.js </code>的末段是 <code>export default new User();</code> 你可能會問怎麼跟 Base 的回傳 Class Name 不同，這是因為 Base 設計用來繼承， User.js 呼叫的時候是用來實作的，所以後面呼叫的時候你可以任意命名給 User.js ，這樣你就不會針對同名不同資料夾的 User.js 給搞混，只需要給他一個新的名稱就可以呼叫。</p>
+<p>另外，既然是繼承，你也可以在 Base 與 User 中間再加上一層 Class，例如叫做 System OR Backend Class，這樣 繼承這個名稱的類別又可以有另一層的操作，像是後台操作很多都是固定的 CRUD，以及列 LIST，你就可以把上述  index、store、update、delete 放在 Baskend 裡面的 Class，假如你有 10 個後臺頁面都是一樣操作，這樣就省了 4 個 method * 10 次的撰寫，每一隻頁面 API 都只需要命名以及定義好 path 就可以了，當然只是一種操作情境，隨著開發環境不同可以有不同類型的操作設計。</p>
+<p>其實兩個範例不管是不是有 Vue 還是純 JS 設計， API 跟 utils 裡面的 axios 都是不變的，代表這層 Data Layout 已經完全抽離到正常的商業邏輯上，當你要取用的時候，完全不用顧慮到下列 API 到底是打 GET還是用 POST，只要你呼叫對 method 跟帶入正確的 參數，就可以回傳一個 Promise 可以使用，呼叫多個 API 也不怕有問題，大大減少錯誤的開銷，未來即便是修正了一整塊的 API 區域也只需要把 API 這塊給維護完成就可以輕鬆搞定。</p>
+<p>我在自己的專案上，利用這個方式舊版跟新版的 API 分離，再轉接的過程中把 舊版 API 的 TOKEN 給拿起來登入去要回 LIST，最後去新版的 API 實作，等到後端的 API 完全轉移之後，也只需要把舊版的 API 給刪除，替換掉新的，其他頁面根本不用去異動，替換成本相當的小。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>前端開發中的時候，很容易把 API 事件寫在同一個 component 裡面，大部分人會進行封裝，讓傳送 API 的方法變得更簡單</p>
+<p>先前碰到同事裡用前端框架系統 Vue 的時候，則是把 API 放到 Vuex 裡面，之前看過 React 裡面，如果上下層傳遞有點過於遙遠或是複雜，通常會用 State 來管控， Vue 使用 Vuex ，React  則是用 redux 來表達貫穿這個元件的參數。</p>
+<p>不過正如上面說的 Vuex 跟 redux 都是用來放狀態的，如果拿來放其他東西，並不是說不可以，只是如果在物件導向的裡面中，這樣就違反了 單一功能原則的項目，狀態管理就不再是狀態管理。</p>
+<p>自從看了一點 Clean Code的書之後，開始針對 Clean Architecture 很感興趣，原本我主要寫後端跟一點點的前端，開始把後端架構邏輯設計延伸到了前端，開始修正前端同事的程式碼。</p>
+<p>Clean Architecture：</p>
+<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-832111bff4.png" alt="Clean Architectur"></a><figcaption>From<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"> Layers and Inversion of Control</a></figcaption>
+<p>回到正題 要實現乾淨的架設設計，首先先把專案中的 Vuex 裡面，包了一堆 API 的模式給抽離開來，去年我重新理解一次 新的 JavaScript 的時候，發現 ES6 有個相當好用的東西叫做  <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Classes">Classes </a>如果你懂一點物件導向就可以知道這個東西是用來做什麼的。</p>
+<p>實際操作了一下真的讓我感動到哭，很久很久以前操作 JavaScript  的時候要實現到類似的事情必須要 function<a href="https://www.ruanyifeng.com/blog/2012/07/three_ways_to_define_a_javascript_class.html"> 一層包了一層</a>才有可能實現這件事情，現在原生 JS 支援把這個東西當成特別的 function 讓你使用更簡潔的方式建立物件，以及處理繼承，真的相當方便</p>
+<p>這邊先設計一個範例，採用  <a href="https://reqres.in/">https://reqres.in</a> 來顯示 REST API 的方式，這個資源是隨意 Google到的，要套用現有的 資源應該也不是問題。</p>
+<h2>範例</h2>
+<p>JavaScript 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-mc4epc">https://codesandbox.io/s/simple-restapi-mc4epc</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI" src="https://codesandbox.io/embed/simple-restapi-mc4epc#?secret=37XRDjTEuz" data-secret="37XRDjTEuz"></iframe>
+</div>
+<p>Vue 3 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-vue-gcilc6">https://codesandbox.io/s/simple-restapi-vue-gcilc6</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI Vue" src="https://codesandbox.io/embed/simple-restapi-vue-gcilc6#?secret=JYz0xZ7C91" data-secret="JYz0xZ7C91"></iframe>
+</div>
+<h2>說明</h2>
+<p>首先先把 API 封裝，網路受有不少封裝教學，根據你專案所需要的封裝的內容，各有差異，這邊就不多做解釋，最多封裝的套件應該就是 <a href="https://github.com/axios/axios">axios </a>了 ，可以參考範例的 codesandbox，<code>/src/utils/axios.js</code> </p>
+<p>程式中最終輸出了 <code>export { axios, api };</code> 這一點主要是，你永遠不知道什麼時候會換一組 api 來打，所以把 axios 輸出，可以快速的重複取用，正常主網站會走 api  這個變數，如果你想叫 http 、 request 變數都可以，只要可以接上就行。</p>
+<p>接著建立一組 Base Class ， <code>src/api/index.js</code>，這檔案是所有 API 的底層，所有 API 都引入他，如果這支 Class 他擴充了新的 function ，其他繼承的子類別都會擁有一樣的 function，所以要處理往後端打的 參數，網址等事項處理都相當方便，另外他在啟動的時候會賦予一些基本的參數，定義在 <code>constructor </code>這個 function，所以基本我給他定一個 method = ‘get’ 、接著是路徑，其他可根據需求調整。</p>
+<p>這邊定義了一隻 action functon，主要是呼叫 axios 封裝後的 api，基本上這 function 會組成你需要的參數，接著回傳 axios。</p>
+<p>呼叫範例都採用<code> /src/api/User.js </code>這隻來參考，User 這隻 API 可以看到一些固定的 function 跟 傳送的路徑名稱、method</p>
+<p>因為我的後端採用 Laravel 的設計，基本預設的 REST API resource 的幾隻 method 就是 index、store、update、delete ，所以我照這幾個名稱加上參考 <a href="https://cloud.google.com/apis/design">Google 的 API design guide</a> ，裡面有清楚建議一些 API 的統一規範，如果你的專案有辦法所有團隊統一，那麼這些 API Function 就可以很固定。</p>
+<p><code>User.js </code>的末段是 <code>export default new User();</code> 你可能會問怎麼跟 Base 的回傳 Class Name 不同，這是因為 Base 設計用來繼承， User.js 呼叫的時候是用來實作的，所以後面呼叫的時候你可以任意命名給 User.js ，這樣你就不會針對同名不同資料夾的 User.js 給搞混，只需要給他一個新的名稱就可以呼叫。</p>
+<p>另外，既然是繼承，你也可以在 Base 與 User 中間再加上一層 Class，例如叫做 System OR Backend Class，這樣 繼承這個名稱的類別又可以有另一層的操作，像是後台操作很多都是固定的 CRUD，以及列 LIST，你就可以把上述  index、store、update、delete 放在 Baskend 裡面的 Class，假如你有 10 個後臺頁面都是一樣操作，這樣就省了 4 個 method * 10 次的撰寫，每一隻頁面 API 都只需要命名以及定義好 path 就可以了，當然只是一種操作情境，隨著開發環境不同可以有不同類型的操作設計。</p>
+<p>其實兩個範例不管是不是有 Vue 還是純 JS 設計， API 跟 utils 裡面的 axios 都是不變的，代表這層 Data Layout 已經完全抽離到正常的商業邏輯上，當你要取用的時候，完全不用顧慮到下列 API 到底是打 GET還是用 POST，只要你呼叫對 method 跟帶入正確的 參數，就可以回傳一個 Promise 可以使用，呼叫多個 API 也不怕有問題，大大減少錯誤的開銷，未來即便是修正了一整塊的 API 區域也只需要把 API 這塊給維護完成就可以輕鬆搞定。</p>
+<p>我在自己的專案上，利用這個方式舊版跟新版的 API 分離，再轉接的過程中把 舊版 API 的 TOKEN 給拿起來登入去要回 LIST，最後去新版的 API 實作，等到後端的 API 完全轉移之後，也只需要把舊版的 API 給刪除，替換掉新的，其他頁面根本不用去異動，替換成本相當的小。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>前端開發中的時候，很容易把 API 事件寫在同一個 component 裡面，大部分人會進行封裝，讓傳送 API 的方法變得更簡單</p>
+<p>先前碰到同事裡用前端框架系統 Vue 的時候，則是把 API 放到 Vuex 裡面，之前看過 React 裡面，如果上下層傳遞有點過於遙遠或是複雜，通常會用 State 來管控， Vue 使用 Vuex ，React  則是用 redux 來表達貫穿這個元件的參數。</p>
+<p>不過正如上面說的 Vuex 跟 redux 都是用來放狀態的，如果拿來放其他東西，並不是說不可以，只是如果在物件導向的裡面中，這樣就違反了 單一功能原則的項目，狀態管理就不再是狀態管理。</p>
+<p>自從看了一點 Clean Code的書之後，開始針對 Clean Architecture 很感興趣，原本我主要寫後端跟一點點的前端，開始把後端架構邏輯設計延伸到了前端，開始修正前端同事的程式碼。</p>
+<p>Clean Architecture：</p>
+<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-832111bff4.png" alt="Clean Architectur"></a><figcaption>From<a href="https://github.com/ImangazalievM/CleanArchitectureManifest/blob/master/en/layers_and_ioc.md"> Layers and Inversion of Control</a></figcaption>
+<p>回到正題 要實現乾淨的架設設計，首先先把專案中的 Vuex 裡面，包了一堆 API 的模式給抽離開來，去年我重新理解一次 新的 JavaScript 的時候，發現 ES6 有個相當好用的東西叫做  <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Classes">Classes </a>如果你懂一點物件導向就可以知道這個東西是用來做什麼的。</p>
+<p>實際操作了一下真的讓我感動到哭，很久很久以前操作 JavaScript  的時候要實現到類似的事情必須要 function<a href="https://www.ruanyifeng.com/blog/2012/07/three_ways_to_define_a_javascript_class.html"> 一層包了一層</a>才有可能實現這件事情，現在原生 JS 支援把這個東西當成特別的 function 讓你使用更簡潔的方式建立物件，以及處理繼承，真的相當方便</p>
+<p>這邊先設計一個範例，採用  <a href="https://reqres.in/">https://reqres.in</a> 來顯示 REST API 的方式，這個資源是隨意 Google到的，要套用現有的 資源應該也不是問題。</p>
+<h2>範例</h2>
+<p>JavaScript 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-mc4epc">https://codesandbox.io/s/simple-restapi-mc4epc</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI" src="https://codesandbox.io/embed/simple-restapi-mc4epc#?secret=37XRDjTEuz" data-secret="37XRDjTEuz"></iframe>
+</div>
+<p>Vue 3 的 REST API 範例 <a href="https://codesandbox.io/s/simple-restapi-vue-gcilc6">https://codesandbox.io/s/simple-restapi-vue-gcilc6</a></p>
+<div>
+<iframe sandbox="allow-scripts" security="restricted" title="Simple RESTAPI Vue" src="https://codesandbox.io/embed/simple-restapi-vue-gcilc6#?secret=JYz0xZ7C91" data-secret="JYz0xZ7C91"></iframe>
+</div>
+<h2>說明</h2>
+<p>首先先把 API 封裝，網路受有不少封裝教學，根據你專案所需要的封裝的內容，各有差異，這邊就不多做解釋，最多封裝的套件應該就是 <a href="https://github.com/axios/axios">axios </a>了 ，可以參考範例的 codesandbox，<code>/src/utils/axios.js</code> </p>
+<p>程式中最終輸出了 <code>export { axios, api };</code> 這一點主要是，你永遠不知道什麼時候會換一組 api 來打，所以把 axios 輸出，可以快速的重複取用，正常主網站會走 api  這個變數，如果你想叫 http 、 request 變數都可以，只要可以接上就行。</p>
+<p>接著建立一組 Base Class ， <code>src/api/index.js</code>，這檔案是所有 API 的底層，所有 API 都引入他，如果這支 Class 他擴充了新的 function ，其他繼承的子類別都會擁有一樣的 function，所以要處理往後端打的 參數，網址等事項處理都相當方便，另外他在啟動的時候會賦予一些基本的參數，定義在 <code>constructor </code>這個 function，所以基本我給他定一個 method = ‘get’ 、接著是路徑，其他可根據需求調整。</p>
+<p>這邊定義了一隻 action functon，主要是呼叫 axios 封裝後的 api，基本上這 function 會組成你需要的參數，接著回傳 axios。</p>
+<p>呼叫範例都採用<code> /src/api/User.js </code>這隻來參考，User 這隻 API 可以看到一些固定的 function 跟 傳送的路徑名稱、method</p>
+<p>因為我的後端採用 Laravel 的設計，基本預設的 REST API resource 的幾隻 method 就是 index、store、update、delete ，所以我照這幾個名稱加上參考 <a href="https://cloud.google.com/apis/design">Google 的 API design guide</a> ，裡面有清楚建議一些 API 的統一規範，如果你的專案有辦法所有團隊統一，那麼這些 API Function 就可以很固定。</p>
+<p><code>User.js </code>的末段是 <code>export default new User();</code> 你可能會問怎麼跟 Base 的回傳 Class Name 不同，這是因為 Base 設計用來繼承， User.js 呼叫的時候是用來實作的，所以後面呼叫的時候你可以任意命名給 User.js ，這樣你就不會針對同名不同資料夾的 User.js 給搞混，只需要給他一個新的名稱就可以呼叫。</p>
+<p>另外，既然是繼承，你也可以在 Base 與 User 中間再加上一層 Class，例如叫做 System OR Backend Class，這樣 繼承這個名稱的類別又可以有另一層的操作，像是後台操作很多都是固定的 CRUD，以及列 LIST，你就可以把上述  index、store、update、delete 放在 Baskend 裡面的 Class，假如你有 10 個後臺頁面都是一樣操作，這樣就省了 4 個 method * 10 次的撰寫，每一隻頁面 API 都只需要命名以及定義好 path 就可以了，當然只是一種操作情境，隨著開發環境不同可以有不同類型的操作設計。</p>
+<p>其實兩個範例不管是不是有 Vue 還是純 JS 設計， API 跟 utils 裡面的 axios 都是不變的，代表這層 Data Layout 已經完全抽離到正常的商業邏輯上，當你要取用的時候，完全不用顧慮到下列 API 到底是打 GET還是用 POST，只要你呼叫對 method 跟帶入正確的 參數，就可以回傳一個 Promise 可以使用，呼叫多個 API 也不怕有問題，大大減少錯誤的開銷，未來即便是修正了一整塊的 API 區域也只需要把 API 這塊給維護完成就可以輕鬆搞定。</p>
+<p>我在自己的專案上，利用這個方式舊版跟新版的 API 分離，再轉接的過程中把 舊版 API 的 TOKEN 給拿起來登入去要回 LIST，最後去新版的 API 實作，等到後端的 API 完全轉移之後，也只需要把舊版的 API 給刪除，替換掉新的，其他頁面根本不用去異動，替換成本相當的小。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]></content:encoded>
+      <itunes:image href="https://mesak.tw/wp-content/uploads/2022/05/CleanArchitectureLayers.png"/>
+        <media:content url="https://mesak.tw/wp-content/uploads/2022/05/CleanArchitectureLayers.png" medium="image"/>
+      <pubDate>Mon, 30 May 2022 01:30:00 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[JS] 傳送 物件/陣列 到 FormData]]></title>
+      <link>https://mesak.tw/code/javascript/11882/js-object-send-array-to-formdata</link>
+      <itunes:title><![CDATA[[JS] 傳送 物件/陣列 到 FormData]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>JS 自從有了打包工具之後，很多工具造福不少開發者，以往要送個 AJAX 到後端，大多都是一個頁面處理一個 method </p>
+<p>框架化後，每個程式碼開始有了 物件化、封裝方式來做，現在大多都用 axios 來送 AJAX </p>
+<p>但是遇到一個問題就是送檔案的時候，需要使用到 FormData 的物類別物件。</p>
+<p>但是整個像後端送的程式碼都封裝起來了，要針對一個檔案上傳的方法，做出額外處理，當檔案上傳處理頁面多了之後</p>
+<p>維護除錯方法就有點麻煩。</p>
+<p>所以比較好的方式還是修改 API 送出前，先把物件轉換好判定是否有 File 類型，然後轉換成  FormData 就可以一勞永逸</p>
+<p>問題來了，以往直接用 axios 傳送到後端，一個 object 就可以搞定 value is array 的問題，開發者似乎不用煩惱太多後續處理問題</p>
+<p>頂多就是遇到 GET 網址參數需要轉換純文字的狀態，但也也只需要一個 <a href="https://github.com/ljharb/qs">qs</a> 套件就可以解決解決</p>
+<p>但如果採用 FormData 這個類型的時候，整個 object 就必須自己處理，如果遇到傳送一個陣列的時候，就必須額外針對 key = array 的狀態去處理，然後如果 value = array 也是很麻煩的事情。</p>
+<p>舉個例子，往後端送 array1 = [1,2,3] ，如果是 axios 就可以直接送，如果是送 FormData 就必須處理成</p>
+<p>array1[]:1;<br>array1[]:2;<br>array1[]:3;</p>
+<p>這點可以利用 PostMan 來做測試看看後端可以吃到怎樣結構的陣列</p>
+<p>這邊原本的想法是，把物件的每個 value歷遍，只要 value instanceof File 就成立條件，把 key 轉換成陣列</p>
+<p>不過找了很多遞迴解法，都沒有 qs 轉換 陣列來的快速有效，最終還是爬了一下 qs 的實際操作用法，</p>
+<pre><code>  const files = new Map()
+const queryString = qs.stringify(data, {
+arrayFormat: 'brackets',
+<a href="encode: false,">encode</a>: false,
+filter: (name, value) =&gt; {
+if (value instanceof File) {
+let id = lodash.uniqueId('__FILE__.')
+files.set(id, value)
+return id
+} else {
+return value
+}
+}
+})</code></pre>
+<p>利用 qs 的 filter method 把所有 value 檔案移到暫存變數 files 裡面，利用 lodash 取得目前唯一的數值，將原先的 data (object) 的 File 類型 value，全部轉換成 file 的 uniqueId，最終就可以得到一串處理過的字串，快速的將 物件陣列轉換成字串</p>
+<pre><code>a=__FILE__.1&amp;b[a]=1&amp;b[b]=2 ...</code></pre>
+<p>只要有了這個純字串的東西，要拆解成陣列 + 物件就方便多拉，拆完之後遇到 __FILE__ 的 value 記得去把 files 裡面的檔案給領回來，這樣塞入 FormData 就可以解決陣列 key 或是 value = array 的問題了</p>
+<p>完整範例放在 <a href="https://codepen.io/mesak/pen/xxpvLGe">codepen.io</a></p>
+<div>
+<iframe title="xxpvLGe" src="https://codepen.io/mesak/embed/preview/xxpvLGe?default-tabs=js%2Cresult&amp;height=300&amp;host=https%3A%2F%2Fcodepen.io&amp;slug-hash=xxpvLGe" scrolling="no" frameborder="0" allowtransparency="true"></iframe>
+</div>
+<p>備註</p>
+<ul><li><a href="https://stackoverflow.com/questions/12756688">https://stackoverflow.com/questions/12756688</a></li><li><a href="https://github.com/ljharb/qs">https://github.com/ljharb/qs</a></li><li><a href="https://developer.mozilla.org/zh-TW/docs/Web/API/FormData">https://developer.mozilla.org/zh-TW/docs/Web/API/FormData</a></li></ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>JS 自從有了打包工具之後，很多工具造福不少開發者，以往要送個 AJAX 到後端，大多都是一個頁面處理一個 method </p>
+<p>框架化後，每個程式碼開始有了 物件化、封裝方式來做，現在大多都用 axios 來送 AJAX </p>
+<p>但是遇到一個問題就是送檔案的時候，需要使用到 FormData 的物類別物件。</p>
+<p>但是整個像後端送的程式碼都封裝起來了，要針對一個檔案上傳的方法，做出額外處理，當檔案上傳處理頁面多了之後</p>
+<p>維護除錯方法就有點麻煩。</p>
+<p>所以比較好的方式還是修改 API 送出前，先把物件轉換好判定是否有 File 類型，然後轉換成  FormData 就可以一勞永逸</p>
+<p>問題來了，以往直接用 axios 傳送到後端，一個 object 就可以搞定 value is array 的問題，開發者似乎不用煩惱太多後續處理問題</p>
+<p>頂多就是遇到 GET 網址參數需要轉換純文字的狀態，但也也只需要一個 <a href="https://github.com/ljharb/qs">qs</a> 套件就可以解決解決</p>
+<p>但如果採用 FormData 這個類型的時候，整個 object 就必須自己處理，如果遇到傳送一個陣列的時候，就必須額外針對 key = array 的狀態去處理，然後如果 value = array 也是很麻煩的事情。</p>
+<p>舉個例子，往後端送 array1 = [1,2,3] ，如果是 axios 就可以直接送，如果是送 FormData 就必須處理成</p>
+<p>array1[]:1;<br>array1[]:2;<br>array1[]:3;</p>
+<p>這點可以利用 PostMan 來做測試看看後端可以吃到怎樣結構的陣列</p>
+<p>這邊原本的想法是，把物件的每個 value歷遍，只要 value instanceof File 就成立條件，把 key 轉換成陣列</p>
+<p>不過找了很多遞迴解法，都沒有 qs 轉換 陣列來的快速有效，最終還是爬了一下 qs 的實際操作用法，</p>
+<pre><code>  const files = new Map()
+const queryString = qs.stringify(data, {
+arrayFormat: 'brackets',
+<a href="encode: false,">encode</a>: false,
+filter: (name, value) =&gt; {
+if (value instanceof File) {
+let id = lodash.uniqueId('__FILE__.')
+files.set(id, value)
+return id
+} else {
+return value
+}
+}
+})</code></pre>
+<p>利用 qs 的 filter method 把所有 value 檔案移到暫存變數 files 裡面，利用 lodash 取得目前唯一的數值，將原先的 data (object) 的 File 類型 value，全部轉換成 file 的 uniqueId，最終就可以得到一串處理過的字串，快速的將 物件陣列轉換成字串</p>
+<pre><code>a=__FILE__.1&amp;b[a]=1&amp;b[b]=2 ...</code></pre>
+<p>只要有了這個純字串的東西，要拆解成陣列 + 物件就方便多拉，拆完之後遇到 __FILE__ 的 value 記得去把 files 裡面的檔案給領回來，這樣塞入 FormData 就可以解決陣列 key 或是 value = array 的問題了</p>
+<p>完整範例放在 <a href="https://codepen.io/mesak/pen/xxpvLGe">codepen.io</a></p>
+<div>
+<iframe title="xxpvLGe" src="https://codepen.io/mesak/embed/preview/xxpvLGe?default-tabs=js%2Cresult&amp;height=300&amp;host=https%3A%2F%2Fcodepen.io&amp;slug-hash=xxpvLGe" scrolling="no" frameborder="0" allowtransparency="true"></iframe>
+</div>
+<p>備註</p>
+<ul><li><a href="https://stackoverflow.com/questions/12756688">https://stackoverflow.com/questions/12756688</a></li><li><a href="https://github.com/ljharb/qs">https://github.com/ljharb/qs</a></li><li><a href="https://developer.mozilla.org/zh-TW/docs/Web/API/FormData">https://developer.mozilla.org/zh-TW/docs/Web/API/FormData</a></li></ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>JS 自從有了打包工具之後，很多工具造福不少開發者，以往要送個 AJAX 到後端，大多都是一個頁面處理一個 method </p>
+<p>框架化後，每個程式碼開始有了 物件化、封裝方式來做，現在大多都用 axios 來送 AJAX </p>
+<p>但是遇到一個問題就是送檔案的時候，需要使用到 FormData 的物類別物件。</p>
+<p>但是整個像後端送的程式碼都封裝起來了，要針對一個檔案上傳的方法，做出額外處理，當檔案上傳處理頁面多了之後</p>
+<p>維護除錯方法就有點麻煩。</p>
+<p>所以比較好的方式還是修改 API 送出前，先把物件轉換好判定是否有 File 類型，然後轉換成  FormData 就可以一勞永逸</p>
+<p>問題來了，以往直接用 axios 傳送到後端，一個 object 就可以搞定 value is array 的問題，開發者似乎不用煩惱太多後續處理問題</p>
+<p>頂多就是遇到 GET 網址參數需要轉換純文字的狀態，但也也只需要一個 <a href="https://github.com/ljharb/qs">qs</a> 套件就可以解決解決</p>
+<p>但如果採用 FormData 這個類型的時候，整個 object 就必須自己處理，如果遇到傳送一個陣列的時候，就必須額外針對 key = array 的狀態去處理，然後如果 value = array 也是很麻煩的事情。</p>
+<p>舉個例子，往後端送 array1 = [1,2,3] ，如果是 axios 就可以直接送，如果是送 FormData 就必須處理成</p>
+<p>array1[]:1;<br>array1[]:2;<br>array1[]:3;</p>
+<p>這點可以利用 PostMan 來做測試看看後端可以吃到怎樣結構的陣列</p>
+<p>這邊原本的想法是，把物件的每個 value歷遍，只要 value instanceof File 就成立條件，把 key 轉換成陣列</p>
+<p>不過找了很多遞迴解法，都沒有 qs 轉換 陣列來的快速有效，最終還是爬了一下 qs 的實際操作用法，</p>
+<pre><code>  const files = new Map()
+const queryString = qs.stringify(data, {
+arrayFormat: 'brackets',
+<a href="encode: false,">encode</a>: false,
+filter: (name, value) =&gt; {
+if (value instanceof File) {
+let id = lodash.uniqueId('__FILE__.')
+files.set(id, value)
+return id
+} else {
+return value
+}
+}
+})</code></pre>
+<p>利用 qs 的 filter method 把所有 value 檔案移到暫存變數 files 裡面，利用 lodash 取得目前唯一的數值，將原先的 data (object) 的 File 類型 value，全部轉換成 file 的 uniqueId，最終就可以得到一串處理過的字串，快速的將 物件陣列轉換成字串</p>
+<pre><code>a=__FILE__.1&amp;b[a]=1&amp;b[b]=2 ...</code></pre>
+<p>只要有了這個純字串的東西，要拆解成陣列 + 物件就方便多拉，拆完之後遇到 __FILE__ 的 value 記得去把 files 裡面的檔案給領回來，這樣塞入 FormData 就可以解決陣列 key 或是 value = array 的問題了</p>
+<p>完整範例放在 <a href="https://codepen.io/mesak/pen/xxpvLGe">codepen.io</a></p>
+<div>
+<iframe title="xxpvLGe" src="https://codepen.io/mesak/embed/preview/xxpvLGe?default-tabs=js%2Cresult&amp;height=300&amp;host=https%3A%2F%2Fcodepen.io&amp;slug-hash=xxpvLGe" scrolling="no" frameborder="0" allowtransparency="true"></iframe>
+</div>
+<p>備註</p>
+<ul><li><a href="https://stackoverflow.com/questions/12756688">https://stackoverflow.com/questions/12756688</a></li><li><a href="https://github.com/ljharb/qs">https://github.com/ljharb/qs</a></li><li><a href="https://developer.mozilla.org/zh-TW/docs/Web/API/FormData">https://developer.mozilla.org/zh-TW/docs/Web/API/FormData</a></li></ul>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/tag-javascript">javascript</a>					</div>
+</div>]]></content:encoded>
+      
+      <pubDate>Sat, 07 May 2022 02:00:00 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[開箱] iRocks K89M 人體工學分離式鍵盤]]></title>
+      <link>https://mesak.tw/hardware/keyboard/11832/irocks-k89m-2</link>
+      <itunes:title><![CDATA[[開箱] iRocks K89M 人體工學分離式鍵盤]]></itunes:title>
+      <itunes:author><![CDATA[米薩克 聊 3C[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<div>
+<p>許久沒開箱了，這次要開的是 iRocks K89M ，這款鍵盤說來慚愧，我滿早就入手了，不過因為搬家加上工作的關係，最近才從倉庫把它挖出來，好再手感依舊，這次還是做個紀錄，把鍵盤給開起來。</p>
+<p>iRocks 從薄膜鍵盤，到機械自鍵盤，再到自有軸，這次來到了人體工學分離式機械鍵盤，每一次的鍵盤設計都令人驚艷，價位也是相當的親民，機械式鍵盤從好入手的軸體，到堅持德國櫻桃軸體的選擇都有各種類型的選擇可以挑選。</p>
+<p>這次要開箱的 K89M 也是，最早在<a href="https://www.zeczec.com/projects/iRocksK89M">嘖嘖募資</a>，為人體工學鍵盤再闢一條道路，募資現況已成功，不過相隔已經兩年了，要買也很難入手。不過好在近期它們又開了新的鍵盤設計 <a href="https://www.zeczec.com/projects/irocks-k59m">iRocks-K59M</a></p>
+<p>不過究竟 K89M 到底好不好用，現在開箱也可以讓想預購 K59M 的朋友們做個參考。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8593c262c9.jpg">
+<p>K89M 採用人體工學鍵盤左右分離的設計，整體包裝來說是採用上下疊的方式包裝</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-99b616d67a.jpg">
+<p>整個鍵盤採用一個三角形的造型當作中心點。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b0289be254.jpg">
+<p>背面有整個鍵盤的規格說明</p>
+<p><strong>產品規格</strong><strong>:</strong></p>
+<ul><li>產品名稱 : RGB背光分離式機械鍵盤</li><li>產品型號 : IRK89M</li><li>介面 : USB&nbsp;</li><li>按鍵數 : 115鍵&nbsp;</li><li>開關形式 : 機械開關</li><li>按鍵行程 : 4.0±0.5mm</li><li>全區防鬼鍵設計 (NKRO)</li><li> USB 2.0 傳輸埠&nbsp;</li><li>電壓/電流 : DC 5V / 650 mA Max.</li><li>產品重量 : 約1.85公斤</li><li>USB-C主線長 : 約180公分&nbsp;</li><li>USB-C 連接線長 : 約23公分</li><li>產品尺寸 : 563 (L) X 256(W) X 52.5 (H) mm</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d0cd222263.jpg">
+<p>鍵盤總長占了 56 公分左右，遠比一般鍵盤來的大</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-fb8ea2cbe1.jpg">
+<p>鍵盤背面，鍵盤共八塊止滑，穩定性相當不錯</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f54f0998c9.jpg">
+<p>鍵盤採用 TYPE-C 編織線，附帶魔鬼氈收線捲</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-85819d7501.jpg">
+<p>左側的鍵盤可以看到是中間隆起，往左手方向降低。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ae0272ef57.jpg">
+<p>左側鍵盤整體，鍵盤的側燈軸從頂部延伸到左側手托的底部，發光時不會妨礙到視線</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0eebde8a63.jpg">
+<p>左側鍵盤的上方，連接孔採用 TYPEC 作為兩個鍵盤的連接孔，另一個TYPEC 連接電腦，另外多附贈一個 USB 2.0 的插槽，可以用來有線、無線滑鼠相當方便。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-00deb24a47.jpg">
+<p>123</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e1ed2b33d0.jpg">
+<p>右側鍵盤連接的位置，上方採用 TYPE-C 作為兩個左右鍵盤的組件連接</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c042dcde33.jpg">
+<p>右側鍵盤的右上角，這個透光開槽真的設計的很棒</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-9792e06ade.jpg">
+<p>鍵盤通電，中間的旋鈕相當搶眼。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3cfc2af81a.jpg">
+<p>旋鈕的燈光是作為指示用，每一種燈光都代表不同的功能內容</p>
+<ul><li>紅燈：調整音量大小或靜音。</li><li>藍燈：使用 Windows 10 支援的智慧滾輪</li><li>綠燈：使用旋鈕選擇工作頁面</li><li>黃燈：調整鍵盤的背光燈效，背光亮度</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-150d653aed.jpg">
+<p>鍵盤的 LOCK 指示燈在左側鍵盤的正中央，方便辨識</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-20d528ed5f.jpg">
+<p>當左上放上鍵盤的時候，手指可以很輕易的找到定位點，拇指可以根據凹槽的位置找到適合擺放的目標，左手就會依序向左貼合，這樣定位就不容易打架、誤判。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1136a41b92.jpg">
+<p>右手範圍區域比較大，但是辨識度不難，適應個幾次很快就能將手腕順手置上</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-45181e1a2f.jpg">
+<p>左側鍵盤有 10個獨立巨集鍵，巨集鍵利用FN+M1~10的方式錄製巨集，再次按壓之後保存輸入的內容，除此之外也可以利用軟體來編輯巨集按鍵，FN+ESC 可以消除所有的巨集。左側鍵盤少了 WIN的按紐，取而代之的是 FN 鍵。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5a1474c64f.jpg">
+<p>上方一排更是多媒體播放鍵區域，利用 FN 鍵可以快速使用多媒體播放功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-59754ca674.jpg">
+<p>右側鍵盤的上方排列，主要是以 J 的定位點周邊 1 格作為鍵盤的分割點， 6這個數字很尷尬的是被切到左邊。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-837bee7b5b.jpg">
+<p>ENTER 正常輸入區塊與一般鍵盤無異。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8ae34bd85e.jpg">
+<p>數字區+六塊肌區很明顯的斜了一塊，主要還是配合人體工學的設計傾斜程度</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-784e8c93cd.jpg">
+<p>鍵盤的右上帶有 irocks 的 LOGO ，側邊一樣是側邊發光導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0278ab388b.jpg">
+<p>整體傾斜的角度為中間隆起 14°，讓整體鍵盤變的厚實許多，隆起的部分就轉化成為鍵盤的手靠墊</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-32ddf0f9df.jpg">
+<p>鍵盤後側邊發光條為 RGB 多彩發光</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-016d7d02c9.jpg">
+<p>鍵盤平放角度，可以看到中間隆起，左右兩側從後方看到就會是紅色的襯邊加上 RGB 的導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-79c1a644b2.jpg">
+<p>這把鍵盤為 Cherry 紅軸，原始販售的軸體為 德國櫻桃青、茶、紅軸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ee019345c9.jpg">
+<p>紅軸打感不拖泥帶水，直上直下相當受到我的喜愛。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-645fc85bf8.jpg">
+<p>如果想要替換鍵帽，要注意的是空白鍵為 3.5u，市面上比較少看到此類型的長度。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d914acf795.jpg">
+<p>鍵盤整體來說，在桌面上就是個巨無霸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0f66e26c6d.jpg">
+<p>隆起的角度會讓人直接放上定位點，之前測試過一把 全尺寸鍵盤帶 10 個巨集設計，側邊總是讓我不方便去定位到 ctrl 的位置，K89M 很神奇的是利用角度讓你把鍵盤的側邊當作倚靠，大拇指可以協助定位點，很順勢的手靠上去就可以找到應有的位置。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f655e7c313.jpg">
+<p>這個凹槽設計的相當不錯。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b887c73a82.jpg">
+<p>左鍵盤可以單個獨立連接，不過還是需要插對孔位，遇到一些只需要 左側鍵盤的遊戲就可以縮小所需要的空間</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c1daefb0b6.jpg">
+<p>如果要用單邊操作，左邊的巨集建就可以成為玩遊戲的好幫手。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e19c40ee8f.jpg">
+<p>這樣打遊戲桌面空間就乾淨了許多。</p>
+<p>iRocks K89M 一樣有著電腦應用程式軟體可以客製化操作，進入 <a href="https://www.humblebundle.com/stand-with-ukraine-bundle">官網</a>之後，找到 <strong>K89M 設定程式與韌體更新包</strong> 下載安裝之後就可以針對鍵盤逐一設置</p>
+<p>打開 K89M 專屬應用程式 </p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-074301dfb8.jpg">
+<p>主頁可以針對每一個按鍵進行設置，也可以指定自己想要的巨集功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1ecaf0f3eb.jpg">
+<p>背光分頁這邊可以調整各種燈光色彩的走向，以及顏色定義</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7a9743305c.jpg">
+<p>遊戲模式可以利用軟體將鍵盤目前的快速鍵給取消，在遊戲的時候更順暢</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3a3338dec5.jpg">
+<p>巨集功能，除了利用鍵盤手動錄製之外，也可以利用軟體輸入鍵盤的輸入順序調整巨集內容，巨集也可以模擬滑鼠事件，算是相當不錯的模擬功能。</p>
+<p>iRocks K89M 整體的設計採用人體工學模式來設計鍵盤走向，事實上 irocks 也不是第一次做人體工學鍵盤了，早期我在癮科技開箱的 <a href="https://www.cool3c.com/article/64488">Kinesis Freestyle-2</a> 在 2019 的 <a href="https://mesak.tw/network/9387/computex-2019-irock">Computex </a> 就有展出，似乎也是 irocks 研發生產的，iRocks K89M  的造型拿去 google 圖片搜尋也可以找到國外的品牌販售。</p>
+<p>整體上來說 iRocks K89M 的輸入方式算是相當舒適的，不過可惜手靠墊的模式是採用塑膠，雖然材質不錯，不會咬手，但是針對突起的高度來說，就少了一點舒適的感受，不過還好打感上算是維持一定的水準。</p>
+<p>人體工學鍵盤採用分體式設計，對於不習慣盲打的朋友，這點就比較難過一點，但是當習慣這種模式的輸入方式之後，整體輸入的姿勢跟舒適感就已經是回不去的感受。</p>
+<p>可惜目前在台灣已經不好買到了，不過還是可以期待它們的新品鍵盤<a href="https://www.zeczec.com/projects/irocks-k59m"> iRocks-K59M</a> ，減去一排巨集以及數字區域，增加皮革軟墊以及撐高支架….  有興趣的可以關注一下。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/i-rocks">i-rocks</a><a href="https://mesak.tw/tag/ergonomics">人體工學</a><a href="https://mesak.tw/tag/mechanical-keyboard">機械鍵盤</a><a href="https://mesak.tw/tag/keyboards">鍵盤</a>					</div>
+</div>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<div>
+<p>許久沒開箱了，這次要開的是 iRocks K89M ，這款鍵盤說來慚愧，我滿早就入手了，不過因為搬家加上工作的關係，最近才從倉庫把它挖出來，好再手感依舊，這次還是做個紀錄，把鍵盤給開起來。</p>
+<p>iRocks 從薄膜鍵盤，到機械自鍵盤，再到自有軸，這次來到了人體工學分離式機械鍵盤，每一次的鍵盤設計都令人驚艷，價位也是相當的親民，機械式鍵盤從好入手的軸體，到堅持德國櫻桃軸體的選擇都有各種類型的選擇可以挑選。</p>
+<p>這次要開箱的 K89M 也是，最早在<a href="https://www.zeczec.com/projects/iRocksK89M">嘖嘖募資</a>，為人體工學鍵盤再闢一條道路，募資現況已成功，不過相隔已經兩年了，要買也很難入手。不過好在近期它們又開了新的鍵盤設計 <a href="https://www.zeczec.com/projects/irocks-k59m">iRocks-K59M</a></p>
+<p>不過究竟 K89M 到底好不好用，現在開箱也可以讓想預購 K59M 的朋友們做個參考。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8593c262c9.jpg">
+<p>K89M 採用人體工學鍵盤左右分離的設計，整體包裝來說是採用上下疊的方式包裝</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-99b616d67a.jpg">
+<p>整個鍵盤採用一個三角形的造型當作中心點。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b0289be254.jpg">
+<p>背面有整個鍵盤的規格說明</p>
+<p><strong>產品規格</strong><strong>:</strong></p>
+<ul><li>產品名稱 : RGB背光分離式機械鍵盤</li><li>產品型號 : IRK89M</li><li>介面 : USB&nbsp;</li><li>按鍵數 : 115鍵&nbsp;</li><li>開關形式 : 機械開關</li><li>按鍵行程 : 4.0±0.5mm</li><li>全區防鬼鍵設計 (NKRO)</li><li> USB 2.0 傳輸埠&nbsp;</li><li>電壓/電流 : DC 5V / 650 mA Max.</li><li>產品重量 : 約1.85公斤</li><li>USB-C主線長 : 約180公分&nbsp;</li><li>USB-C 連接線長 : 約23公分</li><li>產品尺寸 : 563 (L) X 256(W) X 52.5 (H) mm</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d0cd222263.jpg">
+<p>鍵盤總長占了 56 公分左右，遠比一般鍵盤來的大</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-fb8ea2cbe1.jpg">
+<p>鍵盤背面，鍵盤共八塊止滑，穩定性相當不錯</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f54f0998c9.jpg">
+<p>鍵盤採用 TYPE-C 編織線，附帶魔鬼氈收線捲</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-85819d7501.jpg">
+<p>左側的鍵盤可以看到是中間隆起，往左手方向降低。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ae0272ef57.jpg">
+<p>左側鍵盤整體，鍵盤的側燈軸從頂部延伸到左側手托的底部，發光時不會妨礙到視線</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0eebde8a63.jpg">
+<p>左側鍵盤的上方，連接孔採用 TYPEC 作為兩個鍵盤的連接孔，另一個TYPEC 連接電腦，另外多附贈一個 USB 2.0 的插槽，可以用來有線、無線滑鼠相當方便。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-00deb24a47.jpg">
+<p>123</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e1ed2b33d0.jpg">
+<p>右側鍵盤連接的位置，上方採用 TYPE-C 作為兩個左右鍵盤的組件連接</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c042dcde33.jpg">
+<p>右側鍵盤的右上角，這個透光開槽真的設計的很棒</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-9792e06ade.jpg">
+<p>鍵盤通電，中間的旋鈕相當搶眼。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3cfc2af81a.jpg">
+<p>旋鈕的燈光是作為指示用，每一種燈光都代表不同的功能內容</p>
+<ul><li>紅燈：調整音量大小或靜音。</li><li>藍燈：使用 Windows 10 支援的智慧滾輪</li><li>綠燈：使用旋鈕選擇工作頁面</li><li>黃燈：調整鍵盤的背光燈效，背光亮度</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-150d653aed.jpg">
+<p>鍵盤的 LOCK 指示燈在左側鍵盤的正中央，方便辨識</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-20d528ed5f.jpg">
+<p>當左上放上鍵盤的時候，手指可以很輕易的找到定位點，拇指可以根據凹槽的位置找到適合擺放的目標，左手就會依序向左貼合，這樣定位就不容易打架、誤判。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1136a41b92.jpg">
+<p>右手範圍區域比較大，但是辨識度不難，適應個幾次很快就能將手腕順手置上</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-45181e1a2f.jpg">
+<p>左側鍵盤有 10個獨立巨集鍵，巨集鍵利用FN+M1~10的方式錄製巨集，再次按壓之後保存輸入的內容，除此之外也可以利用軟體來編輯巨集按鍵，FN+ESC 可以消除所有的巨集。左側鍵盤少了 WIN的按紐，取而代之的是 FN 鍵。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5a1474c64f.jpg">
+<p>上方一排更是多媒體播放鍵區域，利用 FN 鍵可以快速使用多媒體播放功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-59754ca674.jpg">
+<p>右側鍵盤的上方排列，主要是以 J 的定位點周邊 1 格作為鍵盤的分割點， 6這個數字很尷尬的是被切到左邊。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-837bee7b5b.jpg">
+<p>ENTER 正常輸入區塊與一般鍵盤無異。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8ae34bd85e.jpg">
+<p>數字區+六塊肌區很明顯的斜了一塊，主要還是配合人體工學的設計傾斜程度</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-784e8c93cd.jpg">
+<p>鍵盤的右上帶有 irocks 的 LOGO ，側邊一樣是側邊發光導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0278ab388b.jpg">
+<p>整體傾斜的角度為中間隆起 14°，讓整體鍵盤變的厚實許多，隆起的部分就轉化成為鍵盤的手靠墊</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-32ddf0f9df.jpg">
+<p>鍵盤後側邊發光條為 RGB 多彩發光</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-016d7d02c9.jpg">
+<p>鍵盤平放角度，可以看到中間隆起，左右兩側從後方看到就會是紅色的襯邊加上 RGB 的導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-79c1a644b2.jpg">
+<p>這把鍵盤為 Cherry 紅軸，原始販售的軸體為 德國櫻桃青、茶、紅軸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ee019345c9.jpg">
+<p>紅軸打感不拖泥帶水，直上直下相當受到我的喜愛。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-645fc85bf8.jpg">
+<p>如果想要替換鍵帽，要注意的是空白鍵為 3.5u，市面上比較少看到此類型的長度。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d914acf795.jpg">
+<p>鍵盤整體來說，在桌面上就是個巨無霸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0f66e26c6d.jpg">
+<p>隆起的角度會讓人直接放上定位點，之前測試過一把 全尺寸鍵盤帶 10 個巨集設計，側邊總是讓我不方便去定位到 ctrl 的位置，K89M 很神奇的是利用角度讓你把鍵盤的側邊當作倚靠，大拇指可以協助定位點，很順勢的手靠上去就可以找到應有的位置。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f655e7c313.jpg">
+<p>這個凹槽設計的相當不錯。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b887c73a82.jpg">
+<p>左鍵盤可以單個獨立連接，不過還是需要插對孔位，遇到一些只需要 左側鍵盤的遊戲就可以縮小所需要的空間</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c1daefb0b6.jpg">
+<p>如果要用單邊操作，左邊的巨集建就可以成為玩遊戲的好幫手。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e19c40ee8f.jpg">
+<p>這樣打遊戲桌面空間就乾淨了許多。</p>
+<p>iRocks K89M 一樣有著電腦應用程式軟體可以客製化操作，進入 <a href="https://www.humblebundle.com/stand-with-ukraine-bundle">官網</a>之後，找到 <strong>K89M 設定程式與韌體更新包</strong> 下載安裝之後就可以針對鍵盤逐一設置</p>
+<p>打開 K89M 專屬應用程式 </p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-074301dfb8.jpg">
+<p>主頁可以針對每一個按鍵進行設置，也可以指定自己想要的巨集功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1ecaf0f3eb.jpg">
+<p>背光分頁這邊可以調整各種燈光色彩的走向，以及顏色定義</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7a9743305c.jpg">
+<p>遊戲模式可以利用軟體將鍵盤目前的快速鍵給取消，在遊戲的時候更順暢</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3a3338dec5.jpg">
+<p>巨集功能，除了利用鍵盤手動錄製之外，也可以利用軟體輸入鍵盤的輸入順序調整巨集內容，巨集也可以模擬滑鼠事件，算是相當不錯的模擬功能。</p>
+<p>iRocks K89M 整體的設計採用人體工學模式來設計鍵盤走向，事實上 irocks 也不是第一次做人體工學鍵盤了，早期我在癮科技開箱的 <a href="https://www.cool3c.com/article/64488">Kinesis Freestyle-2</a> 在 2019 的 <a href="https://mesak.tw/network/9387/computex-2019-irock">Computex </a> 就有展出，似乎也是 irocks 研發生產的，iRocks K89M  的造型拿去 google 圖片搜尋也可以找到國外的品牌販售。</p>
+<p>整體上來說 iRocks K89M 的輸入方式算是相當舒適的，不過可惜手靠墊的模式是採用塑膠，雖然材質不錯，不會咬手，但是針對突起的高度來說，就少了一點舒適的感受，不過還好打感上算是維持一定的水準。</p>
+<p>人體工學鍵盤採用分體式設計，對於不習慣盲打的朋友，這點就比較難過一點，但是當習慣這種模式的輸入方式之後，整體輸入的姿勢跟舒適感就已經是回不去的感受。</p>
+<p>可惜目前在台灣已經不好買到了，不過還是可以期待它們的新品鍵盤<a href="https://www.zeczec.com/projects/irocks-k59m"> iRocks-K59M</a> ，減去一排巨集以及數字區域，增加皮革軟墊以及撐高支架….  有興趣的可以關注一下。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/i-rocks">i-rocks</a><a href="https://mesak.tw/tag/ergonomics">人體工學</a><a href="https://mesak.tw/tag/mechanical-keyboard">機械鍵盤</a><a href="https://mesak.tw/tag/keyboards">鍵盤</a>					</div>
+</div>]]>
+      </description>
+      <content:encoded><![CDATA[<div>
+<p>許久沒開箱了，這次要開的是 iRocks K89M ，這款鍵盤說來慚愧，我滿早就入手了，不過因為搬家加上工作的關係，最近才從倉庫把它挖出來，好再手感依舊，這次還是做個紀錄，把鍵盤給開起來。</p>
+<p>iRocks 從薄膜鍵盤，到機械自鍵盤，再到自有軸，這次來到了人體工學分離式機械鍵盤，每一次的鍵盤設計都令人驚艷，價位也是相當的親民，機械式鍵盤從好入手的軸體，到堅持德國櫻桃軸體的選擇都有各種類型的選擇可以挑選。</p>
+<p>這次要開箱的 K89M 也是，最早在<a href="https://www.zeczec.com/projects/iRocksK89M">嘖嘖募資</a>，為人體工學鍵盤再闢一條道路，募資現況已成功，不過相隔已經兩年了，要買也很難入手。不過好在近期它們又開了新的鍵盤設計 <a href="https://www.zeczec.com/projects/irocks-k59m">iRocks-K59M</a></p>
+<p>不過究竟 K89M 到底好不好用，現在開箱也可以讓想預購 K59M 的朋友們做個參考。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8593c262c9.jpg">
+<p>K89M 採用人體工學鍵盤左右分離的設計，整體包裝來說是採用上下疊的方式包裝</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-99b616d67a.jpg">
+<p>整個鍵盤採用一個三角形的造型當作中心點。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b0289be254.jpg">
+<p>背面有整個鍵盤的規格說明</p>
+<p><strong>產品規格</strong><strong>:</strong></p>
+<ul><li>產品名稱 : RGB背光分離式機械鍵盤</li><li>產品型號 : IRK89M</li><li>介面 : USB&nbsp;</li><li>按鍵數 : 115鍵&nbsp;</li><li>開關形式 : 機械開關</li><li>按鍵行程 : 4.0±0.5mm</li><li>全區防鬼鍵設計 (NKRO)</li><li> USB 2.0 傳輸埠&nbsp;</li><li>電壓/電流 : DC 5V / 650 mA Max.</li><li>產品重量 : 約1.85公斤</li><li>USB-C主線長 : 約180公分&nbsp;</li><li>USB-C 連接線長 : 約23公分</li><li>產品尺寸 : 563 (L) X 256(W) X 52.5 (H) mm</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d0cd222263.jpg">
+<p>鍵盤總長占了 56 公分左右，遠比一般鍵盤來的大</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-fb8ea2cbe1.jpg">
+<p>鍵盤背面，鍵盤共八塊止滑，穩定性相當不錯</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f54f0998c9.jpg">
+<p>鍵盤採用 TYPE-C 編織線，附帶魔鬼氈收線捲</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-85819d7501.jpg">
+<p>左側的鍵盤可以看到是中間隆起，往左手方向降低。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ae0272ef57.jpg">
+<p>左側鍵盤整體，鍵盤的側燈軸從頂部延伸到左側手托的底部，發光時不會妨礙到視線</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0eebde8a63.jpg">
+<p>左側鍵盤的上方，連接孔採用 TYPEC 作為兩個鍵盤的連接孔，另一個TYPEC 連接電腦，另外多附贈一個 USB 2.0 的插槽，可以用來有線、無線滑鼠相當方便。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-00deb24a47.jpg">
+<p>123</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e1ed2b33d0.jpg">
+<p>右側鍵盤連接的位置，上方採用 TYPE-C 作為兩個左右鍵盤的組件連接</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c042dcde33.jpg">
+<p>右側鍵盤的右上角，這個透光開槽真的設計的很棒</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-9792e06ade.jpg">
+<p>鍵盤通電，中間的旋鈕相當搶眼。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3cfc2af81a.jpg">
+<p>旋鈕的燈光是作為指示用，每一種燈光都代表不同的功能內容</p>
+<ul><li>紅燈：調整音量大小或靜音。</li><li>藍燈：使用 Windows 10 支援的智慧滾輪</li><li>綠燈：使用旋鈕選擇工作頁面</li><li>黃燈：調整鍵盤的背光燈效，背光亮度</li></ul>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-150d653aed.jpg">
+<p>鍵盤的 LOCK 指示燈在左側鍵盤的正中央，方便辨識</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-20d528ed5f.jpg">
+<p>當左上放上鍵盤的時候，手指可以很輕易的找到定位點，拇指可以根據凹槽的位置找到適合擺放的目標，左手就會依序向左貼合，這樣定位就不容易打架、誤判。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1136a41b92.jpg">
+<p>右手範圍區域比較大，但是辨識度不難，適應個幾次很快就能將手腕順手置上</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-45181e1a2f.jpg">
+<p>左側鍵盤有 10個獨立巨集鍵，巨集鍵利用FN+M1~10的方式錄製巨集，再次按壓之後保存輸入的內容，除此之外也可以利用軟體來編輯巨集按鍵，FN+ESC 可以消除所有的巨集。左側鍵盤少了 WIN的按紐，取而代之的是 FN 鍵。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-5a1474c64f.jpg">
+<p>上方一排更是多媒體播放鍵區域，利用 FN 鍵可以快速使用多媒體播放功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-59754ca674.jpg">
+<p>右側鍵盤的上方排列，主要是以 J 的定位點周邊 1 格作為鍵盤的分割點， 6這個數字很尷尬的是被切到左邊。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-837bee7b5b.jpg">
+<p>ENTER 正常輸入區塊與一般鍵盤無異。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-8ae34bd85e.jpg">
+<p>數字區+六塊肌區很明顯的斜了一塊，主要還是配合人體工學的設計傾斜程度</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-784e8c93cd.jpg">
+<p>鍵盤的右上帶有 irocks 的 LOGO ，側邊一樣是側邊發光導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0278ab388b.jpg">
+<p>整體傾斜的角度為中間隆起 14°，讓整體鍵盤變的厚實許多，隆起的部分就轉化成為鍵盤的手靠墊</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-32ddf0f9df.jpg">
+<p>鍵盤後側邊發光條為 RGB 多彩發光</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-016d7d02c9.jpg">
+<p>鍵盤平放角度，可以看到中間隆起，左右兩側從後方看到就會是紅色的襯邊加上 RGB 的導光條</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-79c1a644b2.jpg">
+<p>這把鍵盤為 Cherry 紅軸，原始販售的軸體為 德國櫻桃青、茶、紅軸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-ee019345c9.jpg">
+<p>紅軸打感不拖泥帶水，直上直下相當受到我的喜愛。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-645fc85bf8.jpg">
+<p>如果想要替換鍵帽，要注意的是空白鍵為 3.5u，市面上比較少看到此類型的長度。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-d914acf795.jpg">
+<p>鍵盤整體來說，在桌面上就是個巨無霸。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-0f66e26c6d.jpg">
+<p>隆起的角度會讓人直接放上定位點，之前測試過一把 全尺寸鍵盤帶 10 個巨集設計，側邊總是讓我不方便去定位到 ctrl 的位置，K89M 很神奇的是利用角度讓你把鍵盤的側邊當作倚靠，大拇指可以協助定位點，很順勢的手靠上去就可以找到應有的位置。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-f655e7c313.jpg">
+<p>這個凹槽設計的相當不錯。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-b887c73a82.jpg">
+<p>左鍵盤可以單個獨立連接，不過還是需要插對孔位，遇到一些只需要 左側鍵盤的遊戲就可以縮小所需要的空間</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-c1daefb0b6.jpg">
+<p>如果要用單邊操作，左邊的巨集建就可以成為玩遊戲的好幫手。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-e19c40ee8f.jpg">
+<p>這樣打遊戲桌面空間就乾淨了許多。</p>
+<p>iRocks K89M 一樣有著電腦應用程式軟體可以客製化操作，進入 <a href="https://www.humblebundle.com/stand-with-ukraine-bundle">官網</a>之後，找到 <strong>K89M 設定程式與韌體更新包</strong> 下載安裝之後就可以針對鍵盤逐一設置</p>
+<p>打開 K89M 專屬應用程式 </p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-074301dfb8.jpg">
+<p>主頁可以針對每一個按鍵進行設置，也可以指定自己想要的巨集功能。</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-1ecaf0f3eb.jpg">
+<p>背光分頁這邊可以調整各種燈光色彩的走向，以及顏色定義</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-7a9743305c.jpg">
+<p>遊戲模式可以利用軟體將鍵盤目前的快速鍵給取消，在遊戲的時候更順暢</p>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/mesak.tw-3a3338dec5.jpg">
+<p>巨集功能，除了利用鍵盤手動錄製之外，也可以利用軟體輸入鍵盤的輸入順序調整巨集內容，巨集也可以模擬滑鼠事件，算是相當不錯的模擬功能。</p>
+<p>iRocks K89M 整體的設計採用人體工學模式來設計鍵盤走向，事實上 irocks 也不是第一次做人體工學鍵盤了，早期我在癮科技開箱的 <a href="https://www.cool3c.com/article/64488">Kinesis Freestyle-2</a> 在 2019 的 <a href="https://mesak.tw/network/9387/computex-2019-irock">Computex </a> 就有展出，似乎也是 irocks 研發生產的，iRocks K89M  的造型拿去 google 圖片搜尋也可以找到國外的品牌販售。</p>
+<p>整體上來說 iRocks K89M 的輸入方式算是相當舒適的，不過可惜手靠墊的模式是採用塑膠，雖然材質不錯，不會咬手，但是針對突起的高度來說，就少了一點舒適的感受，不過還好打感上算是維持一定的水準。</p>
+<p>人體工學鍵盤採用分體式設計，對於不習慣盲打的朋友，這點就比較難過一點，但是當習慣這種模式的輸入方式之後，整體輸入的姿勢跟舒適感就已經是回不去的感受。</p>
+<p>可惜目前在台灣已經不好買到了，不過還是可以期待它們的新品鍵盤<a href="https://www.zeczec.com/projects/irocks-k59m"> iRocks-K59M</a> ，減去一排巨集以及數字區域，增加皮革軟墊以及撐高支架….  有興趣的可以關注一下。</p>
+<div>
+<h3><em>相關</em></h3>
+</div>
+<div>
+<a href="https://mesak.tw/tag/i-rocks">i-rocks</a><a href="https://mesak.tw/tag/ergonomics">人體工學</a><a href="https://mesak.tw/tag/mechanical-keyboard">機械鍵盤</a><a href="https://mesak.tw/tag/keyboards">鍵盤</a>					</div>
+</div>]]></content:encoded>
+      <itunes:image href="https://mesak.tw/wp-content/uploads/2022/03/irocks_k89m_01.jpg"/>
+        <media:content url="https://mesak.tw/wp-content/uploads/2022/03/irocks_k89m_01.jpg" medium="image"/>
+      <pubDate>Sat, 19 Mar 2022 08:15:37 +0000</pubDate>
     </item></channel>
 </rss>

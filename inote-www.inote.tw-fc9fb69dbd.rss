@@ -74,5 +74,464 @@
       <itunes:image href="https://www.inote.tw/wp-content/uploads/2023/05/久久臭豆腐.jpg"/>
         <media:content url="https://www.inote.tw/wp-content/uploads/2023/05/久久臭豆腐.jpg" medium="image"/>
       <pubDate>Mon, 01 May 2023 22:18:34 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[[RxSwift] 利用 takeUntil 來取消訂閱]]></title>
+      <link>https://www.inote.tw/rxswift-takeuntil</link>
+      <itunes:title><![CDATA[[RxSwift] 利用 takeUntil 來取消訂閱]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p><a href="https://www.inote.tw/tag/rxswift" target="_blank">RxSwift</a> 是一個很好用的第三方套件，而他因為支援比較低的 iOS 版本，所以也是目前海芋有用到的第三方 Reactive 開發套件，而我們有時必須將我們已訂閱的 Observable 取消訂閱，這時就可以使用 takeUntil 啦，這可是使用 RxSwift 必學的絕招！</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[RxSwift] 利用 takeUntil 來取消訂閱 1"><p>takeUntil 最神奇的地方是在會同時監聽兩個 Observable，當第二個 Observable 發出時，就會停止原本的 Observable。舉一個官方的簡單例子來說。</p><pre><code>let disposeBag = DisposeBag()
+let aObservable = PublishSubject&lt;String&gt;()
+let bObservable = PublishSubject&lt;Void&gt;()
+aObservable
+.take(util: bObservable)
+.subscribe { print($0) }
+.disposed(by: disposeBag)
+aObservable.onNext("Hello")
+aObservable.onNext("World")
+bObservable.onNext(())
+// 底下不會印出來
+aObservable.onNext("Not Print")</code></pre><p>這個原理就是他同時觀察「aObservable」和「bObservable」，因為「bObservable」已經觸發了，所以aObservable就被取消訂閱了。</p><p>再舉一個最簡單的例來說，我們可能 ViewController 內監聽進入前景和背景，來不同的事件 (文：<a href="https://www.inote.tw/rxswift-appbackgroundevent" target="_blank">如何利用 RxSwift 監聽進入背景/前景</a>)，我們可能的寫法可能會寫成這樣。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+override func viewDidLoad() {
+super.viewDidLoad()
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+}</code></pre><p>這樣的寫法在大多數底下都不會有問題，但如果是使用 <a href="https://github.com/pujiaxin33/JXSegmentedView" target="_blank">JXSegmentedView</a> 這類的套件來建立 Paging，這樣的寫法就可能產生問題了，因為 JXSegmentedView 的寫法讓你可以同時存在許多 UIViewController，所以我的思路是，那就畫面出現時來監聽，消失時取消監聽，所以必須改寫成在畫面 viewDidAppear 再來監聽，並在 viewWillDisappear 取消監聽，也因此改寫如下即可。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+lazy var cancellingObservable = PublishSubject&lt;Void&gt;()
+override func viewDidAppear(_ animated: Bool) {
+super.viewDidAppear(animated)
+cancellingObservable.onNext(())
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+override func viewWillDisappear() {
+super.viewWillDisappear()
+cancellingObservable.onNext(())
+}
+}</code></pre><p>其中在 viewDidAppear 和 viewWillDisappear 分別觸發一次 cancellingObservable 來取消訂閱，來確保程式進入背景或前景時，只會被訂閱一次，並在畫面消失時取消訂閱。takeUntil 真的是 RxSwift 中一個非常實用的 Operator，你一定要學會他喔！</p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p><a href="https://www.inote.tw/tag/rxswift" target="_blank">RxSwift</a> 是一個很好用的第三方套件，而他因為支援比較低的 iOS 版本，所以也是目前海芋有用到的第三方 Reactive 開發套件，而我們有時必須將我們已訂閱的 Observable 取消訂閱，這時就可以使用 takeUntil 啦，這可是使用 RxSwift 必學的絕招！</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[RxSwift] 利用 takeUntil 來取消訂閱 1"><p>takeUntil 最神奇的地方是在會同時監聽兩個 Observable，當第二個 Observable 發出時，就會停止原本的 Observable。舉一個官方的簡單例子來說。</p><pre><code>let disposeBag = DisposeBag()
+let aObservable = PublishSubject&lt;String&gt;()
+let bObservable = PublishSubject&lt;Void&gt;()
+aObservable
+.take(util: bObservable)
+.subscribe { print($0) }
+.disposed(by: disposeBag)
+aObservable.onNext("Hello")
+aObservable.onNext("World")
+bObservable.onNext(())
+// 底下不會印出來
+aObservable.onNext("Not Print")</code></pre><p>這個原理就是他同時觀察「aObservable」和「bObservable」，因為「bObservable」已經觸發了，所以aObservable就被取消訂閱了。</p><p>再舉一個最簡單的例來說，我們可能 ViewController 內監聽進入前景和背景，來不同的事件 (文：<a href="https://www.inote.tw/rxswift-appbackgroundevent" target="_blank">如何利用 RxSwift 監聽進入背景/前景</a>)，我們可能的寫法可能會寫成這樣。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+override func viewDidLoad() {
+super.viewDidLoad()
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+}</code></pre><p>這樣的寫法在大多數底下都不會有問題，但如果是使用 <a href="https://github.com/pujiaxin33/JXSegmentedView" target="_blank">JXSegmentedView</a> 這類的套件來建立 Paging，這樣的寫法就可能產生問題了，因為 JXSegmentedView 的寫法讓你可以同時存在許多 UIViewController，所以我的思路是，那就畫面出現時來監聽，消失時取消監聽，所以必須改寫成在畫面 viewDidAppear 再來監聽，並在 viewWillDisappear 取消監聽，也因此改寫如下即可。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+lazy var cancellingObservable = PublishSubject&lt;Void&gt;()
+override func viewDidAppear(_ animated: Bool) {
+super.viewDidAppear(animated)
+cancellingObservable.onNext(())
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+override func viewWillDisappear() {
+super.viewWillDisappear()
+cancellingObservable.onNext(())
+}
+}</code></pre><p>其中在 viewDidAppear 和 viewWillDisappear 分別觸發一次 cancellingObservable 來取消訂閱，來確保程式進入背景或前景時，只會被訂閱一次，並在畫面消失時取消訂閱。takeUntil 真的是 RxSwift 中一個非常實用的 Operator，你一定要學會他喔！</p>]]>
+      </description>
+      <content:encoded><![CDATA[<p><a href="https://www.inote.tw/tag/rxswift" target="_blank">RxSwift</a> 是一個很好用的第三方套件，而他因為支援比較低的 iOS 版本，所以也是目前海芋有用到的第三方 Reactive 開發套件，而我們有時必須將我們已訂閱的 Observable 取消訂閱，這時就可以使用 takeUntil 啦，這可是使用 RxSwift 必學的絕招！</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[RxSwift] 利用 takeUntil 來取消訂閱 1"><p>takeUntil 最神奇的地方是在會同時監聽兩個 Observable，當第二個 Observable 發出時，就會停止原本的 Observable。舉一個官方的簡單例子來說。</p><pre><code>let disposeBag = DisposeBag()
+let aObservable = PublishSubject&lt;String&gt;()
+let bObservable = PublishSubject&lt;Void&gt;()
+aObservable
+.take(util: bObservable)
+.subscribe { print($0) }
+.disposed(by: disposeBag)
+aObservable.onNext("Hello")
+aObservable.onNext("World")
+bObservable.onNext(())
+// 底下不會印出來
+aObservable.onNext("Not Print")</code></pre><p>這個原理就是他同時觀察「aObservable」和「bObservable」，因為「bObservable」已經觸發了，所以aObservable就被取消訂閱了。</p><p>再舉一個最簡單的例來說，我們可能 ViewController 內監聽進入前景和背景，來不同的事件 (文：<a href="https://www.inote.tw/rxswift-appbackgroundevent" target="_blank">如何利用 RxSwift 監聽進入背景/前景</a>)，我們可能的寫法可能會寫成這樣。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+override func viewDidLoad() {
+super.viewDidLoad()
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+}</code></pre><p>這樣的寫法在大多數底下都不會有問題，但如果是使用 <a href="https://github.com/pujiaxin33/JXSegmentedView" target="_blank">JXSegmentedView</a> 這類的套件來建立 Paging，這樣的寫法就可能產生問題了，因為 JXSegmentedView 的寫法讓你可以同時存在許多 UIViewController，所以我的思路是，那就畫面出現時來監聽，消失時取消監聽，所以必須改寫成在畫面 viewDidAppear 再來監聽，並在 viewWillDisappear 取消監聽，也因此改寫如下即可。</p><pre><code>class ExampleController: UIViewController{
+lazy var disposeBag = DisposeBag()
+lazy var cancellingObservable = PublishSubject&lt;Void&gt;()
+override func viewDidAppear(_ animated: Bool) {
+super.viewDidAppear(animated)
+cancellingObservable.onNext(())
+NotificationCenter.default
+.rx.notification(UIApplication.didEnterBackgroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入背景
+}).disposed(by: disposeBag)
+NotificationCenter.default
+.rx.notification(UIApplication.willEnterForegroundNotification)
+.take(util: cancellingObservable)
+.subscribe(onNext: { _ in
+//進入前景
+}).disposed(by: disposeBag)
+}
+override func viewWillDisappear() {
+super.viewWillDisappear()
+cancellingObservable.onNext(())
+}
+}</code></pre><p>其中在 viewDidAppear 和 viewWillDisappear 分別觸發一次 cancellingObservable 來取消訂閱，來確保程式進入背景或前景時，只會被訂閱一次，並在畫面消失時取消訂閱。takeUntil 真的是 RxSwift 中一個非常實用的 Operator，你一定要學會他喔！</p>]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" medium="image"/>
+      <pubDate>Mon, 01 May 2023 00:36:26 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[利用 Network.framework 來實做 TCP Socket 連線]]></title>
+      <link>https://www.inote.tw/ios-tcp-socket</link>
+      <itunes:title><![CDATA[利用 Network.framework 來實做 TCP Socket 連線]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>Apple 在 iOS 12 後內建了 Socket 連線，讓我們能夠擺脫以往要使用第三方套件來做 Socket 連線的機制，而 Apple 的 Socket 連線是採用了 NWConnection 這個機制，最近海芋剛好要實做 TCP 連線的機制，在使用 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 的幫助下，終於寫好了一個簡單的 Socket 連線程式。</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="利用 Network.framework 來實做 TCP Socket 連線 1"><p>我是以這個關鍵字去問 ChatGPT。</p><pre><code>給我一個完整程式，swift 撰寫socket 連線， 在背景執行序執行，
+需考慮到連線逾時，傳送過程都是使用byte進行傳送接收 ，
+在傳送時需考慮到每一筆資料傳送完成後再送下一筆，使用 NWConnection</code></pre><p>結果 ChatGPT 馬上生給我範例程式。</p><pre><code>class SocketManager {
+private var connection: NWConnection?
+private let queue = DispatchQueue(label: "socketQueue")
+private let host: NWEndpoint.Host
+private let port: NWEndpoint.Port
+init(host: String, port: UInt16) {
+self.host = NWEndpoint.Host(host)
+self.port = NWEndpoint.Port(rawValue: port)!
+}
+func connect() {
+let parameters = NWParameters.tcp
+connection = NWConnection(host: host, port: port, using: parameters)
+connection?.stateUpdateHandler = { [weak self] newState in
+switch newState {
+case .ready:
+print("Connected!")
+self?.receive()
+case .failed(let error):
+print("Connection failed: \(error)")
+self?.connection?.cancel()
+case .cancelled:
+print("Connection cancelled")
+default:
+break
+}
+}
+connection?.start(queue: queue)
+}
+func send(data: Data) {
+connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
+if let error = error {
+print("Send error: \(error)")
+} else {
+print("Data sent successfully")
+}
+}))
+}
+private func receive() {
+connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] (data, context, isComplete, error) in
+if let data = data {
+print("Received data: \(data)")
+}
+if isComplete {
+self?.connection?.cancel()
+} else if let error = error {
+print("Receive error: \(error)")
+} else {
+self?.receive()
+}
+}
+}
+func disconnect() {
+connection?.cancel()
+}
+}
+</code></pre><p>不得不說 ChatGPT 真的很厲害，這樣的確就快寫完了。但是在看了 <a href="https://developer.apple.com/documentation/network/nwparameters" target="_blank">NWParameters</a> 這個物件後，發現有一些優化可以使用。舉例來說，當我們在解析網站時，會從 DNS Server 要到網站的 ip，而 DNS Server 會有快取的機制，但快取的時間是有限制的，舉例來說可能兩小時就過期了，如果我們在連線時能夠將查詢回來的 DNS 結果先儲存，當連不上時再去問 DNS Server，這樣就可以加速連線的時間，這時我們可以將「expiredDNSBehavior」設為 allow，就可以利用這樣的機制了。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 允許使用過期的DNS，若連不上iOS會自動重查並重新連上
+params.expiredDNSBehavior = .allow
+return params
+}</code></pre><p>另外，如果我們的手機訊號常常在行動網路和wifi間飄移，我們可以採用 <a href="https://support.apple.com/zh-tw/HT201373" target="_blank">Multipath TCP</a> 來做連線，而要開啟這個功能，建議將 multipathServiceType 設為 <em>interactive</em> 或是 <em>aggregate</em>。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 降低延遲，並同時使用多種網路連線至站台
+params.multipathServiceType = .interactive
+return params
+}</code></pre><p>以上是略舉兩個簡單的應用，相信你已經想試了，有問題就問 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 吧，他會給你很好的靈感的。</p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>Apple 在 iOS 12 後內建了 Socket 連線，讓我們能夠擺脫以往要使用第三方套件來做 Socket 連線的機制，而 Apple 的 Socket 連線是採用了 NWConnection 這個機制，最近海芋剛好要實做 TCP 連線的機制，在使用 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 的幫助下，終於寫好了一個簡單的 Socket 連線程式。</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="利用 Network.framework 來實做 TCP Socket 連線 1"><p>我是以這個關鍵字去問 ChatGPT。</p><pre><code>給我一個完整程式，swift 撰寫socket 連線， 在背景執行序執行，
+需考慮到連線逾時，傳送過程都是使用byte進行傳送接收 ，
+在傳送時需考慮到每一筆資料傳送完成後再送下一筆，使用 NWConnection</code></pre><p>結果 ChatGPT 馬上生給我範例程式。</p><pre><code>class SocketManager {
+private var connection: NWConnection?
+private let queue = DispatchQueue(label: "socketQueue")
+private let host: NWEndpoint.Host
+private let port: NWEndpoint.Port
+init(host: String, port: UInt16) {
+self.host = NWEndpoint.Host(host)
+self.port = NWEndpoint.Port(rawValue: port)!
+}
+func connect() {
+let parameters = NWParameters.tcp
+connection = NWConnection(host: host, port: port, using: parameters)
+connection?.stateUpdateHandler = { [weak self] newState in
+switch newState {
+case .ready:
+print("Connected!")
+self?.receive()
+case .failed(let error):
+print("Connection failed: \(error)")
+self?.connection?.cancel()
+case .cancelled:
+print("Connection cancelled")
+default:
+break
+}
+}
+connection?.start(queue: queue)
+}
+func send(data: Data) {
+connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
+if let error = error {
+print("Send error: \(error)")
+} else {
+print("Data sent successfully")
+}
+}))
+}
+private func receive() {
+connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] (data, context, isComplete, error) in
+if let data = data {
+print("Received data: \(data)")
+}
+if isComplete {
+self?.connection?.cancel()
+} else if let error = error {
+print("Receive error: \(error)")
+} else {
+self?.receive()
+}
+}
+}
+func disconnect() {
+connection?.cancel()
+}
+}
+</code></pre><p>不得不說 ChatGPT 真的很厲害，這樣的確就快寫完了。但是在看了 <a href="https://developer.apple.com/documentation/network/nwparameters" target="_blank">NWParameters</a> 這個物件後，發現有一些優化可以使用。舉例來說，當我們在解析網站時，會從 DNS Server 要到網站的 ip，而 DNS Server 會有快取的機制，但快取的時間是有限制的，舉例來說可能兩小時就過期了，如果我們在連線時能夠將查詢回來的 DNS 結果先儲存，當連不上時再去問 DNS Server，這樣就可以加速連線的時間，這時我們可以將「expiredDNSBehavior」設為 allow，就可以利用這樣的機制了。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 允許使用過期的DNS，若連不上iOS會自動重查並重新連上
+params.expiredDNSBehavior = .allow
+return params
+}</code></pre><p>另外，如果我們的手機訊號常常在行動網路和wifi間飄移，我們可以採用 <a href="https://support.apple.com/zh-tw/HT201373" target="_blank">Multipath TCP</a> 來做連線，而要開啟這個功能，建議將 multipathServiceType 設為 <em>interactive</em> 或是 <em>aggregate</em>。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 降低延遲，並同時使用多種網路連線至站台
+params.multipathServiceType = .interactive
+return params
+}</code></pre><p>以上是略舉兩個簡單的應用，相信你已經想試了，有問題就問 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 吧，他會給你很好的靈感的。</p>]]>
+      </description>
+      <content:encoded><![CDATA[<p>Apple 在 iOS 12 後內建了 Socket 連線，讓我們能夠擺脫以往要使用第三方套件來做 Socket 連線的機制，而 Apple 的 Socket 連線是採用了 NWConnection 這個機制，最近海芋剛好要實做 TCP 連線的機制，在使用 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 的幫助下，終於寫好了一個簡單的 Socket 連線程式。</p><img data-image-title="swift" src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="利用 Network.framework 來實做 TCP Socket 連線 1"><p>我是以這個關鍵字去問 ChatGPT。</p><pre><code>給我一個完整程式，swift 撰寫socket 連線， 在背景執行序執行，
+需考慮到連線逾時，傳送過程都是使用byte進行傳送接收 ，
+在傳送時需考慮到每一筆資料傳送完成後再送下一筆，使用 NWConnection</code></pre><p>結果 ChatGPT 馬上生給我範例程式。</p><pre><code>class SocketManager {
+private var connection: NWConnection?
+private let queue = DispatchQueue(label: "socketQueue")
+private let host: NWEndpoint.Host
+private let port: NWEndpoint.Port
+init(host: String, port: UInt16) {
+self.host = NWEndpoint.Host(host)
+self.port = NWEndpoint.Port(rawValue: port)!
+}
+func connect() {
+let parameters = NWParameters.tcp
+connection = NWConnection(host: host, port: port, using: parameters)
+connection?.stateUpdateHandler = { [weak self] newState in
+switch newState {
+case .ready:
+print("Connected!")
+self?.receive()
+case .failed(let error):
+print("Connection failed: \(error)")
+self?.connection?.cancel()
+case .cancelled:
+print("Connection cancelled")
+default:
+break
+}
+}
+connection?.start(queue: queue)
+}
+func send(data: Data) {
+connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
+if let error = error {
+print("Send error: \(error)")
+} else {
+print("Data sent successfully")
+}
+}))
+}
+private func receive() {
+connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] (data, context, isComplete, error) in
+if let data = data {
+print("Received data: \(data)")
+}
+if isComplete {
+self?.connection?.cancel()
+} else if let error = error {
+print("Receive error: \(error)")
+} else {
+self?.receive()
+}
+}
+}
+func disconnect() {
+connection?.cancel()
+}
+}
+</code></pre><p>不得不說 ChatGPT 真的很厲害，這樣的確就快寫完了。但是在看了 <a href="https://developer.apple.com/documentation/network/nwparameters" target="_blank">NWParameters</a> 這個物件後，發現有一些優化可以使用。舉例來說，當我們在解析網站時，會從 DNS Server 要到網站的 ip，而 DNS Server 會有快取的機制，但快取的時間是有限制的，舉例來說可能兩小時就過期了，如果我們在連線時能夠將查詢回來的 DNS 結果先儲存，當連不上時再去問 DNS Server，這樣就可以加速連線的時間，這時我們可以將「expiredDNSBehavior」設為 allow，就可以利用這樣的機制了。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 允許使用過期的DNS，若連不上iOS會自動重查並重新連上
+params.expiredDNSBehavior = .allow
+return params
+}</code></pre><p>另外，如果我們的手機訊號常常在行動網路和wifi間飄移，我們可以採用 <a href="https://support.apple.com/zh-tw/HT201373" target="_blank">Multipath TCP</a> 來做連線，而要開啟這個功能，建議將 multipathServiceType 設為 <em>interactive</em> 或是 <em>aggregate</em>。</p><pre><code>private func getParams() -&gt; NWParameters {
+// 使用 TCP 連線
+let params = NWParameters.tcp
+// 降低延遲，並同時使用多種網路連線至站台
+params.multipathServiceType = .interactive
+return params
+}</code></pre><p>以上是略舉兩個簡單的應用，相信你已經想試了，有問題就問 <a href="https://www.inote.tw/tag/chatgpt" target="_blank">ChatGPT</a> 吧，他會給你很好的靈感的。</p>]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" medium="image"/>
+      <pubDate>Thu, 27 Apr 2023 17:17:28 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點]]></title>
+      <link>https://www.inote.tw/%e9%a6%99%e9%83%81%e7%b4%a0%e9%a3%9f</link>
+      <itunes:title><![CDATA[台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>台東香郁素食是一家離台東火車站開車不會很遠的店家，而這家店家最有名的就是福州包了，也在台東火車站附近的加油站隔壁，也因此海芋去台東玩租車加油後，第一站就選擇這裡來用餐了。而這家吃過之後真的覺得超好吃，來台東一定要來吃。</p><img data-image-title="香郁素食" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食.jpg" alt="香郁素食" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xiang-yu-su-shi-wai-guan"> <span>1</span> <span>香郁素食 外觀</span> </a></div><div> <a href="#xiang-yu-su-shi-cai-dan"> <span>2</span> <span>香郁素食 菜單</span> </a></div><div> <a href="#xiang-yu-su-shi-shi-ji"> <span>3</span> <span>香郁素食 食記</span> </a></div><div> <a href="#xiang-yu-su-shi-de-zhi"> <span>4</span> <span>香郁素食 地址</span> </a></div></div></div></div></div><h2><span>香郁素食 外觀</span></h2><p>香郁素食是一個橘色的招牌，看起來非常明顯，而且下午不休息，所以如果坐火車來，也可以立即止餓。</p><img data-image-title="香郁素食-12" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-12.jpg" alt="香郁素食 12" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 2"><h2><span>香郁素食 菜單</span></h2><p>香郁素食的菜單如下，取自於<a href="https://www.facebook.com/people/%E9%A6%99%E9%83%81%E7%B4%A0%E9%A3%9F/100057095604712/" target="_blank">官方粉絲頁</a>。</p><img data-image-title="香郁素食-菜單" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-菜單.jpeg" alt="香郁素食 菜單" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 3"><h2><span>香郁素食 食記</span></h2><p>由於出門前有做功課，看到了菜單有福州包杭滿好奇，一到就先點了一盤，這看起來像扁扁的<a href="https://www.inote.tw/tag/%e7%b4%a0%e9%a3%9f%e6%b0%b4%e7%85%8e%e5%8c%85" target="_blank">水煎包</a>。</p><img data-image-title="香郁素食-1" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-1.jpg" alt="香郁素食 1" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 4"><p>福州包吃起來有點胡椒的香氣，而且味道又剛好，料也很多，我很推。</p><img data-image-title="香郁素食-2" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-2.jpg" alt="香郁素食 2" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 5"><p><a href="https://www.inote.tw/tag/%E7%B4%A0%E9%A3%9F%E8%9A%B5%E4%BB%94%E7%85%8E" target="_blank">素食蚵仔煎</a>一端上來嚇死我了，怎麼這麼大盤啊。</p><img data-image-title="香郁素食-3" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-3.jpg" alt="香郁素食 3" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 6"><p>料真的很多很多耶，而且醬好好吃，也是極力推的一道菜。</p><img data-image-title="香郁素食-4" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-4.jpg" alt="香郁素食 4" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 7"><p>店內也有抓餅，而抓飽煎得酥酥的，加上蛋，不用淋醬就很好吃了。</p><img data-image-title="香郁素食-5" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-5.jpg" alt="香郁素食 5" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 8"><p>接下來就是有很多粥可以選了，我們點了鮮蔬玉米粥、廣東粥，芋頭皮蛋粥，這三種粥的口感都不同，粥也都熬得很入口即化，不過認真來選的話，我最愛的就是廣東粥，接下來就會是芋頭皮蛋粥了。我覺得只有高雄的好粥對面有吃過這麼好吃的粥了。</p><img data-image-title="香郁素食-6" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-6.jpg" alt="香郁素食 6" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 9"><img data-image-title="香郁素食-7" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-7.jpg" alt="香郁素食 7" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 10"><img data-image-title="香郁素食-8" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-8.jpg" alt="香郁素食 8" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 11"><p>酸辣湯是這裡的特色，夠酸，而且道地，來這裡一定要來喝一碗酸辣湯。</p><img data-image-title="香郁素食-9" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-9.jpg" alt="香郁素食 9" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 12"><h2><span>香郁素食 地址</span></h2><p><strong><mark>香郁素食</mark></strong><br>台東縣台東市更生北路36號<br>營業時間：10:30–19:30 (週一公休)<br>支付方式： 現金<br>電話：089-238079<br>地圖資訊：【<a href="https://goo.gl/maps/MWPHbACRY36vfc7B7" target="_blank">Google Maps 前往</a>】</p>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>台東香郁素食是一家離台東火車站開車不會很遠的店家，而這家店家最有名的就是福州包了，也在台東火車站附近的加油站隔壁，也因此海芋去台東玩租車加油後，第一站就選擇這裡來用餐了。而這家吃過之後真的覺得超好吃，來台東一定要來吃。</p><img data-image-title="香郁素食" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食.jpg" alt="香郁素食" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xiang-yu-su-shi-wai-guan"> <span>1</span> <span>香郁素食 外觀</span> </a></div><div> <a href="#xiang-yu-su-shi-cai-dan"> <span>2</span> <span>香郁素食 菜單</span> </a></div><div> <a href="#xiang-yu-su-shi-shi-ji"> <span>3</span> <span>香郁素食 食記</span> </a></div><div> <a href="#xiang-yu-su-shi-de-zhi"> <span>4</span> <span>香郁素食 地址</span> </a></div></div></div></div></div><h2><span>香郁素食 外觀</span></h2><p>香郁素食是一個橘色的招牌，看起來非常明顯，而且下午不休息，所以如果坐火車來，也可以立即止餓。</p><img data-image-title="香郁素食-12" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-12.jpg" alt="香郁素食 12" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 2"><h2><span>香郁素食 菜單</span></h2><p>香郁素食的菜單如下，取自於<a href="https://www.facebook.com/people/%E9%A6%99%E9%83%81%E7%B4%A0%E9%A3%9F/100057095604712/" target="_blank">官方粉絲頁</a>。</p><img data-image-title="香郁素食-菜單" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-菜單.jpeg" alt="香郁素食 菜單" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 3"><h2><span>香郁素食 食記</span></h2><p>由於出門前有做功課，看到了菜單有福州包杭滿好奇，一到就先點了一盤，這看起來像扁扁的<a href="https://www.inote.tw/tag/%e7%b4%a0%e9%a3%9f%e6%b0%b4%e7%85%8e%e5%8c%85" target="_blank">水煎包</a>。</p><img data-image-title="香郁素食-1" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-1.jpg" alt="香郁素食 1" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 4"><p>福州包吃起來有點胡椒的香氣，而且味道又剛好，料也很多，我很推。</p><img data-image-title="香郁素食-2" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-2.jpg" alt="香郁素食 2" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 5"><p><a href="https://www.inote.tw/tag/%E7%B4%A0%E9%A3%9F%E8%9A%B5%E4%BB%94%E7%85%8E" target="_blank">素食蚵仔煎</a>一端上來嚇死我了，怎麼這麼大盤啊。</p><img data-image-title="香郁素食-3" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-3.jpg" alt="香郁素食 3" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 6"><p>料真的很多很多耶，而且醬好好吃，也是極力推的一道菜。</p><img data-image-title="香郁素食-4" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-4.jpg" alt="香郁素食 4" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 7"><p>店內也有抓餅，而抓飽煎得酥酥的，加上蛋，不用淋醬就很好吃了。</p><img data-image-title="香郁素食-5" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-5.jpg" alt="香郁素食 5" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 8"><p>接下來就是有很多粥可以選了，我們點了鮮蔬玉米粥、廣東粥，芋頭皮蛋粥，這三種粥的口感都不同，粥也都熬得很入口即化，不過認真來選的話，我最愛的就是廣東粥，接下來就會是芋頭皮蛋粥了。我覺得只有高雄的好粥對面有吃過這麼好吃的粥了。</p><img data-image-title="香郁素食-6" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-6.jpg" alt="香郁素食 6" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 9"><img data-image-title="香郁素食-7" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-7.jpg" alt="香郁素食 7" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 10"><img data-image-title="香郁素食-8" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-8.jpg" alt="香郁素食 8" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 11"><p>酸辣湯是這裡的特色，夠酸，而且道地，來這裡一定要來喝一碗酸辣湯。</p><img data-image-title="香郁素食-9" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-9.jpg" alt="香郁素食 9" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 12"><h2><span>香郁素食 地址</span></h2><p><strong><mark>香郁素食</mark></strong><br>台東縣台東市更生北路36號<br>營業時間：10:30–19:30 (週一公休)<br>支付方式： 現金<br>電話：089-238079<br>地圖資訊：【<a href="https://goo.gl/maps/MWPHbACRY36vfc7B7" target="_blank">Google Maps 前往</a>】</p>]]>
+      </description>
+      <content:encoded><![CDATA[<p>台東香郁素食是一家離台東火車站開車不會很遠的店家，而這家店家最有名的就是福州包了，也在台東火車站附近的加油站隔壁，也因此海芋去台東玩租車加油後，第一站就選擇這裡來用餐了。而這家吃過之後真的覺得超好吃，來台東一定要來吃。</p><img data-image-title="香郁素食" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食.jpg" alt="香郁素食" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xiang-yu-su-shi-wai-guan"> <span>1</span> <span>香郁素食 外觀</span> </a></div><div> <a href="#xiang-yu-su-shi-cai-dan"> <span>2</span> <span>香郁素食 菜單</span> </a></div><div> <a href="#xiang-yu-su-shi-shi-ji"> <span>3</span> <span>香郁素食 食記</span> </a></div><div> <a href="#xiang-yu-su-shi-de-zhi"> <span>4</span> <span>香郁素食 地址</span> </a></div></div></div></div></div><h2><span>香郁素食 外觀</span></h2><p>香郁素食是一個橘色的招牌，看起來非常明顯，而且下午不休息，所以如果坐火車來，也可以立即止餓。</p><img data-image-title="香郁素食-12" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-12.jpg" alt="香郁素食 12" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 2"><h2><span>香郁素食 菜單</span></h2><p>香郁素食的菜單如下，取自於<a href="https://www.facebook.com/people/%E9%A6%99%E9%83%81%E7%B4%A0%E9%A3%9F/100057095604712/" target="_blank">官方粉絲頁</a>。</p><img data-image-title="香郁素食-菜單" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-菜單.jpeg" alt="香郁素食 菜單" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 3"><h2><span>香郁素食 食記</span></h2><p>由於出門前有做功課，看到了菜單有福州包杭滿好奇，一到就先點了一盤，這看起來像扁扁的<a href="https://www.inote.tw/tag/%e7%b4%a0%e9%a3%9f%e6%b0%b4%e7%85%8e%e5%8c%85" target="_blank">水煎包</a>。</p><img data-image-title="香郁素食-1" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-1.jpg" alt="香郁素食 1" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 4"><p>福州包吃起來有點胡椒的香氣，而且味道又剛好，料也很多，我很推。</p><img data-image-title="香郁素食-2" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-2.jpg" alt="香郁素食 2" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 5"><p><a href="https://www.inote.tw/tag/%E7%B4%A0%E9%A3%9F%E8%9A%B5%E4%BB%94%E7%85%8E" target="_blank">素食蚵仔煎</a>一端上來嚇死我了，怎麼這麼大盤啊。</p><img data-image-title="香郁素食-3" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-3.jpg" alt="香郁素食 3" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 6"><p>料真的很多很多耶，而且醬好好吃，也是極力推的一道菜。</p><img data-image-title="香郁素食-4" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-4.jpg" alt="香郁素食 4" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 7"><p>店內也有抓餅，而抓飽煎得酥酥的，加上蛋，不用淋醬就很好吃了。</p><img data-image-title="香郁素食-5" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-5.jpg" alt="香郁素食 5" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 8"><p>接下來就是有很多粥可以選了，我們點了鮮蔬玉米粥、廣東粥，芋頭皮蛋粥，這三種粥的口感都不同，粥也都熬得很入口即化，不過認真來選的話，我最愛的就是廣東粥，接下來就會是芋頭皮蛋粥了。我覺得只有高雄的好粥對面有吃過這麼好吃的粥了。</p><img data-image-title="香郁素食-6" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-6.jpg" alt="香郁素食 6" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 9"><img data-image-title="香郁素食-7" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-7.jpg" alt="香郁素食 7" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 10"><img data-image-title="香郁素食-8" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-8.jpg" alt="香郁素食 8" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 11"><p>酸辣湯是這裡的特色，夠酸，而且道地，來這裡一定要來喝一碗酸辣湯。</p><img data-image-title="香郁素食-9" src="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食-9.jpg" alt="香郁素食 9" title="台東香郁素食 ~ 福州包、素蚵仔煎、酸辣湯必點 12"><h2><span>香郁素食 地址</span></h2><p><strong><mark>香郁素食</mark></strong><br>台東縣台東市更生北路36號<br>營業時間：10:30–19:30 (週一公休)<br>支付方式： 現金<br>電話：089-238079<br>地圖資訊：【<a href="https://goo.gl/maps/MWPHbACRY36vfc7B7" target="_blank">Google Maps 前往</a>】</p>]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食.jpg"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2023/04/香郁素食.jpg" medium="image"/>
+      <pubDate>Sun, 16 Apr 2023 20:03:02 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址]]></title>
+      <link>https://www.inote.tw/%e7%b5%82%e7%b5%90%e5%85%a7%e5%ae%b9%e8%be%b2%e5%a0%b4</link>
+      <itunes:title><![CDATA[瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>最近 Google 搜尋充斥著許多假網站和無效網址，而這些網站或買廣告或 SEO 做的好，所以搜尋結果都在很前面。而我們要擋掉這些連結，就要安裝《終結內容農場》這個套件，只要安裝完這個套件後，就不會再被假網站和無效網址騙了，節省我們寶貴時間。</p><img data-image-title="終結內容農場" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場.jpg" alt="終結內容農場" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#zhong-jie-nei-rong-nong-chang-xia-zai"> <span>1</span> <span>《終結內容農場》下載</span> </a></div><div> <a href="#zhong-jie-nei-rong-nong-chang-jiao-xue"> <span>2</span> <span>《終結內容農場》教學</span> </a></div></div></div></div></div><h2><span>《終結內容農場》下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>終結內容農場<br>■&nbsp;<strong>軟體版本：</strong>5.11.2<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Chrome / Firefox / Edge<br><mark><strong>■ 軟體下載：</strong></mark><strong><a href="https://www.inote.tools/browser-extensions-%e7%b5%82%e7%b5%90%e5%85%a7%e5%ae%b9%e8%be%b2%e5%a0%b4/" target="_blank"><mark>【點我下載】</mark></a></strong><mark><br></mark>■&nbsp;<strong>官方網站：</strong><a href="http://ultrasurf.us/" target="_blank"></a><strong><a href="https://danny0838.github.io/content-farm-terminator/zh/" data-type="URL" target="_blank"><mark>【點我前往】</mark></a></strong></p><h2><span>《終結內容農場》教學</span></h2><p><b><span>Step 1.</span></b><br>先去安裝《終結內容農場》套件，而在安裝完套件後，或許你沒感覺到什麼。以下列搜尋為例，紅色框起來的是假的網站。</p><img data-image-title="終結內容農場-1" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-1.jpg" alt="終結內容農場 1" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 2"><p><br><b><span>Step 2.</span></b><br>但是一點連去，馬上幫我們防守，超酷的。而建議搭配 <a href="https://www.inote.tw/wot" target="_blank" data-type="post" data-id="995">WOT</a> 一起使用，以達到最佳效果。</p><img data-image-title="終結內容農場-2" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-2.jpg" alt="終結內容農場 2" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 3">]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>最近 Google 搜尋充斥著許多假網站和無效網址，而這些網站或買廣告或 SEO 做的好，所以搜尋結果都在很前面。而我們要擋掉這些連結，就要安裝《終結內容農場》這個套件，只要安裝完這個套件後，就不會再被假網站和無效網址騙了，節省我們寶貴時間。</p><img data-image-title="終結內容農場" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場.jpg" alt="終結內容農場" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#zhong-jie-nei-rong-nong-chang-xia-zai"> <span>1</span> <span>《終結內容農場》下載</span> </a></div><div> <a href="#zhong-jie-nei-rong-nong-chang-jiao-xue"> <span>2</span> <span>《終結內容農場》教學</span> </a></div></div></div></div></div><h2><span>《終結內容農場》下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>終結內容農場<br>■&nbsp;<strong>軟體版本：</strong>5.11.2<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Chrome / Firefox / Edge<br><mark><strong>■ 軟體下載：</strong></mark><strong><a href="https://www.inote.tools/browser-extensions-%e7%b5%82%e7%b5%90%e5%85%a7%e5%ae%b9%e8%be%b2%e5%a0%b4/" target="_blank"><mark>【點我下載】</mark></a></strong><mark><br></mark>■&nbsp;<strong>官方網站：</strong><a href="http://ultrasurf.us/" target="_blank"></a><strong><a href="https://danny0838.github.io/content-farm-terminator/zh/" data-type="URL" target="_blank"><mark>【點我前往】</mark></a></strong></p><h2><span>《終結內容農場》教學</span></h2><p><b><span>Step 1.</span></b><br>先去安裝《終結內容農場》套件，而在安裝完套件後，或許你沒感覺到什麼。以下列搜尋為例，紅色框起來的是假的網站。</p><img data-image-title="終結內容農場-1" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-1.jpg" alt="終結內容農場 1" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 2"><p><br><b><span>Step 2.</span></b><br>但是一點連去，馬上幫我們防守，超酷的。而建議搭配 <a href="https://www.inote.tw/wot" target="_blank" data-type="post" data-id="995">WOT</a> 一起使用，以達到最佳效果。</p><img data-image-title="終結內容農場-2" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-2.jpg" alt="終結內容農場 2" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 3">]]>
+      </description>
+      <content:encoded><![CDATA[<p>最近 Google 搜尋充斥著許多假網站和無效網址，而這些網站或買廣告或 SEO 做的好，所以搜尋結果都在很前面。而我們要擋掉這些連結，就要安裝《終結內容農場》這個套件，只要安裝完這個套件後，就不會再被假網站和無效網址騙了，節省我們寶貴時間。</p><img data-image-title="終結內容農場" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場.jpg" alt="終結內容農場" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#zhong-jie-nei-rong-nong-chang-xia-zai"> <span>1</span> <span>《終結內容農場》下載</span> </a></div><div> <a href="#zhong-jie-nei-rong-nong-chang-jiao-xue"> <span>2</span> <span>《終結內容農場》教學</span> </a></div></div></div></div></div><h2><span>《終結內容農場》下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>終結內容農場<br>■&nbsp;<strong>軟體版本：</strong>5.11.2<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Chrome / Firefox / Edge<br><mark><strong>■ 軟體下載：</strong></mark><strong><a href="https://www.inote.tools/browser-extensions-%e7%b5%82%e7%b5%90%e5%85%a7%e5%ae%b9%e8%be%b2%e5%a0%b4/" target="_blank"><mark>【點我下載】</mark></a></strong><mark><br></mark>■&nbsp;<strong>官方網站：</strong><a href="http://ultrasurf.us/" target="_blank"></a><strong><a href="https://danny0838.github.io/content-farm-terminator/zh/" data-type="URL" target="_blank"><mark>【點我前往】</mark></a></strong></p><h2><span>《終結內容農場》教學</span></h2><p><b><span>Step 1.</span></b><br>先去安裝《終結內容農場》套件，而在安裝完套件後，或許你沒感覺到什麼。以下列搜尋為例，紅色框起來的是假的網站。</p><img data-image-title="終結內容農場-1" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-1.jpg" alt="終結內容農場 1" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 2"><p><br><b><span>Step 2.</span></b><br>但是一點連去，馬上幫我們防守，超酷的。而建議搭配 <a href="https://www.inote.tw/wot" target="_blank" data-type="post" data-id="995">WOT</a> 一起使用，以達到最佳效果。</p><img data-image-title="終結內容農場-2" src="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場-2.jpg" alt="終結內容農場 2" title="瀏覽器套件《終結內容農場》幫你擋掉 Google 搜尋無效網址 3">]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場.jpg"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2023/04/終結內容農場.jpg" medium="image"/>
+      <pubDate>Tue, 11 Apr 2023 20:51:15 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[NewFileTime 6.91 中文可攜版~ 批次修改檔案日期]]></title>
+      <link>https://www.inote.tw/newfiletime</link>
+      <itunes:title><![CDATA[NewFileTime 6.91 中文可攜版~ 批次修改檔案日期]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>NewFileTime 是一個<a href="https://www.inote.tw/tag/%e4%bf%ae%e6%94%b9%e6%aa%94%e6%a1%88%e6%97%a5%e6%9c%9f" target="_blank">修改檔案建立日期</a>、修改日期、存取日期的軟體，免安裝而且可攜，只要使用拖曳的方式，將要修改日期、時間的檔案拖曳進 NewFileTime 的視窗中，就可以批次修改檔案的日期和時間了。</p><img data-image-title="NewFileTime" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime.jpg" alt="NewFileTime" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#NewFileTime-xia-zai"> <span>1</span> <span>NewFileTime 下載</span> </a></div><div> <a href="#NewFileTime-shi-yong-jiao-xue"> <span>2</span> <span>NewFileTime 使用教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>NewFileTime 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>NewFileTime<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體版本：</strong>6.91<br>■&nbsp;<strong>軟體性質：</strong>Freeware<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-newfiletime/" target="_blank"><mark>【點我下載】</mark></a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="http://www.softwareok.com/?Microsoft/NewFileTime" target="_blank">http://www.softwareok.com/</a></p><h2><span>NewFileTime 使用教學</span></h2><p><mark><strong>Step 1.</strong><br></mark>下載 NewFileTime ，下載完完成後，解壓縮下載完成的檔案，並且執行「NewFileTime.exe」。</p><img data-image-title="NewFileTime_1" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_1.jpg" alt="NewFileTime_1" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 2"><p><mark><strong>Step 2.</strong><br></mark>第一次使用，必須接受授權合約才可以執行。</p><img data-image-title="NewFileTime_2" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_2.jpg" alt="NewFileTime_2" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 3"><p><meta charset="utf-8"><span><strong>Step 3.</strong></span><br>將要修改日期、時間的檔案，拖曳至 NewFileTime 中。</p><img data-image-title="NewFileTime_3" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_3.jpg" alt="NewFileTime_3" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 4"><p><mark><strong>Step 4.</strong><br></mark>再設定要修改後的日期與時間 (修改日期、建立日期、存取日期)，再按下【套用時間】。</p><p><br><img data-image-title="NewFileTime_4" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_4.jpg" alt="NewFileTime_4" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 5"></p><p><mark><strong>Step 5.</strong><br></mark>之後，檔案就看到剛設定完的建立日期、修改日期和存取日期囉。</p><img data-image-title="NewFileTime_5" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_5.jpg" alt="NewFileTime_5" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 6"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/bulkfilechanger" target="_blank">《BulkFileChanger》批次修改檔案時間及屬性</a></li></ul>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>NewFileTime 是一個<a href="https://www.inote.tw/tag/%e4%bf%ae%e6%94%b9%e6%aa%94%e6%a1%88%e6%97%a5%e6%9c%9f" target="_blank">修改檔案建立日期</a>、修改日期、存取日期的軟體，免安裝而且可攜，只要使用拖曳的方式，將要修改日期、時間的檔案拖曳進 NewFileTime 的視窗中，就可以批次修改檔案的日期和時間了。</p><img data-image-title="NewFileTime" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime.jpg" alt="NewFileTime" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#NewFileTime-xia-zai"> <span>1</span> <span>NewFileTime 下載</span> </a></div><div> <a href="#NewFileTime-shi-yong-jiao-xue"> <span>2</span> <span>NewFileTime 使用教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>NewFileTime 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>NewFileTime<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體版本：</strong>6.91<br>■&nbsp;<strong>軟體性質：</strong>Freeware<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-newfiletime/" target="_blank"><mark>【點我下載】</mark></a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="http://www.softwareok.com/?Microsoft/NewFileTime" target="_blank">http://www.softwareok.com/</a></p><h2><span>NewFileTime 使用教學</span></h2><p><mark><strong>Step 1.</strong><br></mark>下載 NewFileTime ，下載完完成後，解壓縮下載完成的檔案，並且執行「NewFileTime.exe」。</p><img data-image-title="NewFileTime_1" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_1.jpg" alt="NewFileTime_1" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 2"><p><mark><strong>Step 2.</strong><br></mark>第一次使用，必須接受授權合約才可以執行。</p><img data-image-title="NewFileTime_2" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_2.jpg" alt="NewFileTime_2" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 3"><p><meta charset="utf-8"><span><strong>Step 3.</strong></span><br>將要修改日期、時間的檔案，拖曳至 NewFileTime 中。</p><img data-image-title="NewFileTime_3" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_3.jpg" alt="NewFileTime_3" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 4"><p><mark><strong>Step 4.</strong><br></mark>再設定要修改後的日期與時間 (修改日期、建立日期、存取日期)，再按下【套用時間】。</p><p><br><img data-image-title="NewFileTime_4" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_4.jpg" alt="NewFileTime_4" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 5"></p><p><mark><strong>Step 5.</strong><br></mark>之後，檔案就看到剛設定完的建立日期、修改日期和存取日期囉。</p><img data-image-title="NewFileTime_5" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_5.jpg" alt="NewFileTime_5" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 6"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/bulkfilechanger" target="_blank">《BulkFileChanger》批次修改檔案時間及屬性</a></li></ul>]]>
+      </description>
+      <content:encoded><![CDATA[<p>NewFileTime 是一個<a href="https://www.inote.tw/tag/%e4%bf%ae%e6%94%b9%e6%aa%94%e6%a1%88%e6%97%a5%e6%9c%9f" target="_blank">修改檔案建立日期</a>、修改日期、存取日期的軟體，免安裝而且可攜，只要使用拖曳的方式，將要修改日期、時間的檔案拖曳進 NewFileTime 的視窗中，就可以批次修改檔案的日期和時間了。</p><img data-image-title="NewFileTime" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime.jpg" alt="NewFileTime" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#NewFileTime-xia-zai"> <span>1</span> <span>NewFileTime 下載</span> </a></div><div> <a href="#NewFileTime-shi-yong-jiao-xue"> <span>2</span> <span>NewFileTime 使用教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>NewFileTime 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>NewFileTime<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體版本：</strong>6.91<br>■&nbsp;<strong>軟體性質：</strong>Freeware<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-newfiletime/" target="_blank"><mark>【點我下載】</mark></a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="http://www.softwareok.com/?Microsoft/NewFileTime" target="_blank">http://www.softwareok.com/</a></p><h2><span>NewFileTime 使用教學</span></h2><p><mark><strong>Step 1.</strong><br></mark>下載 NewFileTime ，下載完完成後，解壓縮下載完成的檔案，並且執行「NewFileTime.exe」。</p><img data-image-title="NewFileTime_1" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_1.jpg" alt="NewFileTime_1" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 2"><p><mark><strong>Step 2.</strong><br></mark>第一次使用，必須接受授權合約才可以執行。</p><img data-image-title="NewFileTime_2" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_2.jpg" alt="NewFileTime_2" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 3"><p><meta charset="utf-8"><span><strong>Step 3.</strong></span><br>將要修改日期、時間的檔案，拖曳至 NewFileTime 中。</p><img data-image-title="NewFileTime_3" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_3.jpg" alt="NewFileTime_3" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 4"><p><mark><strong>Step 4.</strong><br></mark>再設定要修改後的日期與時間 (修改日期、建立日期、存取日期)，再按下【套用時間】。</p><p><br><img data-image-title="NewFileTime_4" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_4.jpg" alt="NewFileTime_4" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 5"></p><p><mark><strong>Step 5.</strong><br></mark>之後，檔案就看到剛設定完的建立日期、修改日期和存取日期囉。</p><img data-image-title="NewFileTime_5" src="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime_5.jpg" alt="NewFileTime_5" title="NewFileTime 6.91 中文可攜版~ 批次修改檔案日期 6"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/bulkfilechanger" target="_blank">《BulkFileChanger》批次修改檔案時間及屬性</a></li></ul>]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime.jpg"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2018/02/NewFileTime.jpg" medium="image"/>
+      <pubDate>Tue, 11 Apr 2023 18:01:50 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[Don’t Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間]]></title>
+      <link>https://www.inote.tw/dont-sleep</link>
+      <itunes:title><![CDATA[Don’t Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>Don’t Sleep Portable&nbsp; 是一套電源管理軟體，可以防止電腦<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">關機</a>、螢幕保護程式以及<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e4%bc%91%e7%9c%a0" target="_blank" data-schema-attribute="">休眠</a>等。另外它還可以設定在<a href="https://www.inote.tw/tag/%e5%ae%9a%e6%99%82%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">特定的時間上關機</a>，可以說是非常方便的小軟體。本文提供 Don’t Sleep 的下載點與使用教學，大家可以下載並依教學來操作看看唷！</p><img data-image-title="Dont-Sleep" src="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg" alt="Dont-Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#Dont-Sleep-xia-zai"> <span>1</span> <span>Don’t Sleep 下載</span> </a></div><div> <a href="#Dont-Sleep-jiao-xue"> <span>2</span> <span>Don’t Sleep 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>Don’t Sleep 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■ <strong>軟體名稱：</strong>Don’t Sleep Portable<br>■ <strong>軟體介面：</strong>中文<br>■ <strong>軟體版本：</strong>9.29<br>■ <strong>軟體性質：</strong>Freeware<br>■ <strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://inotetw.page.link/kb6u" target="_blank"><mark>【點我下載】</mark></a></strong><br>■ <strong>官方網站：</strong><a href="http://bit.ly/2S7tXxX" target="_blank">http://bit.ly/2S7tXxX</a></p><h2><span>Don’t Sleep 教學</span></h2><p><b><span>Step 1.</span></b><br>下載 Don’t Sleep Portable&nbsp; 後並解壓縮，如果您是 64 位元的作業系統，請執行「DontSleep_x64.exe」，如果您是 32 位元的作業系統，請執行「DontSleep_x86.exe」，或者您不確定您是 64 位元或是 32 位元的作業系統，請參閱「<a href="https://www.inote.tw/64bit-checker" target="_blank">檢查作業系統是 64 位元還是 32 位元</a>」一文。</p><img data-image-title="Don’t Sleep-2" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-2.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 2"><p><b><span>Step 2.</span></b><br>接著，按下〔Lag〕來變更這個軟體的語言</p><img data-image-title="Don’t Sleep-1" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-1.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 3"><p><b><span>Step 3.</span></b><br>而接下來，選擇〔Chinese Traditional〕，就可以變更為繁體中文介面囉。</p><img data-image-title="Don’t Sleep-3" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-3.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 4"><p><b><span>Step 4.</span></b><br>而你可以設定系統不能執行那些動作，如關機、休眠或螢幕保護程式等。</p><img data-image-title="Don’t Sleep-4" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-4.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 5"><p><b><span>Step 5.</span></b><br>而如果要設定自動關機的時間，只要在「定時器」輸入要關機的時間。</p><img data-image-title="Don’t Sleep-7" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-7.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 6"><p><b><span>Step 6.</span></b><br>接下來，勾選「使用計時器」。</p><img data-image-title="Don’t Sleep-6" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-6.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 7"><p><b><span>Step 7.</span></b><br>而你可以設定在這個時間要執行什麼動作，如關機等。</p><img data-image-title="Don’t Sleep-5" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-5.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 8"><p><b><span>Step 8.</span></b><br>設定好後，如果要 Don’t Sleep 繼續執行，必須將程式縮到系統列上，只要按下【到通知區域】即可。</p><img data-image-title="Don’t Sleep-8" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-8.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 9"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/wise-auto-shutdown" target="_blank">Wise Auto ShutDown Portable 中文可攜版 ~ 讓電腦自動關機、重新開機、登出、休眠、睡眠</a></li></ul>]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>Don’t Sleep Portable&nbsp; 是一套電源管理軟體，可以防止電腦<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">關機</a>、螢幕保護程式以及<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e4%bc%91%e7%9c%a0" target="_blank" data-schema-attribute="">休眠</a>等。另外它還可以設定在<a href="https://www.inote.tw/tag/%e5%ae%9a%e6%99%82%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">特定的時間上關機</a>，可以說是非常方便的小軟體。本文提供 Don’t Sleep 的下載點與使用教學，大家可以下載並依教學來操作看看唷！</p><img data-image-title="Dont-Sleep" src="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg" alt="Dont-Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#Dont-Sleep-xia-zai"> <span>1</span> <span>Don’t Sleep 下載</span> </a></div><div> <a href="#Dont-Sleep-jiao-xue"> <span>2</span> <span>Don’t Sleep 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>Don’t Sleep 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■ <strong>軟體名稱：</strong>Don’t Sleep Portable<br>■ <strong>軟體介面：</strong>中文<br>■ <strong>軟體版本：</strong>9.29<br>■ <strong>軟體性質：</strong>Freeware<br>■ <strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://inotetw.page.link/kb6u" target="_blank"><mark>【點我下載】</mark></a></strong><br>■ <strong>官方網站：</strong><a href="http://bit.ly/2S7tXxX" target="_blank">http://bit.ly/2S7tXxX</a></p><h2><span>Don’t Sleep 教學</span></h2><p><b><span>Step 1.</span></b><br>下載 Don’t Sleep Portable&nbsp; 後並解壓縮，如果您是 64 位元的作業系統，請執行「DontSleep_x64.exe」，如果您是 32 位元的作業系統，請執行「DontSleep_x86.exe」，或者您不確定您是 64 位元或是 32 位元的作業系統，請參閱「<a href="https://www.inote.tw/64bit-checker" target="_blank">檢查作業系統是 64 位元還是 32 位元</a>」一文。</p><img data-image-title="Don’t Sleep-2" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-2.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 2"><p><b><span>Step 2.</span></b><br>接著，按下〔Lag〕來變更這個軟體的語言</p><img data-image-title="Don’t Sleep-1" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-1.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 3"><p><b><span>Step 3.</span></b><br>而接下來，選擇〔Chinese Traditional〕，就可以變更為繁體中文介面囉。</p><img data-image-title="Don’t Sleep-3" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-3.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 4"><p><b><span>Step 4.</span></b><br>而你可以設定系統不能執行那些動作，如關機、休眠或螢幕保護程式等。</p><img data-image-title="Don’t Sleep-4" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-4.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 5"><p><b><span>Step 5.</span></b><br>而如果要設定自動關機的時間，只要在「定時器」輸入要關機的時間。</p><img data-image-title="Don’t Sleep-7" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-7.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 6"><p><b><span>Step 6.</span></b><br>接下來，勾選「使用計時器」。</p><img data-image-title="Don’t Sleep-6" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-6.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 7"><p><b><span>Step 7.</span></b><br>而你可以設定在這個時間要執行什麼動作，如關機等。</p><img data-image-title="Don’t Sleep-5" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-5.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 8"><p><b><span>Step 8.</span></b><br>設定好後，如果要 Don’t Sleep 繼續執行，必須將程式縮到系統列上，只要按下【到通知區域】即可。</p><img data-image-title="Don’t Sleep-8" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-8.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 9"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/wise-auto-shutdown" target="_blank">Wise Auto ShutDown Portable 中文可攜版 ~ 讓電腦自動關機、重新開機、登出、休眠、睡眠</a></li></ul>]]>
+      </description>
+      <content:encoded><![CDATA[<p>Don’t Sleep Portable&nbsp; 是一套電源管理軟體，可以防止電腦<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">關機</a>、螢幕保護程式以及<a href="https://www.inote.tw/tag/%e9%98%b2%e6%ad%a2%e4%bc%91%e7%9c%a0" target="_blank" data-schema-attribute="">休眠</a>等。另外它還可以設定在<a href="https://www.inote.tw/tag/%e5%ae%9a%e6%99%82%e9%97%9c%e6%a9%9f" target="_blank" data-schema-attribute="">特定的時間上關機</a>，可以說是非常方便的小軟體。本文提供 Don’t Sleep 的下載點與使用教學，大家可以下載並依教學來操作看看唷！</p><img data-image-title="Dont-Sleep" src="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg" alt="Dont-Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#Dont-Sleep-xia-zai"> <span>1</span> <span>Don’t Sleep 下載</span> </a></div><div> <a href="#Dont-Sleep-jiao-xue"> <span>2</span> <span>Don’t Sleep 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>Don’t Sleep 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■ <strong>軟體名稱：</strong>Don’t Sleep Portable<br>■ <strong>軟體介面：</strong>中文<br>■ <strong>軟體版本：</strong>9.29<br>■ <strong>軟體性質：</strong>Freeware<br>■ <strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://inotetw.page.link/kb6u" target="_blank"><mark>【點我下載】</mark></a></strong><br>■ <strong>官方網站：</strong><a href="http://bit.ly/2S7tXxX" target="_blank">http://bit.ly/2S7tXxX</a></p><h2><span>Don’t Sleep 教學</span></h2><p><b><span>Step 1.</span></b><br>下載 Don’t Sleep Portable&nbsp; 後並解壓縮，如果您是 64 位元的作業系統，請執行「DontSleep_x64.exe」，如果您是 32 位元的作業系統，請執行「DontSleep_x86.exe」，或者您不確定您是 64 位元或是 32 位元的作業系統，請參閱「<a href="https://www.inote.tw/64bit-checker" target="_blank">檢查作業系統是 64 位元還是 32 位元</a>」一文。</p><img data-image-title="Don’t Sleep-2" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-2.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 2"><p><b><span>Step 2.</span></b><br>接著，按下〔Lag〕來變更這個軟體的語言</p><img data-image-title="Don’t Sleep-1" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-1.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 3"><p><b><span>Step 3.</span></b><br>而接下來，選擇〔Chinese Traditional〕，就可以變更為繁體中文介面囉。</p><img data-image-title="Don’t Sleep-3" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-3.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 4"><p><b><span>Step 4.</span></b><br>而你可以設定系統不能執行那些動作，如關機、休眠或螢幕保護程式等。</p><img data-image-title="Don’t Sleep-4" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-4.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 5"><p><b><span>Step 5.</span></b><br>而如果要設定自動關機的時間，只要在「定時器」輸入要關機的時間。</p><img data-image-title="Don’t Sleep-7" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-7.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 6"><p><b><span>Step 6.</span></b><br>接下來，勾選「使用計時器」。</p><img data-image-title="Don’t Sleep-6" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-6.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 7"><p><b><span>Step 7.</span></b><br>而你可以設定在這個時間要執行什麼動作，如關機等。</p><img data-image-title="Don’t Sleep-5" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-5.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 8"><p><b><span>Step 8.</span></b><br>設定好後，如果要 Don’t Sleep 繼續執行，必須將程式縮到系統列上，只要按下【到通知區域】即可。</p><img data-image-title="Don’t Sleep-8" src="https://www.inote.tw/wp-content/uploads/2014/10/Dont-Sleep-8.jpg" alt="Don't Sleep" title="Don't Sleep 9.29 中文免安裝版 ~ 防止休眠、關機、螢幕保護程式的小工具，也可以設定自動關機時間 9"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/wise-auto-shutdown" target="_blank">Wise Auto ShutDown Portable 中文可攜版 ~ 讓電腦自動關機、重新開機、登出、休眠、睡眠</a></li></ul>]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg" medium="image"/>
+      <pubDate>Tue, 11 Apr 2023 17:58:09 +0000</pubDate>
+    </item><item>
+      <title><![CDATA[macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體]]></title>
+      <link>https://www.inote.tw/cleanmymac-x</link>
+      <itunes:title><![CDATA[macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體]]></itunes:title>
+      <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+      <itunes:summary>
+        <![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img data-image-title="cleanmymac_x" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img data-image-title="cleanmymac_1" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img data-image-title="cleanmymac_2" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img data-image-title="cleanmymac_12" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img data-image-title="cleanmymac_13" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img data-image-title="cleanmymac_4" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img data-image-title="cleanmymac_5" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img data-image-title="cleanmymac_10" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img data-image-title="cleanmymac_11" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img data-image-title="cleanmymac_14" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img data-image-title="cleanmymac_15" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img data-image-title="cleanmymac_19" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img data-image-title="cleanmymac_20" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img data-image-title="cleanmymac_21" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img data-image-title="cleanmymac_22" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img data-image-title="cleanmymac_16" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img data-image-title="cleanmymac_17" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img data-image-title="cleanmymac_8" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img data-image-title="cleanmymac_9" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]>
+      </itunes:summary>
+      <description>
+        <![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img data-image-title="cleanmymac_x" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img data-image-title="cleanmymac_1" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img data-image-title="cleanmymac_2" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img data-image-title="cleanmymac_12" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img data-image-title="cleanmymac_13" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img data-image-title="cleanmymac_4" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img data-image-title="cleanmymac_5" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img data-image-title="cleanmymac_10" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img data-image-title="cleanmymac_11" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img data-image-title="cleanmymac_14" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img data-image-title="cleanmymac_15" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img data-image-title="cleanmymac_19" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img data-image-title="cleanmymac_20" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img data-image-title="cleanmymac_21" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img data-image-title="cleanmymac_22" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img data-image-title="cleanmymac_16" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img data-image-title="cleanmymac_17" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img data-image-title="cleanmymac_8" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img data-image-title="cleanmymac_9" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]>
+      </description>
+      <content:encoded><![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img data-image-title="cleanmymac_x" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img data-image-title="cleanmymac_1" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img data-image-title="cleanmymac_2" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img data-image-title="cleanmymac_12" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img data-image-title="cleanmymac_13" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img data-image-title="cleanmymac_4" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img data-image-title="cleanmymac_5" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img data-image-title="cleanmymac_10" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img data-image-title="cleanmymac_11" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img data-image-title="cleanmymac_14" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img data-image-title="cleanmymac_15" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img data-image-title="cleanmymac_19" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img data-image-title="cleanmymac_20" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img data-image-title="cleanmymac_21" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img data-image-title="cleanmymac_22" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img data-image-title="cleanmymac_16" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img data-image-title="cleanmymac_17" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img data-image-title="cleanmymac_8" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img data-image-title="cleanmymac_9" src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]></content:encoded>
+      <itunes:image href="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg"/>
+        <media:content url="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" medium="image"/>
+      <pubDate>Tue, 11 Apr 2023 17:55:47 +0000</pubDate>
     </item></channel>
 </rss>
