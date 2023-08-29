@@ -1,6 +1,7 @@
 // const cheerio = require('cheerio');
+const CONFIG = require('./../../config-json.js')
 
-const main = function ($) {
+const main = function ($, url) {
 
   let images = $.find('img[data-lazy-src]')
   for (let i = 0; i < images.length; i++) {
@@ -66,6 +67,21 @@ const main = function ($) {
     image.removeAttr('data-lazy-sizes')
     image.removeAttr('data-recalc-dims')
     image.removeAttr('data-orig-file')
+  }
+
+  images = $.find('img[data-original-mos]')
+  for (let i = 0; i < images.length; i++) {
+    let image = images.eq(i)
+
+    // console.log(image.attr('data-lazy-src'))
+    let src = image.attr('data-original-mos')
+    // src = src.slice(18, src.indexOf('?')).trim()
+    // src = 'https://' + src
+    image.attr('src', src)
+    image.removeAttr('fetchpriority')
+    image.removeAttr('data-lazy-srcset')
+    image.removeAttr('data-lazy-sizes')
+    image.removeAttr('data-original-mos')
   }
 
   images = $.find('img[data-img-url]')
@@ -152,6 +168,21 @@ const main = function ($) {
     // console.log(image.attr('data-lazy-src'))
     let src = image.attr('src')
     image.attr('src', 'https:' + src)
+  }
+
+  if (url.startsWith(CONFIG.proxy)) {
+    url = decodeURIComponent(url.slice(CONFIG.proxy.length))
+  }
+  const urlObject = new URL(url);
+  let hostURL = urlObject.protocol + '//' + urlObject.hostname
+
+  images = $.find('img[src^="/"]')
+  for (let i = 0; i < images.length; i++) {
+    let image = images.eq(i)
+
+    // console.log(image.attr('data-lazy-src'))
+    let src = image.attr('src')
+    image.attr('src', hostURL + src)
   }
 
   // $.find('img[data-lazy-src]').each(function () {

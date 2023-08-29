@@ -21,15 +21,17 @@ let CONFIG = {
 
   maxFileCache: 5000,
 
-  proxy: 'https://script.google.com/macros/s/AKfycbxvQlZuQNHnxAcEmzJI9GxuiEAWYs3uPq2BmCvpkbpABKNKoc-Ahdqo6mqh8zzl-4nc/exec?proxy='
+  proxy: 'https://script.google.com/macros/s/AKfycbxvQlZuQNHnxAcEmzJI9GxuiEAWYs3uPq2BmCvpkbpABKNKoc-Ahdqo6mqh8zzl-4nc/exec?proxy=',
   // feedList
+  debug: false
 }
 
-// let test = '1755'
+// let test = '1771'
 
 // CONFIG.publicURL = `https://dangerous-lizard-99.telebit.io/`
 // CONFIG.titleAppend = '[RSS+] 20230827-' + test,
 // CONFIG.idAppend = '20230827-' + test,
 // CONFIG.maxDownloadItemPerFeed = 3
+// CONFIG.debug = true
 
 module.exports = CONFIG

@@ -468,23 +468,54 @@ let feedList = [
       selector: 'article[id] > .post-content-wrap > .post-content'
     }
   },
+  { // <outline type="rss" text="FUNTOP資訊網++$0414-1925$" title="FUNTOP資訊網++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffuntop.tw%2Ffeed%2F" htmlUrl="https://funtop.tw/"/>
+    title: 'Android Central',
+    feedID: 'AndroidCentral',
+    feedURL: 'https://www.androidcentral.com/rss.xml',
+    itemFilters: [
+      // ItemFilters['sites'].ItemFilterBlog,
+      // ItemFilters['common'].ItemFilterImageEmbed,
+      // ItemFilters['common'].ItemFilterThumbnailCache,
+    ],
+    options: {
+      selector: '#article-body'
+    }
+  },
+  { // <outline type="rss" text="FUNTOP資訊網++$0414-1925$" title="FUNTOP資訊網++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffuntop.tw%2Ffeed%2F" htmlUrl="https://funtop.tw/"/>
+    title: '關鍵應用',
+    feedID: 'key-chtouch',
+    feedURL: 'https://key.chtouch.com/rss.xml',
+    itemFilters: [
+      ItemFilters['sites'].ItemFilterBlog,
+      // ItemFilters['sites'].ItemFilterKeyChtouch,
+      ItemFilters['common'].ItemFilterImageEmbed,
+      ItemFilters['common'].ItemFilterThumbnailRemove,
+    ],
+    options: {
+      selector: 'article > .entry-content',
+      proxy: true,
+    }
+  },
+  {
+    title: '天瓏書局',
+    feedID: 'tenlong',
+    feedURL: 'https://sub-tenlong-2021.blogspot.com/feeds/posts/default',
+    itemFilters: [
+      ItemFilters['sites'].ItemFilterTenlong,
+    ],
+  },
+  
 ]
-
 // ----------------------------------------------------------------
 
 // feedList = [
-//   { // <outline type="rss" text="FUNTOP資訊網++$0414-1925$" title="FUNTOP資訊網++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffuntop.tw%2Ffeed%2F" htmlUrl="https://funtop.tw/"/>
-//     title: '极客FUN',
-//     feedID: 'eiefun',
-//     feedURL: 'https://www.eiefun.com/feed',
+//   {
+//     title: '天瓏書局',
+//     feedID: 'tenlong',
+//     feedURL: 'https://sub-tenlong-2021.blogspot.com/feeds/posts/default',
 //     itemFilters: [
-//       ItemFilters['sites'].ItemFilterBlog,
-//       // ItemFilters['common'].ItemFilterImageEmbed,
-//       // ItemFilters['common'].ItemFilterThumbnailCache,
+//       ItemFilters['sites'].ItemFilterTenlong,
 //     ],
-//     options: {
-//       selector: 'article[id] > .post-content-wrap > .post-content'
-//     }
 //   },
 // ]
 

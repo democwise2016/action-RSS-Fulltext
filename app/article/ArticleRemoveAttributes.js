@@ -7,7 +7,9 @@ function removeAttributes(html, attributes = [
   'data-src', 'data-srcset', 'data-sizes', 'referrerpolicy',
   'data-image-title', 'ezimgfmt', 'importance', 'data-id', 'data-type',
   'data-ezsrcset', 'data-ezsrc', 'data-query',
-  'data-crop-orig-src', 'data-uuid', 'data-img-url', 'data-img-desc', 'data-img-caption', 'data-modal-container-id', 'data-modal-id'
+  'data-crop-orig-src', 'data-uuid', 'data-img-url', 'data-img-desc', 'data-img-caption', 'data-modal-container-id', 'data-modal-id',
+  'data-normal', 'onerror', 'data-pin-media',
+  'data-placeholder-url', 'data-merchant-network', 'data-merchant-url', 'data-hl-processed', 'data-url', 'data-hydrate'
 ]) {
   const $ = cheerio.load(html);
 

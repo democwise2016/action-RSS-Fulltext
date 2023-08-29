@@ -2,6 +2,7 @@ const ItemFilterArticleClean = require('./common/ItemFilterArticleClean.js')
 const ItemFilterImageEmbed = require('./common/ItemFilterImageEmbed.js')
 const ItemFilterThumbnail = require('./common/ItemFilterThumbnail.js')
 const ItemFilterThumbnailCache = require('./common/ItemFilterThumbnailCache.js')
+const ItemFilterThumbnailRemove = require('./common/ItemFilterThumbnailRemove.js')
 
 
 const ItemFilterFB = require('./fb/ItemFilterFB.js')
@@ -27,6 +28,8 @@ const ItemFilterLinuxApps = require('./sites/ItemFilterLinuxApps.js')
 const ItemFilterLinuxeden = require('./sites/ItemFilterLinuxeden.js')
 const ItemFilterPTT = require('./sites/ItemFilterPTT.js')
 const ItemFilterFuntop = require('./sites/ItemFilterFuntop.js')
+const ItemFilterKeyChtouch = require('./sites/ItemFilterKeyChtouch.js')
+const ItemFilterTenlong = require('./sites/ItemFilterTenlong.js')
 
 
 let ItemFilters = {
@@ -34,7 +37,8 @@ let ItemFilters = {
     ItemFilterArticleClean,
     ItemFilterImageEmbed,
     ItemFilterThumbnail,
-    ItemFilterThumbnailCache
+    ItemFilterThumbnailCache,
+    ItemFilterThumbnailRemove
   },
   fb: {
     ItemFilterFB,
@@ -61,6 +65,8 @@ let ItemFilters = {
     ItemFilterLinuxeden,
     ItemFilterPTT,
     ItemFilterFuntop,
+    ItemFilterKeyChtouch,
+    ItemFilterTenlong,
   } 
 }
 

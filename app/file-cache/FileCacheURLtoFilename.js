@@ -32,14 +32,17 @@ module.exports = function (url) {
   const filenameWithoutQuery = filenameWithQuery.split('?')[0]; // This removes the query part
 
   let extension = path.extname(filenameWithoutQuery);
+  let extList = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
   if (extension === '' || extension === '.php') {
-    let extList = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
     for (let i = 0; i < extList.length; i++) {
       if (url.indexOf(extList[i]) > -1) {
         extension = extList[i]
         break
       }
     }  
+  }
+  else if (extList.indexOf(extension) === -1)  {
+    extension = '.png'
   }
 
   return host + '-' + md5Hash.slice(0, 10) + extension

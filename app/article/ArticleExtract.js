@@ -73,7 +73,7 @@ async function extractMainArticleHTML(url, selectors = [
     }
 
     article = ArticleRemoveAd(article)
-    article = ArticleImageDelazy(article)
+    article = ArticleImageDelazy(article, url)
     
 
     const mainArticle = article.html();

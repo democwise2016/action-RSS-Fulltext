@@ -19,6 +19,8 @@ const FileCache = async function (url, options = {}) {
     return url
    }
 
+  //  console.log({'file-cache': url})
+
   let filename = FileCacheURLtoFilename(url)
   FileCacheMkdir()
 

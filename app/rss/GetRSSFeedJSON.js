@@ -10,7 +10,7 @@ module.exports = async function (feedURL, options = {}) {
     proxy
   } = options
 
-  return await NodeCacheSqlite.get('GetRSSFeedJSON', feedURL, async function () {
+  let main = async function () {
     console.log('get feed', feedURL, (new Date()).toISOString())
 
     if (!parser) {
@@ -19,6 +19,7 @@ module.exports = async function (feedURL, options = {}) {
           feed: [],
           item: [
             // ['media:content', 'media']
+            'dc:content',
             ['media:content', 'media:content', {keepArray: true}],
           ],
         },
@@ -61,6 +62,12 @@ module.exports = async function (feedURL, options = {}) {
           item.content = item['content:encoded']
         }
       }
+      // console.log(item)
+      if (item.content && item['dc:content']) {
+        if (item['dc:content'].length > item.content.length) {
+          item.content = item['dc:content']
+        }
+      }
       // console.log(item.content)
       return item
     })
@@ -87,5 +94,12 @@ module.exports = async function (feedURL, options = {}) {
     // console.log(output) 
 
     return output
-  }, parseInt(cacheDay * 1000 * 60 * 60 * 24, 10))
+  }
+
+  if (CONFIG.debug === false) {
+    return await NodeCacheSqlite.get('GetRSSFeedJSON', feedURL, main, parseInt(cacheDay * 1000 * 60 * 60 * 24, 10))
+  }
+  else {
+    return main()
+  }
 }
