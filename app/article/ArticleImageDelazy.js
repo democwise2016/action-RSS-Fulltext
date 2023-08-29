@@ -65,6 +65,22 @@ const main = function ($) {
     image.removeAttr('data-lazy-srcset')
     image.removeAttr('data-lazy-sizes')
     image.removeAttr('data-recalc-dims')
+    image.removeAttr('data-orig-file')
+  }
+
+  images = $.find('img[data-img-url]')
+  for (let i = 0; i < images.length; i++) {
+    let image = images.eq(i)
+
+    // console.log(image.attr('data-lazy-src'))
+    let src = image.attr('data-img-url')
+    // src = src.slice(18, src.indexOf('?')).trim()
+    // src = 'https://' + src
+    image.attr('src', src)
+    image.removeAttr('fetchpriority')
+    image.removeAttr('data-lazy-srcset')
+    image.removeAttr('data-lazy-sizes')
+    image.removeAttr('data-img-url')
   }
 
   images = $.find('img[data-src][src^="data:image/"]')

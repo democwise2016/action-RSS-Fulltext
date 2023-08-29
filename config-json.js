@@ -25,7 +25,7 @@ let CONFIG = {
   // feedList
 }
 
-// let test = '1754'
+// let test = '1755'
 
 // CONFIG.publicURL = `https://dangerous-lizard-99.telebit.io/`
 // CONFIG.titleAppend = '[RSS+] 20230827-' + test,

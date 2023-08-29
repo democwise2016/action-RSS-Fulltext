@@ -7,7 +7,7 @@ function removeAttributes(html, attributes = [
   'data-src', 'data-srcset', 'data-sizes', 'referrerpolicy',
   'data-image-title', 'ezimgfmt', 'importance', 'data-id', 'data-type',
   'data-ezsrcset', 'data-ezsrc', 'data-query',
-  'data-crop-orig-src', 'data-uuid'
+  'data-crop-orig-src', 'data-uuid', 'data-img-url', 'data-img-desc', 'data-img-caption', 'data-modal-container-id', 'data-modal-id'
 ]) {
   const $ = cheerio.load(html);
 
@@ -26,7 +26,22 @@ function removeAttributes(html, attributes = [
     }
   });
 
-  $('image-group,figure').each(function () {
+  $('image-group,figure,picture').each(function () {
+    const $this = $(this);
+    $this.replaceWith($this.html());
+  });
+
+  $('picture').each(function () {
+    const $this = $(this);
+    $this.replaceWith($this.html());
+  });
+
+  $('source').each(function () {
+    const $this = $(this);
+    $this.replaceWith($this.html());
+  });
+
+  $('li > div').each(function () {
     const $this = $(this);
     $this.replaceWith($this.html());
   });
@@ -64,6 +79,7 @@ function removeAttributes(html, attributes = [
     '<center>\n</center>',
     '<h2>\n</h2>',
     '<div>\n</div>',
+    '<div> <div>',
     '<div align="center">\n</div>',
     '<p>\n</p>',
     `<div>
