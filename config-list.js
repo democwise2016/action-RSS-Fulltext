@@ -442,6 +442,19 @@ let feedList = [
       selector: 'article[id] > .entry-content'
     }
   },
+  { // <outline type="rss" text="承風雅傳HSU 電腦工作室 BLOG :: 痞客邦 PIXNET ::" title="承風雅傳HSU 電腦工作室 BLOG :: 痞客邦 PIXNET ::" xmlUrl="http://feed.pixnet.net/blog/posts/rss/hsuanthony" htmlUrl="http://hsuanthony.pixnet.net/blog"/>
+    title: 'XDA',
+    feedID: 'xda',
+    feedURL: 'http://www.xda-developers.com/feed/',
+    itemFilters: [
+      ItemFilters['sites'].ItemFilterBlog,
+      // ItemFilters['common'].ItemFilterImageEmbed,
+      // ItemFilters['common'].ItemFilterThumbnailCache,
+    ],
+    options: {
+      selector: '#article-body > .content-block-regular'
+    }
+  },
 ]
 
 // ----------------------------------------------------------------
