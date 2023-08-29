@@ -455,6 +455,19 @@ let feedList = [
       selector: '#article-body > .content-block-regular'
     }
   },
+  {
+    title: '极客FUN',
+    feedID: 'eiefun',
+    feedURL: 'https://www.eiefun.com/feed',
+    itemFilters: [
+      ItemFilters['sites'].ItemFilterBlog,
+      // ItemFilters['common'].ItemFilterImageEmbed,
+      // ItemFilters['common'].ItemFilterThumbnailCache,
+    ],
+    options: {
+      selector: 'article[id] > .post-content-wrap > .post-content'
+    }
+  },
 ]
 
 // ----------------------------------------------------------------
