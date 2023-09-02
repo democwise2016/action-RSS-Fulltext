@@ -46,7 +46,7 @@ const NodeCacheSqlite = {
       result = await this.set(databaseName, key, value, expire)
     }
     else {
-      console.log(['[CACHE] hitted', databaseName, key, (new Date().toISOString())].join('\t'))
+      console.log(['[CACHE] hitted', databaseName, key, expire, (new Date().toISOString())].join('\t'))
     }
     return result
   },
