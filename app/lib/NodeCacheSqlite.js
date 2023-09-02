@@ -42,7 +42,7 @@ const NodeCacheSqlite = {
 
     let result = await database.get(key)
 
-    if (result === undefined && value !== undefined) {
+    if (!expire || (result === undefined && value !== undefined)) {
       result = await this.set(databaseName, key, value, expire)
     }
     else {
