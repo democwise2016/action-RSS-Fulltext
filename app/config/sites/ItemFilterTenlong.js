@@ -1,5 +1,8 @@
 const cheerio = require('cheerio')
 
+const ArticleExtract = require('../../article/ArticleExtract.js')
+const ArticleRemoveAttributes = require('../../article/ArticleRemoveAttributes.js')
+
 let main = async function (item, options) {
 
   if (!item.content) {
@@ -10,18 +13,19 @@ let main = async function (item, options) {
   //console.log(content.indexOf('p-80'))
   let $ = cheerio.load(item.content)
   
-  let collection = $('td[width="50%"]')
+  let collection = $('table[eo-row="two-column"] td[width="50%"]')
 
   //console.trace(collection.length)
-  let items = []
+  let contents = []
+  let links = []
   for (let i = 1; i < collection.length; i++) {
     
-    let item = collection.eq(i)
+    let content = collection.eq(i)
 
 
     let cells = []
 
-    let tables = item.find('td').eq(0).children('table')
+    let tables = content.find('td').eq(0).children('table')
     for (let j = 0; j < tables.length; j++) {
       let h = tables.eq(j).find('td:last').html().trim()
       // if (h === '<br>') {
@@ -46,10 +50,43 @@ let main = async function (item, options) {
     while (html.indexOf('\n\n') > -1) {
       html = html.replace(/\n\n/g, '\n')
     }
-    items.push(html)
+
+    let $html = cheerio.load(html)
+    let htmlText = $html('body').text().trim()
+    if (htmlText.startsWith('Powered by') || htmlText.startsWith('UNSUBSCRIBE')) {
+      continue
+    }
+
+    let href = $html('a[href]:last').attr('href')
+    links.push(href)
+
+    html = await crawlBook(html)
+
+    contents.push(html)
   }
 
-  if (items.length === 0) {
+  // ----------------------------------------------------------------
+
+  let titles = []
+  for (let i = 0; i < contents.length; i++) {
+    let content = contents[i]
+
+    let $content = cheerio.load(content)
+
+    // titles.push(item.title + ' : ' + $('div:first').text().trim())
+    let title = $content('div:first').text().trim()
+
+    if (title.startsWith('•')) {
+      title = title.slice(1).trim()
+    }
+
+    titles.push(title + ' | ' + item.title)
+  }
+
+  // console.log(titles)
+
+
+  if (contents.length === 0) {
     return '(No data)'
   }
 
@@ -59,9 +96,34 @@ let main = async function (item, options) {
 
   // ----------------------------------------------------------------
   
-  item.content = items.join('\n<hr/>\n')
+
+
+  // item.content = items.join('\n<hr/>\n')
+  item.title = titles
+  item.content = contents
+  item.link = links
+
+  // console.log(item.link)
 
   return item
+}
+
+let crawlBook = async function (html) {
+  let $html = cheerio.load(html)
+  let href = $html('a[href]:last').attr('href')
+  
+  // console.log(href)
+
+  let bookHTML = await ArticleExtract(href, 'article.content > section:last')
+
+  html = html + `
+<hr />
+<p><a href="${href}" target="_blank">${href}</a></p>
+` + bookHTML
+
+  html = ArticleRemoveAttributes(html)
+
+  return html
 }
 
 module.exports = main

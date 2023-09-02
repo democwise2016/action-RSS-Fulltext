@@ -504,18 +504,30 @@ let feedList = [
       ItemFilters['sites'].ItemFilterTenlong,
     ],
   },
-  
+  {
+    title: '硬核观察 | Linux 中国◆开源社区',
+    feedID: 'linux-cn-weekly-news',
+    feedURL: 'http://linux.cn/rss.xml',
+    itemFilters: [
+      ItemFilters['sites'].ItemFilterLinuxCNWeeklyNews,
+    ],
+  },
 ]
 // ----------------------------------------------------------------
 
 // feedList = [
-//   {
-//     title: '天瓏書局',
-//     feedID: 'tenlong',
-//     feedURL: 'https://sub-tenlong-2021.blogspot.com/feeds/posts/default',
+//   { // <outline type="rss" text="學不完．教不停．用不盡 :: 痞客邦 PIXNET ::" title="學不完．教不停．用不盡 :: 痞客邦 PIXNET ::" xmlUrl="http://feeds.feedburner.com/pixnetisvincent"/>
+//     title: '學不完．教不停．用不盡',
+//     feedID: 'pixnetisvincent',
+//     feedURL: 'http://feeds.feedburner.com/pixnetisvincent',
 //     itemFilters: [
-//       ItemFilters['sites'].ItemFilterTenlong,
+//       ItemFilters['sites'].ItemFilterBlog,
+//       // ItemFilters['common'].ItemFilterImageEmbed,
+//       // ItemFilters['common'].ItemFilterThumbnailCache,
 //     ],
+//     options: {
+//       selector: '.article-body > .article-content > .article-content-inner'
+//     }
 //   },
 // ]
 

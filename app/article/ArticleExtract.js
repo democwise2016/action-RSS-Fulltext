@@ -35,7 +35,7 @@ async function extractMainArticleHTML(url, selectors = [
     // Fetch the HTML content of the URL
     let html = await NodeCacheSqlite.get(`ArticleExtract`, url, async () => {
       const response = await axios.get(url, {httpsAgent: agent});
-      return response.data;
+      return response.data.trim();
     }, 1000 * 60 * 60 * 24 * 90)
 
     // Load the HTML content into cheerio for manipulation
@@ -76,7 +76,7 @@ async function extractMainArticleHTML(url, selectors = [
     article = ArticleImageDelazy(article, url)
     
 
-    const mainArticle = article.html();
+    const mainArticle = article.html().trim()
 
     return mainArticle;
   } catch (error) {
