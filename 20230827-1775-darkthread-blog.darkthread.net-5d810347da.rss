@@ -1,0 +1,470 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:googleplay="http://www.google.com/schemas/play-podcasts/1.0" xmlns:media="http://www.rssboard.org/media-rss" version="2.0">
+  <channel>
+    <title><![CDATA[黑暗執行緒[RSS+] 20230827-1775]]></title>
+    <link>undefined</link>
+    <image>
+      <url>https://blog.darkthread.net/img/icon512x512.png</url>
+      <title>黑暗執行緒[RSS+] 20230827-1775</title>
+      <link>undefined</link>
+    </image>
+    <language>en-us</language>
+    <atom:link href="https://blog.darkthread.net/feed/rss/" rel="self" type="application/rss+xml"/>
+    <copyright><![CDATA[黑暗執行緒[RSS+] 20230827-1775]]></copyright>
+    <itunes:author><![CDATA[黑暗執行緒[RSS+] 20230827-1775]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[
+      黑暗執行緒部落格 - 一位在技術領域打滾多年老士官長的生活點滴<br />
+<br />
+<a href="https://blog.darkthread.net/feed/rss/" target="_blank">https://blog.darkthread.net/feed/rss/</a>
+      ]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[
+      黑暗執行緒部落格 - 一位在技術領域打滾多年老士官長的生活點滴<br />
+<br />
+<a href="https://blog.darkthread.net/feed/rss/" target="_blank">https://blog.darkthread.net/feed/rss/</a>
+      ]]>
+    </description>
+    <itunes:owner>
+      <itunes:name><![CDATA[黑暗執行緒[RSS+] 20230827-1775]]></itunes:name>
+    </itunes:owner>
+    <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
+<item>
+    <title><![CDATA[PowerShell 小工具 - 盤點 IIS 站台設定]]></title>
+    <link>https://blog.darkthread.net/blog/dump-iis-settings/</link>
+    <itunes:title><![CDATA[PowerShell 小工具 - 盤點 IIS 站台設定]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>遇到接手現有網站主機、網站搬家規劃等需求，我想要有個工具可以盤點 IIS 上設了哪些網站應用程式、對映哪些 AppPool、Runtime 是 .NET 2.0 還是 4.0、哪些目錄特別設了匿名或 Winodws 整合驗證、鎖哪些來源 IP... 等種種細節。</p> <p>自己許願自己實現，決定寫個 PowerShell 簡單搞定。研究了一下，各種設定的查詢指令要蒐羅完整有點煩人，而 IIS 相關設定其實都集中在 <a href="https://learn.microsoft.com/zh-tw/iis/get-started/planning-your-iis-architecture/introduction-to-applicationhostconfig?WT.mc_id=DOP-MVP-37580">ApplicationHost.config</a>，不如讀取檔案解析 XML，一次拿到所有設定。</p> <p>確定方向，剩下來就是找到設定所在路徑，寫 PowerShell 程式把它們讀出來，沒太多技術含量，純回顧 .NET 2.0 時代的 XML 手工活兒。</p> <p>依各環境應用，要讀取的設定重點不同，這裡先抓我常用到的，未來若發現有缺，要補上也不難。</p> <pre><code>$ErrorActionPreference = "Stop"
+[xml]$xml = Get-Content (Join-Path $Env:SystemRoot\System32\inetsrv\config "applicationHost.config")
+Write-Output "** App Pool List **"
+$appPools = $xml.SelectSingleNode("//applicationPools").SelectNodes('add')
+$appPools | ForEach-Object {
+$procModel = $_.SelectSingleNode("processModel")
+$idleTimeout = ''
+if ($procModel -ne $null) {
+$idleTimeout = $procModel.Attributes["idleTimeout"].Value
+}
+$runtime = $_.Attributes["managedRuntimeVersion"].Value
+if ([string]::IsNullOrEmpty($runtime)) { $runtime = 'v4.0' }
+return [PSCustomObject]@{
+Name        = $_.Attributes["name"].Value
+Runtime     = $runtime
+Pipeline    = $_.Attributes["managedPipelineMode"].Value
+Enable32Bit = $_.Attributes["enable32BitAppOnWin64"].Value
+StartMode   = $_.Attributes["startMode"].Value
+IdleTimeout = $idleTimeout
+}
+} | Format-Table -AutoSize
+Write-Output "** Web Application List **"
+$sites = $xml.SelectSingleNode("//sites").SelectNodes('site')
+$sites | ForEach-Object {
+$siteName = $_.Attributes["name"].Value
+$binings = ($_.SelectNodes('bindings').SelectNodes('binding') | ForEach-Object {
+$binding = $_.Attributes["protocol"].Value + "://" + $_.Attributes["bindingInformation"].Value
+if ($binding.StartsWith('http')) {
+$binding = $binding.TrimEnd(':')
+}
+return $binding
+}) -join ", "
+$apps = $_.SelectNodes('application')
+$apps | ForEach-Object {
+$app = $_
+$appName = $app.Attributes["path"].Value
+$appPoolName = $app.Attributes["applicationPool"].Value
+$vdirs = $app.SelectNodes('virtualDirectory')
+$vdirs | ForEach-Object {
+$phPath = $_.Attributes["physicalPath"].Value
+$vdirPath = $_.Attributes["path"].Value
+if ($vdirPath -eq "/") {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = $appName
+AppPool  = $appPoolName
+Path     = $phPath
+Bindings = $binings
+}
+}
+else {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = "$appName&lt;$vdirPath&gt;"
+AppPool  = ''
+Path     = $phPath
+Bindings = $binings
+}
+}
+}
+}
+} | Format-Table -AutoSize
+function TryReadAttribute($node, $path, $attrName) {
+$target = $node.SelectSingleNode($path)
+if ($null -ne $target) {
+return $target.Attributes[$attrName].Value
+}
+return ''
+}
+Write-Output "** Authentication and IP Restriction List **"
+$xml.SelectNodes('//location') | ForEach-Object {
+$path = $_.Attributes["path"].Value
+$sysWebSvr = $_.SelectSingleNode('system.webServer');
+$anonymous = ''
+$winAuth = ''
+$ipAddrs = ''
+if ($sysWebSvr -ne $null) {
+$winAuth = TryReadAttribute $sysWebSvr 'security/authentication/windowsAuthentication' 'enabled'
+$anonymous = TryReadAttribute $sysWebSvr 'security/authentication/anonymousAuthentication' 'enabled'
+$ipSec = $sysWebSvr.SelectSingleNode('security/ipSecurity')
+if ($ipSec -ne $null -and $ipSec.Attributes["allowUnlisted"].Value -eq "false") {
+$ipAddrs = ($ipSec.SelectNodes('add') | ForEach-Object {
+return $_.Attributes["ipAddress"].Value
+}) -join ", "
+}
+}
+return [PSCustomObject]@{
+Path = $path
+WindowsAuth = $winAuth
+AnonymousAuth = $anonymous
+IPAddresses = $ipAddrs
+}
+} | Format-Table -AutoSize
+</code></pre> <p>程式是直接讀取 <code>C:\Windows\System32\intesrv\config\applicationHost.config</code> 並解析，實務上也可將檔案蒐集備份在其他主機處理，其餘就是什麼設定要找什麼 XPATH 路徑取得 Attribute。</p> <p>以下是結果範例，展示一次列出整台 IIS 下的多個 Site 及 Web Application，包含 Runtime 版本、32Bit 啟用、有無 AlwaysRunning 及 IdleTimeout、網站目錄、虛擬目錄、繫結 Port/Host、匿名/Windows驗證、限制IP清單... 等資訊。</p> <pre><code>** App Pool List **
+Name                 Runtime Pipeline Enable32Bit StartMode     IdleTimeout
+----                 ------- -------- ----------- ---------     -----------
+DefaultAppPool       v4.0
+.NET v4.5 Classic    v4.0    Classic
+.NET v4.5            v4.0
+Classic .NET AppPool v2.0    Classic
+.NET v2.0 Classic    v2.0    Classic
+.NET v2.0            v2.0             true
+Portal               v4.0                         AlwaysRunning 00:00:00
+** Web Application List **
+SiteName         AppName          AppPool   Path            Bindings
+--------         -------          -------   ----            --------
+Default Web Site /                .NET v2.0 C:\WWW\Root     http://*:80
+Default Web Site /AspNet35        .NET v2.0 C:\WWW\AspNet35 http://*:80
+Default Web Site /AspNet35&lt;/VDir&gt;           C:\WWW\VDir     http://*:80
+Default Web Site /AspNet45        .NET v4.5 C:\WWW\AspNet45 http://*:80
+Portal           /                Portal    C:\WWW\Portal   https://10.4.0.4:443:addc.dot-net.cloud
+** Authentication and IP Restriction List **
+Path                           WindowsAuth AnonymousAuth IPAddresses
+----                           ----------- ------------- -----------
+Default Web Site               true        false
+Default Web Site/AspNet35      true        false
+Default Web Site/AspNet35/VDir             true          10.4.0.4, 10.4.0.6
+</code></pre> <p>收入常用工具箱。</p> <p data-slug="dump-iis-settings" data-title-en="A simple PowerShell script to dump required IIS settings" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720">A simple PowerShell script to parse applicationHost.config and dump required IIS application settings.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>遇到接手現有網站主機、網站搬家規劃等需求，我想要有個工具可以盤點 IIS 上設了哪些網站應用程式、對映哪些 AppPool、Runtime 是 .NET 2.0 還是 4.0、哪些目錄特別設了匿名或 Winodws 整合驗證、鎖哪些來源 IP... 等種種細節。</p> <p>自己許願自己實現，決定寫個 PowerShell 簡單搞定。研究了一下，各種設定的查詢指令要蒐羅完整有點煩人，而 IIS 相關設定其實都集中在 <a href="https://learn.microsoft.com/zh-tw/iis/get-started/planning-your-iis-architecture/introduction-to-applicationhostconfig?WT.mc_id=DOP-MVP-37580">ApplicationHost.config</a>，不如讀取檔案解析 XML，一次拿到所有設定。</p> <p>確定方向，剩下來就是找到設定所在路徑，寫 PowerShell 程式把它們讀出來，沒太多技術含量，純回顧 .NET 2.0 時代的 XML 手工活兒。</p> <p>依各環境應用，要讀取的設定重點不同，這裡先抓我常用到的，未來若發現有缺，要補上也不難。</p> <pre><code>$ErrorActionPreference = "Stop"
+[xml]$xml = Get-Content (Join-Path $Env:SystemRoot\System32\inetsrv\config "applicationHost.config")
+Write-Output "** App Pool List **"
+$appPools = $xml.SelectSingleNode("//applicationPools").SelectNodes('add')
+$appPools | ForEach-Object {
+$procModel = $_.SelectSingleNode("processModel")
+$idleTimeout = ''
+if ($procModel -ne $null) {
+$idleTimeout = $procModel.Attributes["idleTimeout"].Value
+}
+$runtime = $_.Attributes["managedRuntimeVersion"].Value
+if ([string]::IsNullOrEmpty($runtime)) { $runtime = 'v4.0' }
+return [PSCustomObject]@{
+Name        = $_.Attributes["name"].Value
+Runtime     = $runtime
+Pipeline    = $_.Attributes["managedPipelineMode"].Value
+Enable32Bit = $_.Attributes["enable32BitAppOnWin64"].Value
+StartMode   = $_.Attributes["startMode"].Value
+IdleTimeout = $idleTimeout
+}
+} | Format-Table -AutoSize
+Write-Output "** Web Application List **"
+$sites = $xml.SelectSingleNode("//sites").SelectNodes('site')
+$sites | ForEach-Object {
+$siteName = $_.Attributes["name"].Value
+$binings = ($_.SelectNodes('bindings').SelectNodes('binding') | ForEach-Object {
+$binding = $_.Attributes["protocol"].Value + "://" + $_.Attributes["bindingInformation"].Value
+if ($binding.StartsWith('http')) {
+$binding = $binding.TrimEnd(':')
+}
+return $binding
+}) -join ", "
+$apps = $_.SelectNodes('application')
+$apps | ForEach-Object {
+$app = $_
+$appName = $app.Attributes["path"].Value
+$appPoolName = $app.Attributes["applicationPool"].Value
+$vdirs = $app.SelectNodes('virtualDirectory')
+$vdirs | ForEach-Object {
+$phPath = $_.Attributes["physicalPath"].Value
+$vdirPath = $_.Attributes["path"].Value
+if ($vdirPath -eq "/") {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = $appName
+AppPool  = $appPoolName
+Path     = $phPath
+Bindings = $binings
+}
+}
+else {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = "$appName&lt;$vdirPath&gt;"
+AppPool  = ''
+Path     = $phPath
+Bindings = $binings
+}
+}
+}
+}
+} | Format-Table -AutoSize
+function TryReadAttribute($node, $path, $attrName) {
+$target = $node.SelectSingleNode($path)
+if ($null -ne $target) {
+return $target.Attributes[$attrName].Value
+}
+return ''
+}
+Write-Output "** Authentication and IP Restriction List **"
+$xml.SelectNodes('//location') | ForEach-Object {
+$path = $_.Attributes["path"].Value
+$sysWebSvr = $_.SelectSingleNode('system.webServer');
+$anonymous = ''
+$winAuth = ''
+$ipAddrs = ''
+if ($sysWebSvr -ne $null) {
+$winAuth = TryReadAttribute $sysWebSvr 'security/authentication/windowsAuthentication' 'enabled'
+$anonymous = TryReadAttribute $sysWebSvr 'security/authentication/anonymousAuthentication' 'enabled'
+$ipSec = $sysWebSvr.SelectSingleNode('security/ipSecurity')
+if ($ipSec -ne $null -and $ipSec.Attributes["allowUnlisted"].Value -eq "false") {
+$ipAddrs = ($ipSec.SelectNodes('add') | ForEach-Object {
+return $_.Attributes["ipAddress"].Value
+}) -join ", "
+}
+}
+return [PSCustomObject]@{
+Path = $path
+WindowsAuth = $winAuth
+AnonymousAuth = $anonymous
+IPAddresses = $ipAddrs
+}
+} | Format-Table -AutoSize
+</code></pre> <p>程式是直接讀取 <code>C:\Windows\System32\intesrv\config\applicationHost.config</code> 並解析，實務上也可將檔案蒐集備份在其他主機處理，其餘就是什麼設定要找什麼 XPATH 路徑取得 Attribute。</p> <p>以下是結果範例，展示一次列出整台 IIS 下的多個 Site 及 Web Application，包含 Runtime 版本、32Bit 啟用、有無 AlwaysRunning 及 IdleTimeout、網站目錄、虛擬目錄、繫結 Port/Host、匿名/Windows驗證、限制IP清單... 等資訊。</p> <pre><code>** App Pool List **
+Name                 Runtime Pipeline Enable32Bit StartMode     IdleTimeout
+----                 ------- -------- ----------- ---------     -----------
+DefaultAppPool       v4.0
+.NET v4.5 Classic    v4.0    Classic
+.NET v4.5            v4.0
+Classic .NET AppPool v2.0    Classic
+.NET v2.0 Classic    v2.0    Classic
+.NET v2.0            v2.0             true
+Portal               v4.0                         AlwaysRunning 00:00:00
+** Web Application List **
+SiteName         AppName          AppPool   Path            Bindings
+--------         -------          -------   ----            --------
+Default Web Site /                .NET v2.0 C:\WWW\Root     http://*:80
+Default Web Site /AspNet35        .NET v2.0 C:\WWW\AspNet35 http://*:80
+Default Web Site /AspNet35&lt;/VDir&gt;           C:\WWW\VDir     http://*:80
+Default Web Site /AspNet45        .NET v4.5 C:\WWW\AspNet45 http://*:80
+Portal           /                Portal    C:\WWW\Portal   https://10.4.0.4:443:addc.dot-net.cloud
+** Authentication and IP Restriction List **
+Path                           WindowsAuth AnonymousAuth IPAddresses
+----                           ----------- ------------- -----------
+Default Web Site               true        false
+Default Web Site/AspNet35      true        false
+Default Web Site/AspNet35/VDir             true          10.4.0.4, 10.4.0.6
+</code></pre> <p>收入常用工具箱。</p> <p data-slug="dump-iis-settings" data-title-en="A simple PowerShell script to dump required IIS settings" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720">A simple PowerShell script to parse applicationHost.config and dump required IIS application settings.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>遇到接手現有網站主機、網站搬家規劃等需求，我想要有個工具可以盤點 IIS 上設了哪些網站應用程式、對映哪些 AppPool、Runtime 是 .NET 2.0 還是 4.0、哪些目錄特別設了匿名或 Winodws 整合驗證、鎖哪些來源 IP... 等種種細節。</p> <p>自己許願自己實現，決定寫個 PowerShell 簡單搞定。研究了一下，各種設定的查詢指令要蒐羅完整有點煩人，而 IIS 相關設定其實都集中在 <a href="https://learn.microsoft.com/zh-tw/iis/get-started/planning-your-iis-architecture/introduction-to-applicationhostconfig?WT.mc_id=DOP-MVP-37580">ApplicationHost.config</a>，不如讀取檔案解析 XML，一次拿到所有設定。</p> <p>確定方向，剩下來就是找到設定所在路徑，寫 PowerShell 程式把它們讀出來，沒太多技術含量，純回顧 .NET 2.0 時代的 XML 手工活兒。</p> <p>依各環境應用，要讀取的設定重點不同，這裡先抓我常用到的，未來若發現有缺，要補上也不難。</p> <pre><code>$ErrorActionPreference = "Stop"
+[xml]$xml = Get-Content (Join-Path $Env:SystemRoot\System32\inetsrv\config "applicationHost.config")
+Write-Output "** App Pool List **"
+$appPools = $xml.SelectSingleNode("//applicationPools").SelectNodes('add')
+$appPools | ForEach-Object {
+$procModel = $_.SelectSingleNode("processModel")
+$idleTimeout = ''
+if ($procModel -ne $null) {
+$idleTimeout = $procModel.Attributes["idleTimeout"].Value
+}
+$runtime = $_.Attributes["managedRuntimeVersion"].Value
+if ([string]::IsNullOrEmpty($runtime)) { $runtime = 'v4.0' }
+return [PSCustomObject]@{
+Name        = $_.Attributes["name"].Value
+Runtime     = $runtime
+Pipeline    = $_.Attributes["managedPipelineMode"].Value
+Enable32Bit = $_.Attributes["enable32BitAppOnWin64"].Value
+StartMode   = $_.Attributes["startMode"].Value
+IdleTimeout = $idleTimeout
+}
+} | Format-Table -AutoSize
+Write-Output "** Web Application List **"
+$sites = $xml.SelectSingleNode("//sites").SelectNodes('site')
+$sites | ForEach-Object {
+$siteName = $_.Attributes["name"].Value
+$binings = ($_.SelectNodes('bindings').SelectNodes('binding') | ForEach-Object {
+$binding = $_.Attributes["protocol"].Value + "://" + $_.Attributes["bindingInformation"].Value
+if ($binding.StartsWith('http')) {
+$binding = $binding.TrimEnd(':')
+}
+return $binding
+}) -join ", "
+$apps = $_.SelectNodes('application')
+$apps | ForEach-Object {
+$app = $_
+$appName = $app.Attributes["path"].Value
+$appPoolName = $app.Attributes["applicationPool"].Value
+$vdirs = $app.SelectNodes('virtualDirectory')
+$vdirs | ForEach-Object {
+$phPath = $_.Attributes["physicalPath"].Value
+$vdirPath = $_.Attributes["path"].Value
+if ($vdirPath -eq "/") {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = $appName
+AppPool  = $appPoolName
+Path     = $phPath
+Bindings = $binings
+}
+}
+else {
+return [PSCustomObject]@{
+SiteName = $siteName
+AppName  = "$appName&lt;$vdirPath&gt;"
+AppPool  = ''
+Path     = $phPath
+Bindings = $binings
+}
+}
+}
+}
+} | Format-Table -AutoSize
+function TryReadAttribute($node, $path, $attrName) {
+$target = $node.SelectSingleNode($path)
+if ($null -ne $target) {
+return $target.Attributes[$attrName].Value
+}
+return ''
+}
+Write-Output "** Authentication and IP Restriction List **"
+$xml.SelectNodes('//location') | ForEach-Object {
+$path = $_.Attributes["path"].Value
+$sysWebSvr = $_.SelectSingleNode('system.webServer');
+$anonymous = ''
+$winAuth = ''
+$ipAddrs = ''
+if ($sysWebSvr -ne $null) {
+$winAuth = TryReadAttribute $sysWebSvr 'security/authentication/windowsAuthentication' 'enabled'
+$anonymous = TryReadAttribute $sysWebSvr 'security/authentication/anonymousAuthentication' 'enabled'
+$ipSec = $sysWebSvr.SelectSingleNode('security/ipSecurity')
+if ($ipSec -ne $null -and $ipSec.Attributes["allowUnlisted"].Value -eq "false") {
+$ipAddrs = ($ipSec.SelectNodes('add') | ForEach-Object {
+return $_.Attributes["ipAddress"].Value
+}) -join ", "
+}
+}
+return [PSCustomObject]@{
+Path = $path
+WindowsAuth = $winAuth
+AnonymousAuth = $anonymous
+IPAddresses = $ipAddrs
+}
+} | Format-Table -AutoSize
+</code></pre> <p>程式是直接讀取 <code>C:\Windows\System32\intesrv\config\applicationHost.config</code> 並解析，實務上也可將檔案蒐集備份在其他主機處理，其餘就是什麼設定要找什麼 XPATH 路徑取得 Attribute。</p> <p>以下是結果範例，展示一次列出整台 IIS 下的多個 Site 及 Web Application，包含 Runtime 版本、32Bit 啟用、有無 AlwaysRunning 及 IdleTimeout、網站目錄、虛擬目錄、繫結 Port/Host、匿名/Windows驗證、限制IP清單... 等資訊。</p> <pre><code>** App Pool List **
+Name                 Runtime Pipeline Enable32Bit StartMode     IdleTimeout
+----                 ------- -------- ----------- ---------     -----------
+DefaultAppPool       v4.0
+.NET v4.5 Classic    v4.0    Classic
+.NET v4.5            v4.0
+Classic .NET AppPool v2.0    Classic
+.NET v2.0 Classic    v2.0    Classic
+.NET v2.0            v2.0             true
+Portal               v4.0                         AlwaysRunning 00:00:00
+** Web Application List **
+SiteName         AppName          AppPool   Path            Bindings
+--------         -------          -------   ----            --------
+Default Web Site /                .NET v2.0 C:\WWW\Root     http://*:80
+Default Web Site /AspNet35        .NET v2.0 C:\WWW\AspNet35 http://*:80
+Default Web Site /AspNet35&lt;/VDir&gt;           C:\WWW\VDir     http://*:80
+Default Web Site /AspNet45        .NET v4.5 C:\WWW\AspNet45 http://*:80
+Portal           /                Portal    C:\WWW\Portal   https://10.4.0.4:443:addc.dot-net.cloud
+** Authentication and IP Restriction List **
+Path                           WindowsAuth AnonymousAuth IPAddresses
+----                           ----------- ------------- -----------
+Default Web Site               true        false
+Default Web Site/AspNet35      true        false
+Default Web Site/AspNet35/VDir             true          10.4.0.4, 10.4.0.6
+</code></pre> <p>收入常用工具箱。</p> <p data-slug="dump-iis-settings" data-title-en="A simple PowerShell script to dump required IIS settings" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720">A simple PowerShell script to parse applicationHost.config and dump required IIS application settings.</p>]]></content:encoded>
+    
+    <pubDate>Sat, 02 Sep 2023 13:52:29 GMT</pubDate>
+  </item><item>
+    <title><![CDATA[使用 gMSA 讓 Windows 排程與服務帳號更安全]]></title>
+    <link>https://blog.darkthread.net/blog/gmsa/</link>
+    <itunes:title><![CDATA[使用 gMSA 讓 Windows 排程與服務帳號更安全]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天<a href="/blog/adfs-setup/">研究 AD FS</a> 有意外收獲，學到好東西 - gMSA，Group Managed Service Account。</p> <p>Windows 服務或排程必須設定執行身分，若不需用 AD 認證存取遠端資源，可考慮使用 <a href="/blog/local-system-local-service-network-service/">Local System、Local Service與Network Service</a> 等特殊本機帳號，排程則有個「<a href="/blog/schktask-principal-settings/">不要儲存密碼。工作將只有本機電腦資源的存取權</a>」，這兩種做法都可減少密碼管理困擾。若服務或排程必須使用 AD 認證，一般要為它們建立專屬 AD 帳號，但密碼該如何保管(紙本封存、拆 A B Part... 粉麻煩)？如何定期變更？如何一次修改數百上千個服務或排程的身分設定？都是棘手問題。</p> <p>為了解決這類困擾，Windows Server 2008 R2 推出了 Managed Service Account (MSA，或稱 sMSA, s = Standalone)，MSA 為單一主機專屬，無法多主機共用，Windows 2012 再加入 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/architecture/service-accounts-group-managed?WT.mc_id=DOP-MVP-37580">Group Managed Service Account </a> (gMSA)，以應付 Cluster/Load Balance 或多主機備援的應用情境。(登楞! 沒錯，十幾年前就有了，我現在才已知用火)</p> <p>MSA/gMSA 的特色是密碼由作業系統管理，長度高達 240 Byte (30 字元)，加上高複雜度，被暴力破解可能性趨於零。而系統會每 30 天自動更換密碼，更換動作由作業系統處理，完全不需要人員介入設定。除此之外，帳號可授與權限、加入安全群組，使用上與一般帳號無異，應用方便。</p> <p>要使用 gMSA，有項前置工作是需在 AD 建立 Key Distribution Service (KDS) Root Key 並部署到全 Forest。Root Key 只需建立一次，指令如下(需 Domain Admins 或 Enterprise Admins 權限)。實務上需等 10 小時正式生效，以等待 AD 複寫同步完全，測試環境單一 DC 則可將時間調到 10 小時前省去等待。<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/create-the-key-distribution-services-kds-root-key?WT.mc_id=DOP-MVP-37580">參考</a></p> <pre><code>Add-KdsRootKey –EffectiveImmediately
+# 測試環境
+Add-KdsRootKey –EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>要建立 MSA，做法為在目標主機使用 New-ADServiceAccount 建立帳號，再使用 Add-ADComputerServiceAccount 將帳號綁定到目標主機上，每個 MSA 專屬特定主機，不能重複使用。</p> <pre><code>$identity = New-ADServiceAccount -Name &lt;MSA-AcntName&gt; –RestrictToSingleComputer
+Add-ADComputerServiceAccount -Identity $identity -ServiceAccount &lt;MSA-AcntName&gt;
+</code></pre> <p>gMSA 也是用 New-ADServiceAccount 建立(登入帳號需為 Domain Admins、Account Operators 成員，或具有建立 msDS-GroupManagedServiceAccount 物件權限)，參數範例如下：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#BKMK_CreateGMSA">參考</a></p> <pre><code>New-ADServiceAccount &lt;gMSA-AcntName&gt; -DNSHostName "&lt;gMSA-AcntName&gt;.&lt;domain-fqdn&gt;" -PrincipalsAllowedToRetrieveManagedPassword (&lt;成員主機帳號或成員主機帳號所屬安全群組&gt;,...)
+# 若無註冊 SPN 需求，DNSHostName 隨意給
+# ManagedPasswordIntervalInDays 參數可指定密碼變更間隔天數，預設 30 天
+</code></pre> <p>建立 gMSA 時需列舉哪些主機有權存取該帳號密碼，只有此清單上的主機可以使用。實務上可將 PrincipalsAllowedToRetrieveManagedPassword 設給群組，再將主機的電腦帳號(SAMAccountName 為電腦名稱後方有 $ 號)加入群組，管理上較方便。</p> <p>若要事後增減主機或群組，可使用 PowerSehll 查詢 PrincipalsAllowedToRetrieveManagedPassword 主機或群組陣列，增減陣列元素再重新設定 ：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#to-add-member-hosts-using-the-set-adserviceaccount-cmdlet">參考</a></p> <pre><code>$hostArray = Get-ADServiceAccount &lt;gMSA-AcntName&gt; -Properties PrincipalsAllowedToRetrieveManagedPassword
+$hostArray += "NewHost$"
+Set-ADServiceAccount &lt;gMSA-AcntName&gt; -PrincipalsAllowedToRetrieveManagedPassword $hostArray
+</code></pre> <p>最後來個實地演練。</p> <p>我先建一個 gMSA 帳號 (gmsaBatch)，設定 PrincipalsAllowedToRetrieveManagedPassword 時只給 ADDC$ (另一台主機的電腦帳號)，故意不包含排程所在主機 ADFS1$ [1]，用 Get-ADServiceAccount 查詢確認 PrincipalsAllowedToRetrieveManagedPassword 欄位的 ADDC$ 已解析成 Distinguished Name [2]；用 <a href="https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks-change?WT.mc_id=DOP-MVP-37580">schtasks /change</a> 設定執行身分為 gmsaBatch$ (gMSA 的 SamAccountName)，此時出現 "The user name or password is incorrect"，原因是 ADFS1 主機不在 PrincipalsAllowedToRetrieveManagedPassword 清單 [3]。</p> <p>用 Set-ADServiceAccount 將 AFS1$ 也加入 PrincipalsAllowedToRetrieveManagedPassword (注意：每次要給完整清單) [4]，再試一次，這回設定成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png"></p> <p>另外，若要將主機移出 PrincipalsAllowedToRetrieveManagedPassword，設過 gMSA 的主機要用 <a href="https://learn.microsoft.com/en-us/powershell/module/activedirectory/uninstall-adserviceaccount?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580">Uninstall-ADServiceAccount</a> 將帳號從快取清除。</p> <p>依實測，我無法用 GUI 查詢查到 gMSA，目前找到的做法是用 schtasks.exe 或 PowerShell 設定，參考語法：<code>schtasks /change /tn "排程名稱" /ru &lt;gMSA帳號$&gt; /rp ""</code> (密碼給空字串)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638291781202523472.png"></p> <p>學會 MSA/gMSA，管理服務或排程執行帳號就多了一個安全方便的新選擇囉。</p> <p data-slug="gmsa" data-title-en="Introduce to Group Managed Service Account(gMSA)" data-catg=".NET" data-fbimg="https://i.imgur.com/6Dzzkdt.png#665#374">Introduction to gMSA and how to use it as a secured solution for scheduled tasks and service.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天<a href="/blog/adfs-setup/">研究 AD FS</a> 有意外收獲，學到好東西 - gMSA，Group Managed Service Account。</p> <p>Windows 服務或排程必須設定執行身分，若不需用 AD 認證存取遠端資源，可考慮使用 <a href="/blog/local-system-local-service-network-service/">Local System、Local Service與Network Service</a> 等特殊本機帳號，排程則有個「<a href="/blog/schktask-principal-settings/">不要儲存密碼。工作將只有本機電腦資源的存取權</a>」，這兩種做法都可減少密碼管理困擾。若服務或排程必須使用 AD 認證，一般要為它們建立專屬 AD 帳號，但密碼該如何保管(紙本封存、拆 A B Part... 粉麻煩)？如何定期變更？如何一次修改數百上千個服務或排程的身分設定？都是棘手問題。</p> <p>為了解決這類困擾，Windows Server 2008 R2 推出了 Managed Service Account (MSA，或稱 sMSA, s = Standalone)，MSA 為單一主機專屬，無法多主機共用，Windows 2012 再加入 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/architecture/service-accounts-group-managed?WT.mc_id=DOP-MVP-37580">Group Managed Service Account </a> (gMSA)，以應付 Cluster/Load Balance 或多主機備援的應用情境。(登楞! 沒錯，十幾年前就有了，我現在才已知用火)</p> <p>MSA/gMSA 的特色是密碼由作業系統管理，長度高達 240 Byte (30 字元)，加上高複雜度，被暴力破解可能性趨於零。而系統會每 30 天自動更換密碼，更換動作由作業系統處理，完全不需要人員介入設定。除此之外，帳號可授與權限、加入安全群組，使用上與一般帳號無異，應用方便。</p> <p>要使用 gMSA，有項前置工作是需在 AD 建立 Key Distribution Service (KDS) Root Key 並部署到全 Forest。Root Key 只需建立一次，指令如下(需 Domain Admins 或 Enterprise Admins 權限)。實務上需等 10 小時正式生效，以等待 AD 複寫同步完全，測試環境單一 DC 則可將時間調到 10 小時前省去等待。<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/create-the-key-distribution-services-kds-root-key?WT.mc_id=DOP-MVP-37580">參考</a></p> <pre><code>Add-KdsRootKey –EffectiveImmediately
+# 測試環境
+Add-KdsRootKey –EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>要建立 MSA，做法為在目標主機使用 New-ADServiceAccount 建立帳號，再使用 Add-ADComputerServiceAccount 將帳號綁定到目標主機上，每個 MSA 專屬特定主機，不能重複使用。</p> <pre><code>$identity = New-ADServiceAccount -Name &lt;MSA-AcntName&gt; –RestrictToSingleComputer
+Add-ADComputerServiceAccount -Identity $identity -ServiceAccount &lt;MSA-AcntName&gt;
+</code></pre> <p>gMSA 也是用 New-ADServiceAccount 建立(登入帳號需為 Domain Admins、Account Operators 成員，或具有建立 msDS-GroupManagedServiceAccount 物件權限)，參數範例如下：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#BKMK_CreateGMSA">參考</a></p> <pre><code>New-ADServiceAccount &lt;gMSA-AcntName&gt; -DNSHostName "&lt;gMSA-AcntName&gt;.&lt;domain-fqdn&gt;" -PrincipalsAllowedToRetrieveManagedPassword (&lt;成員主機帳號或成員主機帳號所屬安全群組&gt;,...)
+# 若無註冊 SPN 需求，DNSHostName 隨意給
+# ManagedPasswordIntervalInDays 參數可指定密碼變更間隔天數，預設 30 天
+</code></pre> <p>建立 gMSA 時需列舉哪些主機有權存取該帳號密碼，只有此清單上的主機可以使用。實務上可將 PrincipalsAllowedToRetrieveManagedPassword 設給群組，再將主機的電腦帳號(SAMAccountName 為電腦名稱後方有 $ 號)加入群組，管理上較方便。</p> <p>若要事後增減主機或群組，可使用 PowerSehll 查詢 PrincipalsAllowedToRetrieveManagedPassword 主機或群組陣列，增減陣列元素再重新設定 ：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#to-add-member-hosts-using-the-set-adserviceaccount-cmdlet">參考</a></p> <pre><code>$hostArray = Get-ADServiceAccount &lt;gMSA-AcntName&gt; -Properties PrincipalsAllowedToRetrieveManagedPassword
+$hostArray += "NewHost$"
+Set-ADServiceAccount &lt;gMSA-AcntName&gt; -PrincipalsAllowedToRetrieveManagedPassword $hostArray
+</code></pre> <p>最後來個實地演練。</p> <p>我先建一個 gMSA 帳號 (gmsaBatch)，設定 PrincipalsAllowedToRetrieveManagedPassword 時只給 ADDC$ (另一台主機的電腦帳號)，故意不包含排程所在主機 ADFS1$ [1]，用 Get-ADServiceAccount 查詢確認 PrincipalsAllowedToRetrieveManagedPassword 欄位的 ADDC$ 已解析成 Distinguished Name [2]；用 <a href="https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks-change?WT.mc_id=DOP-MVP-37580">schtasks /change</a> 設定執行身分為 gmsaBatch$ (gMSA 的 SamAccountName)，此時出現 "The user name or password is incorrect"，原因是 ADFS1 主機不在 PrincipalsAllowedToRetrieveManagedPassword 清單 [3]。</p> <p>用 Set-ADServiceAccount 將 AFS1$ 也加入 PrincipalsAllowedToRetrieveManagedPassword (注意：每次要給完整清單) [4]，再試一次，這回設定成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png"></p> <p>另外，若要將主機移出 PrincipalsAllowedToRetrieveManagedPassword，設過 gMSA 的主機要用 <a href="https://learn.microsoft.com/en-us/powershell/module/activedirectory/uninstall-adserviceaccount?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580">Uninstall-ADServiceAccount</a> 將帳號從快取清除。</p> <p>依實測，我無法用 GUI 查詢查到 gMSA，目前找到的做法是用 schtasks.exe 或 PowerShell 設定，參考語法：<code>schtasks /change /tn "排程名稱" /ru &lt;gMSA帳號$&gt; /rp ""</code> (密碼給空字串)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638291781202523472.png"></p> <p>學會 MSA/gMSA，管理服務或排程執行帳號就多了一個安全方便的新選擇囉。</p> <p data-slug="gmsa" data-title-en="Introduce to Group Managed Service Account(gMSA)" data-catg=".NET" data-fbimg="https://i.imgur.com/6Dzzkdt.png#665#374">Introduction to gMSA and how to use it as a secured solution for scheduled tasks and service.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天<a href="/blog/adfs-setup/">研究 AD FS</a> 有意外收獲，學到好東西 - gMSA，Group Managed Service Account。</p> <p>Windows 服務或排程必須設定執行身分，若不需用 AD 認證存取遠端資源，可考慮使用 <a href="/blog/local-system-local-service-network-service/">Local System、Local Service與Network Service</a> 等特殊本機帳號，排程則有個「<a href="/blog/schktask-principal-settings/">不要儲存密碼。工作將只有本機電腦資源的存取權</a>」，這兩種做法都可減少密碼管理困擾。若服務或排程必須使用 AD 認證，一般要為它們建立專屬 AD 帳號，但密碼該如何保管(紙本封存、拆 A B Part... 粉麻煩)？如何定期變更？如何一次修改數百上千個服務或排程的身分設定？都是棘手問題。</p> <p>為了解決這類困擾，Windows Server 2008 R2 推出了 Managed Service Account (MSA，或稱 sMSA, s = Standalone)，MSA 為單一主機專屬，無法多主機共用，Windows 2012 再加入 <a href="https://learn.microsoft.com/zh-tw/azure/active-directory/architecture/service-accounts-group-managed?WT.mc_id=DOP-MVP-37580">Group Managed Service Account </a> (gMSA)，以應付 Cluster/Load Balance 或多主機備援的應用情境。(登楞! 沒錯，十幾年前就有了，我現在才已知用火)</p> <p>MSA/gMSA 的特色是密碼由作業系統管理，長度高達 240 Byte (30 字元)，加上高複雜度，被暴力破解可能性趨於零。而系統會每 30 天自動更換密碼，更換動作由作業系統處理，完全不需要人員介入設定。除此之外，帳號可授與權限、加入安全群組，使用上與一般帳號無異，應用方便。</p> <p>要使用 gMSA，有項前置工作是需在 AD 建立 Key Distribution Service (KDS) Root Key 並部署到全 Forest。Root Key 只需建立一次，指令如下(需 Domain Admins 或 Enterprise Admins 權限)。實務上需等 10 小時正式生效，以等待 AD 複寫同步完全，測試環境單一 DC 則可將時間調到 10 小時前省去等待。<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/create-the-key-distribution-services-kds-root-key?WT.mc_id=DOP-MVP-37580">參考</a></p> <pre><code>Add-KdsRootKey –EffectiveImmediately
+# 測試環境
+Add-KdsRootKey –EffectiveTime ((Get-Date).AddHours(-10))
+</code></pre> <p>要建立 MSA，做法為在目標主機使用 New-ADServiceAccount 建立帳號，再使用 Add-ADComputerServiceAccount 將帳號綁定到目標主機上，每個 MSA 專屬特定主機，不能重複使用。</p> <pre><code>$identity = New-ADServiceAccount -Name &lt;MSA-AcntName&gt; –RestrictToSingleComputer
+Add-ADComputerServiceAccount -Identity $identity -ServiceAccount &lt;MSA-AcntName&gt;
+</code></pre> <p>gMSA 也是用 New-ADServiceAccount 建立(登入帳號需為 Domain Admins、Account Operators 成員，或具有建立 msDS-GroupManagedServiceAccount 物件權限)，參數範例如下：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#BKMK_CreateGMSA">參考</a></p> <pre><code>New-ADServiceAccount &lt;gMSA-AcntName&gt; -DNSHostName "&lt;gMSA-AcntName&gt;.&lt;domain-fqdn&gt;" -PrincipalsAllowedToRetrieveManagedPassword (&lt;成員主機帳號或成員主機帳號所屬安全群組&gt;,...)
+# 若無註冊 SPN 需求，DNSHostName 隨意給
+# ManagedPasswordIntervalInDays 參數可指定密碼變更間隔天數，預設 30 天
+</code></pre> <p>建立 gMSA 時需列舉哪些主機有權存取該帳號密碼，只有此清單上的主機可以使用。實務上可將 PrincipalsAllowedToRetrieveManagedPassword 設給群組，再將主機的電腦帳號(SAMAccountName 為電腦名稱後方有 $ 號)加入群組，管理上較方便。</p> <p>若要事後增減主機或群組，可使用 PowerSehll 查詢 PrincipalsAllowedToRetrieveManagedPassword 主機或群組陣列，增減陣列元素再重新設定 ：<a href="https://learn.microsoft.com/zh-tw/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts?WT.mc_id=DOP-MVP-37580#to-add-member-hosts-using-the-set-adserviceaccount-cmdlet">參考</a></p> <pre><code>$hostArray = Get-ADServiceAccount &lt;gMSA-AcntName&gt; -Properties PrincipalsAllowedToRetrieveManagedPassword
+$hostArray += "NewHost$"
+Set-ADServiceAccount &lt;gMSA-AcntName&gt; -PrincipalsAllowedToRetrieveManagedPassword $hostArray
+</code></pre> <p>最後來個實地演練。</p> <p>我先建一個 gMSA 帳號 (gmsaBatch)，設定 PrincipalsAllowedToRetrieveManagedPassword 時只給 ADDC$ (另一台主機的電腦帳號)，故意不包含排程所在主機 ADFS1$ [1]，用 Get-ADServiceAccount 查詢確認 PrincipalsAllowedToRetrieveManagedPassword 欄位的 ADDC$ 已解析成 Distinguished Name [2]；用 <a href="https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks-change?WT.mc_id=DOP-MVP-37580">schtasks /change</a> 設定執行身分為 gmsaBatch$ (gMSA 的 SamAccountName)，此時出現 "The user name or password is incorrect"，原因是 ADFS1 主機不在 PrincipalsAllowedToRetrieveManagedPassword 清單 [3]。</p> <p>用 Set-ADServiceAccount 將 AFS1$ 也加入 PrincipalsAllowedToRetrieveManagedPassword (注意：每次要給完整清單) [4]，再試一次，這回設定成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png"></p> <p>另外，若要將主機移出 PrincipalsAllowedToRetrieveManagedPassword，設過 gMSA 的主機要用 <a href="https://learn.microsoft.com/en-us/powershell/module/activedirectory/uninstall-adserviceaccount?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580">Uninstall-ADServiceAccount</a> 將帳號從快取清除。</p> <p>依實測，我無法用 GUI 查詢查到 gMSA，目前找到的做法是用 schtasks.exe 或 PowerShell 設定，參考語法：<code>schtasks /change /tn "排程名稱" /ru &lt;gMSA帳號$&gt; /rp ""</code> (密碼給空字串)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638291781202523472.png"></p> <p>學會 MSA/gMSA，管理服務或排程執行帳號就多了一個安全方便的新選擇囉。</p> <p data-slug="gmsa" data-title-en="Introduce to Group Managed Service Account(gMSA)" data-catg=".NET" data-fbimg="https://i.imgur.com/6Dzzkdt.png#665#374">Introduction to gMSA and how to use it as a secured solution for scheduled tasks and service.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png" medium="image"/>
+    <pubDate>Fri, 01 Sep 2023 15:13:31 GMT</pubDate>
+  </item><item>
+    <title><![CDATA[【茶包射手日記】無法使用 PowerShell 修改 ASP.NET 3.5 匿名存取]]></title>
+    <link>https://blog.darkthread.net/blog/set-webconfigurationproperty-fail-on-35/</link>
+    <itunes:title><![CDATA[【茶包射手日記】無法使用 PowerShell 修改 ASP.NET 3.5 匿名存取]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+# CMD
+%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+# CMD
+%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+# CMD
+%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
+</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png" medium="image"/>
+    <pubDate>Thu, 31 Aug 2023 13:59:50 GMT</pubDate>
+  </item></channel>
+</rss>
