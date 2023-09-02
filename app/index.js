@@ -13,6 +13,9 @@ const PreventTerminate = require('./lib/PreventTerminate.js')
 // const UBMp3DownloaderWrapper = require('./ub/items/UBMp3Downloader/UBMp3DownloaderWrapper.js')
 
 let main = async () => {
+  // console.log((new Date()).getTime())
+  // await NodeCacheSqlite.get('test', 'b', 'b', 10 * 1000)
+  // return false
   // return await CaptionDownloader()
   // return await NodeCacheSqlite.set('test', 'a', 1, 1000 * 1000)
 
