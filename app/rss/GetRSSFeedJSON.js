@@ -6,12 +6,12 @@ const CONFIG = require('../../config-json.js');
 
 module.exports = async function (feedURL, options = {}) {
   let {
-    cacheDay = 0.3, 
+    cacheDay = 0.1, 
     proxy
   } = options
 
   let main = async function () {
-    console.log('get feed', feedURL, (new Date()).toISOString())
+    console.log('get feed', feedURL, parseInt(cacheDay * 1000 * 60 * 60 * 24, 10), (new Date()).toISOString())
 
     if (!parser) {
       parser = new Parser({
