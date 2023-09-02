@@ -6,7 +6,7 @@ const CONFIG = require('../../config-json.js');
 
 module.exports = async function (feedURL, options = {}) {
   let {
-    cacheDay = 0.1, 
+    cacheDay = 0, 
     proxy
   } = options
 
