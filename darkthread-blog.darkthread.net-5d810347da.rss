@@ -30,6 +30,66 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 我的 GPG 金鑰紙本備份解決方案]]></title>
+    <link>https://blog.darkthread.net/blog/gpg-secret-key-as-qrcode/</link>
+    <itunes:title><![CDATA[Coding4Fun - 我的 GPG 金鑰紙本備份解決方案]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="/blog/low-cost-diy-usb-security-key/">實體金鑰</a>方便又安全，但前題是私鑰檔案必須妥善保管，一旦被偷走前功盡棄，白忙一場。存到離線媒體會比放在電腦硬碟安全，即便被人遠端控制或偷用電腦，也沒東西可偷。故在<a href="/blog/gpg-keytocard/">備份好金鑰</a>並存入實體金鑰後，應該馬上將其從電腦中刪除，也要避免上傳到雲端，讓檔案從物理上與網路隔離以策安全。保管好除了避免被偷，還要確保資料可用，GPG 採用的 Ed25519/Curve 25519 <a href="/blog/ecc-notes/">橢圓曲線密碼學金鑰</a>，256 bit 長度相當於 RSA 3072 bit 金鑰的安全強度，依據<a href="https://zh.wikipedia.org/wiki/%E6%A9%A2%E5%9C%93%E6%9B%B2%E7%B7%9A%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E9%87%91%E9%91%B0%E4%BA%A4%E6%8F%9B">維基百科</a>，需要 2330 個量子位元跟 1260 億個 Toffoli Gate (可逆邏輯閘)的量子電腦(參考：2022 IBM 才推進到最多 433 個量子位元)才能破解，換言之，私鑰要是丟了，以目前的科技水準，加密內容再也別想解開，句點。</p> <p>離線媒體如記憶卡、隨身碟或外接硬碟都有資料遺失風險，快閃記憶體放久了資料可能消失(延伸閱讀：<a href="/blog/ssd-data-retention/">SSD、USB 行動碟擺很久沒用資料會消失？</a>)、機械硬碟比較耐久，但仍可能故障，除了多存幾份彼此備援，我還想到一個可靠的離線媒體 - 印在紙上鎖進保險箱。</p> <p>例如，隨手生一把測試用 GPG 金鑰，可輸出成以下這種 Base64 編碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638293113463408623.png"></p> <p>公私鑰印成一張 A4 紙，裝進信封鎖進保險箱剛剛好。若萬不幸所有離線媒體壞光光，打開保險箱取出信封，開個 Notepad 一個字元一個字元敲回去，金鑰就重生了。(有種乾燥牛肉乾泡開水又變回 A5 和牛的神奇感)</p> <p>不過，一個字元一個字元敲太累，有沒有更簡單的還原方法？我想到了 QR Code!</p> <p>算了一下，以包含 SSH 認證用金鑰的 GPG 私鑰為例，Jeffrey.secKey.asc 的長度為 1245 Bytes，QR Code 放得下嗎？依據<a href="https://en.wikipedia.org/wiki/QR_code">維基百科</a>，純數字可到 7089 字元、0-9 純大寫字母跟符號可到 4296 字元。金鑰文字檔用 Base64 編號有用到小寫字母，最多可到 2953 字了，私鑰檔不到 1500 字元綽綽有餘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638293113465281593.png"></p> <p>寫幾行程式來驗證。借用之前研究過的 <a href="/blog/ps-module/">PowerShell 產生 QRCode 範例</a>，只在 $text 參數加上 <a href="https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/adding-parameters-that-process-pipeline-input?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#defining-input-from-the-pipeline">ValueFromPipeline = $true</a> 以串接 Get-Content 讀取檔案內容直接轉 QR Code，輕鬆搞定。</p> <pre><code>Param(
+[Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+[string]$text,
+[string]$imgPath
+)
+$ErrorActionPreference = "STOP"
+Add-Type -Path $PSScriptRoot\QRCoder.dll
+$qrGenerator = New-Object QRCoder.QRCodeGenerator
+[byte[]] $textBytes = [System.Text.Encoding]::UTF8.GetBytes($text)
+$qrCodeData = $qrGenerator.CreateQrCode([byte[]]$textBytes, [int][QRCoder.QRCodeGenerator]::ECCLevel.Q)
+$qrCode = New-Object QRCoder.QRCode($qrCodeData)
+$img = $qrCode.GetGraphic(20)
+if (!$imgPath) { $imgPath = "$(Get-Location)\QRCode-$(Get-Date -Format MMddHHmmssfff).png" }
+Write-Host $imgPath
+$img.Save($imgPath);
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638293113467321174.png"></p> <p>實際列印出來，用手機試刷，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638293113469295453.jpg" alt="thumbnail"></p> <p data-slug="gpg-secret-key-as-qrcode" data-fbimg="https://i.imgur.com/VqPbjOG.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="/blog/low-cost-diy-usb-security-key/">實體金鑰</a>方便又安全，但前題是私鑰檔案必須妥善保管，一旦被偷走前功盡棄，白忙一場。存到離線媒體會比放在電腦硬碟安全，即便被人遠端控制或偷用電腦，也沒東西可偷。故在<a href="/blog/gpg-keytocard/">備份好金鑰</a>並存入實體金鑰後，應該馬上將其從電腦中刪除，也要避免上傳到雲端，讓檔案從物理上與網路隔離以策安全。保管好除了避免被偷，還要確保資料可用，GPG 採用的 Ed25519/Curve 25519 <a href="/blog/ecc-notes/">橢圓曲線密碼學金鑰</a>，256 bit 長度相當於 RSA 3072 bit 金鑰的安全強度，依據<a href="https://zh.wikipedia.org/wiki/%E6%A9%A2%E5%9C%93%E6%9B%B2%E7%B7%9A%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E9%87%91%E9%91%B0%E4%BA%A4%E6%8F%9B">維基百科</a>，需要 2330 個量子位元跟 1260 億個 Toffoli Gate (可逆邏輯閘)的量子電腦(參考：2022 IBM 才推進到最多 433 個量子位元)才能破解，換言之，私鑰要是丟了，以目前的科技水準，加密內容再也別想解開，句點。</p> <p>離線媒體如記憶卡、隨身碟或外接硬碟都有資料遺失風險，快閃記憶體放久了資料可能消失(延伸閱讀：<a href="/blog/ssd-data-retention/">SSD、USB 行動碟擺很久沒用資料會消失？</a>)、機械硬碟比較耐久，但仍可能故障，除了多存幾份彼此備援，我還想到一個可靠的離線媒體 - 印在紙上鎖進保險箱。</p> <p>例如，隨手生一把測試用 GPG 金鑰，可輸出成以下這種 Base64 編碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638293113463408623.png"></p> <p>公私鑰印成一張 A4 紙，裝進信封鎖進保險箱剛剛好。若萬不幸所有離線媒體壞光光，打開保險箱取出信封，開個 Notepad 一個字元一個字元敲回去，金鑰就重生了。(有種乾燥牛肉乾泡開水又變回 A5 和牛的神奇感)</p> <p>不過，一個字元一個字元敲太累，有沒有更簡單的還原方法？我想到了 QR Code!</p> <p>算了一下，以包含 SSH 認證用金鑰的 GPG 私鑰為例，Jeffrey.secKey.asc 的長度為 1245 Bytes，QR Code 放得下嗎？依據<a href="https://en.wikipedia.org/wiki/QR_code">維基百科</a>，純數字可到 7089 字元、0-9 純大寫字母跟符號可到 4296 字元。金鑰文字檔用 Base64 編號有用到小寫字母，最多可到 2953 字了，私鑰檔不到 1500 字元綽綽有餘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638293113465281593.png"></p> <p>寫幾行程式來驗證。借用之前研究過的 <a href="/blog/ps-module/">PowerShell 產生 QRCode 範例</a>，只在 $text 參數加上 <a href="https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/adding-parameters-that-process-pipeline-input?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#defining-input-from-the-pipeline">ValueFromPipeline = $true</a> 以串接 Get-Content 讀取檔案內容直接轉 QR Code，輕鬆搞定。</p> <pre><code>Param(
+[Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+[string]$text,
+[string]$imgPath
+)
+$ErrorActionPreference = "STOP"
+Add-Type -Path $PSScriptRoot\QRCoder.dll
+$qrGenerator = New-Object QRCoder.QRCodeGenerator
+[byte[]] $textBytes = [System.Text.Encoding]::UTF8.GetBytes($text)
+$qrCodeData = $qrGenerator.CreateQrCode([byte[]]$textBytes, [int][QRCoder.QRCodeGenerator]::ECCLevel.Q)
+$qrCode = New-Object QRCoder.QRCode($qrCodeData)
+$img = $qrCode.GetGraphic(20)
+if (!$imgPath) { $imgPath = "$(Get-Location)\QRCode-$(Get-Date -Format MMddHHmmssfff).png" }
+Write-Host $imgPath
+$img.Save($imgPath);
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638293113467321174.png"></p> <p>實際列印出來，用手機試刷，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638293113469295453.jpg" alt="thumbnail"></p> <p data-slug="gpg-secret-key-as-qrcode" data-fbimg="https://i.imgur.com/VqPbjOG.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="/blog/low-cost-diy-usb-security-key/">實體金鑰</a>方便又安全，但前題是私鑰檔案必須妥善保管，一旦被偷走前功盡棄，白忙一場。存到離線媒體會比放在電腦硬碟安全，即便被人遠端控制或偷用電腦，也沒東西可偷。故在<a href="/blog/gpg-keytocard/">備份好金鑰</a>並存入實體金鑰後，應該馬上將其從電腦中刪除，也要避免上傳到雲端，讓檔案從物理上與網路隔離以策安全。保管好除了避免被偷，還要確保資料可用，GPG 採用的 Ed25519/Curve 25519 <a href="/blog/ecc-notes/">橢圓曲線密碼學金鑰</a>，256 bit 長度相當於 RSA 3072 bit 金鑰的安全強度，依據<a href="https://zh.wikipedia.org/wiki/%E6%A9%A2%E5%9C%93%E6%9B%B2%E7%B7%9A%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E9%87%91%E9%91%B0%E4%BA%A4%E6%8F%9B">維基百科</a>，需要 2330 個量子位元跟 1260 億個 Toffoli Gate (可逆邏輯閘)的量子電腦(參考：2022 IBM 才推進到最多 433 個量子位元)才能破解，換言之，私鑰要是丟了，以目前的科技水準，加密內容再也別想解開，句點。</p> <p>離線媒體如記憶卡、隨身碟或外接硬碟都有資料遺失風險，快閃記憶體放久了資料可能消失(延伸閱讀：<a href="/blog/ssd-data-retention/">SSD、USB 行動碟擺很久沒用資料會消失？</a>)、機械硬碟比較耐久，但仍可能故障，除了多存幾份彼此備援，我還想到一個可靠的離線媒體 - 印在紙上鎖進保險箱。</p> <p>例如，隨手生一把測試用 GPG 金鑰，可輸出成以下這種 Base64 編碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638293113463408623.png"></p> <p>公私鑰印成一張 A4 紙，裝進信封鎖進保險箱剛剛好。若萬不幸所有離線媒體壞光光，打開保險箱取出信封，開個 Notepad 一個字元一個字元敲回去，金鑰就重生了。(有種乾燥牛肉乾泡開水又變回 A5 和牛的神奇感)</p> <p>不過，一個字元一個字元敲太累，有沒有更簡單的還原方法？我想到了 QR Code!</p> <p>算了一下，以包含 SSH 認證用金鑰的 GPG 私鑰為例，Jeffrey.secKey.asc 的長度為 1245 Bytes，QR Code 放得下嗎？依據<a href="https://en.wikipedia.org/wiki/QR_code">維基百科</a>，純數字可到 7089 字元、0-9 純大寫字母跟符號可到 4296 字元。金鑰文字檔用 Base64 編號有用到小寫字母，最多可到 2953 字了，私鑰檔不到 1500 字元綽綽有餘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638293113465281593.png"></p> <p>寫幾行程式來驗證。借用之前研究過的 <a href="/blog/ps-module/">PowerShell 產生 QRCode 範例</a>，只在 $text 參數加上 <a href="https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/adding-parameters-that-process-pipeline-input?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#defining-input-from-the-pipeline">ValueFromPipeline = $true</a> 以串接 Get-Content 讀取檔案內容直接轉 QR Code，輕鬆搞定。</p> <pre><code>Param(
+[Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+[string]$text,
+[string]$imgPath
+)
+$ErrorActionPreference = "STOP"
+Add-Type -Path $PSScriptRoot\QRCoder.dll
+$qrGenerator = New-Object QRCoder.QRCodeGenerator
+[byte[]] $textBytes = [System.Text.Encoding]::UTF8.GetBytes($text)
+$qrCodeData = $qrGenerator.CreateQrCode([byte[]]$textBytes, [int][QRCoder.QRCodeGenerator]::ECCLevel.Q)
+$qrCode = New-Object QRCoder.QRCode($qrCodeData)
+$img = $qrCode.GetGraphic(20)
+if (!$imgPath) { $imgPath = "$(Get-Location)\QRCode-$(Get-Date -Format MMddHHmmssfff).png" }
+Write-Host $imgPath
+$img.Save($imgPath);
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638293113467321174.png"></p> <p>實際列印出來，用手機試刷，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638293113469295453.jpg" alt="thumbnail"></p> <p data-slug="gpg-secret-key-as-qrcode" data-fbimg="https://i.imgur.com/VqPbjOG.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638293113463408623.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638293113463408623.png" medium="image"/>
+    <pubDate>Sun, 03 Sep 2023 04:14:24 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PowerShell 小工具 - 盤點 IIS 站台設定]]></title>
     <link>https://blog.darkthread.net/blog/dump-iis-settings/</link>
     <itunes:title><![CDATA[PowerShell 小工具 - 盤點 IIS 站台設定]]></itunes:title>
@@ -985,146 +1045,5 @@ Response.Write("OK");
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png" medium="image"/>
     <pubDate>Wed, 23 Aug 2023 14:52:38 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[再探 Windows 檔名不分大小寫陷阱 - .NET 處理對策]]></title>
-    <link>https://blog.darkthread.net/blog/dotnet-filename-case-issue/</link>
-    <itunes:title><![CDATA[再探 Windows 檔名不分大小寫陷阱 - .NET 處理對策]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>先幫沒踩過的同學補充這顆小地雷 - <a href="/blog/win-ci-filename-behavior/">Windows 檔名不分大小寫阱陷</a>。</p> <p>我們都知道 Windows 的檔案系統不區分大小寫，對 Windows 來說，Logo_TW.png 跟 Logo_tw.png 是同一個檔案。因此，你無法在檔案總管將 Logo_TW.png 更名成 Logo_tw.png、logo_tw.png、LOGO_TW.PNG。(如下圖)</p> <p><img src="https://blog.darkthread.net/Posts/files/Fig1_637599657193586173.gif"></p> <p>一般來說，檔名沒精準調成指定大小寫組合問題不大，反正字元一致便能找對檔案，大小寫不同無所謂。但如果你將檔名拉到 .NET 進行比對，大小寫不一致就會是個要處理的問題。(另一個類似情境是 SQL WHERE 比對時會忽略字尾空白，將欄位讀到 .NET 再比較，結尾空白會導致在 SQL 相等的資料在 .NET 世界不相等，有處理過 CHAR()/NCHAR() 型別的老鳥應該知道讀完先 Trim() 的 SOP)</p> <p>今天再遇到類以的檔案同步情境，又踩到檔名只差在大小寫不同無法覆寫一致檔名的問題。這回我想改變戰略 - 既然檔名由系統全權控制，何不一開始就讓檔名完全一致，而不是每次要比對時都忽略大小寫，感覺更合理有效率。</p> <p>研究了一下，解法出奇簡單，File.WriteAllText()/WriteAllBytes() 遇到只有大小寫不同的同樣檔名會維持舊檔名，但用 FileInfo.Move() 或 File.Move() 即可強制換成指定的大小寫組合，使用以下範例驗證：</p> <pre><code>Action chkFileName = () =&gt; {
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(Directory.GetFiles(".", "*.txt").First());
-};
-Action&lt;string&gt; printTitle = (msg) =&gt; {
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(msg);
-};
-Directory.SetCurrentDirectory("D:\\");
-var fileName = "test.txt";
-if (File.Exists(fileName))
-{
-File.Delete(fileName);
-}
-printTitle($"Write {fileName}");
-File.WriteAllText(fileName, "Hello World");
-chkFileName();
-var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-chkFileName();
-printTitle($"FileInfo.MoveTo() {upCaseFileName}");
-FileInfo fi = new FileInfo(fileName);
-fi.MoveTo(upCaseFileName);
-chkFileName();
-printTitle($"File.Move() {upCaseFileName} to {fileName}");
-File.Move(upCaseFileName, fileName);
-chkFileName();
-Console.ResetColor();
-</code></pre> <p>如下圖，File.WriteAll("TEST.TXT", ...) 不會將 "test.txt" 檔名換成 "TEST.TXT"，但 FileInfo.MoveTo()、File.Move() 可以：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283110904967107.png"></p> <p>掌握這點，我們只需在每次寫入檔案後，檢查檔名是否不一致，若不相同就用 FileInof.MoveTo() 更名，搞定收工。</p> <pre><code>var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-// 檢查檔案名稱，若大小寫不同，使用 MoveTo 更名
-var fi = Directory.GetFiles(
-Path.GetDirectoryName(Path.GetFullPath(upCaseFileName)),
-Path.GetFileName(upCaseFileName))
-.Select(x =&gt; new FileInfo(x)).FirstOrDefault();
-if (fi != null &amp;&amp; fi.Name != Path.GetFileName(upCaseFileName))
-{
-fi.MoveTo(upCaseFileName);
-}
-chkFileName();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283110906941425.png"></p> <p>【同場加映】利用 <code>\\?\</code> 前置詞(延伸閱讀：<a href="/blog/filename-endswith-dot/">冷知識 - 刪不掉的 Windows 檔案</a>)強制更名大小寫的小技巧：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283135917766530.png"></p> <p data-slug="dotnet-filename-case-issue" data-title-en="Set exactly letter case of filename in .NET" data-catg=".NET" data-fbimg="https://i.imgur.com/FruOR6H.jpg#640#427">The file system of Windows always ignore file name letter case sometimes cause issue, this article provide a easy way to fix it.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>先幫沒踩過的同學補充這顆小地雷 - <a href="/blog/win-ci-filename-behavior/">Windows 檔名不分大小寫阱陷</a>。</p> <p>我們都知道 Windows 的檔案系統不區分大小寫，對 Windows 來說，Logo_TW.png 跟 Logo_tw.png 是同一個檔案。因此，你無法在檔案總管將 Logo_TW.png 更名成 Logo_tw.png、logo_tw.png、LOGO_TW.PNG。(如下圖)</p> <p><img src="https://blog.darkthread.net/Posts/files/Fig1_637599657193586173.gif"></p> <p>一般來說，檔名沒精準調成指定大小寫組合問題不大，反正字元一致便能找對檔案，大小寫不同無所謂。但如果你將檔名拉到 .NET 進行比對，大小寫不一致就會是個要處理的問題。(另一個類似情境是 SQL WHERE 比對時會忽略字尾空白，將欄位讀到 .NET 再比較，結尾空白會導致在 SQL 相等的資料在 .NET 世界不相等，有處理過 CHAR()/NCHAR() 型別的老鳥應該知道讀完先 Trim() 的 SOP)</p> <p>今天再遇到類以的檔案同步情境，又踩到檔名只差在大小寫不同無法覆寫一致檔名的問題。這回我想改變戰略 - 既然檔名由系統全權控制，何不一開始就讓檔名完全一致，而不是每次要比對時都忽略大小寫，感覺更合理有效率。</p> <p>研究了一下，解法出奇簡單，File.WriteAllText()/WriteAllBytes() 遇到只有大小寫不同的同樣檔名會維持舊檔名，但用 FileInfo.Move() 或 File.Move() 即可強制換成指定的大小寫組合，使用以下範例驗證：</p> <pre><code>Action chkFileName = () =&gt; {
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(Directory.GetFiles(".", "*.txt").First());
-};
-Action&lt;string&gt; printTitle = (msg) =&gt; {
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(msg);
-};
-Directory.SetCurrentDirectory("D:\\");
-var fileName = "test.txt";
-if (File.Exists(fileName))
-{
-File.Delete(fileName);
-}
-printTitle($"Write {fileName}");
-File.WriteAllText(fileName, "Hello World");
-chkFileName();
-var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-chkFileName();
-printTitle($"FileInfo.MoveTo() {upCaseFileName}");
-FileInfo fi = new FileInfo(fileName);
-fi.MoveTo(upCaseFileName);
-chkFileName();
-printTitle($"File.Move() {upCaseFileName} to {fileName}");
-File.Move(upCaseFileName, fileName);
-chkFileName();
-Console.ResetColor();
-</code></pre> <p>如下圖，File.WriteAll("TEST.TXT", ...) 不會將 "test.txt" 檔名換成 "TEST.TXT"，但 FileInfo.MoveTo()、File.Move() 可以：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283110904967107.png"></p> <p>掌握這點，我們只需在每次寫入檔案後，檢查檔名是否不一致，若不相同就用 FileInof.MoveTo() 更名，搞定收工。</p> <pre><code>var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-// 檢查檔案名稱，若大小寫不同，使用 MoveTo 更名
-var fi = Directory.GetFiles(
-Path.GetDirectoryName(Path.GetFullPath(upCaseFileName)),
-Path.GetFileName(upCaseFileName))
-.Select(x =&gt; new FileInfo(x)).FirstOrDefault();
-if (fi != null &amp;&amp; fi.Name != Path.GetFileName(upCaseFileName))
-{
-fi.MoveTo(upCaseFileName);
-}
-chkFileName();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283110906941425.png"></p> <p>【同場加映】利用 <code>\\?\</code> 前置詞(延伸閱讀：<a href="/blog/filename-endswith-dot/">冷知識 - 刪不掉的 Windows 檔案</a>)強制更名大小寫的小技巧：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283135917766530.png"></p> <p data-slug="dotnet-filename-case-issue" data-title-en="Set exactly letter case of filename in .NET" data-catg=".NET" data-fbimg="https://i.imgur.com/FruOR6H.jpg#640#427">The file system of Windows always ignore file name letter case sometimes cause issue, this article provide a easy way to fix it.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>先幫沒踩過的同學補充這顆小地雷 - <a href="/blog/win-ci-filename-behavior/">Windows 檔名不分大小寫阱陷</a>。</p> <p>我們都知道 Windows 的檔案系統不區分大小寫，對 Windows 來說，Logo_TW.png 跟 Logo_tw.png 是同一個檔案。因此，你無法在檔案總管將 Logo_TW.png 更名成 Logo_tw.png、logo_tw.png、LOGO_TW.PNG。(如下圖)</p> <p><img src="https://blog.darkthread.net/Posts/files/Fig1_637599657193586173.gif"></p> <p>一般來說，檔名沒精準調成指定大小寫組合問題不大，反正字元一致便能找對檔案，大小寫不同無所謂。但如果你將檔名拉到 .NET 進行比對，大小寫不一致就會是個要處理的問題。(另一個類似情境是 SQL WHERE 比對時會忽略字尾空白，將欄位讀到 .NET 再比較，結尾空白會導致在 SQL 相等的資料在 .NET 世界不相等，有處理過 CHAR()/NCHAR() 型別的老鳥應該知道讀完先 Trim() 的 SOP)</p> <p>今天再遇到類以的檔案同步情境，又踩到檔名只差在大小寫不同無法覆寫一致檔名的問題。這回我想改變戰略 - 既然檔名由系統全權控制，何不一開始就讓檔名完全一致，而不是每次要比對時都忽略大小寫，感覺更合理有效率。</p> <p>研究了一下，解法出奇簡單，File.WriteAllText()/WriteAllBytes() 遇到只有大小寫不同的同樣檔名會維持舊檔名，但用 FileInfo.Move() 或 File.Move() 即可強制換成指定的大小寫組合，使用以下範例驗證：</p> <pre><code>Action chkFileName = () =&gt; {
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(Directory.GetFiles(".", "*.txt").First());
-};
-Action&lt;string&gt; printTitle = (msg) =&gt; {
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(msg);
-};
-Directory.SetCurrentDirectory("D:\\");
-var fileName = "test.txt";
-if (File.Exists(fileName))
-{
-File.Delete(fileName);
-}
-printTitle($"Write {fileName}");
-File.WriteAllText(fileName, "Hello World");
-chkFileName();
-var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-chkFileName();
-printTitle($"FileInfo.MoveTo() {upCaseFileName}");
-FileInfo fi = new FileInfo(fileName);
-fi.MoveTo(upCaseFileName);
-chkFileName();
-printTitle($"File.Move() {upCaseFileName} to {fileName}");
-File.Move(upCaseFileName, fileName);
-chkFileName();
-Console.ResetColor();
-</code></pre> <p>如下圖，File.WriteAll("TEST.TXT", ...) 不會將 "test.txt" 檔名換成 "TEST.TXT"，但 FileInfo.MoveTo()、File.Move() 可以：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283110904967107.png"></p> <p>掌握這點，我們只需在每次寫入檔案後，檢查檔名是否不一致，若不相同就用 FileInof.MoveTo() 更名，搞定收工。</p> <pre><code>var upCaseFileName = fileName.ToUpper();
-printTitle($"Write {upCaseFileName}");
-File.WriteAllText(upCaseFileName, "Hello World");
-// 檢查檔案名稱，若大小寫不同，使用 MoveTo 更名
-var fi = Directory.GetFiles(
-Path.GetDirectoryName(Path.GetFullPath(upCaseFileName)),
-Path.GetFileName(upCaseFileName))
-.Select(x =&gt; new FileInfo(x)).FirstOrDefault();
-if (fi != null &amp;&amp; fi.Name != Path.GetFileName(upCaseFileName))
-{
-fi.MoveTo(upCaseFileName);
-}
-chkFileName();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283110906941425.png"></p> <p>【同場加映】利用 <code>\\?\</code> 前置詞(延伸閱讀：<a href="/blog/filename-endswith-dot/">冷知識 - 刪不掉的 Windows 檔案</a>)強制更名大小寫的小技巧：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283135917766530.png"></p> <p data-slug="dotnet-filename-case-issue" data-title-en="Set exactly letter case of filename in .NET" data-catg=".NET" data-fbimg="https://i.imgur.com/FruOR6H.jpg#640#427">The file system of Windows always ignore file name letter case sometimes cause issue, this article provide a easy way to fix it.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/Fig1_637599657193586173.gif"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/Fig1_637599657193586173.gif" medium="image"/>
-    <pubDate>Tue, 22 Aug 2023 14:23:08 GMT</pubDate>
   </item></channel>
 </rss>
