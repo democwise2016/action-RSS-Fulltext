@@ -5,6 +5,10 @@ let main = async function (item, options) {
     return false
   }
 
+  if (item.title.startsWith('开源美图')) {
+    return false
+  }
+
   return item
 }
 
