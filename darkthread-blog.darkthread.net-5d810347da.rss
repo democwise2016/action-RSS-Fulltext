@@ -30,6 +30,21 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[七月鬼話：檔案總管有但 PowerShell 看不到的檔案]]></title>
+    <link>https://blog.darkthread.net/blog/ps-x86/</link>
+    <itunes:title><![CDATA[七月鬼話：檔案總管有但 PowerShell 看不到的檔案]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png" medium="image"/>
+    <pubDate>Wed, 06 Sep 2023 13:00:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - 我的 GPG 金鑰紙本備份解決方案]]></title>
     <link>https://blog.darkthread.net/blog/gpg-secret-key-as-qrcode/</link>
     <itunes:title><![CDATA[Coding4Fun - 我的 GPG 金鑰紙本備份解決方案]]></itunes:title>
@@ -961,89 +976,5 @@ Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638285175103327613.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638285175103327613.png" medium="image"/>
     <pubDate>Thu, 24 Aug 2023 23:44:27 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[在 CLI 簡易測量網頁回應時間]]></title>
-    <link>https://blog.darkthread.net/blog/measure-web-speed-w-curl/</link>
-    <itunes:title><![CDATA[在 CLI 簡易測量網頁回應時間]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>工作上有個小需求，想找到簡便方法顯示網頁回應速度，方便快速擷圖對照改善前後的時間差異。</p> <p>相關軟體很多，但我不想為此安裝程式，以既有工具優先；Chrome/Edge F12 開發者工具的網路功能也有每個 HTTP Request 的時間報表，是個不錯的選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png"></p> <p>不過，我想找到更簡單的 CLI 做法，貼指令按 Enter 直接看數字，還能在同一個畫面呈現多次測試的數據，感覺更有效率。</p> <p>遠在天邊近在眼前，爬文發現，curl 就能助我<a href="https://stackoverflow.com/a/22625150/288936">完美實現夢想</a>。(在 Windows 想使用 curl 可在 <a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 或 <a href="https://gitforwindows.org/">Git for Windows</a> 找到)</p> <p>curl 有個 --write-out/-w 參數，能在傳輸完成後顯示相關統計，其中包含幾個有用數據：<a href="https://curl.se/docs/manpage.html">參考</a></p> <ul><li>size_download 下載 Bytes 數</li> <li>speed_download 下載速度</li> <li>time_namelookup 從開始到完成 DNS 解析花費的秒數</li> <li>time_connect 從開始到到 TCP 連線建立花費的秒數</li> <li>time_appconnect 從開始到 TLS/SSL/SSH 等交握完成花費的秒數</li> <li>time_redirect 302/301 重導過程耗費的秒數(含 DNS 解析、TCP 連線... 等時間)</li> <li>time_pretransfer 從開始到傳完請求內容伺服器準備傳送回應花費的秒數</li> <li>time_starttransfer 從開始到傳回第一個 Byte 花費的秒數 (TTFB, <a href="https://en.wikipedia.org/wiki/Time_to_first_byte">Time to First Byte</a>)</li> <li>time_total 整個傳輸過程耗費的時間總和</li></ul> <p>由以上時間可以再推算出幾個效能相關數字：</p> <ul><li>time_appconnect - time_connec = TLS/SSL 交握、憑證檢核花費時間</li> <li>time_pretransfer - time_appconnect = 上傳請求內容耗費時間</li> <li>time_starttransfer - time_pretransfer = 伺服器端程式運算處理時間</li> <li>time_total - time_starttransfer = 傳完回應內容資料所耗費時間</li></ul> <p>依上述說明，我組裝了一個簡單的測試指令，用縮寫名稱表達各階段：dns = DNS 解析、tcp = TCP 連線建立、tls = TLS 交握完成、proc = 伺服器端開始處理、ttfb = 回傳第一個 Byte 的時間、totl = 總計時間、redir = 重新導向過程耗時</p> <pre><code>#　-w 指定輸出樣版、-o NUL (Linux/macOS 為 -o /dev/null) 將回傳結果導向黑洞
-curl -w " dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download}" -o NUL -s https://www.google.com
-# 或將輸出樣版存取檔案
-echo  dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download} &gt; tmpl.txt
-curl -w "@tmpl.txt" -o NUL -s https://www.google.com
-</code></pre> <p>一行指令，輸入不同 URL 得到數字，完全不囉嗦，沒有多餘資訊，是我要的簡潔有力風格。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283996365309443.png"></p> <p>寫一支簡單的 ASPX，驗證它可以突顯不同階段的耗時狀況：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;script runat="server"&gt;
-void Page_Load(object sender, EventArgs e)
-{
-if (Request["delay"] == "Y")
-System.Threading.Thread.Sleep(5000);
-if (Request["10M"] == "Y")
-for (int i = 0; i &lt; 10*1024 ; i++)
-{
-Response.Write(new string('A', 1024*1024));
-Response.Flush();
-}
-else
-Response.Write("OK");
-}
-&lt;/script&gt;
-</code></pre> <p>實測可觀察到 delay=Y 時從 proc 到 ttfb 耗時五秒，10M=Y 時，執行時間很短，但從第一個 Byte (ttfb) 到全部傳完 (totl) 花了超過 23 秒。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283996376622638.png"></p> <p>最後來測試重導時間，<code>https://microsoft.com</code> 會歷經兩次重導來到 <code>https://www.microsoft.com/zh-tw/</code></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638283996378618621.png"></p> <p>curl 加上 -L 自動重導到目標，成功觀察到重導過程耗時：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638283996380457417.png"></p> <p>工具箱再添順手工具一把。</p> <p data-slug="measure-web-speed-w-curl" data-title-en="Measuring web speed with curl" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2015/09/29/22/49/blueprint-964630_960_720.jpg#960#720">Tips of using curl to measure response time and transfer speed of web page.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>工作上有個小需求，想找到簡便方法顯示網頁回應速度，方便快速擷圖對照改善前後的時間差異。</p> <p>相關軟體很多，但我不想為此安裝程式，以既有工具優先；Chrome/Edge F12 開發者工具的網路功能也有每個 HTTP Request 的時間報表，是個不錯的選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png"></p> <p>不過，我想找到更簡單的 CLI 做法，貼指令按 Enter 直接看數字，還能在同一個畫面呈現多次測試的數據，感覺更有效率。</p> <p>遠在天邊近在眼前，爬文發現，curl 就能助我<a href="https://stackoverflow.com/a/22625150/288936">完美實現夢想</a>。(在 Windows 想使用 curl 可在 <a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 或 <a href="https://gitforwindows.org/">Git for Windows</a> 找到)</p> <p>curl 有個 --write-out/-w 參數，能在傳輸完成後顯示相關統計，其中包含幾個有用數據：<a href="https://curl.se/docs/manpage.html">參考</a></p> <ul><li>size_download 下載 Bytes 數</li> <li>speed_download 下載速度</li> <li>time_namelookup 從開始到完成 DNS 解析花費的秒數</li> <li>time_connect 從開始到到 TCP 連線建立花費的秒數</li> <li>time_appconnect 從開始到 TLS/SSL/SSH 等交握完成花費的秒數</li> <li>time_redirect 302/301 重導過程耗費的秒數(含 DNS 解析、TCP 連線... 等時間)</li> <li>time_pretransfer 從開始到傳完請求內容伺服器準備傳送回應花費的秒數</li> <li>time_starttransfer 從開始到傳回第一個 Byte 花費的秒數 (TTFB, <a href="https://en.wikipedia.org/wiki/Time_to_first_byte">Time to First Byte</a>)</li> <li>time_total 整個傳輸過程耗費的時間總和</li></ul> <p>由以上時間可以再推算出幾個效能相關數字：</p> <ul><li>time_appconnect - time_connec = TLS/SSL 交握、憑證檢核花費時間</li> <li>time_pretransfer - time_appconnect = 上傳請求內容耗費時間</li> <li>time_starttransfer - time_pretransfer = 伺服器端程式運算處理時間</li> <li>time_total - time_starttransfer = 傳完回應內容資料所耗費時間</li></ul> <p>依上述說明，我組裝了一個簡單的測試指令，用縮寫名稱表達各階段：dns = DNS 解析、tcp = TCP 連線建立、tls = TLS 交握完成、proc = 伺服器端開始處理、ttfb = 回傳第一個 Byte 的時間、totl = 總計時間、redir = 重新導向過程耗時</p> <pre><code>#　-w 指定輸出樣版、-o NUL (Linux/macOS 為 -o /dev/null) 將回傳結果導向黑洞
-curl -w " dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download}" -o NUL -s https://www.google.com
-# 或將輸出樣版存取檔案
-echo  dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download} &gt; tmpl.txt
-curl -w "@tmpl.txt" -o NUL -s https://www.google.com
-</code></pre> <p>一行指令，輸入不同 URL 得到數字，完全不囉嗦，沒有多餘資訊，是我要的簡潔有力風格。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283996365309443.png"></p> <p>寫一支簡單的 ASPX，驗證它可以突顯不同階段的耗時狀況：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;script runat="server"&gt;
-void Page_Load(object sender, EventArgs e)
-{
-if (Request["delay"] == "Y")
-System.Threading.Thread.Sleep(5000);
-if (Request["10M"] == "Y")
-for (int i = 0; i &lt; 10*1024 ; i++)
-{
-Response.Write(new string('A', 1024*1024));
-Response.Flush();
-}
-else
-Response.Write("OK");
-}
-&lt;/script&gt;
-</code></pre> <p>實測可觀察到 delay=Y 時從 proc 到 ttfb 耗時五秒，10M=Y 時，執行時間很短，但從第一個 Byte (ttfb) 到全部傳完 (totl) 花了超過 23 秒。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283996376622638.png"></p> <p>最後來測試重導時間，<code>https://microsoft.com</code> 會歷經兩次重導來到 <code>https://www.microsoft.com/zh-tw/</code></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638283996378618621.png"></p> <p>curl 加上 -L 自動重導到目標，成功觀察到重導過程耗時：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638283996380457417.png"></p> <p>工具箱再添順手工具一把。</p> <p data-slug="measure-web-speed-w-curl" data-title-en="Measuring web speed with curl" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2015/09/29/22/49/blueprint-964630_960_720.jpg#960#720">Tips of using curl to measure response time and transfer speed of web page.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>工作上有個小需求，想找到簡便方法顯示網頁回應速度，方便快速擷圖對照改善前後的時間差異。</p> <p>相關軟體很多，但我不想為此安裝程式，以既有工具優先；Chrome/Edge F12 開發者工具的網路功能也有每個 HTTP Request 的時間報表，是個不錯的選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png"></p> <p>不過，我想找到更簡單的 CLI 做法，貼指令按 Enter 直接看數字，還能在同一個畫面呈現多次測試的數據，感覺更有效率。</p> <p>遠在天邊近在眼前，爬文發現，curl 就能助我<a href="https://stackoverflow.com/a/22625150/288936">完美實現夢想</a>。(在 Windows 想使用 curl 可在 <a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 或 <a href="https://gitforwindows.org/">Git for Windows</a> 找到)</p> <p>curl 有個 --write-out/-w 參數，能在傳輸完成後顯示相關統計，其中包含幾個有用數據：<a href="https://curl.se/docs/manpage.html">參考</a></p> <ul><li>size_download 下載 Bytes 數</li> <li>speed_download 下載速度</li> <li>time_namelookup 從開始到完成 DNS 解析花費的秒數</li> <li>time_connect 從開始到到 TCP 連線建立花費的秒數</li> <li>time_appconnect 從開始到 TLS/SSL/SSH 等交握完成花費的秒數</li> <li>time_redirect 302/301 重導過程耗費的秒數(含 DNS 解析、TCP 連線... 等時間)</li> <li>time_pretransfer 從開始到傳完請求內容伺服器準備傳送回應花費的秒數</li> <li>time_starttransfer 從開始到傳回第一個 Byte 花費的秒數 (TTFB, <a href="https://en.wikipedia.org/wiki/Time_to_first_byte">Time to First Byte</a>)</li> <li>time_total 整個傳輸過程耗費的時間總和</li></ul> <p>由以上時間可以再推算出幾個效能相關數字：</p> <ul><li>time_appconnect - time_connec = TLS/SSL 交握、憑證檢核花費時間</li> <li>time_pretransfer - time_appconnect = 上傳請求內容耗費時間</li> <li>time_starttransfer - time_pretransfer = 伺服器端程式運算處理時間</li> <li>time_total - time_starttransfer = 傳完回應內容資料所耗費時間</li></ul> <p>依上述說明，我組裝了一個簡單的測試指令，用縮寫名稱表達各階段：dns = DNS 解析、tcp = TCP 連線建立、tls = TLS 交握完成、proc = 伺服器端開始處理、ttfb = 回傳第一個 Byte 的時間、totl = 總計時間、redir = 重新導向過程耗時</p> <pre><code>#　-w 指定輸出樣版、-o NUL (Linux/macOS 為 -o /dev/null) 將回傳結果導向黑洞
-curl -w " dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download}" -o NUL -s https://www.google.com
-# 或將輸出樣版存取檔案
-echo  dns: %{time_namelookup}  tcp: %{time_connect}  tls: %{time_appconnect}  redir: %{time_redirect}
-proc: %{time_pretransfer} ttfb: %{time_starttransfer} totl: %{time_total}   size: %{size_download} &gt; tmpl.txt
-curl -w "@tmpl.txt" -o NUL -s https://www.google.com
-</code></pre> <p>一行指令，輸入不同 URL 得到數字，完全不囉嗦，沒有多餘資訊，是我要的簡潔有力風格。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638283996365309443.png"></p> <p>寫一支簡單的 ASPX，驗證它可以突顯不同階段的耗時狀況：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;script runat="server"&gt;
-void Page_Load(object sender, EventArgs e)
-{
-if (Request["delay"] == "Y")
-System.Threading.Thread.Sleep(5000);
-if (Request["10M"] == "Y")
-for (int i = 0; i &lt; 10*1024 ; i++)
-{
-Response.Write(new string('A', 1024*1024));
-Response.Flush();
-}
-else
-Response.Write("OK");
-}
-&lt;/script&gt;
-</code></pre> <p>實測可觀察到 delay=Y 時從 proc 到 ttfb 耗時五秒，10M=Y 時，執行時間很短，但從第一個 Byte (ttfb) 到全部傳完 (totl) 花了超過 23 秒。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638283996376622638.png"></p> <p>最後來測試重導時間，<code>https://microsoft.com</code> 會歷經兩次重導來到 <code>https://www.microsoft.com/zh-tw/</code></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638283996378618621.png"></p> <p>curl 加上 -L 自動重導到目標，成功觀察到重導過程耗時：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638283996380457417.png"></p> <p>工具箱再添順手工具一把。</p> <p data-slug="measure-web-speed-w-curl" data-title-en="Measuring web speed with curl" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2015/09/29/22/49/blueprint-964630_960_720.jpg#960#720">Tips of using curl to measure response time and transfer speed of web page.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638283996358643493.png" medium="image"/>
-    <pubDate>Wed, 23 Aug 2023 14:52:38 GMT</pubDate>
   </item></channel>
 </rss>
