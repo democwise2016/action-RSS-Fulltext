@@ -30,6 +30,150 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 小技巧 - 讀取其他程式開啟中的檔案]]></title>
+    <link>https://blog.darkthread.net/blog/dotnet-read-locked-file/</link>
+    <itunes:title><![CDATA[.NET 小技巧 - 讀取其他程式開啟中的檔案]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
+{
+using (var sw = new StreamWriter(fs))
+{
+Console.WriteLine("File opened. Press any key to exit.");
+while (true)
+{
+if (Console.KeyAvailable) break;
+var timestamp = DateTime.Now.ToString("mm:ss.fff");
+sw.WriteLine(timestamp);
+sw.Flush();
+Console.WriteLine(timestamp);
+Thread.Sleep(1000);
+}
+Console.ReadKey(true); // read and don't show the key pressed
+Console.WriteLine("Done. File closed.");
+}
+}
+</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+var content = File.ReadAllBytes(filePath);
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+using (var ms = new MemoryStream()) {
+fs.CopyTo(ms);
+var content = ms.ToArray();
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+}
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
+{
+using (var sw = new StreamWriter(fs))
+{
+Console.WriteLine("File opened. Press any key to exit.");
+while (true)
+{
+if (Console.KeyAvailable) break;
+var timestamp = DateTime.Now.ToString("mm:ss.fff");
+sw.WriteLine(timestamp);
+sw.Flush();
+Console.WriteLine(timestamp);
+Thread.Sleep(1000);
+}
+Console.ReadKey(true); // read and don't show the key pressed
+Console.WriteLine("Done. File closed.");
+}
+}
+</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+var content = File.ReadAllBytes(filePath);
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+using (var ms = new MemoryStream()) {
+fs.CopyTo(ms);
+var content = ms.ToArray();
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+}
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
+{
+using (var sw = new StreamWriter(fs))
+{
+Console.WriteLine("File opened. Press any key to exit.");
+while (true)
+{
+if (Console.KeyAvailable) break;
+var timestamp = DateTime.Now.ToString("mm:ss.fff");
+sw.WriteLine(timestamp);
+sw.Flush();
+Console.WriteLine(timestamp);
+Thread.Sleep(1000);
+}
+Console.ReadKey(true); // read and don't show the key pressed
+Console.WriteLine("Done. File closed.");
+}
+}
+</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+var content = File.ReadAllBytes(filePath);
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
+try {
+using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+using (var ms = new MemoryStream()) {
+fs.CopyTo(ms);
+var content = ms.ToArray();
+Console.WriteLine($"File readed, {content.Length} bytes.");
+}
+}
+}
+catch (Exception ex) {
+Console.WriteLine("*** Error ***");
+Console.WriteLine(ex.Message);
+}
+</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png" medium="image"/>
+    <pubDate>Thu, 14 Sep 2023 15:23:01 GMT</pubDate>
+  </item><item>
     <title><![CDATA[IIS ARR (Application Request Routing) 安裝 (2023 版)]]></title>
     <link>https://blog.darkthread.net/blog/install-iis-arr/</link>
     <itunes:title><![CDATA[IIS ARR (Application Request Routing) 安裝 (2023 版)]]></itunes:title>
@@ -694,29 +838,5 @@ Set-ADServiceAccount &lt;gMSA-AcntName&gt; -PrincipalsAllowedToRetrieveManagedPa
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638291781198988903.png" medium="image"/>
     <pubDate>Fri, 01 Sep 2023 15:13:31 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】無法使用 PowerShell 修改 ASP.NET 3.5 匿名存取]]></title>
-    <link>https://blog.darkthread.net/blog/set-webconfigurationproperty-fail-on-35/</link>
-    <itunes:title><![CDATA[【茶包射手日記】無法使用 PowerShell 修改 ASP.NET 3.5 匿名存取]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-# CMD
-%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-# CMD
-%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>近年來設定 IIS 站台我都改用 PowerShell 指令操作(參考：<a href="/blog/setup-web-with-powershell-2/">再談 IIS 與 ASP.NET 網站自動安裝設定 - 使用 PowerShell</a>)，用指令檔取代 GUI 操作，能減少人為操作失誤風險，並邁向自動化部署的理想。</p> <p>最近使用 <a href="/blog/powershell-admin-iis/">Set-WebConfigurationProperty 切換匿名存取及整合式驗證</a>遇到一個狀況：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"></p> <p><code>There is a duplicate 'system.web.extensions/scripting/scriptResourceHandler' sectoin defined</code> 是個典型問題，只需將引用 System.Web.Extensions 的 ASP.NET 3.5 網站的 AppPool Runtime 版本設成 v4.0，便能重現：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638290877175815357.png"></p> <p>推測這是因為 PowerShell Set-WebConfigurationProperty 用 .NET 4 解析 ASP.NET 3.5 web.config 造成。Set-WebConfigurationProperty 有個 <a href="https://learn.microsoft.com/en-us/powershell/module/webadministration/set-webconfigurationproperty?view=windowsserver2022-ps&amp;WT.mc_id=DOP-MVP-37580#-clr">-Clr 參數</a> 可指定 v2.0 或 4.0，但很不幸它只能用於 Machine 或 Machine/Webroot，無解。</p> <p>查到替代方案 - IIS 設定傳統工具，<a href="https://learn.microsoft.com/zh-tw/iis/manage/provisioning-and-managing-iis/appcmdexe?WT.mc_id=DOP-MVP-37580">AppCmd.exe</a>：</p> <pre><code>. $ENV:SystemRoot\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-# CMD
-%SystemRoot%\System32\inetsrv\appcmd.exe set config "Default Web Site/AspNet35" /section:system.webServer/security/authentication/anonymousAuthentication /enabled:false /commit:apphost
-</code></pre> <p>山不轉路轉，搞定收工。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638290877177604071.png"></p> <p>參考：<a href="https://github.com/OctopusDeploy/Issues/issues/1020#issuecomment-50461803">IIS configuration under PowerShell runs in 4.0 CLR, causing incompatibility with &lt; 4.0 config files</a></p> <p data-slug="set-webconfigurationproperty-fail-on-35" data-title-en="Set-WebConfigurationProperty failure on ASP.NET 3.5" data-catg="ASP.NET/IIS" data-fbimg="https://images.pexels.com/photos/951531/pexels-photo-951531.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Set-WebConfigurationProperty does not work for ASP.NET 3.5 settings. Use AppCmd as an alternative.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638290877173559274.png" medium="image"/>
-    <pubDate>Thu, 31 Aug 2023 13:59:50 GMT</pubDate>
   </item></channel>
 </rss>
