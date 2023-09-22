@@ -30,6 +30,171 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></title>
+    <link>https://blog.darkthread.net/blog/ps-compare-json-array/</link>
+    <itunes:title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Original", "Code": 0 },
+{ "Key": "Miss", "Text": "Missing", "Code": 0 }
+]
+</code></pre> <p>dst.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Modified", "Code": 1 },
+{ "Key": "New", "Text": "New Data", "Code": 1 }
+]
+</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
+[Parameter(Mandatory=$true)]
+[string]$srcPath,
+[Parameter(Mandatory=$true)]
+[string]$dstPath
+)
+$ErrorActionPreference = "Stop"
+$src = @{}
+# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
+# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
+(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
+$dst = @{}
+(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
+# 找出 $dst 有但 $src 沒有的項目
+$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
+Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
+}
+# 找出 $src 有但 $dst 缺少的項目
+$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
+Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
+}
+# 找出 $src 與 $dst 有但值不同的項目
+$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
+# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
+$key = $_
+$srcObj = $src[$key]
+$dstObj = $dst[$key]
+$diff = @{}
+# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
+$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$propName = $_
+# 可以用變數當屬性名稱取值
+if ($srcObj.$propName -ne $dstObj.$propName) {
+$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
+}
+}
+if ($diff.Count -gt 0) {
+Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
+}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Original", "Code": 0 },
+{ "Key": "Miss", "Text": "Missing", "Code": 0 }
+]
+</code></pre> <p>dst.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Modified", "Code": 1 },
+{ "Key": "New", "Text": "New Data", "Code": 1 }
+]
+</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
+[Parameter(Mandatory=$true)]
+[string]$srcPath,
+[Parameter(Mandatory=$true)]
+[string]$dstPath
+)
+$ErrorActionPreference = "Stop"
+$src = @{}
+# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
+# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
+(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
+$dst = @{}
+(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
+# 找出 $dst 有但 $src 沒有的項目
+$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
+Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
+}
+# 找出 $src 有但 $dst 缺少的項目
+$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
+Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
+}
+# 找出 $src 與 $dst 有但值不同的項目
+$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
+# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
+$key = $_
+$srcObj = $src[$key]
+$dstObj = $dst[$key]
+$diff = @{}
+# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
+$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$propName = $_
+# 可以用變數當屬性名稱取值
+if ($srcObj.$propName -ne $dstObj.$propName) {
+$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
+}
+}
+if ($diff.Count -gt 0) {
+Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
+}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Original", "Code": 0 },
+{ "Key": "Miss", "Text": "Missing", "Code": 0 }
+]
+</code></pre> <p>dst.json</p> <pre><code>[
+{ "Key": "Same", "Text": "Consistent", "Code": 0 },
+{ "Key": "Diff", "Text": "Modified", "Code": 1 },
+{ "Key": "New", "Text": "New Data", "Code": 1 }
+]
+</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
+[Parameter(Mandatory=$true)]
+[string]$srcPath,
+[Parameter(Mandatory=$true)]
+[string]$dstPath
+)
+$ErrorActionPreference = "Stop"
+$src = @{}
+# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
+# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
+(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
+$dst = @{}
+(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
+# 找出 $dst 有但 $src 沒有的項目
+$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
+Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
+}
+# 找出 $src 有但 $dst 缺少的項目
+$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
+Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
+}
+# 找出 $src 與 $dst 有但值不同的項目
+$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
+# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
+$key = $_
+$srcObj = $src[$key]
+$dstObj = $dst[$key]
+$diff = @{}
+# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
+$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
+$propName = $_
+# 可以用變數當屬性名稱取值
+if ($srcObj.$propName -ne $dstObj.$propName) {
+$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
+}
+}
+if ($diff.Count -gt 0) {
+Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
+}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png" medium="image"/>
+    <pubDate>Fri, 22 Sep 2023 14:09:08 GMT</pubDate>
+  </item><item>
     <title><![CDATA[AI 小書僮 - Edge 瀏覽器之網頁 / PDF 自動摘要]]></title>
     <link>https://blog.darkthread.net/blog/bing-chat-auto-page-summary/</link>
     <itunes:title><![CDATA[AI 小書僮 - Edge 瀏覽器之網頁 / PDF 自動摘要]]></itunes:title>
@@ -433,20 +598,5 @@ curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png" medium="image"/>
     <pubDate>Fri, 08 Sep 2023 14:57:18 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[七月鬼話：檔案總管有但 PowerShell 看不到的檔案]]></title>
-    <link>https://blog.darkthread.net/blog/ps-x86/</link>
-    <itunes:title><![CDATA[七月鬼話：檔案總管有但 PowerShell 看不到的檔案]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>前幾天分享過<a href="/blog/dump-iis-settings/">用 PowerShell 盤點 IIS 站台設定</a>的小技巧，同事回報說使用時遇到鬼問題：PowerShell 無法讀取 <code>C:\Windows\System32\inetsrv\Config\applicationHost.config</code> 但檔案總管明明有看到檔案也可開啟：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"></p> <p>乍聽以為是權限問題，但同事確認是 PowerShell 視窗是用管理者權限啟用無誤，頭一回遇到這種情形經驗不足，我跟著鬼打牆快二十分鐘，才搞懂是怎麼一回事。答案在下面這張圖裡：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638296025530689256.png"></p> <p>文章開始的圖我刻意裁掉 PowerShell 命令視窗標題，上面圖片一對照就清楚了。兩個 PowerShell 差在下面的標題有 (x86) 是 32 位元版，上面的則是 64 位元版。32 位元版 PowerShell 看到的 <code>C:\Windows\System32\inetsrv\Config\</code> 資料夾只有 Export 跟 Schema 資料夾，沒有其他檔案。</p> <p>身為 Windows 老人，看到這裡應該知道是怎麼一回事了。</p> <p>兩個 PowerShell 看到的目錄並不是同一個，32 位元版 PowerShell 看到的其實是 <code>C:\Windows\SysWOW64\inetsrv\Config\</code>，其中的確只有資料夾，沒有任何檔案：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638296025532526515.png"></p> <p>SysWOW64 目錄用於 64 位元 Windows 為 32 位元版本程式建立的<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/file-system-redirector?WT.mc_id=DOP-MVP-37580">檔案系統重新導向器</a>，%windir%\System32 目錄保留給 64 位 Windows 上的 64 位應用程式，當 32 位應用程式嘗試存取 %windir%\System32、%windir%\lastgood\system32 或 %windir%\regedit.exe 時，就會將存取重新導向至架構特定的路徑：%windir%\SysWOW64、%windir%\lastgood\SysWOW64、%windir%\SysWOW64\regedit.exe (若為 32 位元 ARM，則為 SysArm32)。<br> (註：Registry 也有<a href="https://learn.microsoft.com/zh-tw/windows/win32/winprog64/registry-redirector?WT.mc_id=DOP-MVP-37580">類似設定</a>，如下圖，讓 32/64 位環境享有自己的設定)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638296025534425221.png"></p> <p>至於故事是怎麼發生的？同事在開始輸入 powershell 出現兩個選項，熊熊沒看清楚誤入歧途... 結案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638296025536314860.png"></p> <p data-slug="ps-x86" data-title="PowerShell (x86) issue" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/07/24/19/10/vr-3559846_1280.jpg#1280#720">A case of confusion caused by mistakenly using the PowerShell x86 version to access the SysWOW64 path.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638296025527038736.png" medium="image"/>
-    <pubDate>Wed, 06 Sep 2023 13:00:47 GMT</pubDate>
   </item></channel>
 </rss>
