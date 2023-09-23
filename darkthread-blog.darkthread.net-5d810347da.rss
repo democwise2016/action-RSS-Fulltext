@@ -30,6 +30,165 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></title>
+    <link>https://blog.darkthread.net/blog/gpg-date-locale-bug/</link>
+    <itunes:title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", issuer_fpr);
+}
+else if (!keystrlen () || keystrlen () &gt; 8)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", keystr(sig-&gt;keyid));
+}
+</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
+{
+static int done;
+if (!done)
+{
+/* The locale names as used by Windows are in the form
+* "German_Germany.1252" or "German_Austria.1252" with
+* alternate names similar to Unix, e.g. "de-DE".  However
+* that is the theory.  On current Windows and Mingw the
+* alternate names do not work.  We would need a table to map
+* them from the short names as provided by gpgrt to the long
+* names and append some code page.  For now we use "" and
+* take the locale from the user's system settings.  Thus the
+* standard Unix envvars don't work for time and may mismatch
+* with the string translations.  The new UCRT available since
+* 2018 has a lot of additional support but that will for sure
+* break other things.  We should move to ISO strings to get
+* rid of such problems.  */
+setlocale (LC_TIME, "");
+done = 1;
+/* log_debug ("LC_ALL  now '%s'
+", setlocale (LC_ALL, NULL)); */
+/* log_debug ("LC_TIME now '%s'
+", setlocale (LC_TIME, NULL)); */
+}
+}
+#  endif
+/* FIXME: we should check whether the locale appends a " %Z" These
+* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
+* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
+strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
+# endif
+</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", issuer_fpr);
+}
+else if (!keystrlen () || keystrlen () &gt; 8)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", keystr(sig-&gt;keyid));
+}
+</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
+{
+static int done;
+if (!done)
+{
+/* The locale names as used by Windows are in the form
+* "German_Germany.1252" or "German_Austria.1252" with
+* alternate names similar to Unix, e.g. "de-DE".  However
+* that is the theory.  On current Windows and Mingw the
+* alternate names do not work.  We would need a table to map
+* them from the short names as provided by gpgrt to the long
+* names and append some code page.  For now we use "" and
+* take the locale from the user's system settings.  Thus the
+* standard Unix envvars don't work for time and may mismatch
+* with the string translations.  The new UCRT available since
+* 2018 has a lot of additional support but that will for sure
+* break other things.  We should move to ISO strings to get
+* rid of such problems.  */
+setlocale (LC_TIME, "");
+done = 1;
+/* log_debug ("LC_ALL  now '%s'
+", setlocale (LC_ALL, NULL)); */
+/* log_debug ("LC_TIME now '%s'
+", setlocale (LC_TIME, NULL)); */
+}
+}
+#  endif
+/* FIXME: we should check whether the locale appends a " %Z" These
+* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
+* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
+strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
+# endif
+</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", issuer_fpr);
+}
+else if (!keystrlen () || keystrlen () &gt; 8)
+{
+log_info (_("Signature made %s
+"), asctimestamp(sig-&gt;timestamp));
+log_info (_("               using %s key %s
+"),
+astr? astr: "?", keystr(sig-&gt;keyid));
+}
+</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
+{
+static int done;
+if (!done)
+{
+/* The locale names as used by Windows are in the form
+* "German_Germany.1252" or "German_Austria.1252" with
+* alternate names similar to Unix, e.g. "de-DE".  However
+* that is the theory.  On current Windows and Mingw the
+* alternate names do not work.  We would need a table to map
+* them from the short names as provided by gpgrt to the long
+* names and append some code page.  For now we use "" and
+* take the locale from the user's system settings.  Thus the
+* standard Unix envvars don't work for time and may mismatch
+* with the string translations.  The new UCRT available since
+* 2018 has a lot of additional support but that will for sure
+* break other things.  We should move to ISO strings to get
+* rid of such problems.  */
+setlocale (LC_TIME, "");
+done = 1;
+/* log_debug ("LC_ALL  now '%s'
+", setlocale (LC_ALL, NULL)); */
+/* log_debug ("LC_TIME now '%s'
+", setlocale (LC_TIME, NULL)); */
+}
+}
+#  endif
+/* FIXME: we should check whether the locale appends a " %Z" These
+* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
+* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
+strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
+# endif
+</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png" medium="image"/>
+    <pubDate>Sat, 23 Sep 2023 13:35:14 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></title>
     <link>https://blog.darkthread.net/blog/ps-compare-json-array/</link>
     <itunes:title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></itunes:title>
@@ -583,20 +742,5 @@ curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png" medium="image"/>
     <pubDate>Sat, 09 Sep 2023 13:21:40 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[古蹟維護雜記 - VS2022 無法建立 ASP.NET (.NET Framework) 專案]]></title>
-    <link>https://blog.darkthread.net/blog/vs2022-support-netfx-aspnet/</link>
-    <itunes:title><![CDATA[古蹟維護雜記 - VS2022 無法建立 ASP.NET (.NET Framework) 專案]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>裝了最新版 VS2022，想建個 ASP.NET MVC (.NET Framework 4.X) 專案不得其門而入，輸入 ASP.NET 關鍵字，只見 ASP.NET Core 專案範本，沒看到 .NET Framework 版本：(VS2022 表示：那是啥？)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png"></p> <p>2023 年還在維護開發 .NET Framework 專案錯了嗎？</p> <p>猜想是 IDE 仍有支援但預設沒啟用，花了點時間才找到選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638297821332512712.png"></p> <p>ASP.NET and web development 分類下有 .NET Framework project and item templates 及 Additional project templates (previous versions) (即 Web Site Project)，預設未選取，要維護古蹟的同學記得打勾。</p> <p>補選安裝後，ASP.NET MVC / Web Site Project / WebForm 專案就回來了：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638297821334586612.png"></p> <p data-slug="vs2022-support-netfx-aspnet" data-title-en="Enable support for ASP.NET .NET Framework projects in VS2022" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1214#683">The ASP.NET .NET Framework project templates are not enabled default, this notes shows the way to install them.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>裝了最新版 VS2022，想建個 ASP.NET MVC (.NET Framework 4.X) 專案不得其門而入，輸入 ASP.NET 關鍵字，只見 ASP.NET Core 專案範本，沒看到 .NET Framework 版本：(VS2022 表示：那是啥？)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png"></p> <p>2023 年還在維護開發 .NET Framework 專案錯了嗎？</p> <p>猜想是 IDE 仍有支援但預設沒啟用，花了點時間才找到選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638297821332512712.png"></p> <p>ASP.NET and web development 分類下有 .NET Framework project and item templates 及 Additional project templates (previous versions) (即 Web Site Project)，預設未選取，要維護古蹟的同學記得打勾。</p> <p>補選安裝後，ASP.NET MVC / Web Site Project / WebForm 專案就回來了：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638297821334586612.png"></p> <p data-slug="vs2022-support-netfx-aspnet" data-title-en="Enable support for ASP.NET .NET Framework projects in VS2022" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1214#683">The ASP.NET .NET Framework project templates are not enabled default, this notes shows the way to install them.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>裝了最新版 VS2022，想建個 ASP.NET MVC (.NET Framework 4.X) 專案不得其門而入，輸入 ASP.NET 關鍵字，只見 ASP.NET Core 專案範本，沒看到 .NET Framework 版本：(VS2022 表示：那是啥？)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png"></p> <p>2023 年還在維護開發 .NET Framework 專案錯了嗎？</p> <p>猜想是 IDE 仍有支援但預設沒啟用，花了點時間才找到選項：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638297821332512712.png"></p> <p>ASP.NET and web development 分類下有 .NET Framework project and item templates 及 Additional project templates (previous versions) (即 Web Site Project)，預設未選取，要維護古蹟的同學記得打勾。</p> <p>補選安裝後，ASP.NET MVC / Web Site Project / WebForm 專案就回來了：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638297821334586612.png"></p> <p data-slug="vs2022-support-netfx-aspnet" data-title-en="Enable support for ASP.NET .NET Framework projects in VS2022" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1214#683">The ASP.NET .NET Framework project templates are not enabled default, this notes shows the way to install them.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638297821330637895.png" medium="image"/>
-    <pubDate>Fri, 08 Sep 2023 14:57:18 GMT</pubDate>
   </item></channel>
 </rss>
