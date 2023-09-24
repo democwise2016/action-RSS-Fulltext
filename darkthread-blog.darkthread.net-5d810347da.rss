@@ -30,6 +30,450 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[JS 非同步作業串接之 jQuery 與香草寫法 ft. Github Copilot]]></title>
+    <link>https://blog.darkthread.net/blog/jquery-promise-pipe/</link>
+    <itunes:title><![CDATA[JS 非同步作業串接之 jQuery 與香草寫法 ft. Github Copilot]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>維護古蹟過程遇到要串接多個非同步作業的需求，例如：Warn()、UpdateConfirm() 與 CallApi() 為非同步作業(詢問使用者確認或取消、呼叫 WebAPI)，函式有點年紀故傳回的是 jQuery Promise，我要做到 Warn() 確定才呼叫 UpdateConfirm()，UpdateConfirm() 才呼叫 CallApi()。這不是什麼新鮮需求，翻到 11 年前寫的文章 - <a href="/blog/sequential-ajax-with-jquery/">以 jQuery 循序執行 AJAX 呼叫，並依結果決定是否繼續</a> 準備抄 Code，卻發現它過期了。文章用的 jQuery <a href="https://api.jquery.com/deferred.pipe/">deferred.pipe() 方法</a>，早在 jQuery 1.8 版就宣告棄用，建議改用 <a href="https://api.jquery.com/deferred.then/">deferred.then()</a>。</p> <p>為了與時俱進，今天來補上新寫法。以下是個簡單範例，假設有 step1 到 step3 三個非同步方法，它們都會傳回 deferred.promise()，方便後續串 then()、done()、fail()；非同步操作我借用 <a href="/blog/sweetalert2/">SweetAlert2</a> 彈出對話框詢問繼續或中止，三次詢問都答 OK 才算完成，任一次按 STOP 就中止。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png"></p> <p>另外，我再增加了 step1() 傳資料給 step2()、step2() 傳資料給 step3() 的橋段，以貼近實務上可能出現的需求。主要串接寫法如下，還算好懂，step1().then((r) =&gt; step2(r)) 代表 step1() 若成功(其中呼叫 deferred.resolve()) 才執行 step2()，而 r 可承接其 deferred.resolve(x) 傳入的 x。</p> <pre><code>log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+</code></pre> <p>完整程式碼如下，並附上<a href="https://output.jsbin.com/suhuroqapa">線上展示</a>。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://unpkg.com/jquery"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+let log = (msg) =&gt; {
+$("#msgs").append("&lt;div&gt;" + msg + "&lt;/div&gt;");
+}
+var step1 = () =&gt; {
+const dfd = jQuery.Deferred();
+log('STEP 1');
+showConfirm('STEP1', 'Go?')
+.then(() =&gt; dfd.resolve('R1'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step2 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 2 (${res})`);
+showConfirm('STEP2', 'Go?')
+.then(() =&gt; dfd.resolve('R2'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step3 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 3 (${res})`);
+showConfirm('STEP3', 'Go?')
+.then(() =&gt; dfd.resolve())
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>講到與時俱進，如果沒有舊系統的包袱，其實這個需求用純 JavaScript 就可以解決，不需要依賴 jQuery，所以研究一下用香草 JS 的話要怎麼寫也是必要的。而基本語法改寫的小事，2023 起已是 AI 的主場，搞懂原理就好(<a href="/blog/js-promise/">之前已研究過 JavaScript Promise</a>)不需親力親為，省下寶貴的腦力體力也好。</p> <p>讓我們來呼叫會寫程式的阿拉丁神燈 - <a href="/blog/github-copilot-demo/">Github Copilot</a>。</p> <p>在 VSCode 選取整段 jQuery 程式碼，滑鼠右鍵選單 Copilot / Start Code Chat 或按快捷鍵 Ctrl+I：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638311605083137659.png"></p> <p>然後許願 <code>rewrite the code, replace jQuery.Deferred with Promise</code> (敲中文也行，打英文比較快，而 AI 十分聰明友善，會無視錯字文法錯誤，寫英文意思即可)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638311605086566369.png"></p> <p>送出後稍等幾秒鐘，Github Copilot 已將整段改寫好，看一下沒有錯誤的話，按下方的 Accept 接收鈕可將程式碼換成 Copilot 改寫的版本。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638311605088994201.png"></p> <p>或者你還可以繼續下指令請 Copilot 優化程式碼，像是 <code>extract shared function from step1, step2, setp3</code> 請它將 step1 ~ step3 相似部分抽取成共用函式。許願成功，Coplit 將重複程式碼提取成 confirmStep 函式。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638311605091047533.png"></p> <p>Copilot 改寫後版本如下，這類簡單 JavaScript 程式不意外地無需修改便能成功執行。<a href="https://output.jsbin.com/woxagud">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+function log(msg) {
+const msgs = document.querySelector("#msgs");
+const div = document.createElement("div");
+div.textContent = msg;
+msgs.appendChild(div);
+}
+function confirmStep(step, message) {
+return new Promise((resolve, reject) =&gt; {
+log(`${step}`);
+showConfirm(step, message)
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+}
+var step1 = () =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep('STEP 1', 'Go?')
+.then(() =&gt; resolve('R1'))
+.catch(() =&gt; reject());
+});
+};
+var step2 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 2 (${res})`, 'Go?')
+.then(() =&gt; resolve('R2'))
+.catch(() =&gt; reject());
+});
+};
+var step3 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 3 (${res})`, 'Go?')
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.catch(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>2023 年，寫了幾十年的程式老人正在學習適應 AI 新時代。</p> <p data-slug="jquery-promise-pipe" data-title-en="jQuery deferred.promise chain" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2017/08/01/17/01/people-2566684_960_720.jpg#960#720">Example of how to chain serveral async functions which return jQuery prmises and run then one by one.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>維護古蹟過程遇到要串接多個非同步作業的需求，例如：Warn()、UpdateConfirm() 與 CallApi() 為非同步作業(詢問使用者確認或取消、呼叫 WebAPI)，函式有點年紀故傳回的是 jQuery Promise，我要做到 Warn() 確定才呼叫 UpdateConfirm()，UpdateConfirm() 才呼叫 CallApi()。這不是什麼新鮮需求，翻到 11 年前寫的文章 - <a href="/blog/sequential-ajax-with-jquery/">以 jQuery 循序執行 AJAX 呼叫，並依結果決定是否繼續</a> 準備抄 Code，卻發現它過期了。文章用的 jQuery <a href="https://api.jquery.com/deferred.pipe/">deferred.pipe() 方法</a>，早在 jQuery 1.8 版就宣告棄用，建議改用 <a href="https://api.jquery.com/deferred.then/">deferred.then()</a>。</p> <p>為了與時俱進，今天來補上新寫法。以下是個簡單範例，假設有 step1 到 step3 三個非同步方法，它們都會傳回 deferred.promise()，方便後續串 then()、done()、fail()；非同步操作我借用 <a href="/blog/sweetalert2/">SweetAlert2</a> 彈出對話框詢問繼續或中止，三次詢問都答 OK 才算完成，任一次按 STOP 就中止。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png"></p> <p>另外，我再增加了 step1() 傳資料給 step2()、step2() 傳資料給 step3() 的橋段，以貼近實務上可能出現的需求。主要串接寫法如下，還算好懂，step1().then((r) =&gt; step2(r)) 代表 step1() 若成功(其中呼叫 deferred.resolve()) 才執行 step2()，而 r 可承接其 deferred.resolve(x) 傳入的 x。</p> <pre><code>log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+</code></pre> <p>完整程式碼如下，並附上<a href="https://output.jsbin.com/suhuroqapa">線上展示</a>。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://unpkg.com/jquery"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+let log = (msg) =&gt; {
+$("#msgs").append("&lt;div&gt;" + msg + "&lt;/div&gt;");
+}
+var step1 = () =&gt; {
+const dfd = jQuery.Deferred();
+log('STEP 1');
+showConfirm('STEP1', 'Go?')
+.then(() =&gt; dfd.resolve('R1'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step2 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 2 (${res})`);
+showConfirm('STEP2', 'Go?')
+.then(() =&gt; dfd.resolve('R2'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step3 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 3 (${res})`);
+showConfirm('STEP3', 'Go?')
+.then(() =&gt; dfd.resolve())
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>講到與時俱進，如果沒有舊系統的包袱，其實這個需求用純 JavaScript 就可以解決，不需要依賴 jQuery，所以研究一下用香草 JS 的話要怎麼寫也是必要的。而基本語法改寫的小事，2023 起已是 AI 的主場，搞懂原理就好(<a href="/blog/js-promise/">之前已研究過 JavaScript Promise</a>)不需親力親為，省下寶貴的腦力體力也好。</p> <p>讓我們來呼叫會寫程式的阿拉丁神燈 - <a href="/blog/github-copilot-demo/">Github Copilot</a>。</p> <p>在 VSCode 選取整段 jQuery 程式碼，滑鼠右鍵選單 Copilot / Start Code Chat 或按快捷鍵 Ctrl+I：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638311605083137659.png"></p> <p>然後許願 <code>rewrite the code, replace jQuery.Deferred with Promise</code> (敲中文也行，打英文比較快，而 AI 十分聰明友善，會無視錯字文法錯誤，寫英文意思即可)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638311605086566369.png"></p> <p>送出後稍等幾秒鐘，Github Copilot 已將整段改寫好，看一下沒有錯誤的話，按下方的 Accept 接收鈕可將程式碼換成 Copilot 改寫的版本。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638311605088994201.png"></p> <p>或者你還可以繼續下指令請 Copilot 優化程式碼，像是 <code>extract shared function from step1, step2, setp3</code> 請它將 step1 ~ step3 相似部分抽取成共用函式。許願成功，Coplit 將重複程式碼提取成 confirmStep 函式。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638311605091047533.png"></p> <p>Copilot 改寫後版本如下，這類簡單 JavaScript 程式不意外地無需修改便能成功執行。<a href="https://output.jsbin.com/woxagud">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+function log(msg) {
+const msgs = document.querySelector("#msgs");
+const div = document.createElement("div");
+div.textContent = msg;
+msgs.appendChild(div);
+}
+function confirmStep(step, message) {
+return new Promise((resolve, reject) =&gt; {
+log(`${step}`);
+showConfirm(step, message)
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+}
+var step1 = () =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep('STEP 1', 'Go?')
+.then(() =&gt; resolve('R1'))
+.catch(() =&gt; reject());
+});
+};
+var step2 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 2 (${res})`, 'Go?')
+.then(() =&gt; resolve('R2'))
+.catch(() =&gt; reject());
+});
+};
+var step3 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 3 (${res})`, 'Go?')
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.catch(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>2023 年，寫了幾十年的程式老人正在學習適應 AI 新時代。</p> <p data-slug="jquery-promise-pipe" data-title-en="jQuery deferred.promise chain" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2017/08/01/17/01/people-2566684_960_720.jpg#960#720">Example of how to chain serveral async functions which return jQuery prmises and run then one by one.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>維護古蹟過程遇到要串接多個非同步作業的需求，例如：Warn()、UpdateConfirm() 與 CallApi() 為非同步作業(詢問使用者確認或取消、呼叫 WebAPI)，函式有點年紀故傳回的是 jQuery Promise，我要做到 Warn() 確定才呼叫 UpdateConfirm()，UpdateConfirm() 才呼叫 CallApi()。這不是什麼新鮮需求，翻到 11 年前寫的文章 - <a href="/blog/sequential-ajax-with-jquery/">以 jQuery 循序執行 AJAX 呼叫，並依結果決定是否繼續</a> 準備抄 Code，卻發現它過期了。文章用的 jQuery <a href="https://api.jquery.com/deferred.pipe/">deferred.pipe() 方法</a>，早在 jQuery 1.8 版就宣告棄用，建議改用 <a href="https://api.jquery.com/deferred.then/">deferred.then()</a>。</p> <p>為了與時俱進，今天來補上新寫法。以下是個簡單範例，假設有 step1 到 step3 三個非同步方法，它們都會傳回 deferred.promise()，方便後續串 then()、done()、fail()；非同步操作我借用 <a href="/blog/sweetalert2/">SweetAlert2</a> 彈出對話框詢問繼續或中止，三次詢問都答 OK 才算完成，任一次按 STOP 就中止。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png"></p> <p>另外，我再增加了 step1() 傳資料給 step2()、step2() 傳資料給 step3() 的橋段，以貼近實務上可能出現的需求。主要串接寫法如下，還算好懂，step1().then((r) =&gt; step2(r)) 代表 step1() 若成功(其中呼叫 deferred.resolve()) 才執行 step2()，而 r 可承接其 deferred.resolve(x) 傳入的 x。</p> <pre><code>log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+</code></pre> <p>完整程式碼如下，並附上<a href="https://output.jsbin.com/suhuroqapa">線上展示</a>。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://unpkg.com/jquery"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+let log = (msg) =&gt; {
+$("#msgs").append("&lt;div&gt;" + msg + "&lt;/div&gt;");
+}
+var step1 = () =&gt; {
+const dfd = jQuery.Deferred();
+log('STEP 1');
+showConfirm('STEP1', 'Go?')
+.then(() =&gt; dfd.resolve('R1'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step2 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 2 (${res})`);
+showConfirm('STEP2', 'Go?')
+.then(() =&gt; dfd.resolve('R2'))
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+var step3 = (res) =&gt; {
+const dfd = jQuery.Deferred();
+log(`STEP 3 (${res})`);
+showConfirm('STEP3', 'Go?')
+.then(() =&gt; dfd.resolve())
+.catch(() =&gt; dfd.reject());
+return dfd.promise();
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.fail(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>講到與時俱進，如果沒有舊系統的包袱，其實這個需求用純 JavaScript 就可以解決，不需要依賴 jQuery，所以研究一下用香草 JS 的話要怎麼寫也是必要的。而基本語法改寫的小事，2023 起已是 AI 的主場，搞懂原理就好(<a href="/blog/js-promise/">之前已研究過 JavaScript Promise</a>)不需親力親為，省下寶貴的腦力體力也好。</p> <p>讓我們來呼叫會寫程式的阿拉丁神燈 - <a href="/blog/github-copilot-demo/">Github Copilot</a>。</p> <p>在 VSCode 選取整段 jQuery 程式碼，滑鼠右鍵選單 Copilot / Start Code Chat 或按快捷鍵 Ctrl+I：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638311605083137659.png"></p> <p>然後許願 <code>rewrite the code, replace jQuery.Deferred with Promise</code> (敲中文也行，打英文比較快，而 AI 十分聰明友善，會無視錯字文法錯誤，寫英文意思即可)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638311605086566369.png"></p> <p>送出後稍等幾秒鐘，Github Copilot 已將整段改寫好，看一下沒有錯誤的話，按下方的 Accept 接收鈕可將程式碼換成 Copilot 改寫的版本。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638311605088994201.png"></p> <p>或者你還可以繼續下指令請 Copilot 優化程式碼，像是 <code>extract shared function from step1, step2, setp3</code> 請它將 step1 ~ step3 相似部分抽取成共用函式。許願成功，Coplit 將重複程式碼提取成 confirmStep 函式。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638311605091047533.png"></p> <p>Copilot 改寫後版本如下，這類簡單 JavaScript 程式不意外地無需修改便能成功執行。<a href="https://output.jsbin.com/woxagud">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;jQuery Chained Promise Demo&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="msgs"&gt;
+&lt;/div&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/sweetalert2"&gt;&lt;/script&gt;
+&lt;script&gt;
+function showConfirm(title, msg) {
+return new Promise((resolve, reject) =&gt; {
+Swal.fire({
+title: title,
+text: msg,
+icon: 'info',
+showCancelButton: true,
+confirmButtonText: 'OK',
+cancelButtonText: 'STOP'
+}).then((result) =&gt; {
+if (result.value) {
+resolve();
+} else {
+reject();
+}
+});
+});
+}
+function log(msg) {
+const msgs = document.querySelector("#msgs");
+const div = document.createElement("div");
+div.textContent = msg;
+msgs.appendChild(div);
+}
+function confirmStep(step, message) {
+return new Promise((resolve, reject) =&gt; {
+log(`${step}`);
+showConfirm(step, message)
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+}
+var step1 = () =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep('STEP 1', 'Go?')
+.then(() =&gt; resolve('R1'))
+.catch(() =&gt; reject());
+});
+};
+var step2 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 2 (${res})`, 'Go?')
+.then(() =&gt; resolve('R2'))
+.catch(() =&gt; reject());
+});
+};
+var step3 = (res) =&gt; {
+return new Promise((resolve, reject) =&gt; {
+confirmStep(`STEP 3 (${res})`, 'Go?')
+.then(() =&gt; resolve())
+.catch(() =&gt; reject());
+});
+};
+log('START');
+step1()
+.then((r) =&gt; step2(r))
+.then((r) =&gt; step3(r))
+.then(() =&gt; log('END'))
+.catch(() =&gt; log('CANCEL'));
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>2023 年，寫了幾十年的程式老人正在學習適應 AI 新時代。</p> <p data-slug="jquery-promise-pipe" data-title-en="jQuery deferred.promise chain" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2017/08/01/17/01/people-2566684_960_720.jpg#960#720">Example of how to chain serveral async functions which return jQuery prmises and run then one by one.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png" medium="image"/>
+    <pubDate>Sun, 24 Sep 2023 13:51:07 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></title>
     <link>https://blog.darkthread.net/blog/gpg-date-locale-bug/</link>
     <itunes:title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></itunes:title>
@@ -676,71 +1120,5 @@ curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638300433353403175.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638300433353403175.png" medium="image"/>
     <pubDate>Mon, 11 Sep 2023 15:33:21 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[初試 Azure DevOps Server Pipeline 地端編譯專案]]></title>
-    <link>https://blog.darkthread.net/blog/azure-pipeline-self-host-agent/</link>
-    <itunes:title><![CDATA[初試 Azure DevOps Server Pipeline 地端編譯專案]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>雲端是當今顯學，基於保密及資安考量，許多企業還是會選擇在地端甚至網路隔離環境作業。微軟的版控解決方案 - TFS Server 的繼任者是 Azure DevOps Server，雖有 Azure 之名，但可在安裝在企業內部隔離網路環境，稱職扮演地端版控伺服器角色。</p> <p>最近嘗試在 Azure DevOps Server 跑 Pipeline 編譯 ASP.NET 專案。我的測試情境是 Azure DevOps Server 2022 配 Self-Hosted Agent 完全在內網解決，連 NuGet 套件都採離線處理，是道道地地的地端戰技演練，這篇記錄過程處理的一些眉角。</p> <p>我對 TFS (Azure DevOps 前身) 自動編譯的理解還停在 <a href="/blog/tfs-build-service-notes/">TFS Build Service 2015</a>，動手前先更新了觀念。Azure DevOps 靠 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/get-started/what-is-azure-pipelines?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">Azure Pipeline</a> 處理自動建置、自動測試、自動部署等作業。而這類作業要交由 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580">Azure Pipelines Agent(代理程式)</a> 執行。若為 Azure DevOps Service 雲端服務，可使用雲端 Agent；若要在地端環境使用，需要 Agent 角色的理由有二，一是建置及測試作業很吃硬體資源，需視需求準備足夠主機安裝 Agent 組成 Agent Pool 消化需求；二則個別專案所需的編譯、測試資源以及部署對象可能位處有特定網段，Agent 可就近安裝執行以克服網路存取限制。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-to-deploy-to-target-servers">圖片來源</a></p> <p>Agent 程式可視需要安裝在 Windows/macOS/Linux 上，執行時只以 HTTPS/HTTP 連上 Azure DevOps Server 接受指令執行作業及回報結果(使用 HTTP Long Polling 等待指令，傳輸內容使用 Agent 專屬公私鑰加密)，不需開通 Server 對 Agent 方向的防火牆，部署上還算方便。<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">參考</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638298625201768612.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">圖片來源</a></p> <p>以下記錄我新手上路有卡頓的地方：</p> <ol><li>Azure DevOps Server TLS 憑證<br> 我選擇走 HTTPS 使用 AD CA 發的憑證，上回<a href="/blog/adfs-setup/">裝 AD FS</a> 學會從 Local Computer 憑證管理員 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證的密技。學以致用，我省掉製作憑證請求檔、上傳、下載安裝的一串動作，填個 Common Name 跟 DNS 快速裝好 IIS 用的憑證。</li> <li>讓 Git 認得 AD CA 根憑證<br> 技巧<a href="/blog/vs2017-git-ssl-issue/">之前學過針對特定使用者信任 CA 根憑證</a>，這回學到的新知識是將 CA 根憑證加到 <code>C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt</code> 可跨使用者生效，特別適合 Agent 會用 <a href="/blog/local-system-local-service-network-service/">NETWORK SERVICE</a> 或 gMSA 等特殊帳號執行的情境。延伸閱讀：順推<a href="/blog/gmsa/">使用 gMSA 讓 Windows 排程與服務帳號更安全</a></li> <li>設定 Self-Hosted Windows Agent<br> 安裝說明可參考<a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/windows-agent?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>，這裡只補充三點：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638298625207467451.png"> <ol><li>測試階段可採互動執行，實際運轉時建議<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#interactive-or-service">裝成服務</a></li> <li>對 SERVICE_SID_TYPE_UNRESTRICTED 不是很懂，但感覺是像 IIS APPPOOL\XXX 之類的處擬身分 <a href="https://github.com/microsoft/azure-pipelines-agent/issues/2814#issuecomment-630390085">參考</a></li> <li>服務執行身分建議使用 NETWORK SERVICE 或 MSA</li></ol> </li> <li>將 Self-Hosted Windows Agent 裝成服務後，可以在服務管理員看到它：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638298625209353442.png"><br> Agent 啟動後會自動偵測主機有安裝哪些開發及測試工具，依 Agent 的能力(Capability)判定能執行哪些作業，若事後加裝工具，記得要重啟上述 Agent 服務讓系統重新識別。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638298625211273821.png"></li> <li>定義 Pipeline 有兩種做法，第一種傳統做法是使用 GUI 介面設定，定義檔為 JSON 格式由 DevOps 主機儲存管理；第二種則是寫成 YAML 檔案跟其他原始碼一起簽入版控，最大優點是當程式改版，編譯、測試、部署設定寫在 YAML 檔可跟著程式碼一起改版，存在同一個 Commit，不會出現程式碼跟 Pipeline 定義版本脫節的狀況。新增 Pipeline 時，可選擇要寫 YAML[1] 還是走 Calssic Editor 用 GUI 操作編譯[2]：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638298625213199195.png"><br> 初學者如我本次是選擇用 GUI 較好上手，但依我偏好 CLI 多於 GUI 的個性，加上 YAML 是主流 (Github Actions 就是用 YAML)，YAML 應會是我最終的選擇，這部分留待未來再深入。</li> <li>.NET Framework 編譯時 NuGet Restore 錯誤<br> 預設 ASP.NET Pipeline 模板的 Use NuGet 是 4.4.1 版，會出現以下錯誤：<br> <code>##[error]The nuget command failed with exit code(1) and error(Error parsing solution file at C:\Agent\_work\2\s\AspNetWeb\AspNetWeb.sln: Exception has been thrown by the target of an invocation. Could not load file or assembly 'Microsoft.Build.Framework, Version=15.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' or one of its dependencies. The system cannot find the file specified.)</code><br> 換成 6.7.0 版問題排除</li> <li>離線 NuGet 套件庫<br> Agent 所在主機可能無法連 Internet 線上下載 NuGet 套件，我的做法是在本機建目錄 C:\LocalNuGetStore 放入用到的 .nupkg 檔，設定一個 NuGet.config 指定來源： <pre><code> &lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;configuration&gt;
-&lt;packageSources&gt;
-&lt;add key="LocalNuGetStore" value="C:\LocalNuGetStore" /&gt;
-&lt;/packageSources&gt;
-&lt;packageRestore&gt;
-&lt;add key="enabled" value="True" /&gt;
-&lt;add key="automatic" value="True" /&gt;
-&lt;/packageRestore&gt;
-&lt;bindingRedirects&gt;
-&lt;add key="skip" value="False" /&gt;
-&lt;/bindingRedirects&gt;
-&lt;packageManagement&gt;
-&lt;add key="format" value="0" /&gt;
-&lt;add key="disabled" value="False" /&gt;
-&lt;/packageManagement&gt;
-&lt;/configuration&gt;
-</code></pre> <code>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Packages</code> 目錄有許多基本套件，建議都放進去當基底。使用資料夾管理 .nupkg 檔，好處是簡單且可用 Git 實現簡單的版本管控，但搜尋效能很差。若要重度使用，自建私有 NuGet 伺服器是更完善的解決方案。</li></ol> <p>ASP.NET Core 及 ASP.NET 專案的 Azure Pipeline 地端編譯首航成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638298625215090539.png"></p> <p data-slug="azure-pipeline-self-host-agent" data-title-en="Self-hosted Windows agent for Azure Pipelines" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/09/25/11/55/fittings-2784902_1280.jpg#1280#720">Notes of how to deploy and use self-hosted Windows agent for Azure Pipeline in isolated network environment.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>雲端是當今顯學，基於保密及資安考量，許多企業還是會選擇在地端甚至網路隔離環境作業。微軟的版控解決方案 - TFS Server 的繼任者是 Azure DevOps Server，雖有 Azure 之名，但可在安裝在企業內部隔離網路環境，稱職扮演地端版控伺服器角色。</p> <p>最近嘗試在 Azure DevOps Server 跑 Pipeline 編譯 ASP.NET 專案。我的測試情境是 Azure DevOps Server 2022 配 Self-Hosted Agent 完全在內網解決，連 NuGet 套件都採離線處理，是道道地地的地端戰技演練，這篇記錄過程處理的一些眉角。</p> <p>我對 TFS (Azure DevOps 前身) 自動編譯的理解還停在 <a href="/blog/tfs-build-service-notes/">TFS Build Service 2015</a>，動手前先更新了觀念。Azure DevOps 靠 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/get-started/what-is-azure-pipelines?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">Azure Pipeline</a> 處理自動建置、自動測試、自動部署等作業。而這類作業要交由 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580">Azure Pipelines Agent(代理程式)</a> 執行。若為 Azure DevOps Service 雲端服務，可使用雲端 Agent；若要在地端環境使用，需要 Agent 角色的理由有二，一是建置及測試作業很吃硬體資源，需視需求準備足夠主機安裝 Agent 組成 Agent Pool 消化需求；二則個別專案所需的編譯、測試資源以及部署對象可能位處有特定網段，Agent 可就近安裝執行以克服網路存取限制。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-to-deploy-to-target-servers">圖片來源</a></p> <p>Agent 程式可視需要安裝在 Windows/macOS/Linux 上，執行時只以 HTTPS/HTTP 連上 Azure DevOps Server 接受指令執行作業及回報結果(使用 HTTP Long Polling 等待指令，傳輸內容使用 Agent 專屬公私鑰加密)，不需開通 Server 對 Agent 方向的防火牆，部署上還算方便。<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">參考</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638298625201768612.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">圖片來源</a></p> <p>以下記錄我新手上路有卡頓的地方：</p> <ol><li>Azure DevOps Server TLS 憑證<br> 我選擇走 HTTPS 使用 AD CA 發的憑證，上回<a href="/blog/adfs-setup/">裝 AD FS</a> 學會從 Local Computer 憑證管理員 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證的密技。學以致用，我省掉製作憑證請求檔、上傳、下載安裝的一串動作，填個 Common Name 跟 DNS 快速裝好 IIS 用的憑證。</li> <li>讓 Git 認得 AD CA 根憑證<br> 技巧<a href="/blog/vs2017-git-ssl-issue/">之前學過針對特定使用者信任 CA 根憑證</a>，這回學到的新知識是將 CA 根憑證加到 <code>C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt</code> 可跨使用者生效，特別適合 Agent 會用 <a href="/blog/local-system-local-service-network-service/">NETWORK SERVICE</a> 或 gMSA 等特殊帳號執行的情境。延伸閱讀：順推<a href="/blog/gmsa/">使用 gMSA 讓 Windows 排程與服務帳號更安全</a></li> <li>設定 Self-Hosted Windows Agent<br> 安裝說明可參考<a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/windows-agent?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>，這裡只補充三點：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638298625207467451.png"> <ol><li>測試階段可採互動執行，實際運轉時建議<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#interactive-or-service">裝成服務</a></li> <li>對 SERVICE_SID_TYPE_UNRESTRICTED 不是很懂，但感覺是像 IIS APPPOOL\XXX 之類的處擬身分 <a href="https://github.com/microsoft/azure-pipelines-agent/issues/2814#issuecomment-630390085">參考</a></li> <li>服務執行身分建議使用 NETWORK SERVICE 或 MSA</li></ol> </li> <li>將 Self-Hosted Windows Agent 裝成服務後，可以在服務管理員看到它：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638298625209353442.png"><br> Agent 啟動後會自動偵測主機有安裝哪些開發及測試工具，依 Agent 的能力(Capability)判定能執行哪些作業，若事後加裝工具，記得要重啟上述 Agent 服務讓系統重新識別。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638298625211273821.png"></li> <li>定義 Pipeline 有兩種做法，第一種傳統做法是使用 GUI 介面設定，定義檔為 JSON 格式由 DevOps 主機儲存管理；第二種則是寫成 YAML 檔案跟其他原始碼一起簽入版控，最大優點是當程式改版，編譯、測試、部署設定寫在 YAML 檔可跟著程式碼一起改版，存在同一個 Commit，不會出現程式碼跟 Pipeline 定義版本脫節的狀況。新增 Pipeline 時，可選擇要寫 YAML[1] 還是走 Calssic Editor 用 GUI 操作編譯[2]：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638298625213199195.png"><br> 初學者如我本次是選擇用 GUI 較好上手，但依我偏好 CLI 多於 GUI 的個性，加上 YAML 是主流 (Github Actions 就是用 YAML)，YAML 應會是我最終的選擇，這部分留待未來再深入。</li> <li>.NET Framework 編譯時 NuGet Restore 錯誤<br> 預設 ASP.NET Pipeline 模板的 Use NuGet 是 4.4.1 版，會出現以下錯誤：<br> <code>##[error]The nuget command failed with exit code(1) and error(Error parsing solution file at C:\Agent\_work\2\s\AspNetWeb\AspNetWeb.sln: Exception has been thrown by the target of an invocation. Could not load file or assembly 'Microsoft.Build.Framework, Version=15.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' or one of its dependencies. The system cannot find the file specified.)</code><br> 換成 6.7.0 版問題排除</li> <li>離線 NuGet 套件庫<br> Agent 所在主機可能無法連 Internet 線上下載 NuGet 套件，我的做法是在本機建目錄 C:\LocalNuGetStore 放入用到的 .nupkg 檔，設定一個 NuGet.config 指定來源： <pre><code> &lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;configuration&gt;
-&lt;packageSources&gt;
-&lt;add key="LocalNuGetStore" value="C:\LocalNuGetStore" /&gt;
-&lt;/packageSources&gt;
-&lt;packageRestore&gt;
-&lt;add key="enabled" value="True" /&gt;
-&lt;add key="automatic" value="True" /&gt;
-&lt;/packageRestore&gt;
-&lt;bindingRedirects&gt;
-&lt;add key="skip" value="False" /&gt;
-&lt;/bindingRedirects&gt;
-&lt;packageManagement&gt;
-&lt;add key="format" value="0" /&gt;
-&lt;add key="disabled" value="False" /&gt;
-&lt;/packageManagement&gt;
-&lt;/configuration&gt;
-</code></pre> <code>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Packages</code> 目錄有許多基本套件，建議都放進去當基底。使用資料夾管理 .nupkg 檔，好處是簡單且可用 Git 實現簡單的版本管控，但搜尋效能很差。若要重度使用，自建私有 NuGet 伺服器是更完善的解決方案。</li></ol> <p>ASP.NET Core 及 ASP.NET 專案的 Azure Pipeline 地端編譯首航成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638298625215090539.png"></p> <p data-slug="azure-pipeline-self-host-agent" data-title-en="Self-hosted Windows agent for Azure Pipelines" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/09/25/11/55/fittings-2784902_1280.jpg#1280#720">Notes of how to deploy and use self-hosted Windows agent for Azure Pipeline in isolated network environment.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>雲端是當今顯學，基於保密及資安考量，許多企業還是會選擇在地端甚至網路隔離環境作業。微軟的版控解決方案 - TFS Server 的繼任者是 Azure DevOps Server，雖有 Azure 之名，但可在安裝在企業內部隔離網路環境，稱職扮演地端版控伺服器角色。</p> <p>最近嘗試在 Azure DevOps Server 跑 Pipeline 編譯 ASP.NET 專案。我的測試情境是 Azure DevOps Server 2022 配 Self-Hosted Agent 完全在內網解決，連 NuGet 套件都採離線處理，是道道地地的地端戰技演練，這篇記錄過程處理的一些眉角。</p> <p>我對 TFS (Azure DevOps 前身) 自動編譯的理解還停在 <a href="/blog/tfs-build-service-notes/">TFS Build Service 2015</a>，動手前先更新了觀念。Azure DevOps 靠 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/get-started/what-is-azure-pipelines?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">Azure Pipeline</a> 處理自動建置、自動測試、自動部署等作業。而這類作業要交由 <a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580">Azure Pipelines Agent(代理程式)</a> 執行。若為 Azure DevOps Service 雲端服務，可使用雲端 Agent；若要在地端環境使用，需要 Agent 角色的理由有二，一是建置及測試作業很吃硬體資源，需視需求準備足夠主機安裝 Agent 組成 Agent Pool 消化需求；二則個別專案所需的編譯、測試資源以及部署對象可能位處有特定網段，Agent 可就近安裝執行以克服網路存取限制。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-to-deploy-to-target-servers">圖片來源</a></p> <p>Agent 程式可視需要安裝在 Windows/macOS/Linux 上，執行時只以 HTTPS/HTTP 連上 Azure DevOps Server 接受指令執行作業及回報結果(使用 HTTP Long Polling 等待指令，傳輸內容使用 Agent 專屬公私鑰加密)，不需開通 Server 對 Agent 方向的防火牆，部署上還算方便。<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">參考</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638298625201768612.png"><br> <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#communication-with-azure-pipelines">圖片來源</a></p> <p>以下記錄我新手上路有卡頓的地方：</p> <ol><li>Azure DevOps Server TLS 憑證<br> 我選擇走 HTTPS 使用 AD CA 發的憑證，上回<a href="/blog/adfs-setup/">裝 AD FS</a> 學會從 Local Computer 憑證管理員 Personal / Certificates 右鍵 All Tasks / Request New Certificate 向 CA 申請憑證的密技。學以致用，我省掉製作憑證請求檔、上傳、下載安裝的一串動作，填個 Common Name 跟 DNS 快速裝好 IIS 用的憑證。</li> <li>讓 Git 認得 AD CA 根憑證<br> 技巧<a href="/blog/vs2017-git-ssl-issue/">之前學過針對特定使用者信任 CA 根憑證</a>，這回學到的新知識是將 CA 根憑證加到 <code>C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt</code> 可跨使用者生效，特別適合 Agent 會用 <a href="/blog/local-system-local-service-network-service/">NETWORK SERVICE</a> 或 gMSA 等特殊帳號執行的情境。延伸閱讀：順推<a href="/blog/gmsa/">使用 gMSA 讓 Windows 排程與服務帳號更安全</a></li> <li>設定 Self-Hosted Windows Agent<br> 安裝說明可參考<a href="https://learn.microsoft.com/zh-tw/azure/devops/pipelines/agents/windows-agent?view=azure-devops&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>，這裡只補充三點：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638298625207467451.png"> <ol><li>測試階段可採互動執行，實際運轉時建議<a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&amp;tabs=yaml%2Cbrowser&amp;WT.mc_id=DOP-MVP-37580#interactive-or-service">裝成服務</a></li> <li>對 SERVICE_SID_TYPE_UNRESTRICTED 不是很懂，但感覺是像 IIS APPPOOL\XXX 之類的處擬身分 <a href="https://github.com/microsoft/azure-pipelines-agent/issues/2814#issuecomment-630390085">參考</a></li> <li>服務執行身分建議使用 NETWORK SERVICE 或 MSA</li></ol> </li> <li>將 Self-Hosted Windows Agent 裝成服務後，可以在服務管理員看到它：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638298625209353442.png"><br> Agent 啟動後會自動偵測主機有安裝哪些開發及測試工具，依 Agent 的能力(Capability)判定能執行哪些作業，若事後加裝工具，記得要重啟上述 Agent 服務讓系統重新識別。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638298625211273821.png"></li> <li>定義 Pipeline 有兩種做法，第一種傳統做法是使用 GUI 介面設定，定義檔為 JSON 格式由 DevOps 主機儲存管理；第二種則是寫成 YAML 檔案跟其他原始碼一起簽入版控，最大優點是當程式改版，編譯、測試、部署設定寫在 YAML 檔可跟著程式碼一起改版，存在同一個 Commit，不會出現程式碼跟 Pipeline 定義版本脫節的狀況。新增 Pipeline 時，可選擇要寫 YAML[1] 還是走 Calssic Editor 用 GUI 操作編譯[2]：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638298625213199195.png"><br> 初學者如我本次是選擇用 GUI 較好上手，但依我偏好 CLI 多於 GUI 的個性，加上 YAML 是主流 (Github Actions 就是用 YAML)，YAML 應會是我最終的選擇，這部分留待未來再深入。</li> <li>.NET Framework 編譯時 NuGet Restore 錯誤<br> 預設 ASP.NET Pipeline 模板的 Use NuGet 是 4.4.1 版，會出現以下錯誤：<br> <code>##[error]The nuget command failed with exit code(1) and error(Error parsing solution file at C:\Agent\_work\2\s\AspNetWeb\AspNetWeb.sln: Exception has been thrown by the target of an invocation. Could not load file or assembly 'Microsoft.Build.Framework, Version=15.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' or one of its dependencies. The system cannot find the file specified.)</code><br> 換成 6.7.0 版問題排除</li> <li>離線 NuGet 套件庫<br> Agent 所在主機可能無法連 Internet 線上下載 NuGet 套件，我的做法是在本機建目錄 C:\LocalNuGetStore 放入用到的 .nupkg 檔，設定一個 NuGet.config 指定來源： <pre><code> &lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;configuration&gt;
-&lt;packageSources&gt;
-&lt;add key="LocalNuGetStore" value="C:\LocalNuGetStore" /&gt;
-&lt;/packageSources&gt;
-&lt;packageRestore&gt;
-&lt;add key="enabled" value="True" /&gt;
-&lt;add key="automatic" value="True" /&gt;
-&lt;/packageRestore&gt;
-&lt;bindingRedirects&gt;
-&lt;add key="skip" value="False" /&gt;
-&lt;/bindingRedirects&gt;
-&lt;packageManagement&gt;
-&lt;add key="format" value="0" /&gt;
-&lt;add key="disabled" value="False" /&gt;
-&lt;/packageManagement&gt;
-&lt;/configuration&gt;
-</code></pre> <code>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Packages</code> 目錄有許多基本套件，建議都放進去當基底。使用資料夾管理 .nupkg 檔，好處是簡單且可用 Git 實現簡單的版本管控，但搜尋效能很差。若要重度使用，自建私有 NuGet 伺服器是更完善的解決方案。</li></ol> <p>ASP.NET Core 及 ASP.NET 專案的 Azure Pipeline 地端編譯首航成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638298625215090539.png"></p> <p data-slug="azure-pipeline-self-host-agent" data-title-en="Self-hosted Windows agent for Azure Pipelines" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2017/09/25/11/55/fittings-2784902_1280.jpg#1280#720">Notes of how to deploy and use self-hosted Windows agent for Azure Pipeline in isolated network environment.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638298625199894611.png" medium="image"/>
-    <pubDate>Sat, 09 Sep 2023 13:21:40 GMT</pubDate>
   </item></channel>
 </rss>
