@@ -30,6 +30,246 @@
     </itunes:owner>
     <itunes:image href="https://www.inote.tw/wp-content/uploads/2017/05/cropped-site_icon-192x192.jpg"/>
 <item>
+    <title><![CDATA[[Swift] 比較含有 associated value 的列舉(Enum)是否相等]]></title>
+    <link>https://www.inote.tw/equality-of-swift-enums-with-associated-values</link>
+    <itunes:title><![CDATA[[Swift] 比較含有 associated value 的列舉(Enum)是否相等]]></itunes:title>
+    <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在 Swift 中，列舉(Enum)可說是相當好用的，尤其列舉又可以使用 associated value (詳情請見「<a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學 </a>一文)，所以無論在輸入資料或是做比較時，都相當好用。但問題了來了，如果我們要比較兩個列舉是否相當，而且列舉的 associated value 又是自訂型態的話，我們如何做比較呢？</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] 比較含有 associated value 的列舉(Enum)是否相等 1"><p>答案是很簡單的，我們先看一下下面的範例，假設我們有一個學生和老師的資料結構如下。</p><pre><code>struct Student {
+let age: Int
+let name: String
+}
+struct Teacher {
+let age: Int
+let name: String
+let students: [Student]
+}</code></pre><p>而此時，我們的列舉如下</p><pre><code>enum Employee {
+case teacher(Teacher)
+case student(Student)
+}</code></pre><p>接下來，我們宣告四個變數如下，並將列舉進行比較。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+let isSameStudnet = studentA == studentACopy //true
+let isSameStudnet = studentB == studentACopy //false
+let isSameIndentify = studentB == teacher //false</code></pre><p>由於我們要比較列舉是否相同，所以勢必得將列舉設為 Equatable，並於列舉內加入「<em>static func == (lhs: Self, rhs: Self)</em>」函式，因此改寫如下。</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}
+}</code></pre><p>讓我們關注下列這段程式碼，這段程式碼首先先比較兩個列舉是不是都是 teacher，如果是的話，就比較兩個 teacher 列舉值的 associated value 是否相等。如果兩個都是 student ，也一樣比較兩個 student 的 associated value 是否相等。如果兩個列舉值不同，一個是 teacher，一個是 student，那麼就會直接回傳 false。</p><pre><code>static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}</code></pre><p>正因如此，所以 associated value 也必須是 Equatable 型態，也因此 Student 和 Teacher 都必須實做 Equatable。</p><pre><code>struct Student: Equatable {
+let age: Int
+let name: String
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+}
+}
+struct Teacher: Equatable {
+let age: Int
+let name: String
+let students: [Student]
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+}
+}</code></pre><p>或者，你可以用我比較不建議的方法</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+case let (.student(lhs), .student(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+default:
+return false
+}
+}
+}</code></pre><p>延續剛才的範例，如果我們要取出 studentA 的資料，怎麼辦呢？很簡單，只要靠 「if case」 語法就好了。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+func getStutdentAData() -&gt; Student? {
+if case .student(let value) = studentA {
+return value
+}
+return nil
+}</code></pre><p>在 Swift 中，列舉真的是很實用的工具，大家一定要學會。</p><ul><li>相關文章：</li><li><a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學</a></li><li><a href="https://www.inote.tw/swift-codable-enum">Swift 在 Codable 內使用 Enum 值</a></li></ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在 Swift 中，列舉(Enum)可說是相當好用的，尤其列舉又可以使用 associated value (詳情請見「<a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學 </a>一文)，所以無論在輸入資料或是做比較時，都相當好用。但問題了來了，如果我們要比較兩個列舉是否相當，而且列舉的 associated value 又是自訂型態的話，我們如何做比較呢？</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] 比較含有 associated value 的列舉(Enum)是否相等 1"><p>答案是很簡單的，我們先看一下下面的範例，假設我們有一個學生和老師的資料結構如下。</p><pre><code>struct Student {
+let age: Int
+let name: String
+}
+struct Teacher {
+let age: Int
+let name: String
+let students: [Student]
+}</code></pre><p>而此時，我們的列舉如下</p><pre><code>enum Employee {
+case teacher(Teacher)
+case student(Student)
+}</code></pre><p>接下來，我們宣告四個變數如下，並將列舉進行比較。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+let isSameStudnet = studentA == studentACopy //true
+let isSameStudnet = studentB == studentACopy //false
+let isSameIndentify = studentB == teacher //false</code></pre><p>由於我們要比較列舉是否相同，所以勢必得將列舉設為 Equatable，並於列舉內加入「<em>static func == (lhs: Self, rhs: Self)</em>」函式，因此改寫如下。</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}
+}</code></pre><p>讓我們關注下列這段程式碼，這段程式碼首先先比較兩個列舉是不是都是 teacher，如果是的話，就比較兩個 teacher 列舉值的 associated value 是否相等。如果兩個都是 student ，也一樣比較兩個 student 的 associated value 是否相等。如果兩個列舉值不同，一個是 teacher，一個是 student，那麼就會直接回傳 false。</p><pre><code>static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}</code></pre><p>正因如此，所以 associated value 也必須是 Equatable 型態，也因此 Student 和 Teacher 都必須實做 Equatable。</p><pre><code>struct Student: Equatable {
+let age: Int
+let name: String
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+}
+}
+struct Teacher: Equatable {
+let age: Int
+let name: String
+let students: [Student]
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+}
+}</code></pre><p>或者，你可以用我比較不建議的方法</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+case let (.student(lhs), .student(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+default:
+return false
+}
+}
+}</code></pre><p>延續剛才的範例，如果我們要取出 studentA 的資料，怎麼辦呢？很簡單，只要靠 「if case」 語法就好了。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+func getStutdentAData() -&gt; Student? {
+if case .student(let value) = studentA {
+return value
+}
+return nil
+}</code></pre><p>在 Swift 中，列舉真的是很實用的工具，大家一定要學會。</p><ul><li>相關文章：</li><li><a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學</a></li><li><a href="https://www.inote.tw/swift-codable-enum">Swift 在 Codable 內使用 Enum 值</a></li></ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在 Swift 中，列舉(Enum)可說是相當好用的，尤其列舉又可以使用 associated value (詳情請見「<a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學 </a>一文)，所以無論在輸入資料或是做比較時，都相當好用。但問題了來了，如果我們要比較兩個列舉是否相當，而且列舉的 associated value 又是自訂型態的話，我們如何做比較呢？</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] 比較含有 associated value 的列舉(Enum)是否相等 1"><p>答案是很簡單的，我們先看一下下面的範例，假設我們有一個學生和老師的資料結構如下。</p><pre><code>struct Student {
+let age: Int
+let name: String
+}
+struct Teacher {
+let age: Int
+let name: String
+let students: [Student]
+}</code></pre><p>而此時，我們的列舉如下</p><pre><code>enum Employee {
+case teacher(Teacher)
+case student(Student)
+}</code></pre><p>接下來，我們宣告四個變數如下，並將列舉進行比較。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+let isSameStudnet = studentA == studentACopy //true
+let isSameStudnet = studentB == studentACopy //false
+let isSameIndentify = studentB == teacher //false</code></pre><p>由於我們要比較列舉是否相同，所以勢必得將列舉設為 Equatable，並於列舉內加入「<em>static func == (lhs: Self, rhs: Self)</em>」函式，因此改寫如下。</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}
+}</code></pre><p>讓我們關注下列這段程式碼，這段程式碼首先先比較兩個列舉是不是都是 teacher，如果是的話，就比較兩個 teacher 列舉值的 associated value 是否相等。如果兩個都是 student ，也一樣比較兩個 student 的 associated value 是否相等。如果兩個列舉值不同，一個是 teacher，一個是 student，那麼就會直接回傳 false。</p><pre><code>static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs == rhs
+case let (.student(lhs), .student(rhs)):
+return lhs == rhs
+default:
+return false
+}
+}</code></pre><p>正因如此，所以 associated value 也必須是 Equatable 型態，也因此 Student 和 Teacher 都必須實做 Equatable。</p><pre><code>struct Student: Equatable {
+let age: Int
+let name: String
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+}
+}
+struct Teacher: Equatable {
+let age: Int
+let name: String
+let students: [Student]
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+}
+}</code></pre><p>或者，你可以用我比較不建議的方法</p><pre><code>enum Employee: Equatable {
+case teacher(Teacher)
+case student(Student)
+static func == (lhs: Self, rhs: Self) -&gt; Bool {
+switch (lhs, rhs) {
+case let (.teacher(lhs), .teacher(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name &amp;&amp; lhs.students == rhs.students
+case let (.student(lhs), .student(rhs)):
+return lhs.age == rhs.age &amp;&amp; lhs.name == rhs.name
+default:
+return false
+}
+}
+}</code></pre><p>延續剛才的範例，如果我們要取出 studentA 的資料，怎麼辦呢？很簡單，只要靠 「if case」 語法就好了。</p><pre><code>let studentA = Employee.teacher(Student(age: 18, name: "A"))
+let studentB = Employee.teacher(Student(age: 13, name: "B"))
+let studentC = Employee.teacher(Student(age: 13, name: "B"))
+let teacher = Employee.teacher(Teacher(age: 30, name: "B", students: [studentA, studentB]))
+func getStutdentAData() -&gt; Student? {
+if case .student(let value) = studentA {
+return value
+}
+return nil
+}</code></pre><p>在 Swift 中，列舉真的是很實用的工具，大家一定要學會。</p><ul><li>相關文章：</li><li><a href="https://www.inote.tw/swift-enumeration">Swift 的 列舉(Enum) 教學</a></li><li><a href="https://www.inote.tw/swift-codable-enum">Swift 在 Codable 內使用 Enum 值</a></li></ul>]]></content:encoded>
+    <itunes:image href="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png"/>
+          <media:content url="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" medium="image"/>
+    <pubDate>Tue, 26 Sep 2023 15:05:47 +0000</pubDate>
+  </item><item>
     <title><![CDATA[禪廚蔬食餐廳 ~ 苗栗超好吃素食餐廳，就在頭屋交流道下]]></title>
     <link>https://www.inote.tw/%e7%a6%aa%e5%bb%9a%e8%94%ac%e9%a3%9f%e9%a4%90%e5%bb%b3</link>
     <itunes:title><![CDATA[禪廚蔬食餐廳 ~ 苗栗超好吃素食餐廳，就在頭屋交流道下]]></itunes:title>
@@ -518,20 +758,5 @@ return params
     <itunes:image href="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg"/>
           <media:content url="https://www.inote.tw/wp-content/uploads/2018/03/Dont-Sleep.jpg" medium="image"/>
     <pubDate>Tue, 11 Apr 2023 17:58:09 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體]]></title>
-    <link>https://www.inote.tw/cleanmymac-x</link>
-    <itunes:title><![CDATA[macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體]]></itunes:title>
-    <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]>
-    </description>
-    <content:encoded><![CDATA[<p>當我們在使用電腦一段時間後，就會累積許多的系統垃圾，而這些系統垃圾會拖慢我們的效能。而在 macOS 上，有一套相當棒的軟體 CleanMyMac X，如同跟他的名字一樣，是一套<a href="https://www.inote.tw/tag/%e7%a3%81%e7%a2%9f%e6%b8%85%e7%90%86">磁碟清理工具</a>，能夠幫你清出許多硬碟空間，同時也可以檢查軟體更新，管理啟動軟體，移除程式也是一流的，也能幫你優化記憶體，是一套必裝的軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" alt="CleanMyMac X" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#xia-zai-CleanMyMac-X-zhong-wen-ke-xie-ban"> <span>1</span> <span>下載 CleanMyMac X 中文可攜版</span> </a></div><div> <a href="#CleanMyMac-X-shi-yong-jiao-xue"> <span>2</span> <span>CleanMyMac X 使用教學</span> </a><div><div> <a href="#qing-li-ying-die-la-ji"> <span>2.1</span> <span>清理硬碟垃圾</span> </a></div><div> <a href="#yi-chu-ruan-ti-yu-geng-xin-ruan-ti"> <span>2.2</span> <span>移除軟體與更新軟體</span> </a></div><div> <a href="#zeng-jia-xi-tong-an-quan"> <span>2.3</span> <span>增加系統安全</span> </a></div><div> <a href="#zhao-chu-guai-shou-dang-an"> <span>2.4</span> <span>找出怪獸檔案</span> </a></div><div> <a href="#you-hua-ji-yi-ti"> <span>2.5</span> <span>優化記憶體</span> </a></div></div></div></div></div></div></div><h2><span>下載 CleanMyMac X 中文可攜版</span></h2><p><mark><strong>◎◎ 軟體 小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>CleanMyMac X<br>■&nbsp;<strong>軟體介面：</strong>英文<br>■&nbsp;<strong>軟體版本：</strong>4.12.6<br>■&nbsp;<strong>軟體性質：</strong>共享軟體<br>■&nbsp;<strong>支援系統：</strong>macOS<br><strong><mark>■軟體下載：</mark><mark><a href="https://www.inote.tools/macos-cleanmymac-x/" target="_blank">【點我下載】</a></mark></strong><br>■&nbsp;<strong>軟體網址：</strong><a href="https://macpaw.com/" target="_blank">https://macpaw.com</a></p><h2><span><meta charset="utf-8">CleanMyMac X 使用教學</span></h2><h3><span>清理硬碟垃圾</span></h3><p><mark><strong>Step 1.</strong><br></mark>下載 CleanMyMac X 後，最簡單的方式就是用「Smart Scan」來掃描系統垃圾。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_1.jpg" alt="cleanmymac 1" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 2"><p><strong><mark>Step 2.</mark></strong><br>之後再按下「Run」來清除系統垃圾就可以了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_2.jpg" alt="cleanmymac 2" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 3"><p><strong><mark>Step 3.</mark></strong><br>如果要清掉垃圾筒的垃圾，也只要按下左側的【Trash Bins】，並按下【Sacn】來掃描。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_12.jpg" alt="cleanmymac 12" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 4"><p><strong><mark>Step 4.</mark></strong><br>之後就可以快速清理垃圾筒的資料了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_13.jpg" alt="cleanmymac 13" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 5"><ul><li>延伸閱讀：<a href="https://www.inote.tw/ccleaner" target="_blank">CCleaner 中文可攜版，硬碟垃圾清理專家 (macOS/Windows)</a></li></ul><h3><span>移除軟體與更新軟體</span></h3><p><strong><mark>Step 1.</mark></strong><br>從 CleanMyMac X 的左側選單，按下【Uninstaller】，並選擇你要移除的程式後，按下【Unistall】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_4.jpg" alt="cleanmymac 4" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 6"><p><strong><mark>Step 2.</mark></strong><br>之後很快就會找出硬碟中相關的軟體，一次清掉，有點像是【<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppClenaer</a>】的功能唷！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_5.jpg" alt="cleanmymac 5" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 7"><ul><li>延伸閱讀：<a href="https://www.inote.tw/mac-appcleaner" target="_blank">AppCleaner 英文版 ~ macOS 移除程式工具，可徹底刪掉程式留下來的檔案</a></li></ul><p><strong><mark>Step 3.</mark></strong><br>CleanMyMac X 也可以檢查軟體是不是有新版，只要按下左側的【Updater】，並勾選想要更新的軟體後按下【Update】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_10.jpg" alt="cleanmymac 10" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 8"><p><strong><mark>Step 4.</mark></strong><br>接下來就可以直接透過 CleanMyMac X 來更新軟體了。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_11.jpg" alt="cleanmymac 11" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 9"><h3><span>增加系統安全</span></h3><p><strong><mark>Step 1.</mark></strong><br>CleanMyMac X 可以掃描系統內是不是有惡意軟體，只要按下左側選單的【Malware Removal】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_14.jpg" alt="cleanmymac 14" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 10"><p><strong><mark>Step 2.</mark></strong><br>由於海芋系統內沒有惡意軟體，所以無法跟大家說有惡意軟體的情況，而是掃描完成的畫面。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_15.jpg" alt="cleanmymac 15" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 11"><p><strong><mark>Step 3.</mark></strong><br>另外也可以透過【Privacy】來掃描系統的隱私。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_19.jpg" alt="cleanmymac 19" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 12"><p><strong><mark>Step 4.</mark></strong><br>通常瀏覽器最多隱私軟體，這時我們可以勾選網頁瀏覽器並按下【Remove】，也可以增加許多系統空間。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_20.jpg" alt="cleanmymac 20" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 13"><h3><span>找出怪獸檔案</span></h3><p><strong><mark>Step 1.</mark></strong><br>要找出最佔硬碟的檔案，只要按下左側選單的【Large &amp; Old Files】，並按下【Scan】。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_21.jpg" alt="cleanmymac 21" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 14"><p><strong><mark>Step 2.</mark></strong><br>接下來，就可以找出佔硬碟的檔案囉，而你也可以由 CleanMyMac X 來移除巨大的檔案！</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_22.jpg" alt="cleanmymac 22" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 15"><p><strong><mark>Step 3.</mark></strong><br>另外由【Space Lens】可以檢視系統內各資料夾所佔的空間，有點像是 Windows 的軟體 <a href="https://www.inote.tw/wiztree" target="_blank">WizTree</a>。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_16.jpg" alt="cleanmymac 16" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 16"><ul><li>延伸閱讀：<a href="https://www.inote.tw/wiztree" target="_blank">WizTree 可攜版 ~ 免費硬碟空間分析工具，快速找出佔用系統檔案</a></li></ul><p><mark><strong>Step 4.</strong><br></mark>之後就可以看到每個資料夾所佔用的空間唷。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_17.jpg" alt="cleanmymac 17" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 17"><h3><span>優化記憶體</span></h3><p><mark><strong>Step 1.</strong><br></mark>我們可以從左側選單的【Maintenance】中的【Free Up RAM】來釋放記憶體。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_8.jpg" alt="cleanmymac 8" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 18"><p><mark><strong>Step 2.</strong><br></mark>很快的就跑完清理的工作唷，CleanMyMac X 可以說是相當全面的一個程式。</p><img src="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_9.jpg" alt="cleanmymac 9" title="macOS《CleanMyMac X》4.12.6 英文版 ~ 最好用的硬碟清理軟體 19">]]></content:encoded>
-    <itunes:image href="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg"/>
-          <media:content url="https://www.inote.tw/wp-content/uploads/2022/12/cleanmymac_x.jpg" medium="image"/>
-    <pubDate>Tue, 11 Apr 2023 17:55:47 +0000</pubDate>
   </item></channel>
 </rss>
