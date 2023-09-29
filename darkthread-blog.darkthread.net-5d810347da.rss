@@ -30,6 +30,177 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛]]></title>
+    <link>https://blog.darkthread.net/blog/ansi-escape-code/</link>
+    <itunes:title><![CDATA[ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>學生時代玩 BBS，曾學過在純文字模式讓文字變色的小密技，但工作後開發程式以網頁、WinForm/WPF 為主，這項能力漸漸從腦中退去。這兩年愛上 CLI，寫 Console Application、PowerShell 的機會變多，重新擁抱終端機純文字模式，是時侯重拾往日技能惹。</p> <p>這個技巧的學名叫 <a href="https://en.wikipedia.org/wiki/ANSI_escape_code">ANSI Escape Code</a>，是一種控制字元序列，用於控制文字顯示。它們通常以 ESC (ASCII 27) 字元開始，以 m 字元結束。這些控制序列可以用於更改文字的顏色、背景色、加粗、斜體、加底線等。ANSI Escape Code 最初是為了在終端機上顯示顏色而設計，但現在它們已成為一種控制文字顯示的標準做法，並被廣泛地使用在終端機、控制台應用程式、日誌檔案等等。</p> <p>例如：Chrome/Edge Console</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png"></p> <p>PowerShell</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638315995664380779.png"></p> <p>Bash</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638315995666207533.png"></p> <p>ANSI Escape Code 除了顏色外，還可控制游標、切換文字輸入模式，<a href="https://en.wikipedia.org/wiki/ANSI_escape_code">維基百科</a>有完整說明，這篇文章只聚焦顏色及字體格式。</p> <p>控制顏色語法為 \x16[<strong>C</strong>m (\x16 = ASCII 27 = ESC 鍵代碼)，C 值從 30 - 37 依序為 Black, Red, Green, Yellow, Magenta, Cyan, White, 90 - 97 為前述顏色的明亮版本，故基本有 16 色可運用；40 - 47 代表設為背景色，100 - 107 則為其明亮版本的背景色。另外，\x16[C;1m 為粗體，\x16[C;3m 為斜體，\x16[C;4m 表加底線。切換顏色後，加上 \x16[0m 可恢復預設顏色及字體。</p> <p>像前面的例子 <code>console.log('\x1b[91mRED\x1b[0m \x1b[92mGREEN\x1b[0m \x1b[34mBLUE\x1b[0m')</code> 便是將前景色切為亮紅(91)、輸出文字 RED、復原，切換亮綠(92)、輸出文字 GREEN...</p> <p>另外，若終端機支援 256 色，則可使用 \x16[38;5;<strong>N</strong>m 設定前景色、\x16[48;5;<strong>N</strong>m 設背景色，使用 16 色基本色、24 灰階色跟 216 種微調色。</p> <p>若終端機支援 True Color，則可使用 ESC[38;2;<strong>R</strong>;<strong>G</strong>;<strong>B</strong>m 指定 R G B 色碼，例如：\x1b[48;2;127;127;255m #7f7fff \x1b[0m。</p> <p>我寫了個 C# 範例將常見用法都展示一次，方便未來查找應用。</p> <pre><code>Console.WriteLine("ANSI 顏色展示");
+for (int i = 30; i &lt; 38; i++)
+{
+var code = $"\x1b[{i}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString(),-8}\x1b[0m");
+code = $"\x1b[{i+60}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};1m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 粗{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};3m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 斜{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};4m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底線", -9}\x1b[0m");
+code = $"\x1b[{i+10}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底", -8}\x1b[0m");
+code = $"\x1b[{i+70}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString()+"底", -9}\x1b[0m");
+Console.WriteLine();
+}
+Console.WriteLine();
+Console.WriteLine("256 色 \x1b[103m  \\x1b[38;5;\x1b[41mX\x1b[103mm  \x1b[0m (\x1b[33mX\x1b[0m = 0 ~ 255, 38 前景色, 48 背景色)");
+Console.WriteLine("基本色 16 色");
+for (int i = 0; i &lt; 16; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+Console.WriteLine();
+Console.WriteLine("216 色");
+for (int i = 16; i &lt;= 196; i += 36) {
+for (var j = 0; j &lt; 36; j++) {
+var c = i + j;
+var code = $"\x1b[48;5;{c}m";
+Console.Write($"{code} {c:X2} \x1b[0m");
+}
+Console.WriteLine();
+}
+Console.WriteLine("灰階 24 色");
+for (int i = 232; i &lt; 256; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+enum ColorNames
+{
+Black = 30,
+Red = 31,
+Green = 32,
+Yellow = 33,
+Blue = 34,
+Purple = 35,
+Cyan = 36,
+White = 37
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638315995669874609.png"></p> <p>重拾往日技能，未來就能為 Console/Shell 程式增添幾分色彩囉~</p> <p data-slug="ansi-escape-code" data-title-en="ANSI eascape code" data-catg=".NET" data-fbimg="https://i.imgur.com/ELZw3Yi.png#1044#457">Example of using ANSI escape code to set foreground color, background color, bold, italic and underscore in Console application and shell script.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>學生時代玩 BBS，曾學過在純文字模式讓文字變色的小密技，但工作後開發程式以網頁、WinForm/WPF 為主，這項能力漸漸從腦中退去。這兩年愛上 CLI，寫 Console Application、PowerShell 的機會變多，重新擁抱終端機純文字模式，是時侯重拾往日技能惹。</p> <p>這個技巧的學名叫 <a href="https://en.wikipedia.org/wiki/ANSI_escape_code">ANSI Escape Code</a>，是一種控制字元序列，用於控制文字顯示。它們通常以 ESC (ASCII 27) 字元開始，以 m 字元結束。這些控制序列可以用於更改文字的顏色、背景色、加粗、斜體、加底線等。ANSI Escape Code 最初是為了在終端機上顯示顏色而設計，但現在它們已成為一種控制文字顯示的標準做法，並被廣泛地使用在終端機、控制台應用程式、日誌檔案等等。</p> <p>例如：Chrome/Edge Console</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png"></p> <p>PowerShell</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638315995664380779.png"></p> <p>Bash</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638315995666207533.png"></p> <p>ANSI Escape Code 除了顏色外，還可控制游標、切換文字輸入模式，<a href="https://en.wikipedia.org/wiki/ANSI_escape_code">維基百科</a>有完整說明，這篇文章只聚焦顏色及字體格式。</p> <p>控制顏色語法為 \x16[<strong>C</strong>m (\x16 = ASCII 27 = ESC 鍵代碼)，C 值從 30 - 37 依序為 Black, Red, Green, Yellow, Magenta, Cyan, White, 90 - 97 為前述顏色的明亮版本，故基本有 16 色可運用；40 - 47 代表設為背景色，100 - 107 則為其明亮版本的背景色。另外，\x16[C;1m 為粗體，\x16[C;3m 為斜體，\x16[C;4m 表加底線。切換顏色後，加上 \x16[0m 可恢復預設顏色及字體。</p> <p>像前面的例子 <code>console.log('\x1b[91mRED\x1b[0m \x1b[92mGREEN\x1b[0m \x1b[34mBLUE\x1b[0m')</code> 便是將前景色切為亮紅(91)、輸出文字 RED、復原，切換亮綠(92)、輸出文字 GREEN...</p> <p>另外，若終端機支援 256 色，則可使用 \x16[38;5;<strong>N</strong>m 設定前景色、\x16[48;5;<strong>N</strong>m 設背景色，使用 16 色基本色、24 灰階色跟 216 種微調色。</p> <p>若終端機支援 True Color，則可使用 ESC[38;2;<strong>R</strong>;<strong>G</strong>;<strong>B</strong>m 指定 R G B 色碼，例如：\x1b[48;2;127;127;255m #7f7fff \x1b[0m。</p> <p>我寫了個 C# 範例將常見用法都展示一次，方便未來查找應用。</p> <pre><code>Console.WriteLine("ANSI 顏色展示");
+for (int i = 30; i &lt; 38; i++)
+{
+var code = $"\x1b[{i}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString(),-8}\x1b[0m");
+code = $"\x1b[{i+60}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};1m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 粗{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};3m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 斜{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};4m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底線", -9}\x1b[0m");
+code = $"\x1b[{i+10}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底", -8}\x1b[0m");
+code = $"\x1b[{i+70}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString()+"底", -9}\x1b[0m");
+Console.WriteLine();
+}
+Console.WriteLine();
+Console.WriteLine("256 色 \x1b[103m  \\x1b[38;5;\x1b[41mX\x1b[103mm  \x1b[0m (\x1b[33mX\x1b[0m = 0 ~ 255, 38 前景色, 48 背景色)");
+Console.WriteLine("基本色 16 色");
+for (int i = 0; i &lt; 16; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+Console.WriteLine();
+Console.WriteLine("216 色");
+for (int i = 16; i &lt;= 196; i += 36) {
+for (var j = 0; j &lt; 36; j++) {
+var c = i + j;
+var code = $"\x1b[48;5;{c}m";
+Console.Write($"{code} {c:X2} \x1b[0m");
+}
+Console.WriteLine();
+}
+Console.WriteLine("灰階 24 色");
+for (int i = 232; i &lt; 256; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+enum ColorNames
+{
+Black = 30,
+Red = 31,
+Green = 32,
+Yellow = 33,
+Blue = 34,
+Purple = 35,
+Cyan = 36,
+White = 37
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638315995669874609.png"></p> <p>重拾往日技能，未來就能為 Console/Shell 程式增添幾分色彩囉~</p> <p data-slug="ansi-escape-code" data-title-en="ANSI eascape code" data-catg=".NET" data-fbimg="https://i.imgur.com/ELZw3Yi.png#1044#457">Example of using ANSI escape code to set foreground color, background color, bold, italic and underscore in Console application and shell script.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>學生時代玩 BBS，曾學過在純文字模式讓文字變色的小密技，但工作後開發程式以網頁、WinForm/WPF 為主，這項能力漸漸從腦中退去。這兩年愛上 CLI，寫 Console Application、PowerShell 的機會變多，重新擁抱終端機純文字模式，是時侯重拾往日技能惹。</p> <p>這個技巧的學名叫 <a href="https://en.wikipedia.org/wiki/ANSI_escape_code">ANSI Escape Code</a>，是一種控制字元序列，用於控制文字顯示。它們通常以 ESC (ASCII 27) 字元開始，以 m 字元結束。這些控制序列可以用於更改文字的顏色、背景色、加粗、斜體、加底線等。ANSI Escape Code 最初是為了在終端機上顯示顏色而設計，但現在它們已成為一種控制文字顯示的標準做法，並被廣泛地使用在終端機、控制台應用程式、日誌檔案等等。</p> <p>例如：Chrome/Edge Console</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png"></p> <p>PowerShell</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638315995664380779.png"></p> <p>Bash</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638315995666207533.png"></p> <p>ANSI Escape Code 除了顏色外，還可控制游標、切換文字輸入模式，<a href="https://en.wikipedia.org/wiki/ANSI_escape_code">維基百科</a>有完整說明，這篇文章只聚焦顏色及字體格式。</p> <p>控制顏色語法為 \x16[<strong>C</strong>m (\x16 = ASCII 27 = ESC 鍵代碼)，C 值從 30 - 37 依序為 Black, Red, Green, Yellow, Magenta, Cyan, White, 90 - 97 為前述顏色的明亮版本，故基本有 16 色可運用；40 - 47 代表設為背景色，100 - 107 則為其明亮版本的背景色。另外，\x16[C;1m 為粗體，\x16[C;3m 為斜體，\x16[C;4m 表加底線。切換顏色後，加上 \x16[0m 可恢復預設顏色及字體。</p> <p>像前面的例子 <code>console.log('\x1b[91mRED\x1b[0m \x1b[92mGREEN\x1b[0m \x1b[34mBLUE\x1b[0m')</code> 便是將前景色切為亮紅(91)、輸出文字 RED、復原，切換亮綠(92)、輸出文字 GREEN...</p> <p>另外，若終端機支援 256 色，則可使用 \x16[38;5;<strong>N</strong>m 設定前景色、\x16[48;5;<strong>N</strong>m 設背景色，使用 16 色基本色、24 灰階色跟 216 種微調色。</p> <p>若終端機支援 True Color，則可使用 ESC[38;2;<strong>R</strong>;<strong>G</strong>;<strong>B</strong>m 指定 R G B 色碼，例如：\x1b[48;2;127;127;255m #7f7fff \x1b[0m。</p> <p>我寫了個 C# 範例將常見用法都展示一次，方便未來查找應用。</p> <pre><code>Console.WriteLine("ANSI 顏色展示");
+for (int i = 30; i &lt; 38; i++)
+{
+var code = $"\x1b[{i}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString(),-8}\x1b[0m");
+code = $"\x1b[{i+60}m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};1m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 粗{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};3m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} 斜{((ColorNames)i).ToString(), -8}\x1b[0m");
+code = $"\x1b[{i};4m";
+Console.Write($"{code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底線", -9}\x1b[0m");
+code = $"\x1b[{i+10}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} {((ColorNames)i).ToString()+"底", -8}\x1b[0m");
+code = $"\x1b[{i+70}m";
+Console.Write($" {code}{code.Replace("\x1b", "\\x1b")} 亮{((ColorNames)i).ToString()+"底", -9}\x1b[0m");
+Console.WriteLine();
+}
+Console.WriteLine();
+Console.WriteLine("256 色 \x1b[103m  \\x1b[38;5;\x1b[41mX\x1b[103mm  \x1b[0m (\x1b[33mX\x1b[0m = 0 ~ 255, 38 前景色, 48 背景色)");
+Console.WriteLine("基本色 16 色");
+for (int i = 0; i &lt; 16; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+Console.WriteLine();
+Console.WriteLine("216 色");
+for (int i = 16; i &lt;= 196; i += 36) {
+for (var j = 0; j &lt; 36; j++) {
+var c = i + j;
+var code = $"\x1b[48;5;{c}m";
+Console.Write($"{code} {c:X2} \x1b[0m");
+}
+Console.WriteLine();
+}
+Console.WriteLine("灰階 24 色");
+for (int i = 232; i &lt; 256; i++) {
+var code = $"\x1b[48;5;{i}m";
+Console.Write($"{code} {i:X2} \x1b[0m");
+}
+enum ColorNames
+{
+Black = 30,
+Red = 31,
+Green = 32,
+Yellow = 33,
+Blue = 34,
+Purple = 35,
+Cyan = 36,
+White = 37
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638315995669874609.png"></p> <p>重拾往日技能，未來就能為 Console/Shell 程式增添幾分色彩囉~</p> <p data-slug="ansi-escape-code" data-title-en="ANSI eascape code" data-catg=".NET" data-fbimg="https://i.imgur.com/ELZw3Yi.png#1044#457">Example of using ANSI escape code to set foreground color, background color, bold, italic and underscore in Console application and shell script.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png" medium="image"/>
+    <pubDate>Fri, 29 Sep 2023 15:45:52 GMT</pubDate>
+  </item><item>
     <title><![CDATA[NULL 排序問題 - ORACLE / MSSQL / SQLite 行為整理]]></title>
     <link>https://blog.darkthread.net/blog/null-in-db-ordering/</link>
     <itunes:title><![CDATA[NULL 排序問題 - ORACLE / MSSQL / SQLite 行為整理]]></itunes:title>
@@ -1072,71 +1243,5 @@ Console.WriteLine(ex.Message);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png" medium="image"/>
     <pubDate>Wed, 13 Sep 2023 13:37:52 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[HTTP Host Header 資安弱點]]></title>
-    <link>https://blog.darkthread.net/blog/host-header-vulnerability/</link>
-    <itunes:title><![CDATA[HTTP Host Header 資安弱點]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>同事分享資安知識一則：在網頁引用 Host Header 可能形成資安弱點，給予攻擊者操作重新導向或引用惡意程式的機會。特筆記備忘。</p> <p>使用 IIS + ASP.NET 示範如下：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Host Header 弱點示範&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;ul&gt;
-&lt;li&gt;Request.Url.Host = &lt;%=Request.Url.Host%&gt;&lt;/li&gt;
-&lt;li&gt;Request.Headers["Host"] = &lt;%=Request.Headers["Host"]%&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;!-- 危險做法：依 Host 決定網址, 可能被惡意竄改 --&gt;
-&lt;script src="://&lt;%=Request.Url.Host%&gt;/scripts/app.js"&gt;&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>在一般情況下，瀏覽器或 HTTP 客戶端開啟 <code>https://blog.darkthread.net/</code> 時會帶入 Host: blog.darkthread.net，同樣是 80 Port，網站可依不同 Host 導向不同站台，實現多站台共用 80 Port 的效果。而伺服器端 ASP.NET 可由 <code>Request.Url.Host</code> 或 <code>Request.Headers["Host"]</code> 讀取 blog.darkthread.net。</p> <p>以下使用 curl 工具觀察 Host Header 依 URL 改變的行為及伺服器端讀取結果：</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx
-curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638301273701552878.png"></p> <p>但問題出在以上是標準行為，若瀏覽器或客戶端遭惡意軟體控制或傳輸過程遭攔截，Host 就可能被偷改。若伺服器端依據 Request.Url.Host 決定重導位址或是 JavaScript 載入位址，攻擊者便能上下其手，將使用者導向詐騙網站或下載惡意程式。例如以下範例，curl 送出請求時使用參數覆寫 Host Header，ASP.NET 將讀到有毒的值，若還拿來指定 JavaScript 下載位址就危險了。</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx -H "Header: you-are-hacked.com"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638301273703782435.png"></p> <p>針對這類風險，<a href="https://techcommunity.microsoft.com/t5/iis-support-blog/host-header-vulnerability/ba-p/1031958?WT.mc_id=DOP-MVP-37580">IIS 部落格</a>提供以下建議：</p> <ol><li>避免在程式中使用 Request.Url.Host 或 Request.Headers["Host"]，應假設他們可能被偽造竄改，如要使用務必確實檢核</li> <li>在 IIS Binding 限定 Host 名稱可防範這類攻擊，例如：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638301273705543373.png"><br> 若攻擊者竄改 Host Header，將得到 404：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638301273707515217.png"></li> <li>在 Reverse Proxy 情境會用 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-Host">X-Forwarded-Host</a> 取代 Host Header，請用相同標準看待，不要信任。</li> <li>若不指定 Binding，可考慮使用 UrlRewrite 檢查 Host Header，發現被竄改時執行阻擋或重新導向。以下範例在 UrlRewrite 模組新增 Request Blocking Rule，比對 Host Header 不吻合 RegularExpression <code>^(127.0.0.1|localhost)$</code> 時傳回 403：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638301273709456304.png"><br> 實測也能阻擋偽造 Host Header：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638301273711489035.png"></li></ol> <p data-slug="host-header-vulnerability" data-title-en="Host header vulnerability" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg/1024px-Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg#1024#768">Introduction to HTTP Host header attacks and how to prevent them.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>同事分享資安知識一則：在網頁引用 Host Header 可能形成資安弱點，給予攻擊者操作重新導向或引用惡意程式的機會。特筆記備忘。</p> <p>使用 IIS + ASP.NET 示範如下：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Host Header 弱點示範&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;ul&gt;
-&lt;li&gt;Request.Url.Host = &lt;%=Request.Url.Host%&gt;&lt;/li&gt;
-&lt;li&gt;Request.Headers["Host"] = &lt;%=Request.Headers["Host"]%&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;!-- 危險做法：依 Host 決定網址, 可能被惡意竄改 --&gt;
-&lt;script src="://&lt;%=Request.Url.Host%&gt;/scripts/app.js"&gt;&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>在一般情況下，瀏覽器或 HTTP 客戶端開啟 <code>https://blog.darkthread.net/</code> 時會帶入 Host: blog.darkthread.net，同樣是 80 Port，網站可依不同 Host 導向不同站台，實現多站台共用 80 Port 的效果。而伺服器端 ASP.NET 可由 <code>Request.Url.Host</code> 或 <code>Request.Headers["Host"]</code> 讀取 blog.darkthread.net。</p> <p>以下使用 curl 工具觀察 Host Header 依 URL 改變的行為及伺服器端讀取結果：</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx
-curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638301273701552878.png"></p> <p>但問題出在以上是標準行為，若瀏覽器或客戶端遭惡意軟體控制或傳輸過程遭攔截，Host 就可能被偷改。若伺服器端依據 Request.Url.Host 決定重導位址或是 JavaScript 載入位址，攻擊者便能上下其手，將使用者導向詐騙網站或下載惡意程式。例如以下範例，curl 送出請求時使用參數覆寫 Host Header，ASP.NET 將讀到有毒的值，若還拿來指定 JavaScript 下載位址就危險了。</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx -H "Header: you-are-hacked.com"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638301273703782435.png"></p> <p>針對這類風險，<a href="https://techcommunity.microsoft.com/t5/iis-support-blog/host-header-vulnerability/ba-p/1031958?WT.mc_id=DOP-MVP-37580">IIS 部落格</a>提供以下建議：</p> <ol><li>避免在程式中使用 Request.Url.Host 或 Request.Headers["Host"]，應假設他們可能被偽造竄改，如要使用務必確實檢核</li> <li>在 IIS Binding 限定 Host 名稱可防範這類攻擊，例如：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638301273705543373.png"><br> 若攻擊者竄改 Host Header，將得到 404：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638301273707515217.png"></li> <li>在 Reverse Proxy 情境會用 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-Host">X-Forwarded-Host</a> 取代 Host Header，請用相同標準看待，不要信任。</li> <li>若不指定 Binding，可考慮使用 UrlRewrite 檢查 Host Header，發現被竄改時執行阻擋或重新導向。以下範例在 UrlRewrite 模組新增 Request Blocking Rule，比對 Host Header 不吻合 RegularExpression <code>^(127.0.0.1|localhost)$</code> 時傳回 403：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638301273709456304.png"><br> 實測也能阻擋偽造 Host Header：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638301273711489035.png"></li></ol> <p data-slug="host-header-vulnerability" data-title-en="Host header vulnerability" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg/1024px-Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg#1024#768">Introduction to HTTP Host header attacks and how to prevent them.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>同事分享資安知識一則：在網頁引用 Host Header 可能形成資安弱點，給予攻擊者操作重新導向或引用惡意程式的機會。特筆記備忘。</p> <p>使用 IIS + ASP.NET 示範如下：</p> <pre><code>&lt;%@Page Language="C#"%&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Host Header 弱點示範&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;ul&gt;
-&lt;li&gt;Request.Url.Host = &lt;%=Request.Url.Host%&gt;&lt;/li&gt;
-&lt;li&gt;Request.Headers["Host"] = &lt;%=Request.Headers["Host"]%&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;!-- 危險做法：依 Host 決定網址, 可能被惡意竄改 --&gt;
-&lt;script src="://&lt;%=Request.Url.Host%&gt;/scripts/app.js"&gt;&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>在一般情況下，瀏覽器或 HTTP 客戶端開啟 <code>https://blog.darkthread.net/</code> 時會帶入 Host: blog.darkthread.net，同樣是 80 Port，網站可依不同 Host 導向不同站台，實現多站台共用 80 Port 的效果。而伺服器端 ASP.NET 可由 <code>Request.Url.Host</code> 或 <code>Request.Headers["Host"]</code> 讀取 blog.darkthread.net。</p> <p>以下使用 curl 工具觀察 Host Header 依 URL 改變的行為及伺服器端讀取結果：</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx
-curl -v http://127.0.0.1/aspnet45/vulnerable.aspx
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638301273701552878.png"></p> <p>但問題出在以上是標準行為，若瀏覽器或客戶端遭惡意軟體控制或傳輸過程遭攔截，Host 就可能被偷改。若伺服器端依據 Request.Url.Host 決定重導位址或是 JavaScript 載入位址，攻擊者便能上下其手，將使用者導向詐騙網站或下載惡意程式。例如以下範例，curl 送出請求時使用參數覆寫 Host Header，ASP.NET 將讀到有毒的值，若還拿來指定 JavaScript 下載位址就危險了。</p> <pre><code>curl -v http://localhost/aspnet45/vulnerable.aspx -H "Header: you-are-hacked.com"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638301273703782435.png"></p> <p>針對這類風險，<a href="https://techcommunity.microsoft.com/t5/iis-support-blog/host-header-vulnerability/ba-p/1031958?WT.mc_id=DOP-MVP-37580">IIS 部落格</a>提供以下建議：</p> <ol><li>避免在程式中使用 Request.Url.Host 或 Request.Headers["Host"]，應假設他們可能被偽造竄改，如要使用務必確實檢核</li> <li>在 IIS Binding 限定 Host 名稱可防範這類攻擊，例如：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638301273705543373.png"><br> 若攻擊者竄改 Host Header，將得到 404：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638301273707515217.png"></li> <li>在 Reverse Proxy 情境會用 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-Host">X-Forwarded-Host</a> 取代 Host Header，請用相同標準看待，不要信任。</li> <li>若不指定 Binding，可考慮使用 UrlRewrite 檢查 Host Header，發現被竄改時執行阻擋或重新導向。以下範例在 UrlRewrite 模組新增 Request Blocking Rule，比對 Host Header 不吻合 RegularExpression <code>^(127.0.0.1|localhost)$</code> 時傳回 403：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638301273709456304.png"><br> 實測也能阻擋偽造 Host Header：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638301273711489035.png"></li></ol> <p data-slug="host-header-vulnerability" data-title-en="Host header vulnerability" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg/1024px-Kyoto_Municipal_Subway_Rokujizo_Station_Ticket_Gate.jpg#1024#768">Introduction to HTTP Host header attacks and how to prevent them.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638301273701552878.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638301273701552878.png" medium="image"/>
-    <pubDate>Tue, 12 Sep 2023 14:55:49 GMT</pubDate>
   </item></channel>
 </rss>
