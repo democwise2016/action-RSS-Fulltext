@@ -30,6 +30,210 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - CRC 檢查碼除法演算]]></title>
+    <link>https://blog.darkthread.net/blog/crc-mod2-div/</link>
+    <itunes:title><![CDATA[Coding4Fun - CRC 檢查碼除法演算]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>CRC 檢查碼我們每天都在用，Ethernet 乙太網路的每個封包(Frame)後方有個 FCS (Frame Check Sequence)，可以用來偵測傳輸過程有沒有 0 變成 1、1 變成 0 的錯誤。其使用的演算法為 Cyclic Redundancy Check 循環冗餘校驗，簡稱 CRC。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638316306657975110.png"><br> 來源：<a href="https://en.wikipedia.org/wiki/Ethernet_frame">維基百科 Ethernet Frame</a></p> <p>這玩意兒在網路的很底層被處理掉，用來確保最基本的資料傳輸正確性，我們開發一般應用程式不會寫到，甚至不需要搞懂，就像每天儘量按馬桶把手沖水享受清潔便利的生活就好，不需要了解下水道怎麼串接，污水處理廠如何運作。</p> <p>但就研究演算法的角度，這是個趣的題目，搞懂原理還挺有趣的。(每次看完這類演算法，都不禁要佩服數學家的腦袋，怎麼能想出這麼巧妙的解法)</p> <p>CRC 運算原理網上教學很多(例如：<a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">CRC檢查碼編碼</a>)，這裡不多贅述，我對其中有個 Modulo-2 Binary Division (依據 <a href="http://www.iicm.org.tw/term/termb_M.htm">資訊學會電腦名詞譯名</a>，譯為模二二進位除法) 有興趣，其運算規則類似十進位除法，但用 XOR 取代相減，數字不足時不需借位，一般在解說原理時都會手算，如下圖：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638316306661661689.png"><br> <a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">圖片來源</a></p> <p>看到這裡，大家應該都知道我想做什麼了。是的，身為重度 Coding 成癮者，怎麼放過這個練習機會，當然要寫個程式取代手算囉~</p> <pre><code>using System.Text.RegularExpressions;
+//args = args.Length == 0 ? new[] { "101010100000", "10111" } : args;
+if (args.Length &lt; 2)
+{
+Console.WriteLine("Syntax: modulo-2-division &lt;dividend&gt; &lt;divisor&gt;");
+Console.WriteLine("Eaxmple: modulo-2-division 1010101 101");
+return;
+}
+var dividend = args[0];
+var divisor = args[1];
+var binDigChk = new Regex("^[01]+$");
+var msgs = new List&lt;string&gt;();
+if (!binDigChk.IsMatch(dividend))
+msgs.Add("dividend must be a binary number");
+if (!binDigChk.IsMatch(divisor))
+msgs.Add("divisor must be a binary number");
+if (msgs.Count &gt; 0)
+{
+Console.WriteLine(string.Join("
+", msgs));
+return;
+}
+var dividendLen = dividend.Length;
+var divisorLen = divisor.Length;
+var deltaLen = dividendLen - divisorLen;
+msgs.Add(new string(' ', divisorLen) + "+" + new string('-', dividendLen));
+// color red, yellow, green, cyan, magenta, blue
+var colorNums = new[] { 31, 33, 32, 36, 35, 34 };
+var clrIdx = 0;
+Func&lt;int, char, string&gt; colorText = (idx, text) =&gt; $"\u001b[{colorNums[idx % colorNums.Length]}m{text.ToString()}\u001b[0m";
+Func&lt;int, int, string, string&gt; getPadding = (st, cnt, text) =&gt;
+string.Join(string.Empty, Enumerable.Range(0, cnt).Select(o =&gt; colorText(st + o, text == null ? ':' : text[o])).ToArray());
+msgs.Add($"{divisor}|{dividend.Substring(0, dividendLen - deltaLen)}{getPadding(0, deltaLen, dividend[divisorLen..])}");
+var m = dividend.Substring(0, divisorLen);
+var quotient = "";
+var indent = new string(' ', divisorLen + 1);
+Func&lt;string, string, string&gt; xor = (a, b) =&gt;
+{
+if (a.Length != b.Length)
+throw new ArgumentException("a and b must be the same length");
+return new string(Enumerable.Range(0, a.Length)
+.Select(o =&gt; a[o] == b[o] ? '0' : '1').ToArray());
+};
+for (var i = 0; i &lt;= deltaLen; i++)
+{
+var q = m[0] == '1' ? "1" : "0";
+var p = q == "1" ? divisor : new string('0', divisorLen);
+var remainder = xor(m, p)[1..];
+quotient += q;
+var padding = getPadding(i, deltaLen - i, null!);
+msgs.Add($"{indent}\x1b[38;5;21m{p[..1]}\x1b[0m{p[1..]}{padding}");
+msgs.Add($"{indent}{new string('-', divisorLen)}{padding}");
+indent += " ";
+m = remainder +
+(divisorLen + i &lt; dividend.Length ? dividend.Substring(divisorLen + i, 1) : "");
+if (i &lt; deltaLen)
+msgs.Add($"{indent}{m[..^1]}{colorText(clrIdx++, m[^1])}{getPadding(i + 1, deltaLen - i - 1, null!)}");
+else
+msgs.Add($"{indent}{m}");
+}
+msgs.Insert(0, $"{new string(' ', divisorLen * 2)}\x1b[38;5;21m{quotient}\x1b[0m");
+Console.WriteLine(string.Join("
+", msgs));
+</code></pre> <p>邏輯很單純，用程式演練一次手算規則而已，借用昨天說的 <a href="/blog/ansi-escape-code/">ANSI 顏色控制碼技巧</a>，我很假掰地加了彩色數字對齊標線。大部分手算會省略第一碼是 0 的回合，我選擇如實輸出，並將數字標上鮮藍色與商數的每一位對映。</p> <p>成果如下，薑薑薑講~~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638316306663587346.png"></p> <p>另外，VSCode Intellisense 教我一個新寫法，str.Substring(0, 1) 可以寫成 str[..1]，str.Substring(1) 可寫成 str[1..]，取最後一個字元可以寫 str[^1]，str.Substring(0, str.Length -1) 則可寫成 str[..^1]。寫法相對簡潔，但不熟悉<a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-8.0/ranges?WT.mc_id=DOP-MVP-37580">C# 陣列索引範圍語法</a>的話，多看幾次才會習慣，學會活用這個 C# 8 加入的新特性，是本次的額外收獲。</p> <p data-slug="crc-mod2-div" data-title-en="Coding for fun - calculating CRC modulo2 division" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">A little C# example to demostrating the modulo 2 divsion calculation of CRC.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>CRC 檢查碼我們每天都在用，Ethernet 乙太網路的每個封包(Frame)後方有個 FCS (Frame Check Sequence)，可以用來偵測傳輸過程有沒有 0 變成 1、1 變成 0 的錯誤。其使用的演算法為 Cyclic Redundancy Check 循環冗餘校驗，簡稱 CRC。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638316306657975110.png"><br> 來源：<a href="https://en.wikipedia.org/wiki/Ethernet_frame">維基百科 Ethernet Frame</a></p> <p>這玩意兒在網路的很底層被處理掉，用來確保最基本的資料傳輸正確性，我們開發一般應用程式不會寫到，甚至不需要搞懂，就像每天儘量按馬桶把手沖水享受清潔便利的生活就好，不需要了解下水道怎麼串接，污水處理廠如何運作。</p> <p>但就研究演算法的角度，這是個趣的題目，搞懂原理還挺有趣的。(每次看完這類演算法，都不禁要佩服數學家的腦袋，怎麼能想出這麼巧妙的解法)</p> <p>CRC 運算原理網上教學很多(例如：<a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">CRC檢查碼編碼</a>)，這裡不多贅述，我對其中有個 Modulo-2 Binary Division (依據 <a href="http://www.iicm.org.tw/term/termb_M.htm">資訊學會電腦名詞譯名</a>，譯為模二二進位除法) 有興趣，其運算規則類似十進位除法，但用 XOR 取代相減，數字不足時不需借位，一般在解說原理時都會手算，如下圖：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638316306661661689.png"><br> <a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">圖片來源</a></p> <p>看到這裡，大家應該都知道我想做什麼了。是的，身為重度 Coding 成癮者，怎麼放過這個練習機會，當然要寫個程式取代手算囉~</p> <pre><code>using System.Text.RegularExpressions;
+//args = args.Length == 0 ? new[] { "101010100000", "10111" } : args;
+if (args.Length &lt; 2)
+{
+Console.WriteLine("Syntax: modulo-2-division &lt;dividend&gt; &lt;divisor&gt;");
+Console.WriteLine("Eaxmple: modulo-2-division 1010101 101");
+return;
+}
+var dividend = args[0];
+var divisor = args[1];
+var binDigChk = new Regex("^[01]+$");
+var msgs = new List&lt;string&gt;();
+if (!binDigChk.IsMatch(dividend))
+msgs.Add("dividend must be a binary number");
+if (!binDigChk.IsMatch(divisor))
+msgs.Add("divisor must be a binary number");
+if (msgs.Count &gt; 0)
+{
+Console.WriteLine(string.Join("
+", msgs));
+return;
+}
+var dividendLen = dividend.Length;
+var divisorLen = divisor.Length;
+var deltaLen = dividendLen - divisorLen;
+msgs.Add(new string(' ', divisorLen) + "+" + new string('-', dividendLen));
+// color red, yellow, green, cyan, magenta, blue
+var colorNums = new[] { 31, 33, 32, 36, 35, 34 };
+var clrIdx = 0;
+Func&lt;int, char, string&gt; colorText = (idx, text) =&gt; $"\u001b[{colorNums[idx % colorNums.Length]}m{text.ToString()}\u001b[0m";
+Func&lt;int, int, string, string&gt; getPadding = (st, cnt, text) =&gt;
+string.Join(string.Empty, Enumerable.Range(0, cnt).Select(o =&gt; colorText(st + o, text == null ? ':' : text[o])).ToArray());
+msgs.Add($"{divisor}|{dividend.Substring(0, dividendLen - deltaLen)}{getPadding(0, deltaLen, dividend[divisorLen..])}");
+var m = dividend.Substring(0, divisorLen);
+var quotient = "";
+var indent = new string(' ', divisorLen + 1);
+Func&lt;string, string, string&gt; xor = (a, b) =&gt;
+{
+if (a.Length != b.Length)
+throw new ArgumentException("a and b must be the same length");
+return new string(Enumerable.Range(0, a.Length)
+.Select(o =&gt; a[o] == b[o] ? '0' : '1').ToArray());
+};
+for (var i = 0; i &lt;= deltaLen; i++)
+{
+var q = m[0] == '1' ? "1" : "0";
+var p = q == "1" ? divisor : new string('0', divisorLen);
+var remainder = xor(m, p)[1..];
+quotient += q;
+var padding = getPadding(i, deltaLen - i, null!);
+msgs.Add($"{indent}\x1b[38;5;21m{p[..1]}\x1b[0m{p[1..]}{padding}");
+msgs.Add($"{indent}{new string('-', divisorLen)}{padding}");
+indent += " ";
+m = remainder +
+(divisorLen + i &lt; dividend.Length ? dividend.Substring(divisorLen + i, 1) : "");
+if (i &lt; deltaLen)
+msgs.Add($"{indent}{m[..^1]}{colorText(clrIdx++, m[^1])}{getPadding(i + 1, deltaLen - i - 1, null!)}");
+else
+msgs.Add($"{indent}{m}");
+}
+msgs.Insert(0, $"{new string(' ', divisorLen * 2)}\x1b[38;5;21m{quotient}\x1b[0m");
+Console.WriteLine(string.Join("
+", msgs));
+</code></pre> <p>邏輯很單純，用程式演練一次手算規則而已，借用昨天說的 <a href="/blog/ansi-escape-code/">ANSI 顏色控制碼技巧</a>，我很假掰地加了彩色數字對齊標線。大部分手算會省略第一碼是 0 的回合，我選擇如實輸出，並將數字標上鮮藍色與商數的每一位對映。</p> <p>成果如下，薑薑薑講~~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638316306663587346.png"></p> <p>另外，VSCode Intellisense 教我一個新寫法，str.Substring(0, 1) 可以寫成 str[..1]，str.Substring(1) 可寫成 str[1..]，取最後一個字元可以寫 str[^1]，str.Substring(0, str.Length -1) 則可寫成 str[..^1]。寫法相對簡潔，但不熟悉<a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-8.0/ranges?WT.mc_id=DOP-MVP-37580">C# 陣列索引範圍語法</a>的話，多看幾次才會習慣，學會活用這個 C# 8 加入的新特性，是本次的額外收獲。</p> <p data-slug="crc-mod2-div" data-title-en="Coding for fun - calculating CRC modulo2 division" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">A little C# example to demostrating the modulo 2 divsion calculation of CRC.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>CRC 檢查碼我們每天都在用，Ethernet 乙太網路的每個封包(Frame)後方有個 FCS (Frame Check Sequence)，可以用來偵測傳輸過程有沒有 0 變成 1、1 變成 0 的錯誤。其使用的演算法為 Cyclic Redundancy Check 循環冗餘校驗，簡稱 CRC。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638316306657975110.png"><br> 來源：<a href="https://en.wikipedia.org/wiki/Ethernet_frame">維基百科 Ethernet Frame</a></p> <p>這玩意兒在網路的很底層被處理掉，用來確保最基本的資料傳輸正確性，我們開發一般應用程式不會寫到，甚至不需要搞懂，就像每天儘量按馬桶把手沖水享受清潔便利的生活就好，不需要了解下水道怎麼串接，污水處理廠如何運作。</p> <p>但就研究演算法的角度，這是個趣的題目，搞懂原理還挺有趣的。(每次看完這類演算法，都不禁要佩服數學家的腦袋，怎麼能想出這麼巧妙的解法)</p> <p>CRC 運算原理網上教學很多(例如：<a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">CRC檢查碼編碼</a>)，這裡不多贅述，我對其中有個 Modulo-2 Binary Division (依據 <a href="http://www.iicm.org.tw/term/termb_M.htm">資訊學會電腦名詞譯名</a>，譯為模二二進位除法) 有興趣，其運算規則類似十進位除法，但用 XOR 取代相減，數字不足時不需借位，一般在解說原理時都會手算，如下圖：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638316306661661689.png"><br> <a href="https://gordonfang-85054.medium.com/crc%E6%AA%A2%E6%9F%A5%E7%A2%BC%E7%B7%A8%E7%A2%BC-fdec319341e9">圖片來源</a></p> <p>看到這裡，大家應該都知道我想做什麼了。是的，身為重度 Coding 成癮者，怎麼放過這個練習機會，當然要寫個程式取代手算囉~</p> <pre><code>using System.Text.RegularExpressions;
+//args = args.Length == 0 ? new[] { "101010100000", "10111" } : args;
+if (args.Length &lt; 2)
+{
+Console.WriteLine("Syntax: modulo-2-division &lt;dividend&gt; &lt;divisor&gt;");
+Console.WriteLine("Eaxmple: modulo-2-division 1010101 101");
+return;
+}
+var dividend = args[0];
+var divisor = args[1];
+var binDigChk = new Regex("^[01]+$");
+var msgs = new List&lt;string&gt;();
+if (!binDigChk.IsMatch(dividend))
+msgs.Add("dividend must be a binary number");
+if (!binDigChk.IsMatch(divisor))
+msgs.Add("divisor must be a binary number");
+if (msgs.Count &gt; 0)
+{
+Console.WriteLine(string.Join("
+", msgs));
+return;
+}
+var dividendLen = dividend.Length;
+var divisorLen = divisor.Length;
+var deltaLen = dividendLen - divisorLen;
+msgs.Add(new string(' ', divisorLen) + "+" + new string('-', dividendLen));
+// color red, yellow, green, cyan, magenta, blue
+var colorNums = new[] { 31, 33, 32, 36, 35, 34 };
+var clrIdx = 0;
+Func&lt;int, char, string&gt; colorText = (idx, text) =&gt; $"\u001b[{colorNums[idx % colorNums.Length]}m{text.ToString()}\u001b[0m";
+Func&lt;int, int, string, string&gt; getPadding = (st, cnt, text) =&gt;
+string.Join(string.Empty, Enumerable.Range(0, cnt).Select(o =&gt; colorText(st + o, text == null ? ':' : text[o])).ToArray());
+msgs.Add($"{divisor}|{dividend.Substring(0, dividendLen - deltaLen)}{getPadding(0, deltaLen, dividend[divisorLen..])}");
+var m = dividend.Substring(0, divisorLen);
+var quotient = "";
+var indent = new string(' ', divisorLen + 1);
+Func&lt;string, string, string&gt; xor = (a, b) =&gt;
+{
+if (a.Length != b.Length)
+throw new ArgumentException("a and b must be the same length");
+return new string(Enumerable.Range(0, a.Length)
+.Select(o =&gt; a[o] == b[o] ? '0' : '1').ToArray());
+};
+for (var i = 0; i &lt;= deltaLen; i++)
+{
+var q = m[0] == '1' ? "1" : "0";
+var p = q == "1" ? divisor : new string('0', divisorLen);
+var remainder = xor(m, p)[1..];
+quotient += q;
+var padding = getPadding(i, deltaLen - i, null!);
+msgs.Add($"{indent}\x1b[38;5;21m{p[..1]}\x1b[0m{p[1..]}{padding}");
+msgs.Add($"{indent}{new string('-', divisorLen)}{padding}");
+indent += " ";
+m = remainder +
+(divisorLen + i &lt; dividend.Length ? dividend.Substring(divisorLen + i, 1) : "");
+if (i &lt; deltaLen)
+msgs.Add($"{indent}{m[..^1]}{colorText(clrIdx++, m[^1])}{getPadding(i + 1, deltaLen - i - 1, null!)}");
+else
+msgs.Add($"{indent}{m}");
+}
+msgs.Insert(0, $"{new string(' ', divisorLen * 2)}\x1b[38;5;21m{quotient}\x1b[0m");
+Console.WriteLine(string.Join("
+", msgs));
+</code></pre> <p>邏輯很單純，用程式演練一次手算規則而已，借用昨天說的 <a href="/blog/ansi-escape-code/">ANSI 顏色控制碼技巧</a>，我很假掰地加了彩色數字對齊標線。大部分手算會省略第一碼是 0 的回合，我選擇如實輸出，並將數字標上鮮藍色與商數的每一位對映。</p> <p>成果如下，薑薑薑講~~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638316306663587346.png"></p> <p>另外，VSCode Intellisense 教我一個新寫法，str.Substring(0, 1) 可以寫成 str[..1]，str.Substring(1) 可寫成 str[1..]，取最後一個字元可以寫 str[^1]，str.Substring(0, str.Length -1) 則可寫成 str[..^1]。寫法相對簡潔，但不熟悉<a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-8.0/ranges?WT.mc_id=DOP-MVP-37580">C# 陣列索引範圍語法</a>的話，多看幾次才會習慣，學會活用這個 C# 8 加入的新特性，是本次的額外收獲。</p> <p data-slug="crc-mod2-div" data-title-en="Coding for fun - calculating CRC modulo2 division" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">A little C# example to demostrating the modulo 2 divsion calculation of CRC.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638316306657975110.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638316306657975110.png" medium="image"/>
+    <pubDate>Sat, 30 Sep 2023 00:26:37 GMT</pubDate>
+  </item><item>
     <title><![CDATA[ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛]]></title>
     <link>https://blog.darkthread.net/blog/ansi-escape-code/</link>
     <itunes:title><![CDATA[ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛]]></itunes:title>
@@ -1228,20 +1432,5 @@ Console.WriteLine(ex.Message);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png" medium="image"/>
     <pubDate>Thu, 14 Sep 2023 15:23:01 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[IIS ARR (Application Request Routing) 安裝 (2023 版)]]></title>
-    <link>https://blog.darkthread.net/blog/install-iis-arr/</link>
-    <itunes:title><![CDATA[IIS ARR (Application Request Routing) 安裝 (2023 版)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>這幾年蠻常用 IIS ARR 架 Reverse Proxy 或做網址重新導向(應用範例：<a href="/blog/arr-in-aspnet-mvc-site/">在 ASP.NET MVC 站台使用 IIS ARR</a>、<a href="/blog/host-header-vulnerability/">HTTP Host Header 資安弱點防護</a>)，由於常需在隔離環境離線安裝，我找到最簡便的做法是<a href="/blog/arr-in-aspnet-mvc-site/">下載四合一組合包 Application Request Routing 3.0 Stand-alone package (IExpress) x64</a> - <code>ARRv3_setup_amd64_en-us.EXE</code>，一次裝好所需套件。</p> <p>討厭的事又發生了。微軟網站改版更新後連結失效或載點消失是家常便飯，原本的<a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">下載網頁</a>於 10/26/2022 更新到 3.0.5311 版，下載程式變成 Microsoft Application Request Routing 3.0 (x64) 模組的安裝程式 - requestRouter_amd64.msi，不再是原本的安裝懶人包：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png"></p> <p>下方說明則註明：</p> <blockquote> <p>ARR is dependent on several components: URL Rewrite, External Cache module<br> Do not attempt to install this package directly due to this dependency. To install ARR and all its components in the appropriate order, use the <a href="http://www.microsoft.com/web/downloads/platform.aspx?WT.mc_id=DOP-MVP-37580">Microsoft Web Platform Installer</a> and search for ARR within it. Alternatively, read the following blog post for instructions on installing ARR manually: <a href="http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx">http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx</a></p> </blockquote> <p>意思是本模組依賴 URL Rewrite、External Cache 模式，請勿直接安裝，建議用 Platform Installer 或參考 TechNet 一篇十年前的教學文。不出意料，說明提供的兩個連結都已失效。</p> <p>Google 找到 <a href="https://blogs.iis.net/erez/installing-arr-manually-without-webpi">Installing ARR manually without WebPI 文章新址</a>，文章教你可以用 IExpress 版安裝最省事! (登楞!! 就是文章開頭說的 <code>ARRv3_setup_amd64_en-us.EXE</code>，啊就是檔案不見了我才來看文章呀)，文章另有手動逐一安裝的模組名稱跟下載連結... 沒錯，連結早已壞光光。</p> <p>確認官網資料嚴重過時，重新爬文，得知兩件事：</p> <p>第一，Web Platform Installer (WebPI) 已於 2022/12/31 <a href="https://blogs.iis.net/iisteam/web-platform-installer-end-of-support-feed">下台一鞠躬</a>。</p> <p>第二，新版 ARR 基本上只需安裝兩個套件：IIS URL Rewrite Module 2.1 及 Microsoft Application Request Routing 3.0。(不再需要 WebFarm, External Cache 模組)<br> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">參考</a>：ARR depends on URL Rewrite. Ensure URL Rewrite is installed prior to installing ARR.</p> <p>整理兩個模組下載網址如下：</p> <ul><li><a href="https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi?WT.mc_id=DOP-MVP-37580">URL Rewrite, <code>rewrite_amd64_en-US.msi</code></a> / <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/url-rewrite">說明</a></li> <li><a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">Application Request Routing, <code>requestRouter_amd64.msi</code></a> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">說明</a></li></ul> <p>實測在 Windows 2019 IIS 依序裝好上述 URL Rewrite 及 ARR 模組，Reverse Proxy 功能可正常運轉無誤。(若手上還有 <code>ARRv3_setup_amd64_en-us.EXE</code> 備份，實測用它安裝也 OK，目前沒發現問題。)</p> <p data-slug="install-iis-arr" data-title-en="Installing IIS ARRv3 (2019 version)" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/kvMdd7O.jpg#1024#576">Notes about how to install IIS ARRv3.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>這幾年蠻常用 IIS ARR 架 Reverse Proxy 或做網址重新導向(應用範例：<a href="/blog/arr-in-aspnet-mvc-site/">在 ASP.NET MVC 站台使用 IIS ARR</a>、<a href="/blog/host-header-vulnerability/">HTTP Host Header 資安弱點防護</a>)，由於常需在隔離環境離線安裝，我找到最簡便的做法是<a href="/blog/arr-in-aspnet-mvc-site/">下載四合一組合包 Application Request Routing 3.0 Stand-alone package (IExpress) x64</a> - <code>ARRv3_setup_amd64_en-us.EXE</code>，一次裝好所需套件。</p> <p>討厭的事又發生了。微軟網站改版更新後連結失效或載點消失是家常便飯，原本的<a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">下載網頁</a>於 10/26/2022 更新到 3.0.5311 版，下載程式變成 Microsoft Application Request Routing 3.0 (x64) 模組的安裝程式 - requestRouter_amd64.msi，不再是原本的安裝懶人包：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png"></p> <p>下方說明則註明：</p> <blockquote> <p>ARR is dependent on several components: URL Rewrite, External Cache module<br> Do not attempt to install this package directly due to this dependency. To install ARR and all its components in the appropriate order, use the <a href="http://www.microsoft.com/web/downloads/platform.aspx?WT.mc_id=DOP-MVP-37580">Microsoft Web Platform Installer</a> and search for ARR within it. Alternatively, read the following blog post for instructions on installing ARR manually: <a href="http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx">http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx</a></p> </blockquote> <p>意思是本模組依賴 URL Rewrite、External Cache 模式，請勿直接安裝，建議用 Platform Installer 或參考 TechNet 一篇十年前的教學文。不出意料，說明提供的兩個連結都已失效。</p> <p>Google 找到 <a href="https://blogs.iis.net/erez/installing-arr-manually-without-webpi">Installing ARR manually without WebPI 文章新址</a>，文章教你可以用 IExpress 版安裝最省事! (登楞!! 就是文章開頭說的 <code>ARRv3_setup_amd64_en-us.EXE</code>，啊就是檔案不見了我才來看文章呀)，文章另有手動逐一安裝的模組名稱跟下載連結... 沒錯，連結早已壞光光。</p> <p>確認官網資料嚴重過時，重新爬文，得知兩件事：</p> <p>第一，Web Platform Installer (WebPI) 已於 2022/12/31 <a href="https://blogs.iis.net/iisteam/web-platform-installer-end-of-support-feed">下台一鞠躬</a>。</p> <p>第二，新版 ARR 基本上只需安裝兩個套件：IIS URL Rewrite Module 2.1 及 Microsoft Application Request Routing 3.0。(不再需要 WebFarm, External Cache 模組)<br> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">參考</a>：ARR depends on URL Rewrite. Ensure URL Rewrite is installed prior to installing ARR.</p> <p>整理兩個模組下載網址如下：</p> <ul><li><a href="https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi?WT.mc_id=DOP-MVP-37580">URL Rewrite, <code>rewrite_amd64_en-US.msi</code></a> / <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/url-rewrite">說明</a></li> <li><a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">Application Request Routing, <code>requestRouter_amd64.msi</code></a> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">說明</a></li></ul> <p>實測在 Windows 2019 IIS 依序裝好上述 URL Rewrite 及 ARR 模組，Reverse Proxy 功能可正常運轉無誤。(若手上還有 <code>ARRv3_setup_amd64_en-us.EXE</code> 備份，實測用它安裝也 OK，目前沒發現問題。)</p> <p data-slug="install-iis-arr" data-title-en="Installing IIS ARRv3 (2019 version)" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/kvMdd7O.jpg#1024#576">Notes about how to install IIS ARRv3.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>這幾年蠻常用 IIS ARR 架 Reverse Proxy 或做網址重新導向(應用範例：<a href="/blog/arr-in-aspnet-mvc-site/">在 ASP.NET MVC 站台使用 IIS ARR</a>、<a href="/blog/host-header-vulnerability/">HTTP Host Header 資安弱點防護</a>)，由於常需在隔離環境離線安裝，我找到最簡便的做法是<a href="/blog/arr-in-aspnet-mvc-site/">下載四合一組合包 Application Request Routing 3.0 Stand-alone package (IExpress) x64</a> - <code>ARRv3_setup_amd64_en-us.EXE</code>，一次裝好所需套件。</p> <p>討厭的事又發生了。微軟網站改版更新後連結失效或載點消失是家常便飯，原本的<a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">下載網頁</a>於 10/26/2022 更新到 3.0.5311 版，下載程式變成 Microsoft Application Request Routing 3.0 (x64) 模組的安裝程式 - requestRouter_amd64.msi，不再是原本的安裝懶人包：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png"></p> <p>下方說明則註明：</p> <blockquote> <p>ARR is dependent on several components: URL Rewrite, External Cache module<br> Do not attempt to install this package directly due to this dependency. To install ARR and all its components in the appropriate order, use the <a href="http://www.microsoft.com/web/downloads/platform.aspx?WT.mc_id=DOP-MVP-37580">Microsoft Web Platform Installer</a> and search for ARR within it. Alternatively, read the following blog post for instructions on installing ARR manually: <a href="http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx">http://blogs.technet.com/b/erezs_iis_blog/archive/2013/11/27/installing-arr-manually-without-webpi.aspx</a></p> </blockquote> <p>意思是本模組依賴 URL Rewrite、External Cache 模式，請勿直接安裝，建議用 Platform Installer 或參考 TechNet 一篇十年前的教學文。不出意料，說明提供的兩個連結都已失效。</p> <p>Google 找到 <a href="https://blogs.iis.net/erez/installing-arr-manually-without-webpi">Installing ARR manually without WebPI 文章新址</a>，文章教你可以用 IExpress 版安裝最省事! (登楞!! 就是文章開頭說的 <code>ARRv3_setup_amd64_en-us.EXE</code>，啊就是檔案不見了我才來看文章呀)，文章另有手動逐一安裝的模組名稱跟下載連結... 沒錯，連結早已壞光光。</p> <p>確認官網資料嚴重過時，重新爬文，得知兩件事：</p> <p>第一，Web Platform Installer (WebPI) 已於 2022/12/31 <a href="https://blogs.iis.net/iisteam/web-platform-installer-end-of-support-feed">下台一鞠躬</a>。</p> <p>第二，新版 ARR 基本上只需安裝兩個套件：IIS URL Rewrite Module 2.1 及 Microsoft Application Request Routing 3.0。(不再需要 WebFarm, External Cache 模組)<br> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">參考</a>：ARR depends on URL Rewrite. Ensure URL Rewrite is installed prior to installing ARR.</p> <p>整理兩個模組下載網址如下：</p> <ul><li><a href="https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi?WT.mc_id=DOP-MVP-37580">URL Rewrite, <code>rewrite_amd64_en-US.msi</code></a> / <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/url-rewrite">說明</a></li> <li><a href="https://www.microsoft.com/en-us/download/details.aspx?id=47333&amp;WT.mc_id=DOP-MVP-37580">Application Request Routing, <code>requestRouter_amd64.msi</code></a> <a href="https://iis-umbraco.azurewebsites.net/downloads/microsoft/application-request-routing">說明</a></li></ul> <p>實測在 Windows 2019 IIS 依序裝好上述 URL Rewrite 及 ARR 模組，Reverse Proxy 功能可正常運轉無誤。(若手上還有 <code>ARRv3_setup_amd64_en-us.EXE</code> 備份，實測用它安裝也 OK，目前沒發現問題。)</p> <p data-slug="install-iis-arr" data-title-en="Installing IIS ARRv3 (2019 version)" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/kvMdd7O.jpg#1024#576">Notes about how to install IIS ARRv3.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638302093912756673.png" medium="image"/>
-    <pubDate>Wed, 13 Sep 2023 13:37:52 GMT</pubDate>
   </item></channel>
 </rss>
