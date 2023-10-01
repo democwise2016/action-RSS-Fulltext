@@ -30,6 +30,60 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[演算法作業好朋友 - BigInteger]]></title>
+    <link>https://blog.darkthread.net/blog/biginteger/</link>
+    <itunes:title><![CDATA[演算法作業好朋友 - BigInteger]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>日常 .NET 程式開發，若要處理超大數字，ulong 可到 18,446,744,073,709,551,615 (64位元)，若還不夠，decimal 支援範圍從 ±1.0 x 10<sup>28</sup> to ±7.9228 x 10<sup>28</sup>，精確度為 28-29 位，對一般應用已如天文數字，足以應付各式需求。</p> <p>但切換到數學領域，則是完全不同的局面。尤其是密碼學，在 <a href="/blog/ecc-notes/">ECC 橢圓曲線密碼學</a>掘起前，過去常要靠超大數字的計算難題構建防止破解的高牆，以當今仍是資安主力擔當的 <a href="https://zh.wikipedia.org/zh-tw/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">RSA 非對稱金鑰加密</a>為例，其原理便是兩個超大質數乘積的因數分解難題。 <a href="https://zh.wikipedia.org/zh-tw/RSA%E6%95%B0">RSA-2048 挑戰</a>(成功破解可得獎金 USD 20 萬)便高達 617 位十進位數字；而 SSL(TLS)/SSH/IPSec 會用到的<a href="https://zh.wikipedia.org/zh-tw/%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E5%AF%86%E9%91%B0%E4%BA%A4%E6%8F%9B">迪菲-赫爾曼密鑰交換(Diffie–Hellman Key Exchange)演算法</a>，公式 g^a mod p 中的 p 也是個特大質數，一般也建議要 2048 位元，寫成十進位，數字超過 600 位。</p> <p>實務上這類超大數字運算通常在底層程式庫或晶片裡做掉，輪不到我們操煩，唯一的例外是學習演算法時可能需要實際寫程式驗證，故練習或作業裡可能出現數百位整數的加減乘除兼取餘數運算需求，此時該怎麼辦？自己宣告一個 byte[] 寫邏輯實現長整數的四則運算？(題外話：小時候參加程式設計比賽，好像有一題就是自己寫除法)</p> <p>最近發現，現代高階程式語言幾乎都有內建超長整數型別，如 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">.NET</a>、<a href="https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html">Java</a> 都有 BigInteger 型別，Python 更是阿莎力，<a href="https://www.delftstack.com/howto/python/bigint-in-python/">整數原本就沒位數上限，永不溢位</a>。BigInteger 的最大特色是沒有位數上限(所以不會有 BigInteger.MaxValue 這種東西)，只要記憶體放得下，再大的數字都讓你玩。</p> <p>這篇來簡單介紹 .NET BigInteger 怎麼用。</p> <h3>如何建立 BigIntger？</h3> <p>方法很多，用 new 傳數值建構、明確或隱含轉型、Parse 字串。</p> <pre><code>// 使用 new 並指定數值，浮點數的話小數部分無條件捨去
+var bi1 = new BigInteger(123456);
+var bi2 = new BigInteger(1234.567);
+// 成百上千位元時，可從 byte[] 建立
+// 註：可用 $"{bi3:x}" 顯示為 16 進位，下例為 0x04030201 (高位元在前)
+var bi3 = new BigInteger(new byte[] { 1, 2, 3, 4 });
+// 明確轉型再等於或用等於隱含轉型都成
+var bi4 = (BigInteger)123456789;
+BigInteger bi5 = 1234;
+// 由字串 Parse
+var bi6 = BigInteger.Parse("123456");
+// 16 進位數字
+var bi7 = BigInteger.Parse("1a2b3c4d", System.Globalization.NumberStyles.HexNumber);
+</code></pre> <p>16 進位數字轉換時有個小眉角，若第一個數字大於 7 會被解析為負數，解法是在最前面加一個 "0"：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638317675327314601.png"></p> <h3>BigInteger 如何加減乘除？</h3> <p>BigInteger 有實作各種常用運算子，故計算時用一般整數的寫法就可以了。另外，因 Math.Abs() 等方法不支援 BigIneger，BigInteger 有實作專屬版本，例如：BigInteger.Abs()、BigInteger.Pow() (次方)、BigInteger.Max()... 等。使用上蠻直覺的，有 C# 經驗的話可直接上手，有疑問再去翻<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">文件</a>就好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638317675329160418.png"></p> <h3>BigInteger 的效能如何？</h3> <p>先測先猜：很差。</p> <p>畢竟它是為計算超長整數的特殊目的設計，勢必要取捨，效能肯定不是強項；而 BigInteger 像字串一樣是不可變的，每次計算後要產生一個新結構儲存結果，扯上記憶體配置、資料搬移，想快也快不起來。</p> <p>官方文件有個<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#mutability-and-the-biginteger-structure">經典案例</a>，如果你要做 BigInteger 遞增迴圈，用 int 算完再加到 BigInteger 上，絕對比直接用 BigInteger 計算快 N 倍。</p> <p>用 LinqPad 7 小測一下：840.78 vs 8.93，差了 94 倍，得證。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638317675332730952.png"></p> <h3>小結</h3> <p>這篇文章介紹了 .NET 處理超大數字的利器 - BigInteger 型別，位數無上限(只要記憶體裝得下)，使用上跟 int, long 差不多方便，直接加減乘除即可，但其計算效能較差，但可以滿足密碼學常見的超大數值計算需求，是寫演算法作業的好朋友。</p> <p data-slug="biginteger" data-title-en="Introduction to .NET BigInteger" data-catg=".NET" data-fbimg="https://i.imgur.com/5AcF7Do.jpg#630#945">Introduction to .NET BigInteger strcut.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>日常 .NET 程式開發，若要處理超大數字，ulong 可到 18,446,744,073,709,551,615 (64位元)，若還不夠，decimal 支援範圍從 ±1.0 x 10<sup>28</sup> to ±7.9228 x 10<sup>28</sup>，精確度為 28-29 位，對一般應用已如天文數字，足以應付各式需求。</p> <p>但切換到數學領域，則是完全不同的局面。尤其是密碼學，在 <a href="/blog/ecc-notes/">ECC 橢圓曲線密碼學</a>掘起前，過去常要靠超大數字的計算難題構建防止破解的高牆，以當今仍是資安主力擔當的 <a href="https://zh.wikipedia.org/zh-tw/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">RSA 非對稱金鑰加密</a>為例，其原理便是兩個超大質數乘積的因數分解難題。 <a href="https://zh.wikipedia.org/zh-tw/RSA%E6%95%B0">RSA-2048 挑戰</a>(成功破解可得獎金 USD 20 萬)便高達 617 位十進位數字；而 SSL(TLS)/SSH/IPSec 會用到的<a href="https://zh.wikipedia.org/zh-tw/%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E5%AF%86%E9%91%B0%E4%BA%A4%E6%8F%9B">迪菲-赫爾曼密鑰交換(Diffie–Hellman Key Exchange)演算法</a>，公式 g^a mod p 中的 p 也是個特大質數，一般也建議要 2048 位元，寫成十進位，數字超過 600 位。</p> <p>實務上這類超大數字運算通常在底層程式庫或晶片裡做掉，輪不到我們操煩，唯一的例外是學習演算法時可能需要實際寫程式驗證，故練習或作業裡可能出現數百位整數的加減乘除兼取餘數運算需求，此時該怎麼辦？自己宣告一個 byte[] 寫邏輯實現長整數的四則運算？(題外話：小時候參加程式設計比賽，好像有一題就是自己寫除法)</p> <p>最近發現，現代高階程式語言幾乎都有內建超長整數型別，如 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">.NET</a>、<a href="https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html">Java</a> 都有 BigInteger 型別，Python 更是阿莎力，<a href="https://www.delftstack.com/howto/python/bigint-in-python/">整數原本就沒位數上限，永不溢位</a>。BigInteger 的最大特色是沒有位數上限(所以不會有 BigInteger.MaxValue 這種東西)，只要記憶體放得下，再大的數字都讓你玩。</p> <p>這篇來簡單介紹 .NET BigInteger 怎麼用。</p> <h3>如何建立 BigIntger？</h3> <p>方法很多，用 new 傳數值建構、明確或隱含轉型、Parse 字串。</p> <pre><code>// 使用 new 並指定數值，浮點數的話小數部分無條件捨去
+var bi1 = new BigInteger(123456);
+var bi2 = new BigInteger(1234.567);
+// 成百上千位元時，可從 byte[] 建立
+// 註：可用 $"{bi3:x}" 顯示為 16 進位，下例為 0x04030201 (高位元在前)
+var bi3 = new BigInteger(new byte[] { 1, 2, 3, 4 });
+// 明確轉型再等於或用等於隱含轉型都成
+var bi4 = (BigInteger)123456789;
+BigInteger bi5 = 1234;
+// 由字串 Parse
+var bi6 = BigInteger.Parse("123456");
+// 16 進位數字
+var bi7 = BigInteger.Parse("1a2b3c4d", System.Globalization.NumberStyles.HexNumber);
+</code></pre> <p>16 進位數字轉換時有個小眉角，若第一個數字大於 7 會被解析為負數，解法是在最前面加一個 "0"：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638317675327314601.png"></p> <h3>BigInteger 如何加減乘除？</h3> <p>BigInteger 有實作各種常用運算子，故計算時用一般整數的寫法就可以了。另外，因 Math.Abs() 等方法不支援 BigIneger，BigInteger 有實作專屬版本，例如：BigInteger.Abs()、BigInteger.Pow() (次方)、BigInteger.Max()... 等。使用上蠻直覺的，有 C# 經驗的話可直接上手，有疑問再去翻<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">文件</a>就好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638317675329160418.png"></p> <h3>BigInteger 的效能如何？</h3> <p>先測先猜：很差。</p> <p>畢竟它是為計算超長整數的特殊目的設計，勢必要取捨，效能肯定不是強項；而 BigInteger 像字串一樣是不可變的，每次計算後要產生一個新結構儲存結果，扯上記憶體配置、資料搬移，想快也快不起來。</p> <p>官方文件有個<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#mutability-and-the-biginteger-structure">經典案例</a>，如果你要做 BigInteger 遞增迴圈，用 int 算完再加到 BigInteger 上，絕對比直接用 BigInteger 計算快 N 倍。</p> <p>用 LinqPad 7 小測一下：840.78 vs 8.93，差了 94 倍，得證。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638317675332730952.png"></p> <h3>小結</h3> <p>這篇文章介紹了 .NET 處理超大數字的利器 - BigInteger 型別，位數無上限(只要記憶體裝得下)，使用上跟 int, long 差不多方便，直接加減乘除即可，但其計算效能較差，但可以滿足密碼學常見的超大數值計算需求，是寫演算法作業的好朋友。</p> <p data-slug="biginteger" data-title-en="Introduction to .NET BigInteger" data-catg=".NET" data-fbimg="https://i.imgur.com/5AcF7Do.jpg#630#945">Introduction to .NET BigInteger strcut.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>日常 .NET 程式開發，若要處理超大數字，ulong 可到 18,446,744,073,709,551,615 (64位元)，若還不夠，decimal 支援範圍從 ±1.0 x 10<sup>28</sup> to ±7.9228 x 10<sup>28</sup>，精確度為 28-29 位，對一般應用已如天文數字，足以應付各式需求。</p> <p>但切換到數學領域，則是完全不同的局面。尤其是密碼學，在 <a href="/blog/ecc-notes/">ECC 橢圓曲線密碼學</a>掘起前，過去常要靠超大數字的計算難題構建防止破解的高牆，以當今仍是資安主力擔當的 <a href="https://zh.wikipedia.org/zh-tw/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">RSA 非對稱金鑰加密</a>為例，其原理便是兩個超大質數乘積的因數分解難題。 <a href="https://zh.wikipedia.org/zh-tw/RSA%E6%95%B0">RSA-2048 挑戰</a>(成功破解可得獎金 USD 20 萬)便高達 617 位十進位數字；而 SSL(TLS)/SSH/IPSec 會用到的<a href="https://zh.wikipedia.org/zh-tw/%E8%BF%AA%E8%8F%B2-%E8%B5%AB%E7%88%BE%E6%9B%BC%E5%AF%86%E9%91%B0%E4%BA%A4%E6%8F%9B">迪菲-赫爾曼密鑰交換(Diffie–Hellman Key Exchange)演算法</a>，公式 g^a mod p 中的 p 也是個特大質數，一般也建議要 2048 位元，寫成十進位，數字超過 600 位。</p> <p>實務上這類超大數字運算通常在底層程式庫或晶片裡做掉，輪不到我們操煩，唯一的例外是學習演算法時可能需要實際寫程式驗證，故練習或作業裡可能出現數百位整數的加減乘除兼取餘數運算需求，此時該怎麼辦？自己宣告一個 byte[] 寫邏輯實現長整數的四則運算？(題外話：小時候參加程式設計比賽，好像有一題就是自己寫除法)</p> <p>最近發現，現代高階程式語言幾乎都有內建超長整數型別，如 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">.NET</a>、<a href="https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html">Java</a> 都有 BigInteger 型別，Python 更是阿莎力，<a href="https://www.delftstack.com/howto/python/bigint-in-python/">整數原本就沒位數上限，永不溢位</a>。BigInteger 的最大特色是沒有位數上限(所以不會有 BigInteger.MaxValue 這種東西)，只要記憶體放得下，再大的數字都讓你玩。</p> <p>這篇來簡單介紹 .NET BigInteger 怎麼用。</p> <h3>如何建立 BigIntger？</h3> <p>方法很多，用 new 傳數值建構、明確或隱含轉型、Parse 字串。</p> <pre><code>// 使用 new 並指定數值，浮點數的話小數部分無條件捨去
+var bi1 = new BigInteger(123456);
+var bi2 = new BigInteger(1234.567);
+// 成百上千位元時，可從 byte[] 建立
+// 註：可用 $"{bi3:x}" 顯示為 16 進位，下例為 0x04030201 (高位元在前)
+var bi3 = new BigInteger(new byte[] { 1, 2, 3, 4 });
+// 明確轉型再等於或用等於隱含轉型都成
+var bi4 = (BigInteger)123456789;
+BigInteger bi5 = 1234;
+// 由字串 Parse
+var bi6 = BigInteger.Parse("123456");
+// 16 進位數字
+var bi7 = BigInteger.Parse("1a2b3c4d", System.Globalization.NumberStyles.HexNumber);
+</code></pre> <p>16 進位數字轉換時有個小眉角，若第一個數字大於 7 會被解析為負數，解法是在最前面加一個 "0"：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638317675327314601.png"></p> <h3>BigInteger 如何加減乘除？</h3> <p>BigInteger 有實作各種常用運算子，故計算時用一般整數的寫法就可以了。另外，因 Math.Abs() 等方法不支援 BigIneger，BigInteger 有實作專屬版本，例如：BigInteger.Abs()、BigInteger.Pow() (次方)、BigInteger.Max()... 等。使用上蠻直覺的，有 C# 經驗的話可直接上手，有疑問再去翻<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">文件</a>就好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638317675329160418.png"></p> <h3>BigInteger 的效能如何？</h3> <p>先測先猜：很差。</p> <p>畢竟它是為計算超長整數的特殊目的設計，勢必要取捨，效能肯定不是強項；而 BigInteger 像字串一樣是不可變的，每次計算後要產生一個新結構儲存結果，扯上記憶體配置、資料搬移，想快也快不起來。</p> <p>官方文件有個<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.numerics.biginteger?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#mutability-and-the-biginteger-structure">經典案例</a>，如果你要做 BigInteger 遞增迴圈，用 int 算完再加到 BigInteger 上，絕對比直接用 BigInteger 計算快 N 倍。</p> <p>用 LinqPad 7 小測一下：840.78 vs 8.93，差了 94 倍，得證。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638317675332730952.png"></p> <h3>小結</h3> <p>這篇文章介紹了 .NET 處理超大數字的利器 - BigInteger 型別，位數無上限(只要記憶體裝得下)，使用上跟 int, long 差不多方便，直接加減乘除即可，但其計算效能較差，但可以滿足密碼學常見的超大數值計算需求，是寫演算法作業的好朋友。</p> <p data-slug="biginteger" data-title-en="Introduction to .NET BigInteger" data-catg=".NET" data-fbimg="https://i.imgur.com/5AcF7Do.jpg#630#945">Introduction to .NET BigInteger strcut.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638317675327314601.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638317675327314601.png" medium="image"/>
+    <pubDate>Sun, 01 Oct 2023 14:31:46 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - CRC 檢查碼除法演算]]></title>
     <link>https://blog.darkthread.net/blog/crc-mod2-div/</link>
     <itunes:title><![CDATA[Coding4Fun - CRC 檢查碼除法演算]]></itunes:title>
@@ -1288,149 +1342,5 @@ OraProvCfg.exe /action:gac /providerpath:%ORACLE_CLIENT_HOME%\odp.net\PublisherP
 </code></pre> <p>如此，該主機用到 ODP.NET 的程式將無視原本的版本依賴，改用註冊到 GAC 的最新版，從此避開惱人的版本相同問題，水啦。(註：32/64 位元還是得分清楚)</p> <p data-slug="odpnet-reg-sop" data-title-en="Registering ODP.NET" data-catg=".NET" data-fbimg="https://pic.pimg.tw/andro0918/1380381513-3565189622.jpg#500#375">Tips of registering ODP.NET to GAC and using publisher policy to avoid version compatability issue.</p>]]></content:encoded>
     
     <pubDate>Sat, 16 Sep 2023 02:20:07 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.NET 小技巧 - 讀取其他程式開啟中的檔案]]></title>
-    <link>https://blog.darkthread.net/blog/dotnet-read-locked-file/</link>
-    <itunes:title><![CDATA[.NET 小技巧 - 讀取其他程式開啟中的檔案]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
-{
-using (var sw = new StreamWriter(fs))
-{
-Console.WriteLine("File opened. Press any key to exit.");
-while (true)
-{
-if (Console.KeyAvailable) break;
-var timestamp = DateTime.Now.ToString("mm:ss.fff");
-sw.WriteLine(timestamp);
-sw.Flush();
-Console.WriteLine(timestamp);
-Thread.Sleep(1000);
-}
-Console.ReadKey(true); // read and don't show the key pressed
-Console.WriteLine("Done. File closed.");
-}
-}
-</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-var content = File.ReadAllBytes(filePath);
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
-using (var ms = new MemoryStream()) {
-fs.CopyTo(ms);
-var content = ms.ToArray();
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-}
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
-{
-using (var sw = new StreamWriter(fs))
-{
-Console.WriteLine("File opened. Press any key to exit.");
-while (true)
-{
-if (Console.KeyAvailable) break;
-var timestamp = DateTime.Now.ToString("mm:ss.fff");
-sw.WriteLine(timestamp);
-sw.Flush();
-Console.WriteLine(timestamp);
-Thread.Sleep(1000);
-}
-Console.ReadKey(true); // read and don't show the key pressed
-Console.WriteLine("Done. File closed.");
-}
-}
-</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-var content = File.ReadAllBytes(filePath);
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
-using (var ms = new MemoryStream()) {
-fs.CopyTo(ms);
-var content = ms.ToArray();
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-}
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>寫了個小工具偷看網站即時 Log，配合 NLog 使用時正常，但遇到 log4net Log 會出現「The process cannot access the file 'xxxx.log' because it is being used by another process.」錯誤。(註：手邊系統大多以 NLog 為主，但部分老系統仍在用 log4net。<a href="/blog/high-capacity-dotnet-logging-survey/">.NET Log 程式庫評比</a>)</p> <p>小工具讀檔原本用 <code>File.ReadAllBytes()</code>，推測讀取時需鎖定檔案避免其他程式繼續寫入，讀到不完整資料；研判 log4net 的行為與 NLog 不同，log4net 會長期保持檔案開啟，造成其他程序無法使用一般方式讀取。</p> <p>解決方式不難，使用<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.filestream.-ctor?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#system-io-filestream-ctor(system-string-system-io-filemode-system-io-fileaccess-system-io-fileshare)">包含 FileShare 參數的 FileStream 建構式</a>，開啟時宣告允許其他程序讀寫可避開問題。但要注意，這招跟 SQL 的 WITH (NOLOCK) 提示一樣，有可能讀到的是只寫一半的無效資料。小工具目的為偷窺，使用者已有心理準備，故能接受此副作用。</p> <p>用兩支程式重現問題與驗證：</p> <p>file-locker/Program.cs 開啟檔案，每秒寫入一行內容，按任意鍵結束：</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
-{
-using (var sw = new StreamWriter(fs))
-{
-Console.WriteLine("File opened. Press any key to exit.");
-while (true)
-{
-if (Console.KeyAvailable) break;
-var timestamp = DateTime.Now.ToString("mm:ss.fff");
-sw.WriteLine(timestamp);
-sw.Flush();
-Console.WriteLine(timestamp);
-Thread.Sleep(1000);
-}
-Console.ReadKey(true); // read and don't show the key pressed
-Console.WriteLine("Done. File closed.");
-}
-}
-</code></pre> <p>file-reader/Program.cs 使用 File.ReadAllBytes() 讀取 file-locker 寫入的檔案。</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-var content = File.ReadAllBytes(filePath);
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>二者同時執行，重現前面所提檔案正被其他程式使用的錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"></p> <p>修改程式，改用 FileStream，指定 FileShare.ReadWrite (允許後序開啟檔案進行讀取或寫入。 如果未指定，任何要開啟檔案以進行讀取或寫入的要求 (由這個處理序或其他處理序) 將會失敗。<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)</p> <pre><code>var filePath = "D:\\lab\\target.txt";
-try {
-using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
-using (var ms = new MemoryStream()) {
-fs.CopyTo(ms);
-var content = ms.ToArray();
-Console.WriteLine($"File readed, {content.Length} bytes.");
-}
-}
-}
-catch (Exception ex) {
-Console.WriteLine("*** Error ***");
-Console.WriteLine(ex.Message);
-}
-</code></pre> <p>如此即可成功讀檔，反覆執行可觀察到長度持續增加，確認 file-locker 仍開啟檔案持續寫入。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638303019119212534.png"></p> <p>再多做一個測試，如果寫入程式在建立 FileStream 時指定 FileShare.None (拒絕共用目前檔案。 任何 (由這個處理序或其他處理序) 開啟檔案的要求將會失敗，直到關閉檔案。 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.fileshare?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580#--">參考</a>)，如此即便使用 FileStream 宣告 FileShare.ReadWrite，一樣會出現 is being used by another process 錯誤：</p> <pre><code>using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-</code></pre> <p>收工。</p> <p data-slug="dotnet-read-locked-file" data-title-en="Reading the file opened by anothor process in .NET" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">Tips of how to read the file opened by another process with FileShare.ReadWrite parameter.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638303019117380596.png" medium="image"/>
-    <pubDate>Thu, 14 Sep 2023 15:23:01 GMT</pubDate>
   </item></channel>
 </rss>
