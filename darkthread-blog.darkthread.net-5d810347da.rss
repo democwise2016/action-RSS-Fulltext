@@ -30,6 +30,81 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></title>
+    <link>https://blog.darkthread.net/blog/nodejs-localhost-resolving/</link>
+    <itunes:title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
+const clientMode = args.length &amp;&amp; args[0] === 'client';
+if (clientMode) {
+console.log('client test');
+// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
+const fetch = require('node-fetch');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+}
+else {
+console.log('server mode');
+const http = require('http');
+http.createServer((req, res) =&gt; {
+res.writeHead(200, { 'Content-Type': 'text/plain' });
+res.end('Hello World
+');
+}).listen(9527, '127.0.0.1');
+}
+</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
+const clientMode = args.length &amp;&amp; args[0] === 'client';
+if (clientMode) {
+console.log('client test');
+// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
+const fetch = require('node-fetch');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+}
+else {
+console.log('server mode');
+const http = require('http');
+http.createServer((req, res) =&gt; {
+res.writeHead(200, { 'Content-Type': 'text/plain' });
+res.end('Hello World
+');
+}).listen(9527, '127.0.0.1');
+}
+</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
+const clientMode = args.length &amp;&amp; args[0] === 'client';
+if (clientMode) {
+console.log('client test');
+// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
+const fetch = require('node-fetch');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+}
+else {
+console.log('server mode');
+const http = require('http');
+http.createServer((req, res) =&gt; {
+res.writeHead(200, { 'Content-Type': 'text/plain' });
+res.end('Hello World
+');
+}).listen(9527, '127.0.0.1');
+}
+</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
+</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png" medium="image"/>
+    <pubDate>Fri, 06 Oct 2023 15:15:35 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 連 HTTPS 網站「基礎連接已關閉」之 Windows 版本問題]]></title>
     <link>https://blog.darkthread.net/blog/tls-cipher-suite-n-win-version/</link>
     <itunes:title><![CDATA[.NET 連 HTTPS 網站「基礎連接已關閉」之 Windows 版本問題]]></itunes:title>
@@ -1289,20 +1364,5 @@ Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png" medium="image"/>
     <pubDate>Fri, 22 Sep 2023 14:09:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[AI 小書僮 - Edge 瀏覽器之網頁 / PDF 自動摘要]]></title>
-    <link>https://blog.darkthread.net/blog/bing-chat-auto-page-summary/</link>
-    <itunes:title><![CDATA[AI 小書僮 - Edge 瀏覽器之網頁 / PDF 自動摘要]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>這波 AI 熱潮，大家最先想到的都是 ChatGPT。微軟身為 OpenAI 主要投資者，有近水樓台之便，也在加速將 AI 整合到自家產品，除了讓人期待但仍在封測的 Office 365 Copilot (正式名稱為 <a href="https://news.microsoft.com/zh-tw/features/microsoft-365-copilot-ai/?WT.mc_id=DOP-MVP-37580">Microsoft 356 Copilot</a>，但我想 Office Copilot 更能望文生義)，Bing Chat 早已隨 Edge 瀏覽器飛入尋常百姓家，但時常被忽略。大家爬文用 Google、解惑找 ChatGPT、寫程式靠 Github Copilot (延伸閱讀：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>) 就很夠用了! (Bing Chat：等等，還有我啊!!)</p> <p>我覺得 Bing Chat 的聰明伶俐度比不上 ChatGPT，文字精緻性略遜一籌，程式碼及表格呈現也不如 ChatGPT 精美，但 Bing Chat 最大優勢是可以連網查資料，並會附上參考連結，將辨別真偽是非的決定權留給你，不至於看著精美回答陷入兩難：不知該相信還是放棄答案重新爬文。<br> (延伸閱讀：<a href="/blog/ask-new-bing-vs-chatgpt/">ChatGPT vs New Bing 比一比 - 西米露煮粥實例</a>)</p> <p>最近發現 Edge 的 Bing Chat 新增自動摘要功能，閱讀英文網頁時點一下右上角的 b 圖示開啟 Bing Chat 側欄，現在會自動顯示文章摘要。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638308159558333925.png"></p> <p>如果嫌看英文太累，也可下指令請 Bing Chat 翻成中文：(我慣用寫法是「將摘要翻譯成zh-TW」)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638308159560532425.png"></p> <p>除了網頁，檢視 PDF 檔時也會自動產生摘要：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638308159566326962.png"></p> <p>Edge 每次換版都會加入新功能，摘要網頁或 PDF 內容的功能以前就有，但開 Bing Chat 自動產生摘要不知是何時加上的。查了一下，微軟 8/1 有篇<a href="https://www.microsoft.com/en-us/edge/learning-center/how-to-use-bing-in-sidebar?WT.mc_id=DOP-MVP-37580">文章</a>提到 Edge 會在開啟 Bing Chat 側欄時自動提供現在正在瀏覽網頁的摘要。(When you navigate to a new page and open Bing Chat in the Microsoft Edge sidebar, Chat can automatically provide a summary of what you’re looking at. )</p> <p>實測並不是所有網頁都會自動摘要，若沒有自動產生沒關係，聊天視窗的第一個提示項目就是「產生頁面摘要」，處理中文網頁也 OK：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638308159572758848.png"></p> <p>Bing Chat 的要點歸納能力還不錯，我個人覺得有 70 分以上水準。有趣的是，部落格文章 Bing Chat 會一併讀完留言區，幫我統計有 <a href="/blog/word-line-spacing-issue/#636656982806870000">25 則讀者回應</a>，有些讀者表示自己一直有困擾，看這篇文章才解決。(五年前寫的文章仍持續收到讀者留言感謝，還挺開心的，是寫茶包文的最大樂趣)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638308159574935031.png"></p> <p>在需要快速閱讀大量網路文件的場合，這個功能超方便(還完全免費)，摘要與翻譯品質難稱完美且可能遺漏掉重點，但早期篩選階段約略看過再決定是否詳讀，可省下不少時間。以上實用功能，分享給有讀不完文件的朋友。</p> <p>除此外，選取網頁或 PDF 上的文字，Bing Chat 也會主動詢問是否要傳送選取內容進行處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638308159581294809.png"></p> <p>Bing Chat 接受內容後有些預設常用動作，可惜是用簡體中文處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638308159583209974.png"></p> <p>此時可輸入自訂提示決定處理方式：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638308159586796932.png"></p> <p>最後，如果你覺得 Bing Chat 自動幫忙摘要太雞婆，偷看你在讀的內容很失禮，有兩個選項可以設定，前者[1]可取消自動摘要，後者[2]可禁止 Bing Chat 存取你閱讀的網頁或 PDF，保持我問你答，聽令行事的單純互動。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638308159588745007.png"></p> <p data-slug="bing-chat-auto-page-summary" data-fbimg="https://i.imgur.com/s852Hfw.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>這波 AI 熱潮，大家最先想到的都是 ChatGPT。微軟身為 OpenAI 主要投資者，有近水樓台之便，也在加速將 AI 整合到自家產品，除了讓人期待但仍在封測的 Office 365 Copilot (正式名稱為 <a href="https://news.microsoft.com/zh-tw/features/microsoft-365-copilot-ai/?WT.mc_id=DOP-MVP-37580">Microsoft 356 Copilot</a>，但我想 Office Copilot 更能望文生義)，Bing Chat 早已隨 Edge 瀏覽器飛入尋常百姓家，但時常被忽略。大家爬文用 Google、解惑找 ChatGPT、寫程式靠 Github Copilot (延伸閱讀：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>) 就很夠用了! (Bing Chat：等等，還有我啊!!)</p> <p>我覺得 Bing Chat 的聰明伶俐度比不上 ChatGPT，文字精緻性略遜一籌，程式碼及表格呈現也不如 ChatGPT 精美，但 Bing Chat 最大優勢是可以連網查資料，並會附上參考連結，將辨別真偽是非的決定權留給你，不至於看著精美回答陷入兩難：不知該相信還是放棄答案重新爬文。<br> (延伸閱讀：<a href="/blog/ask-new-bing-vs-chatgpt/">ChatGPT vs New Bing 比一比 - 西米露煮粥實例</a>)</p> <p>最近發現 Edge 的 Bing Chat 新增自動摘要功能，閱讀英文網頁時點一下右上角的 b 圖示開啟 Bing Chat 側欄，現在會自動顯示文章摘要。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638308159558333925.png"></p> <p>如果嫌看英文太累，也可下指令請 Bing Chat 翻成中文：(我慣用寫法是「將摘要翻譯成zh-TW」)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638308159560532425.png"></p> <p>除了網頁，檢視 PDF 檔時也會自動產生摘要：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638308159566326962.png"></p> <p>Edge 每次換版都會加入新功能，摘要網頁或 PDF 內容的功能以前就有，但開 Bing Chat 自動產生摘要不知是何時加上的。查了一下，微軟 8/1 有篇<a href="https://www.microsoft.com/en-us/edge/learning-center/how-to-use-bing-in-sidebar?WT.mc_id=DOP-MVP-37580">文章</a>提到 Edge 會在開啟 Bing Chat 側欄時自動提供現在正在瀏覽網頁的摘要。(When you navigate to a new page and open Bing Chat in the Microsoft Edge sidebar, Chat can automatically provide a summary of what you’re looking at. )</p> <p>實測並不是所有網頁都會自動摘要，若沒有自動產生沒關係，聊天視窗的第一個提示項目就是「產生頁面摘要」，處理中文網頁也 OK：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638308159572758848.png"></p> <p>Bing Chat 的要點歸納能力還不錯，我個人覺得有 70 分以上水準。有趣的是，部落格文章 Bing Chat 會一併讀完留言區，幫我統計有 <a href="/blog/word-line-spacing-issue/#636656982806870000">25 則讀者回應</a>，有些讀者表示自己一直有困擾，看這篇文章才解決。(五年前寫的文章仍持續收到讀者留言感謝，還挺開心的，是寫茶包文的最大樂趣)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638308159574935031.png"></p> <p>在需要快速閱讀大量網路文件的場合，這個功能超方便(還完全免費)，摘要與翻譯品質難稱完美且可能遺漏掉重點，但早期篩選階段約略看過再決定是否詳讀，可省下不少時間。以上實用功能，分享給有讀不完文件的朋友。</p> <p>除此外，選取網頁或 PDF 上的文字，Bing Chat 也會主動詢問是否要傳送選取內容進行處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638308159581294809.png"></p> <p>Bing Chat 接受內容後有些預設常用動作，可惜是用簡體中文處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638308159583209974.png"></p> <p>此時可輸入自訂提示決定處理方式：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638308159586796932.png"></p> <p>最後，如果你覺得 Bing Chat 自動幫忙摘要太雞婆，偷看你在讀的內容很失禮，有兩個選項可以設定，前者[1]可取消自動摘要，後者[2]可禁止 Bing Chat 存取你閱讀的網頁或 PDF，保持我問你答，聽令行事的單純互動。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638308159588745007.png"></p> <p data-slug="bing-chat-auto-page-summary" data-fbimg="https://i.imgur.com/s852Hfw.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>這波 AI 熱潮，大家最先想到的都是 ChatGPT。微軟身為 OpenAI 主要投資者，有近水樓台之便，也在加速將 AI 整合到自家產品，除了讓人期待但仍在封測的 Office 365 Copilot (正式名稱為 <a href="https://news.microsoft.com/zh-tw/features/microsoft-365-copilot-ai/?WT.mc_id=DOP-MVP-37580">Microsoft 356 Copilot</a>，但我想 Office Copilot 更能望文生義)，Bing Chat 早已隨 Edge 瀏覽器飛入尋常百姓家，但時常被忽略。大家爬文用 Google、解惑找 ChatGPT、寫程式靠 Github Copilot (延伸閱讀：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>) 就很夠用了! (Bing Chat：等等，還有我啊!!)</p> <p>我覺得 Bing Chat 的聰明伶俐度比不上 ChatGPT，文字精緻性略遜一籌，程式碼及表格呈現也不如 ChatGPT 精美，但 Bing Chat 最大優勢是可以連網查資料，並會附上參考連結，將辨別真偽是非的決定權留給你，不至於看著精美回答陷入兩難：不知該相信還是放棄答案重新爬文。<br> (延伸閱讀：<a href="/blog/ask-new-bing-vs-chatgpt/">ChatGPT vs New Bing 比一比 - 西米露煮粥實例</a>)</p> <p>最近發現 Edge 的 Bing Chat 新增自動摘要功能，閱讀英文網頁時點一下右上角的 b 圖示開啟 Bing Chat 側欄，現在會自動顯示文章摘要。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638308159558333925.png"></p> <p>如果嫌看英文太累，也可下指令請 Bing Chat 翻成中文：(我慣用寫法是「將摘要翻譯成zh-TW」)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638308159560532425.png"></p> <p>除了網頁，檢視 PDF 檔時也會自動產生摘要：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638308159566326962.png"></p> <p>Edge 每次換版都會加入新功能，摘要網頁或 PDF 內容的功能以前就有，但開 Bing Chat 自動產生摘要不知是何時加上的。查了一下，微軟 8/1 有篇<a href="https://www.microsoft.com/en-us/edge/learning-center/how-to-use-bing-in-sidebar?WT.mc_id=DOP-MVP-37580">文章</a>提到 Edge 會在開啟 Bing Chat 側欄時自動提供現在正在瀏覽網頁的摘要。(When you navigate to a new page and open Bing Chat in the Microsoft Edge sidebar, Chat can automatically provide a summary of what you’re looking at. )</p> <p>實測並不是所有網頁都會自動摘要，若沒有自動產生沒關係，聊天視窗的第一個提示項目就是「產生頁面摘要」，處理中文網頁也 OK：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638308159572758848.png"></p> <p>Bing Chat 的要點歸納能力還不錯，我個人覺得有 70 分以上水準。有趣的是，部落格文章 Bing Chat 會一併讀完留言區，幫我統計有 <a href="/blog/word-line-spacing-issue/#636656982806870000">25 則讀者回應</a>，有些讀者表示自己一直有困擾，看這篇文章才解決。(五年前寫的文章仍持續收到讀者留言感謝，還挺開心的，是寫茶包文的最大樂趣)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638308159574935031.png"></p> <p>在需要快速閱讀大量網路文件的場合，這個功能超方便(還完全免費)，摘要與翻譯品質難稱完美且可能遺漏掉重點，但早期篩選階段約略看過再決定是否詳讀，可省下不少時間。以上實用功能，分享給有讀不完文件的朋友。</p> <p>除此外，選取網頁或 PDF 上的文字，Bing Chat 也會主動詢問是否要傳送選取內容進行處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638308159581294809.png"></p> <p>Bing Chat 接受內容後有些預設常用動作，可惜是用簡體中文處理：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638308159583209974.png"></p> <p>此時可輸入自訂提示決定處理方式：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638308159586796932.png"></p> <p>最後，如果你覺得 Bing Chat 自動幫忙摘要太雞婆，偷看你在讀的內容很失禮，有兩個選項可以設定，前者[1]可取消自動摘要，後者[2]可禁止 Bing Chat 存取你閱讀的網頁或 PDF，保持我問你答，聽令行事的單純互動。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638308159588745007.png"></p> <p data-slug="bing-chat-auto-page-summary" data-fbimg="https://i.imgur.com/s852Hfw.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638308159558333925.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638308159558333925.png" medium="image"/>
-    <pubDate>Wed, 20 Sep 2023 13:54:00 GMT</pubDate>
   </item></channel>
 </rss>
