@@ -30,6 +30,21 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[IIS ARR Reverse Proxy 出現 ERR_CONNECTION_RESET 錯誤]]></title>
+    <link>https://blog.darkthread.net/blog/arr-conn-reset-issue/</link>
+    <itunes:title><![CDATA[IIS ARR Reverse Proxy 出現 ERR_CONNECTION_RESET 錯誤]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>嘗試用 IIS ARR 當 Reverse Proxy 重導 PRTG 服務管理網頁，發現僅 HTML 可正常讀取，網頁所需的 png 及 css 發生 ERR_CONNECTION_RESET 錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png"></p> <p>ARR 的狀態有點尷尬，2013 年更新 3.0 後幾乎就沒再更新了，網路查到的資料很多還停在 Windows Server 2008 ，官方相關文件已過時，其中許多參考資料或下載連結失效，IIS 擴充套件下載服務 - Web Platform Installer (WebPI) 也在去年底下線(<a href="/blog/install-iis-arr/">參考</a>)，雖然確定 ARR 在 Windows 2022 IIS 仍可正確安裝及運行，但差不多已被放生(術語是 <a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">Out-of-Bound IIS Module</a>)，<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">ARR 3.0 可支援 IIS 10</a> (Windows 2016 ~ 2022 都是 IIS 10) 到其 EOS 支援週期結束為止，但支援程度就別抱過高期望，文件少資訊難找是一定的。這個發展倒也不難理解，ASP.NET Core 主流應用方式會更傾向 Docker 或雲端，IIS 的重要性已不若以往，未來應會跟 WebForm 一樣，在時代洪流裡逐漸淡出。</p> <p>找到一篇<a href="https://learn.microsoft.com/en-us/answers/questions/1328197/is-iis-arr-end-of-life?WT.mc_id=DOP-MVP-37580">「IIS ARR 已死?」討論</a>，微軟人員的回答蠻符合我的認知：</p> <p>ARR 被視為 Legacy Product (說白話就是「古蹟」啦)，還未被官方正式宣告棄用，但你懂的... 若要評估 Reverse Proxy 替代方案，可考慮 HAProxy (Linux Only)、NGNIX (Linux &amp; Windows，但 <a href="/blog/aspnetcore-docker-notes-3/">Docker 更方便</a>)。</p> <p>不過，由於 IIS 是現成的，靠 ARR 加上 Reverse Proxy 功能，比另外架設 Linux/Docker 或在 Windows 加裝 NGINX 簡便多了，最終我選擇面對問題，乖乖射茶包。</p> <p>總之，經過一番爬文、調查及測試，我找到兩種解法：</p> <h4>停用 ARR Cache</h4> <p>啟用 <a href="https://techcommunity.microsoft.com/t5/iis-support-blog/reading-a-freb-log-a-failed-request-tracing-iis-request/ba-p/1349639?WT.mc_id=DOP-MVP-37580">FREB(Failed Request Event Buffering) Log</a>，發現問題出現在 Flush Response 階段：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638322822948281987.png"></p> <p>找到一篇 <a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">ARR3 + NUXT3 也出現 ERR_CONNECTION_RESET 的案例</a>，有相同的 The parameter is incorrect (0x80070057) 錯誤訊息，解法是加上規則停用 Cache。</p> <p>不管哪種解法，最好要先找到 ARR Cache 圖示，找不到的同學可先參考 <a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322822950211934.png"></p> <p>加一條快取控制規則(Cache Controle Rule)，一律不快取。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322822952157889.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322822953978869.png"></p> <p>停用快取後，問題消失。</p> <h4>取消 Response Buffer</h4> <p>在<a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">另一篇文章</a>看到有人提到 ARR 的 Reponse Buffer 行為會導致 SignalR 出錯，而 FREB Log 的錯誤出現在 <code>GENERAL_FLUSH_RESPONSE_END</code>，判斷二者可能相關。嘗試將 Response buffer threshold (KB) 設為 0，也能避免問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638322822955899090.png"></p> <p>UI 背後其實是在 applicationHost.config 寫入設定，故也可使用以下 CLI 指令搞定 <code>%windir%\system32\inetsrv\appcmd.exe set config -section:system.webServer/proxy /minResponseBuffer:"0" /commit:apphost</code>。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/57437152/288936">ARR does not send Response.Flush content to client - Stackoverflow</a></li> <li><a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">Using SignalR in an ARR cluster</a></li> <li><a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">II10+ARR3+NUXT3遇到ERR_CONNECTION_RESET</a></li> <li><a href="https://social.msdn.microsoft.com/Forums/en-US/9e1dc104-3785-4710-b000-0d02a1768a51/the-connection-to-the-server-was-reset-while-the-page-was-loading?forum=iisapplicationrequestrouting&amp;WT.mc_id=DOP-MVP-37580">The connection to the server was reset while the page was loading</a> 另一則 ARR Server Proxy 的 Response Buffer Threshold 預設 256KB 導致相同錯誤訊息案例，不過他的解法是調大，與我的方向相反。意外發現這篇也提到前幾天說的「<a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>」的雷，可惜沒早點讀到。:D</li></ul> <p data-slug="arr-conn-reset-issue" data-title-en="ERR_CONNECTION_RESET issue in ARR" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1280#720">Case of ARR caused png/css request connection reset, this article provide two workaround.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>嘗試用 IIS ARR 當 Reverse Proxy 重導 PRTG 服務管理網頁，發現僅 HTML 可正常讀取，網頁所需的 png 及 css 發生 ERR_CONNECTION_RESET 錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png"></p> <p>ARR 的狀態有點尷尬，2013 年更新 3.0 後幾乎就沒再更新了，網路查到的資料很多還停在 Windows Server 2008 ，官方相關文件已過時，其中許多參考資料或下載連結失效，IIS 擴充套件下載服務 - Web Platform Installer (WebPI) 也在去年底下線(<a href="/blog/install-iis-arr/">參考</a>)，雖然確定 ARR 在 Windows 2022 IIS 仍可正確安裝及運行，但差不多已被放生(術語是 <a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">Out-of-Bound IIS Module</a>)，<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">ARR 3.0 可支援 IIS 10</a> (Windows 2016 ~ 2022 都是 IIS 10) 到其 EOS 支援週期結束為止，但支援程度就別抱過高期望，文件少資訊難找是一定的。這個發展倒也不難理解，ASP.NET Core 主流應用方式會更傾向 Docker 或雲端，IIS 的重要性已不若以往，未來應會跟 WebForm 一樣，在時代洪流裡逐漸淡出。</p> <p>找到一篇<a href="https://learn.microsoft.com/en-us/answers/questions/1328197/is-iis-arr-end-of-life?WT.mc_id=DOP-MVP-37580">「IIS ARR 已死?」討論</a>，微軟人員的回答蠻符合我的認知：</p> <p>ARR 被視為 Legacy Product (說白話就是「古蹟」啦)，還未被官方正式宣告棄用，但你懂的... 若要評估 Reverse Proxy 替代方案，可考慮 HAProxy (Linux Only)、NGNIX (Linux &amp; Windows，但 <a href="/blog/aspnetcore-docker-notes-3/">Docker 更方便</a>)。</p> <p>不過，由於 IIS 是現成的，靠 ARR 加上 Reverse Proxy 功能，比另外架設 Linux/Docker 或在 Windows 加裝 NGINX 簡便多了，最終我選擇面對問題，乖乖射茶包。</p> <p>總之，經過一番爬文、調查及測試，我找到兩種解法：</p> <h4>停用 ARR Cache</h4> <p>啟用 <a href="https://techcommunity.microsoft.com/t5/iis-support-blog/reading-a-freb-log-a-failed-request-tracing-iis-request/ba-p/1349639?WT.mc_id=DOP-MVP-37580">FREB(Failed Request Event Buffering) Log</a>，發現問題出現在 Flush Response 階段：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638322822948281987.png"></p> <p>找到一篇 <a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">ARR3 + NUXT3 也出現 ERR_CONNECTION_RESET 的案例</a>，有相同的 The parameter is incorrect (0x80070057) 錯誤訊息，解法是加上規則停用 Cache。</p> <p>不管哪種解法，最好要先找到 ARR Cache 圖示，找不到的同學可先參考 <a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322822950211934.png"></p> <p>加一條快取控制規則(Cache Controle Rule)，一律不快取。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322822952157889.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322822953978869.png"></p> <p>停用快取後，問題消失。</p> <h4>取消 Response Buffer</h4> <p>在<a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">另一篇文章</a>看到有人提到 ARR 的 Reponse Buffer 行為會導致 SignalR 出錯，而 FREB Log 的錯誤出現在 <code>GENERAL_FLUSH_RESPONSE_END</code>，判斷二者可能相關。嘗試將 Response buffer threshold (KB) 設為 0，也能避免問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638322822955899090.png"></p> <p>UI 背後其實是在 applicationHost.config 寫入設定，故也可使用以下 CLI 指令搞定 <code>%windir%\system32\inetsrv\appcmd.exe set config -section:system.webServer/proxy /minResponseBuffer:"0" /commit:apphost</code>。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/57437152/288936">ARR does not send Response.Flush content to client - Stackoverflow</a></li> <li><a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">Using SignalR in an ARR cluster</a></li> <li><a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">II10+ARR3+NUXT3遇到ERR_CONNECTION_RESET</a></li> <li><a href="https://social.msdn.microsoft.com/Forums/en-US/9e1dc104-3785-4710-b000-0d02a1768a51/the-connection-to-the-server-was-reset-while-the-page-was-loading?forum=iisapplicationrequestrouting&amp;WT.mc_id=DOP-MVP-37580">The connection to the server was reset while the page was loading</a> 另一則 ARR Server Proxy 的 Response Buffer Threshold 預設 256KB 導致相同錯誤訊息案例，不過他的解法是調大，與我的方向相反。意外發現這篇也提到前幾天說的「<a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>」的雷，可惜沒早點讀到。:D</li></ul> <p data-slug="arr-conn-reset-issue" data-title-en="ERR_CONNECTION_RESET issue in ARR" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1280#720">Case of ARR caused png/css request connection reset, this article provide two workaround.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>嘗試用 IIS ARR 當 Reverse Proxy 重導 PRTG 服務管理網頁，發現僅 HTML 可正常讀取，網頁所需的 png 及 css 發生 ERR_CONNECTION_RESET 錯誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png"></p> <p>ARR 的狀態有點尷尬，2013 年更新 3.0 後幾乎就沒再更新了，網路查到的資料很多還停在 Windows Server 2008 ，官方相關文件已過時，其中許多參考資料或下載連結失效，IIS 擴充套件下載服務 - Web Platform Installer (WebPI) 也在去年底下線(<a href="/blog/install-iis-arr/">參考</a>)，雖然確定 ARR 在 Windows 2022 IIS 仍可正確安裝及運行，但差不多已被放生(術語是 <a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">Out-of-Bound IIS Module</a>)，<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">ARR 3.0 可支援 IIS 10</a> (Windows 2016 ~ 2022 都是 IIS 10) 到其 EOS 支援週期結束為止，但支援程度就別抱過高期望，文件少資訊難找是一定的。這個發展倒也不難理解，ASP.NET Core 主流應用方式會更傾向 Docker 或雲端，IIS 的重要性已不若以往，未來應會跟 WebForm 一樣，在時代洪流裡逐漸淡出。</p> <p>找到一篇<a href="https://learn.microsoft.com/en-us/answers/questions/1328197/is-iis-arr-end-of-life?WT.mc_id=DOP-MVP-37580">「IIS ARR 已死?」討論</a>，微軟人員的回答蠻符合我的認知：</p> <p>ARR 被視為 Legacy Product (說白話就是「古蹟」啦)，還未被官方正式宣告棄用，但你懂的... 若要評估 Reverse Proxy 替代方案，可考慮 HAProxy (Linux Only)、NGNIX (Linux &amp; Windows，但 <a href="/blog/aspnetcore-docker-notes-3/">Docker 更方便</a>)。</p> <p>不過，由於 IIS 是現成的，靠 ARR 加上 Reverse Proxy 功能，比另外架設 Linux/Docker 或在 Windows 加裝 NGINX 簡便多了，最終我選擇面對問題，乖乖射茶包。</p> <p>總之，經過一番爬文、調查及測試，我找到兩種解法：</p> <h4>停用 ARR Cache</h4> <p>啟用 <a href="https://techcommunity.microsoft.com/t5/iis-support-blog/reading-a-freb-log-a-failed-request-tracing-iis-request/ba-p/1349639?WT.mc_id=DOP-MVP-37580">FREB(Failed Request Event Buffering) Log</a>，發現問題出現在 Flush Response 階段：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638322822948281987.png"></p> <p>找到一篇 <a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">ARR3 + NUXT3 也出現 ERR_CONNECTION_RESET 的案例</a>，有相同的 The parameter is incorrect (0x80070057) 錯誤訊息，解法是加上規則停用 Cache。</p> <p>不管哪種解法，最好要先找到 ARR Cache 圖示，找不到的同學可先參考 <a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322822950211934.png"></p> <p>加一條快取控制規則(Cache Controle Rule)，一律不快取。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322822952157889.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322822953978869.png"></p> <p>停用快取後，問題消失。</p> <h4>取消 Response Buffer</h4> <p>在<a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">另一篇文章</a>看到有人提到 ARR 的 Reponse Buffer 行為會導致 SignalR 出錯，而 FREB Log 的錯誤出現在 <code>GENERAL_FLUSH_RESPONSE_END</code>，判斷二者可能相關。嘗試將 Response buffer threshold (KB) 設為 0，也能避免問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638322822955899090.png"></p> <p>UI 背後其實是在 applicationHost.config 寫入設定，故也可使用以下 CLI 指令搞定 <code>%windir%\system32\inetsrv\appcmd.exe set config -section:system.webServer/proxy /minResponseBuffer:"0" /commit:apphost</code>。</p> <p>【參考資料】</p> <ul><li><a href="https://stackoverflow.com/a/57437152/288936">ARR does not send Response.Flush content to client - Stackoverflow</a></li> <li><a href="https://matthewmanela.com/blog/using-signalr-in-an-arr-cluster/">Using SignalR in an ARR cluster</a></li> <li><a href="https://medium.com/@lovely_lion_hyena_411/ii10-arr3-nuxt3%E9%81%87%E5%88%B0err-connection-reset-1d17ee32290">II10+ARR3+NUXT3遇到ERR_CONNECTION_RESET</a></li> <li><a href="https://social.msdn.microsoft.com/Forums/en-US/9e1dc104-3785-4710-b000-0d02a1768a51/the-connection-to-the-server-was-reset-while-the-page-was-loading?forum=iisapplicationrequestrouting&amp;WT.mc_id=DOP-MVP-37580">The connection to the server was reset while the page was loading</a> 另一則 ARR Server Proxy 的 Response Buffer Threshold 預設 256KB 導致相同錯誤訊息案例，不過他的解法是調大，與我的方向相反。意外發現這篇也提到前幾天說的「<a href="/blog/iis-arr-cache-icon-missing/">電腦管理開 IIS 管理員會找不到 ARR Cache 設定</a>」的雷，可惜沒早點讀到。:D</li></ul> <p data-slug="arr-conn-reset-issue" data-title-en="ERR_CONNECTION_RESET issue in ARR" data-catg="ASP.NET/IIS" data-fbimg="https://i.imgur.com/fGbeC8r.jpg#1280#720">Case of ARR caused png/css request connection reset, this article provide two workaround.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png" medium="image"/>
+    <pubDate>Sat, 07 Oct 2023 13:27:25 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></title>
     <link>https://blog.darkthread.net/blog/nodejs-localhost-resolving/</link>
     <itunes:title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></itunes:title>
@@ -1199,170 +1214,5 @@ strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png" medium="image"/>
     <pubDate>Sat, 23 Sep 2023 13:35:14 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></title>
-    <link>https://blog.darkthread.net/blog/ps-compare-json-array/</link>
-    <itunes:title><![CDATA[PowerShell 練習 - JSON 物件陣列差異比對]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Original", "Code": 0 },
-{ "Key": "Miss", "Text": "Missing", "Code": 0 }
-]
-</code></pre> <p>dst.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Modified", "Code": 1 },
-{ "Key": "New", "Text": "New Data", "Code": 1 }
-]
-</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
-[Parameter(Mandatory=$true)]
-[string]$srcPath,
-[Parameter(Mandatory=$true)]
-[string]$dstPath
-)
-$ErrorActionPreference = "Stop"
-$src = @{}
-# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
-# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
-(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
-$dst = @{}
-(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
-# 找出 $dst 有但 $src 沒有的項目
-$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
-Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
-}
-# 找出 $src 有但 $dst 缺少的項目
-$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
-Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
-}
-# 找出 $src 與 $dst 有但值不同的項目
-$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
-# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
-$key = $_
-$srcObj = $src[$key]
-$dstObj = $dst[$key]
-$diff = @{}
-# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
-$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
-$propName = $_
-# 可以用變數當屬性名稱取值
-if ($srcObj.$propName -ne $dstObj.$propName) {
-$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
-}
-}
-if ($diff.Count -gt 0) {
-Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
-}
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Original", "Code": 0 },
-{ "Key": "Miss", "Text": "Missing", "Code": 0 }
-]
-</code></pre> <p>dst.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Modified", "Code": 1 },
-{ "Key": "New", "Text": "New Data", "Code": 1 }
-]
-</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
-[Parameter(Mandatory=$true)]
-[string]$srcPath,
-[Parameter(Mandatory=$true)]
-[string]$dstPath
-)
-$ErrorActionPreference = "Stop"
-$src = @{}
-# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
-# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
-(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
-$dst = @{}
-(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
-# 找出 $dst 有但 $src 沒有的項目
-$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
-Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
-}
-# 找出 $src 有但 $dst 缺少的項目
-$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
-Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
-}
-# 找出 $src 與 $dst 有但值不同的項目
-$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
-# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
-$key = $_
-$srcObj = $src[$key]
-$dstObj = $dst[$key]
-$diff = @{}
-# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
-$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
-$propName = $_
-# 可以用變數當屬性名稱取值
-if ($srcObj.$propName -ne $dstObj.$propName) {
-$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
-}
-}
-if ($diff.Count -gt 0) {
-Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
-}
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>之前寫過<a href="/blog/json-data-diff/">比對兩個 JSON 物件陣列差異的 .NET 小工具</a>，用來對照多哪幾筆、少哪幾筆，哪幾筆的哪幾個欄位不同。這回場景類似，但要改用 PowerShell 實現，當成暖身練習。</p> <p>先準備測試資料如下，故意讓 src.json 與 dst.json 二者有一筆新增、一筆缺少、一筆相同、一筆欄位值不同。</p> <p>src.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Original", "Code": 0 },
-{ "Key": "Miss", "Text": "Missing", "Code": 0 }
-]
-</code></pre> <p>dst.json</p> <pre><code>[
-{ "Key": "Same", "Text": "Consistent", "Code": 0 },
-{ "Key": "Diff", "Text": "Modified", "Code": 1 },
-{ "Key": "New", "Text": "New Data", "Code": 1 }
-]
-</code></pre> <p>一陣子沒寫 PowerShell，這回復習了幾個小技巧：</p> <ol><li>ConvertFrom-Json 轉換出來的物件陣列要用括號包起來或存入變數才能正常跑 ForEach-Object/Where-Object。參考：<a href="/blog/ps-convertfrom-json-pipeline-issue/">PowerShell ConvertFrom-Json 還原陣列無法 Where-Object 篩選</a></li> <li>JSON 換成的自訂物件(PSCustomObject)可用 Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name 列舉屬性名稱字串。<br> PowerShell 自訂物件的屬性型別為 NoteProperty，例如以下範例：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"></li> <li>要用字串變數當屬性名稱的寫法為 $custObject.$propName (不是 $custObject[$propName])：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638309891794520593.png"></li></ol> <p>程式範例如下：</p> <pre><code>param (
-[Parameter(Mandatory=$true)]
-[string]$srcPath,
-[Parameter(Mandatory=$true)]
-[string]$dstPath
-)
-$ErrorActionPreference = "Stop"
-$src = @{}
-# https://blog.darkthread.net/blog/ps-convertfrom-json-pipeline-issue/
-# 使用 ( ) 包住 ConvertFrom-Json 結果以視為一般陣列處理
-(Get-Content $srcPath | ConvertFrom-Json) | ForEach-Object { $src[$_.Key] = $_ }
-$dst = @{}
-(Get-Content $dstPath | ConvertFrom-Json) | ForEach-Object { $dst[$_.Key] = $_ }
-# 找出 $dst 有但 $src 沒有的項目
-$dst.Keys | Where-Object { !$src.ContainsKey($_) } | ForEach-Object {
-Write-Host "多出: $($_)=$($dst[$_] | ConvertTo-Json)"
-}
-# 找出 $src 有但 $dst 缺少的項目
-$src.Keys | Where-Object { !$dst.ContainsKey($_) } | ForEach-Object {
-Write-Host "缺少: $($_)=$($src[$_] | ConvertTo-Json)"
-}
-# 找出 $src 與 $dst 有但值不同的項目
-$src.Keys | Where-Object { $dst.ContainsKey($_) -and $src.ContainsKey($_)} | ForEach-Object {
-# 比較兩物件的所有欄位找出差異 (假設二物件擁有相同欄位)
-$key = $_
-$srcObj = $src[$key]
-$dstObj = $dst[$key]
-$diff = @{}
-# Get-Member 取得物件所有 NoteProperty (屬性) 並取出 Name (屬性名稱)
-$src[$key] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object {
-$propName = $_
-# 可以用變數當屬性名稱取值
-if ($srcObj.$propName -ne $dstObj.$propName) {
-$diff[$propName] = "$($srcObj.$propName) =&gt; $($dstObj.$propName)"
-}
-}
-if ($diff.Count -gt 0) {
-Write-Host "差異: $($_)=$($diff | ConvertTo-Json)"
-}
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638309891796303927.png"></p> <p>筆記備用。</p> <p data-slug="ps-compare-json-array" data-title-en="Comaring arrays of custom objects in JSON format with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">PowerShell example to compare two custom object array JSONs with PowerShell.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638309891792735497.png" medium="image"/>
-    <pubDate>Fri, 22 Sep 2023 14:09:08 GMT</pubDate>
   </item></channel>
 </rss>
