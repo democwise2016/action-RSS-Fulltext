@@ -30,6 +30,174 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 打造個人專屬 ChatGPT 聊天室 (Azure OpenAI Service 版)]]></title>
+    <link>https://blog.darkthread.net/blog/chatty-gpt-azure-openai-version/</link>
+    <itunes:title><![CDATA[Coding4Fun - 打造個人專屬 ChatGPT 聊天室 (Azure OpenAI Service 版)]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;Web Component&lt;/title&gt;
+&lt;style&gt;
+html, body {
+font-family: '微軟正黑體', sans-serif;
+}
+my-component {
+font-size: 20pt;
+cursor: pointer;
+color: dodgerblue;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;input type="text" id="name" value="Jeffrey"&gt;
+&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
+Chanage
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;my-component id="c" user-name="World"&gt;
+&lt;/my-component&gt;
+&lt;ul&gt;
+&lt;/ul&gt;
+&lt;script&gt;
+class MyComponent extends HTMLElement {
+get userName() {
+return this.getAttribute('user-name');
+}
+set userName(value) {
+this.setAttribute('user-name', value);
+this.render();
+}
+connectedCallback() {
+this.render();
+this.addEventListener('click', () =&gt; {
+document.querySelector('ul').innerHTML +=
+`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
+});
+}
+render() {
+this.textContent = `Hello, ${this.userName}!`;
+}
+}
+customElements.define('my-component', MyComponent);
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;Web Component&lt;/title&gt;
+&lt;style&gt;
+html, body {
+font-family: '微軟正黑體', sans-serif;
+}
+my-component {
+font-size: 20pt;
+cursor: pointer;
+color: dodgerblue;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;input type="text" id="name" value="Jeffrey"&gt;
+&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
+Chanage
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;my-component id="c" user-name="World"&gt;
+&lt;/my-component&gt;
+&lt;ul&gt;
+&lt;/ul&gt;
+&lt;script&gt;
+class MyComponent extends HTMLElement {
+get userName() {
+return this.getAttribute('user-name');
+}
+set userName(value) {
+this.setAttribute('user-name', value);
+this.render();
+}
+connectedCallback() {
+this.render();
+this.addEventListener('click', () =&gt; {
+document.querySelector('ul').innerHTML +=
+`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
+});
+}
+render() {
+this.textContent = `Hello, ${this.userName}!`;
+}
+}
+customElements.define('my-component', MyComponent);
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;Web Component&lt;/title&gt;
+&lt;style&gt;
+html, body {
+font-family: '微軟正黑體', sans-serif;
+}
+my-component {
+font-size: 20pt;
+cursor: pointer;
+color: dodgerblue;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;input type="text" id="name" value="Jeffrey"&gt;
+&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
+Chanage
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;my-component id="c" user-name="World"&gt;
+&lt;/my-component&gt;
+&lt;ul&gt;
+&lt;/ul&gt;
+&lt;script&gt;
+class MyComponent extends HTMLElement {
+get userName() {
+return this.getAttribute('user-name');
+}
+set userName(value) {
+this.setAttribute('user-name', value);
+this.render();
+}
+connectedCallback() {
+this.render();
+this.addEventListener('click', () =&gt; {
+document.querySelector('ul').innerHTML +=
+`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
+});
+}
+render() {
+this.textContent = `Hello, ${this.userName}!`;
+}
+}
+customElements.define('my-component', MyComponent);
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png" medium="image"/>
+    <pubDate>Sun, 08 Oct 2023 07:54:36 GMT</pubDate>
+  </item><item>
     <title><![CDATA[IIS ARR Reverse Proxy 出現 ERR_CONNECTION_RESET 錯誤]]></title>
     <link>https://blog.darkthread.net/blog/arr-conn-reset-issue/</link>
     <itunes:title><![CDATA[IIS ARR Reverse Proxy 出現 ERR_CONNECTION_RESET 錯誤]]></itunes:title>
@@ -1055,164 +1223,5 @@ step1()
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638311605081288530.png" medium="image"/>
     <pubDate>Sun, 24 Sep 2023 13:51:07 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></title>
-    <link>https://blog.darkthread.net/blog/gpg-date-locale-bug/</link>
-    <itunes:title><![CDATA[Github 追 Code 經驗 - GPG 日期亂碼是怎麼來的？]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", issuer_fpr);
-}
-else if (!keystrlen () || keystrlen () &gt; 8)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", keystr(sig-&gt;keyid));
-}
-</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
-{
-static int done;
-if (!done)
-{
-/* The locale names as used by Windows are in the form
-* "German_Germany.1252" or "German_Austria.1252" with
-* alternate names similar to Unix, e.g. "de-DE".  However
-* that is the theory.  On current Windows and Mingw the
-* alternate names do not work.  We would need a table to map
-* them from the short names as provided by gpgrt to the long
-* names and append some code page.  For now we use "" and
-* take the locale from the user's system settings.  Thus the
-* standard Unix envvars don't work for time and may mismatch
-* with the string translations.  The new UCRT available since
-* 2018 has a lot of additional support but that will for sure
-* break other things.  We should move to ISO strings to get
-* rid of such problems.  */
-setlocale (LC_TIME, "");
-done = 1;
-/* log_debug ("LC_ALL  now '%s'
-", setlocale (LC_ALL, NULL)); */
-/* log_debug ("LC_TIME now '%s'
-", setlocale (LC_TIME, NULL)); */
-}
-}
-#  endif
-/* FIXME: we should check whether the locale appends a " %Z" These
-* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
-* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
-strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
-# endif
-</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", issuer_fpr);
-}
-else if (!keystrlen () || keystrlen () &gt; 8)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", keystr(sig-&gt;keyid));
-}
-</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
-{
-static int done;
-if (!done)
-{
-/* The locale names as used by Windows are in the form
-* "German_Germany.1252" or "German_Austria.1252" with
-* alternate names similar to Unix, e.g. "de-DE".  However
-* that is the theory.  On current Windows and Mingw the
-* alternate names do not work.  We would need a table to map
-* them from the short names as provided by gpgrt to the long
-* names and append some code page.  For now we use "" and
-* take the locale from the user's system settings.  Thus the
-* standard Unix envvars don't work for time and may mismatch
-* with the string translations.  The new UCRT available since
-* 2018 has a lot of additional support but that will for sure
-* break other things.  We should move to ISO strings to get
-* rid of such problems.  */
-setlocale (LC_TIME, "");
-done = 1;
-/* log_debug ("LC_ALL  now '%s'
-", setlocale (LC_ALL, NULL)); */
-/* log_debug ("LC_TIME now '%s'
-", setlocale (LC_TIME, NULL)); */
-}
-}
-#  endif
-/* FIXME: we should check whether the locale appends a " %Z" These
-* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
-* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
-strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
-# endif
-</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>在 Windows 使用 GPG <a href="/blog/gpg-gen-key-n-encrypt/">加解密及簽章</a>，一般建議用 Gpg4Win，版本較新支援度較好，但有個小問題是 Gpg4Win 所附的 gpg 2.4.3 版，在中文版 Windows 的日期時間顯示會出現亂碼：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"></p> <p>Git for Windows 或 Cmder 附的 gpg 2.2.29 版就沒這個問題：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638310730456212268.png"></p> <p>直覺跟 POSIX 語系環境變數有關，但試過<a href="https://www.csie.ntu.edu.tw/%7Er95053/samples/collection/backup/locale2.html">設定 LANG、LC_ALL、LC_TIME</a>切到不同語系，但完全無法影響顯示結果。</p> <p>GPG 是個開源專案，沒有查不出原因的道理，於是 C 語言麻瓜展開冒險，準備追進原始碼找 Bug。</p> <p>不得不說 Github 的程式碼瀏覽介面變強許多，會自動識別程式語法建立函式來源關聯，追程式碼方便許多。我先在 <a href="https://github.com/gpg/gnupg">gnupg Github 專案</a> 搜尋 "Signature made" 找到 mainproc.c 的<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/g10/mainproc.c#L2010">這段</a>：</p> <pre><code>  if (issuer_fpr)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", issuer_fpr);
-}
-else if (!keystrlen () || keystrlen () &gt; 8)
-{
-log_info (_("Signature made %s
-"), asctimestamp(sig-&gt;timestamp));
-log_info (_("               using %s key %s
-"),
-astr? astr: "?", keystr(sig-&gt;keyid));
-}
-</code></pre> <p>由程式得知時間顯示文字來自 asctimestamp() 函式，點選 asctimestamp 函式名稱，Github 馬上指出程式碼在 common/gettime.c：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638310730460151597.png"></p> <p>從 asctimestamp() 很快找到以下<a href="https://github.com/gpg/gnupg/blob/34f812475e117c720bcb44571e80f9f8f3de6264/common/gettime.c#L712">這段邏輯</a>：</p> <pre><code>#  if HAVE_W32_SYSTEM
-{
-static int done;
-if (!done)
-{
-/* The locale names as used by Windows are in the form
-* "German_Germany.1252" or "German_Austria.1252" with
-* alternate names similar to Unix, e.g. "de-DE".  However
-* that is the theory.  On current Windows and Mingw the
-* alternate names do not work.  We would need a table to map
-* them from the short names as provided by gpgrt to the long
-* names and append some code page.  For now we use "" and
-* take the locale from the user's system settings.  Thus the
-* standard Unix envvars don't work for time and may mismatch
-* with the string translations.  The new UCRT available since
-* 2018 has a lot of additional support but that will for sure
-* break other things.  We should move to ISO strings to get
-* rid of such problems.  */
-setlocale (LC_TIME, "");
-done = 1;
-/* log_debug ("LC_ALL  now '%s'
-", setlocale (LC_ALL, NULL)); */
-/* log_debug ("LC_TIME now '%s'
-", setlocale (LC_TIME, NULL)); */
-}
-}
-#  endif
-/* FIXME: we should check whether the locale appends a " %Z" These
-* locales from glibc don't put the " %Z": fi_FI hr_HR ja_JP lt_LT
-* lv_LV POSIX ru_RU ru_SU sv_FI sv_SE zh_CN.  */
-strftime (buffer, DIM(buffer)-1, "%c %Z", tp);
-# endif
-</code></pre> <p>依程式碼跟註，程式在 Windows 環境下會將 LC_TIME 設成 ""，讓內建函式 strftime() 依 Windows 的國別設定決定語系及日期時間格式。</p> <p>按下 Blame 功能，可追到這是 3 年前 Commit 加入的邏輯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638310730462130430.png"></p> <p>點擊 Commit 查看詳細資訊，確認這是 2.3 加入的功能。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638310730463961795.png"></p> <p>至此真相大白，這合理解釋了為什麼 2.4 版有亂碼且對 LC_TIME 設定刀槍不入(因為在 Windows 會強制將 LC_TIME 覆寫成 ""，改吃 Windows 設定)，2.2 版還沒加入這段，故表現正常。</p> <p>為什麼 LC_TIME 設 "" 用 Windows 設定會出亂碼，這串亂碼原本是什麼中文內容？要繼續探究，少不了寫段 C 實測對照。</p> <p>想想，其實我也不算完全沒能力寫 C，之前整理過 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>，寫幾行程式重現問題應該難不倒我，更何況現在我有 Github Copilot，GO!! (大推：<a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a>)</p> <p>來問問 Github Copilot。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638310730465877746.png"></p> <p>點擊左側的 Copilot Chat 圖示，問 Github Coplilot 怎麼在 mingw 呼叫 strftime 顯示現在時間，Copilot 沒酸我不做功課連成天只會伸手，奉上程式範例附貼心解說。</p> <p>稍加修改，分別設定 LC_TIME 為 "zh_TW.UTF-8" 及 "" 後測試 strftime()，謎團解開：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638310730467758596.png"></p> <p>�U�� 是下午 �x�_�зǮɶ� 是台北標準時間</p> <p>strftime() 在中文語系 Windows 遇到 LC_TIME = ""，會出現中文無法顯示，若設定 "zh_TW.UTF-8" 則正常。爬文發現同樣的問題在 <a href="https://blog.cwlove.idv.tw/php-setlocale-utf8/">PHP 也能重現</a>，依據<a href="https://learn.microsoft.com/zh-tw/cpp/c-runtime-library/reference/setlocale-wsetlocale?view=msvc-170&amp;WT.mc_id=DOP-MVP-37580#utf-8-support">微軟文件</a>，在 Windows 10 1803 版之後，呼叫 setlocale(LC_TIME, ".UTF8") 啟用 UTF-8 模式應為正解。</p> <p>但 GnuPG 有<a href="https://dev.gnupg.org/">自己的 Bug Tracking System</a>，晚點再設法登入通報 Issue，先列為已知問題避開。</p> <p>這回成功追到 C 程式的 Bug，還能重現問題，算是項小小突破，證明老狗還是能學會新把戲滴，幫自己拍拍手。(其實大部分是 Github 及 Github Copilot 的功勞啦 😄)</p> <p data-slug="gpg-date-locale-bug" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638310730454208133.png" medium="image"/>
-    <pubDate>Sat, 23 Sep 2023 13:35:14 GMT</pubDate>
   </item></channel>
 </rss>
