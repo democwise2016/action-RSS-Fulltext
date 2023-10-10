@@ -30,6 +30,153 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[演算法漫談 - Padding 填充如何表示原始資料長度？]]></title>
+    <link>https://blog.darkthread.net/blog/keep-data-len-when-padding/</link>
+    <itunes:title><![CDATA[演算法漫談 - Padding 填充如何表示原始資料長度？]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
+EM = M || PS ,
+where the padding string PS consists of 8-(||M|| mod 8) octets
+each with value 8-(||M|| mod 8). The padding string PS will
+satisfy one of the following statements:
+PS = 01, if ||M|| mod 8 = 7 ;
+PS = 02 02, if ||M|| mod 8 = 6 ;
+...
+PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
+The length in octets of the encoded message will be a multiple
+of eight and it will be possible to recover the message M
+unambiguously from the encoded message. (This padding rule is
+taken from RFC 1423 [3].)
+</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
+{
+var data = new byte[i];
+for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
+var padded = pad(data, 8);
+var trimmed = trimPadding(padded);
+Console.WriteLine(new string('-', 40));
+Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
+Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
+Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
+}
+byte[] pad(byte[] data, int blockSize)
+{
+var padSize = blockSize - (data.Length % blockSize);
+var padding = new byte[padSize];
+for (var i = 0; i &lt; padSize; i++)
+{
+padding[i] = (byte)padSize;
+}
+byte[] padded = new byte[data.Length + padSize];
+data.CopyTo(padded, 0);
+padding.CopyTo(padded, data.Length);
+return padded;
+}
+byte[] trimPadding(byte[] data)
+{
+int padSize = data[data.Length - 1];
+byte[] trimmed = new byte[data.Length - padSize];
+Array.Copy(data, trimmed, trimmed.Length);
+return trimmed;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
+EM = M || PS ,
+where the padding string PS consists of 8-(||M|| mod 8) octets
+each with value 8-(||M|| mod 8). The padding string PS will
+satisfy one of the following statements:
+PS = 01, if ||M|| mod 8 = 7 ;
+PS = 02 02, if ||M|| mod 8 = 6 ;
+...
+PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
+The length in octets of the encoded message will be a multiple
+of eight and it will be possible to recover the message M
+unambiguously from the encoded message. (This padding rule is
+taken from RFC 1423 [3].)
+</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
+{
+var data = new byte[i];
+for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
+var padded = pad(data, 8);
+var trimmed = trimPadding(padded);
+Console.WriteLine(new string('-', 40));
+Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
+Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
+Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
+}
+byte[] pad(byte[] data, int blockSize)
+{
+var padSize = blockSize - (data.Length % blockSize);
+var padding = new byte[padSize];
+for (var i = 0; i &lt; padSize; i++)
+{
+padding[i] = (byte)padSize;
+}
+byte[] padded = new byte[data.Length + padSize];
+data.CopyTo(padded, 0);
+padding.CopyTo(padded, data.Length);
+return padded;
+}
+byte[] trimPadding(byte[] data)
+{
+int padSize = data[data.Length - 1];
+byte[] trimmed = new byte[data.Length - padSize];
+Array.Copy(data, trimmed, trimmed.Length);
+return trimmed;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
+EM = M || PS ,
+where the padding string PS consists of 8-(||M|| mod 8) octets
+each with value 8-(||M|| mod 8). The padding string PS will
+satisfy one of the following statements:
+PS = 01, if ||M|| mod 8 = 7 ;
+PS = 02 02, if ||M|| mod 8 = 6 ;
+...
+PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
+The length in octets of the encoded message will be a multiple
+of eight and it will be possible to recover the message M
+unambiguously from the encoded message. (This padding rule is
+taken from RFC 1423 [3].)
+</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
+{
+var data = new byte[i];
+for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
+var padded = pad(data, 8);
+var trimmed = trimPadding(padded);
+Console.WriteLine(new string('-', 40));
+Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
+Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
+Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
+}
+byte[] pad(byte[] data, int blockSize)
+{
+var padSize = blockSize - (data.Length % blockSize);
+var padding = new byte[padSize];
+for (var i = 0; i &lt; padSize; i++)
+{
+padding[i] = (byte)padSize;
+}
+byte[] padded = new byte[data.Length + padSize];
+data.CopyTo(padded, 0);
+padding.CopyTo(padded, data.Length);
+return padded;
+}
+byte[] trimPadding(byte[] data)
+{
+int padSize = data[data.Length - 1];
+byte[] trimmed = new byte[data.Length - padSize];
+Array.Copy(data, trimmed, trimmed.Length);
+return trimmed;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif" medium="image"/>
+    <pubDate>Tue, 10 Oct 2023 03:01:55 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Linux 新手筆記 - 新增磁碟機、CLI 指令輸入 Tab 字元、輸出轉存管理者限定檔案]]></title>
     <link>https://blog.darkthread.net/blog/add-disk-in-linux/</link>
     <itunes:title><![CDATA[Linux 新手筆記 - 新增磁碟機、CLI 指令輸入 Tab 字元、輸出轉存管理者限定檔案]]></itunes:title>
@@ -761,38 +908,5 @@ White = 37
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638315995662477622.png" medium="image"/>
     <pubDate>Fri, 29 Sep 2023 15:45:52 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[NULL 排序問題 - ORACLE / MSSQL / SQLite 行為整理]]></title>
-    <link>https://blog.darkthread.net/blog/null-in-db-ordering/</link>
-    <itunes:title><![CDATA[NULL 排序問題 - ORACLE / MSSQL / SQLite 行為整理]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>今天學習到新知識 - 資料表欄位進行排序時，遇到 NULL 會怎麼辦？茲針對我平時較會遇到的資料庫：ORACLE、MSSQL 及 SQLite 做個整理。</p> <p>我弄了一個模擬資料表，用 CorpName, StartDate, EndDate 記錄工作履歷：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638312509506396198.png"></p> <p>查詢條件為「仍在職者(離職日為 NULL)最優先，再來比離職日、到職日，較晚的先列」。</p> <p>ORACLE 的規則是 - NULL 預設 ASC 時最後顯示、DESC 時最先顯示，但可使用 NULLS FIRST、NULLS LAST 改變行為(亦即 ASC 時預設為 NULLS LAST、DESC 時 NULLS FIRST)。<a href="https://docs.oracle.com/javadb/10.6.2.1/ref/rrefsqlj13658.html">參考</a></p> <p>因此，<code>ORDER BY EndDate DESC, StartDate DESC</code> 時，DESC 為 NULLS FIRST 最先出現，預設行為即符合我們的要求。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638312509509939347.png"></p> <p>若想改成 NULL 放最後，可寫成 <code>ORDER BY EndDate DESC NULLS LAST, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638312509511779110.png"></p> <p>MSSQL 在排序時，<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/select-order-by-clause-transact-sql?view=sql-server-ver16&amp;redirectedfrom=MSDN&amp;WT.mc_id=DOP-MVP-37580#arguments">Null 值會當做最低的可能值來處理。</a></p> <p>因此 <code>ORDER BY EndDate ASC</code> 時排最前面，<code>ORDER BY EndDate DESC</code> 時排最後面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638312509513547220.png"></p> <p>MSSQL 沒 NULLS LAST 語法可用，替代做法是加上一段 CASE WHEN，寫成 <code>ORDER BY CASE WHEN EndDate IS NULL THEN 0 ELSE 1 END, EndDate DESC, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638312509515324526.png"></p> <p>插花，今天請 ChatGPT 幫我產生範例時，學到一次 INSERT 多筆 VALUES 寫法：<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/table-value-constructor-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#a-inserting-multiple-rows-of-data">參考</a> (官方文件的範例說明跟 T-SQL 指令對不起來，說明寫五筆 dbo.Departments 但範例是三筆 Production.UnitMeasure，原來不只我寫文章會錯亂 XD，看 Code 就好)</p> <pre><code>INSERT INTO resume
-VALUES (N'公司A', '2001-01-01', '2002-12-31'),
-(N'公司B', '2003-01-01', '2005-06-30'),
-(N'公司C', '2005-07-01', '2010-09-30'),
-(N'公司D', '2011-01-01', NULL),
-(N'兼職', '2004-01-01', NULL);
-</code></pre> <p>最後來看 SQLite，SQLite 的行為接近 MSSQL，NULL 視為最小值 (When it comes to sorting, SQLite considers NULL to be smaller than any other value. <a href="https://www.sqlitetutorial.net/sqlite-order-by/">參考</a>)，也支援上述一次多個 VALUES 寫法。但 SQLite 3.30.0 支援 NULLS FIRST 及 NULLS LAST，故可用 <code>ORDER BY EndDate DESC NULLS FIRST, StartDate DESC</code> 解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638312509517103225.png"></p> <p data-slug="null-in-db-ordering" data-title-en="NULL in RDBMS ordering" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/31/15/32/geese-618595_960_720.jpg#960#720">Summary about null ordering in ORACLE, MSSQL and SQLite.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>今天學習到新知識 - 資料表欄位進行排序時，遇到 NULL 會怎麼辦？茲針對我平時較會遇到的資料庫：ORACLE、MSSQL 及 SQLite 做個整理。</p> <p>我弄了一個模擬資料表，用 CorpName, StartDate, EndDate 記錄工作履歷：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638312509506396198.png"></p> <p>查詢條件為「仍在職者(離職日為 NULL)最優先，再來比離職日、到職日，較晚的先列」。</p> <p>ORACLE 的規則是 - NULL 預設 ASC 時最後顯示、DESC 時最先顯示，但可使用 NULLS FIRST、NULLS LAST 改變行為(亦即 ASC 時預設為 NULLS LAST、DESC 時 NULLS FIRST)。<a href="https://docs.oracle.com/javadb/10.6.2.1/ref/rrefsqlj13658.html">參考</a></p> <p>因此，<code>ORDER BY EndDate DESC, StartDate DESC</code> 時，DESC 為 NULLS FIRST 最先出現，預設行為即符合我們的要求。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638312509509939347.png"></p> <p>若想改成 NULL 放最後，可寫成 <code>ORDER BY EndDate DESC NULLS LAST, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638312509511779110.png"></p> <p>MSSQL 在排序時，<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/select-order-by-clause-transact-sql?view=sql-server-ver16&amp;redirectedfrom=MSDN&amp;WT.mc_id=DOP-MVP-37580#arguments">Null 值會當做最低的可能值來處理。</a></p> <p>因此 <code>ORDER BY EndDate ASC</code> 時排最前面，<code>ORDER BY EndDate DESC</code> 時排最後面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638312509513547220.png"></p> <p>MSSQL 沒 NULLS LAST 語法可用，替代做法是加上一段 CASE WHEN，寫成 <code>ORDER BY CASE WHEN EndDate IS NULL THEN 0 ELSE 1 END, EndDate DESC, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638312509515324526.png"></p> <p>插花，今天請 ChatGPT 幫我產生範例時，學到一次 INSERT 多筆 VALUES 寫法：<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/table-value-constructor-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#a-inserting-multiple-rows-of-data">參考</a> (官方文件的範例說明跟 T-SQL 指令對不起來，說明寫五筆 dbo.Departments 但範例是三筆 Production.UnitMeasure，原來不只我寫文章會錯亂 XD，看 Code 就好)</p> <pre><code>INSERT INTO resume
-VALUES (N'公司A', '2001-01-01', '2002-12-31'),
-(N'公司B', '2003-01-01', '2005-06-30'),
-(N'公司C', '2005-07-01', '2010-09-30'),
-(N'公司D', '2011-01-01', NULL),
-(N'兼職', '2004-01-01', NULL);
-</code></pre> <p>最後來看 SQLite，SQLite 的行為接近 MSSQL，NULL 視為最小值 (When it comes to sorting, SQLite considers NULL to be smaller than any other value. <a href="https://www.sqlitetutorial.net/sqlite-order-by/">參考</a>)，也支援上述一次多個 VALUES 寫法。但 SQLite 3.30.0 支援 NULLS FIRST 及 NULLS LAST，故可用 <code>ORDER BY EndDate DESC NULLS FIRST, StartDate DESC</code> 解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638312509517103225.png"></p> <p data-slug="null-in-db-ordering" data-title-en="NULL in RDBMS ordering" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/31/15/32/geese-618595_960_720.jpg#960#720">Summary about null ordering in ORACLE, MSSQL and SQLite.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>今天學習到新知識 - 資料表欄位進行排序時，遇到 NULL 會怎麼辦？茲針對我平時較會遇到的資料庫：ORACLE、MSSQL 及 SQLite 做個整理。</p> <p>我弄了一個模擬資料表，用 CorpName, StartDate, EndDate 記錄工作履歷：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638312509506396198.png"></p> <p>查詢條件為「仍在職者(離職日為 NULL)最優先，再來比離職日、到職日，較晚的先列」。</p> <p>ORACLE 的規則是 - NULL 預設 ASC 時最後顯示、DESC 時最先顯示，但可使用 NULLS FIRST、NULLS LAST 改變行為(亦即 ASC 時預設為 NULLS LAST、DESC 時 NULLS FIRST)。<a href="https://docs.oracle.com/javadb/10.6.2.1/ref/rrefsqlj13658.html">參考</a></p> <p>因此，<code>ORDER BY EndDate DESC, StartDate DESC</code> 時，DESC 為 NULLS FIRST 最先出現，預設行為即符合我們的要求。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638312509509939347.png"></p> <p>若想改成 NULL 放最後，可寫成 <code>ORDER BY EndDate DESC NULLS LAST, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638312509511779110.png"></p> <p>MSSQL 在排序時，<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/select-order-by-clause-transact-sql?view=sql-server-ver16&amp;redirectedfrom=MSDN&amp;WT.mc_id=DOP-MVP-37580#arguments">Null 值會當做最低的可能值來處理。</a></p> <p>因此 <code>ORDER BY EndDate ASC</code> 時排最前面，<code>ORDER BY EndDate DESC</code> 時排最後面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638312509513547220.png"></p> <p>MSSQL 沒 NULLS LAST 語法可用，替代做法是加上一段 CASE WHEN，寫成 <code>ORDER BY CASE WHEN EndDate IS NULL THEN 0 ELSE 1 END, EndDate DESC, StartDate DESC</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638312509515324526.png"></p> <p>插花，今天請 ChatGPT 幫我產生範例時，學到一次 INSERT 多筆 VALUES 寫法：<a href="https://learn.microsoft.com/zh-tw/sql/t-sql/queries/table-value-constructor-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#a-inserting-multiple-rows-of-data">參考</a> (官方文件的範例說明跟 T-SQL 指令對不起來，說明寫五筆 dbo.Departments 但範例是三筆 Production.UnitMeasure，原來不只我寫文章會錯亂 XD，看 Code 就好)</p> <pre><code>INSERT INTO resume
-VALUES (N'公司A', '2001-01-01', '2002-12-31'),
-(N'公司B', '2003-01-01', '2005-06-30'),
-(N'公司C', '2005-07-01', '2010-09-30'),
-(N'公司D', '2011-01-01', NULL),
-(N'兼職', '2004-01-01', NULL);
-</code></pre> <p>最後來看 SQLite，SQLite 的行為接近 MSSQL，NULL 視為最小值 (When it comes to sorting, SQLite considers NULL to be smaller than any other value. <a href="https://www.sqlitetutorial.net/sqlite-order-by/">參考</a>)，也支援上述一次多個 VALUES 寫法。但 SQLite 3.30.0 支援 NULLS FIRST 及 NULLS LAST，故可用 <code>ORDER BY EndDate DESC NULLS FIRST, StartDate DESC</code> 解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638312509517103225.png"></p> <p data-slug="null-in-db-ordering" data-title-en="NULL in RDBMS ordering" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/31/15/32/geese-618595_960_720.jpg#960#720">Summary about null ordering in ORACLE, MSSQL and SQLite.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638312509506396198.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638312509506396198.png" medium="image"/>
-    <pubDate>Mon, 25 Sep 2023 14:57:03 GMT</pubDate>
   </item></channel>
 </rss>
