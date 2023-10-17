@@ -30,6 +30,282 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 自製網站 TLS 憑證 CLI 快速檢視工具]]></title>
+    <link>https://blog.darkthread.net/blog/show-tls-certs/</link>
+    <itunes:title><![CDATA[Coding4Fun - 自製網站 TLS 憑證 CLI 快速檢視工具]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>要調查網站 TLS 憑證無效問題，最直接做法是從瀏覽器安全連線圖示逐步點開檢視憑證內容：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png"></p> <p>憑證檢視器會顯示憑證信任鏈，可查看根憑證、中繼憑證及伺服器憑證的詳細資料，但要知道憑證的主體(Subject)、簽署者(Issuer)、有效期間、指紋等資訊，需逐一點開才能看到。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638331523222864100.png"></p> <p>今天處理一個案例，需要比對兩個網站憑證的細節差異，得不斷來回點擊參照，一串頻繁的重複操作下來，不意外地又熔斷了現代王藍田的理智線。暗! 為什麼沒有 CLI 工具能一次檢視網站提供所有憑證的資訊？</p> <p>是的，如同大家猜想，程式魔人回家第一件事便是打開 VSCode，取出 <a href="/blog/github-copilot-demo/">Github Copilot 魔杖</a>，計劃用 .NET 寫個 CLI 小工具解決困擾。</p> <p><code>openssl s_client -connect www.google.com:443 -showcerts</code> 是取得網站傳回憑證最簡單有效的做法，其輸出結果如下，每段 BEGIN CERTIFICATE 與 END CERTIFICATE 包夾部分就是一張憑證，以 Google 網站為例，共有 <code>www.google.com</code>(網站憑證)、<code>GTS CA 1C3</code>(中繼 CA 憑證)、<code>GTS Root R1</code>(根憑證) 三張。</p> <pre><code>CONNECTED(000001B4)
+---
+Certificate chain
+0 s:CN = www.google.com
+i:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+-----BEGIN CERTIFICATE-----
+MIIEiDCCA3CgAwIBAgIRANPXtQiQspt9EsIFgI8MDrQwDQYJKoZIhvcNAQELBQAw
+...略...
+M1bCMmPJnvXxJpPgZqEHuRvDLMMo9lx86KCdiYxo4nDAajRN1mO+oR2m4bgY/qb/
+lKQFXifOAi4n4tEn
+-----END CERTIFICATE-----
+1 s:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+i:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+-----BEGIN CERTIFICATE-----
+MIIFljCCA36gAwIBAgINAgO8U1lrNMcY9QFQZjANBgkqhkiG9w0BAQsFADBHMQsw
+... 略 ...
+1IXNDw9bg1kWRxYtnCQ6yICmJhSFm/Y3m6xv+cXDBlHz4n/FsRC6UfTd
+-----END CERTIFICATE-----
+2 s:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+i:C = BE, O = GlobalSign nv-sa, OU = Root CA, CN = GlobalSign Root CA
+-----BEGIN CERTIFICATE-----
+MIIFYjCCBEqgAwIBAgIQd70NbNs2+RrqIQ/E8FjTDTANBgkqhkiG9w0BAQsFADBX
+... 略 ...
+d0lIKO2d1xozclOzgjXPYovJJIultzkMu34qQb9Sz/yilrbCgj8=
+-----END CERTIFICATE-----
+---
+Server certificate
+subject=CN = www.google.com
+issuer=C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: ECDSA
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 4295 bytes and written 396 bytes
+Verification: OK
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 256 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 0 (ok)
+---
+HTTP/1.0 400 Bad Request
+Content-Type: text/html; charset=UTF-8
+Referrer-Policy: no-referrer
+Content-Length: 1555
+Date: Tue, 17 Oct 2023 14:17:16 GMT
+...以下省略...
+</code></pre> <p>將 BEGIN CERTIFICATE 到 END CERTIFICATE 內容取出存成 .cer，可在 Windows 檔案總管點開檢視。(Windows 的憑證檢視方式比瀏覽器憑證檢視器友善，能一次看到指紋以外的主要資訊)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638331523224708090.png"></p> <p>OK，接下來我們簡單寫幾行程式，用 Process 跑 openssl -showcerts 接收輸出內容用 Regex 取出憑證，用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.security.cryptography.x509certificates.x509certificate2?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">X509Certificate2</a> 物件解析輸出，在 Github Copilot 的強大火力支援下，輕輕鬆鬆只用了 32 行搞定。<br> 註：Console.WriteLine 時有順便用 <a href="/blog/ansi-escape-code/">ANSI 顏色控制</a> 突顯比對重點。</p> <pre><code>using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
+var hostPort = args.FirstOrDefault() ?? "www.google.com:443";
+if (!hostPort.Contains(":")) hostPort += ":443";
+var p = new Process();
+p.StartInfo.FileName = "openssl";
+p.StartInfo.Arguments = $"s_client -showcerts -connect {hostPort}";
+p.StartInfo.UseShellExecute = false;
+p.StartInfo.RedirectStandardOutput = true;
+p.StartInfo.RedirectStandardInput = true;
+p.StartInfo.RedirectStandardError = true;
+p.Start();
+p.StandardInput.WriteLine("Q"); //按Q+Enter結束openssl
+var output = p.StandardOutput.ReadToEnd();
+p.WaitForExit();
+Func&lt;string, string&gt; highlightCN =
+(s) =&gt; {
+var m = Regex.Match(s, @"^CN=[^,]+");
+if (!m.Success) return s;
+return "\x1b[33;1m" + m.Value + "\x1b[0m" + s.Substring(m.Value.Length);
+};
+foreach (Match certB64 in Regex.Matches(output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+var pem = certB64.Groups["c"].Value.Replace("\r", "").Replace("
+", "");
+var cert = new X509Certificate2(Convert.FromBase64String(pem));
+Console.WriteLine($"\x1b[36m{new String('=', 64)}\x1b[0m");
+Console.WriteLine($"發給: {highlightCN(cert.Subject)}");
+Console.WriteLine($"簽發者: {highlightCN(cert.Issuer)}");
+Console.WriteLine($"有效期自 \x1b[33m{cert.NotBefore:yyyy-MM-dd HH:mm:ss}\x1b[0m 到 \x1b[33m{cert.NotAfter:yyyy-MM-dd HH:mm:ss}\x1b[0m");
+Console.WriteLine($"憑證指紋: \x1b[33;3m{cert.Thumbprint}\x1b[0m");
+Console.WriteLine();
+}
+</code></pre> <p>執行結果如下，讚!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638331523226649895.png"></p> <p data-slug="show-tls-certs" data-title-en=".NET CLI tool to show TLS certificates sent from web" data-catg=".NET" data-fbimg="https://ilarge.lisimg.com/image/9037738/1055full.jpg#1055#692">Another coding for fun work to display the TLS certificates returned from web with .NET console application.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>要調查網站 TLS 憑證無效問題，最直接做法是從瀏覽器安全連線圖示逐步點開檢視憑證內容：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png"></p> <p>憑證檢視器會顯示憑證信任鏈，可查看根憑證、中繼憑證及伺服器憑證的詳細資料，但要知道憑證的主體(Subject)、簽署者(Issuer)、有效期間、指紋等資訊，需逐一點開才能看到。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638331523222864100.png"></p> <p>今天處理一個案例，需要比對兩個網站憑證的細節差異，得不斷來回點擊參照，一串頻繁的重複操作下來，不意外地又熔斷了現代王藍田的理智線。暗! 為什麼沒有 CLI 工具能一次檢視網站提供所有憑證的資訊？</p> <p>是的，如同大家猜想，程式魔人回家第一件事便是打開 VSCode，取出 <a href="/blog/github-copilot-demo/">Github Copilot 魔杖</a>，計劃用 .NET 寫個 CLI 小工具解決困擾。</p> <p><code>openssl s_client -connect www.google.com:443 -showcerts</code> 是取得網站傳回憑證最簡單有效的做法，其輸出結果如下，每段 BEGIN CERTIFICATE 與 END CERTIFICATE 包夾部分就是一張憑證，以 Google 網站為例，共有 <code>www.google.com</code>(網站憑證)、<code>GTS CA 1C3</code>(中繼 CA 憑證)、<code>GTS Root R1</code>(根憑證) 三張。</p> <pre><code>CONNECTED(000001B4)
+---
+Certificate chain
+0 s:CN = www.google.com
+i:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+-----BEGIN CERTIFICATE-----
+MIIEiDCCA3CgAwIBAgIRANPXtQiQspt9EsIFgI8MDrQwDQYJKoZIhvcNAQELBQAw
+...略...
+M1bCMmPJnvXxJpPgZqEHuRvDLMMo9lx86KCdiYxo4nDAajRN1mO+oR2m4bgY/qb/
+lKQFXifOAi4n4tEn
+-----END CERTIFICATE-----
+1 s:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+i:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+-----BEGIN CERTIFICATE-----
+MIIFljCCA36gAwIBAgINAgO8U1lrNMcY9QFQZjANBgkqhkiG9w0BAQsFADBHMQsw
+... 略 ...
+1IXNDw9bg1kWRxYtnCQ6yICmJhSFm/Y3m6xv+cXDBlHz4n/FsRC6UfTd
+-----END CERTIFICATE-----
+2 s:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+i:C = BE, O = GlobalSign nv-sa, OU = Root CA, CN = GlobalSign Root CA
+-----BEGIN CERTIFICATE-----
+MIIFYjCCBEqgAwIBAgIQd70NbNs2+RrqIQ/E8FjTDTANBgkqhkiG9w0BAQsFADBX
+... 略 ...
+d0lIKO2d1xozclOzgjXPYovJJIultzkMu34qQb9Sz/yilrbCgj8=
+-----END CERTIFICATE-----
+---
+Server certificate
+subject=CN = www.google.com
+issuer=C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: ECDSA
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 4295 bytes and written 396 bytes
+Verification: OK
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 256 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 0 (ok)
+---
+HTTP/1.0 400 Bad Request
+Content-Type: text/html; charset=UTF-8
+Referrer-Policy: no-referrer
+Content-Length: 1555
+Date: Tue, 17 Oct 2023 14:17:16 GMT
+...以下省略...
+</code></pre> <p>將 BEGIN CERTIFICATE 到 END CERTIFICATE 內容取出存成 .cer，可在 Windows 檔案總管點開檢視。(Windows 的憑證檢視方式比瀏覽器憑證檢視器友善，能一次看到指紋以外的主要資訊)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638331523224708090.png"></p> <p>OK，接下來我們簡單寫幾行程式，用 Process 跑 openssl -showcerts 接收輸出內容用 Regex 取出憑證，用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.security.cryptography.x509certificates.x509certificate2?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">X509Certificate2</a> 物件解析輸出，在 Github Copilot 的強大火力支援下，輕輕鬆鬆只用了 32 行搞定。<br> 註：Console.WriteLine 時有順便用 <a href="/blog/ansi-escape-code/">ANSI 顏色控制</a> 突顯比對重點。</p> <pre><code>using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
+var hostPort = args.FirstOrDefault() ?? "www.google.com:443";
+if (!hostPort.Contains(":")) hostPort += ":443";
+var p = new Process();
+p.StartInfo.FileName = "openssl";
+p.StartInfo.Arguments = $"s_client -showcerts -connect {hostPort}";
+p.StartInfo.UseShellExecute = false;
+p.StartInfo.RedirectStandardOutput = true;
+p.StartInfo.RedirectStandardInput = true;
+p.StartInfo.RedirectStandardError = true;
+p.Start();
+p.StandardInput.WriteLine("Q"); //按Q+Enter結束openssl
+var output = p.StandardOutput.ReadToEnd();
+p.WaitForExit();
+Func&lt;string, string&gt; highlightCN =
+(s) =&gt; {
+var m = Regex.Match(s, @"^CN=[^,]+");
+if (!m.Success) return s;
+return "\x1b[33;1m" + m.Value + "\x1b[0m" + s.Substring(m.Value.Length);
+};
+foreach (Match certB64 in Regex.Matches(output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+var pem = certB64.Groups["c"].Value.Replace("\r", "").Replace("
+", "");
+var cert = new X509Certificate2(Convert.FromBase64String(pem));
+Console.WriteLine($"\x1b[36m{new String('=', 64)}\x1b[0m");
+Console.WriteLine($"發給: {highlightCN(cert.Subject)}");
+Console.WriteLine($"簽發者: {highlightCN(cert.Issuer)}");
+Console.WriteLine($"有效期自 \x1b[33m{cert.NotBefore:yyyy-MM-dd HH:mm:ss}\x1b[0m 到 \x1b[33m{cert.NotAfter:yyyy-MM-dd HH:mm:ss}\x1b[0m");
+Console.WriteLine($"憑證指紋: \x1b[33;3m{cert.Thumbprint}\x1b[0m");
+Console.WriteLine();
+}
+</code></pre> <p>執行結果如下，讚!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638331523226649895.png"></p> <p data-slug="show-tls-certs" data-title-en=".NET CLI tool to show TLS certificates sent from web" data-catg=".NET" data-fbimg="https://ilarge.lisimg.com/image/9037738/1055full.jpg#1055#692">Another coding for fun work to display the TLS certificates returned from web with .NET console application.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>要調查網站 TLS 憑證無效問題，最直接做法是從瀏覽器安全連線圖示逐步點開檢視憑證內容：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png"></p> <p>憑證檢視器會顯示憑證信任鏈，可查看根憑證、中繼憑證及伺服器憑證的詳細資料，但要知道憑證的主體(Subject)、簽署者(Issuer)、有效期間、指紋等資訊，需逐一點開才能看到。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638331523222864100.png"></p> <p>今天處理一個案例，需要比對兩個網站憑證的細節差異，得不斷來回點擊參照，一串頻繁的重複操作下來，不意外地又熔斷了現代王藍田的理智線。暗! 為什麼沒有 CLI 工具能一次檢視網站提供所有憑證的資訊？</p> <p>是的，如同大家猜想，程式魔人回家第一件事便是打開 VSCode，取出 <a href="/blog/github-copilot-demo/">Github Copilot 魔杖</a>，計劃用 .NET 寫個 CLI 小工具解決困擾。</p> <p><code>openssl s_client -connect www.google.com:443 -showcerts</code> 是取得網站傳回憑證最簡單有效的做法，其輸出結果如下，每段 BEGIN CERTIFICATE 與 END CERTIFICATE 包夾部分就是一張憑證，以 Google 網站為例，共有 <code>www.google.com</code>(網站憑證)、<code>GTS CA 1C3</code>(中繼 CA 憑證)、<code>GTS Root R1</code>(根憑證) 三張。</p> <pre><code>CONNECTED(000001B4)
+---
+Certificate chain
+0 s:CN = www.google.com
+i:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+-----BEGIN CERTIFICATE-----
+MIIEiDCCA3CgAwIBAgIRANPXtQiQspt9EsIFgI8MDrQwDQYJKoZIhvcNAQELBQAw
+...略...
+M1bCMmPJnvXxJpPgZqEHuRvDLMMo9lx86KCdiYxo4nDAajRN1mO+oR2m4bgY/qb/
+lKQFXifOAi4n4tEn
+-----END CERTIFICATE-----
+1 s:C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+i:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+-----BEGIN CERTIFICATE-----
+MIIFljCCA36gAwIBAgINAgO8U1lrNMcY9QFQZjANBgkqhkiG9w0BAQsFADBHMQsw
+... 略 ...
+1IXNDw9bg1kWRxYtnCQ6yICmJhSFm/Y3m6xv+cXDBlHz4n/FsRC6UfTd
+-----END CERTIFICATE-----
+2 s:C = US, O = Google Trust Services LLC, CN = GTS Root R1
+i:C = BE, O = GlobalSign nv-sa, OU = Root CA, CN = GlobalSign Root CA
+-----BEGIN CERTIFICATE-----
+MIIFYjCCBEqgAwIBAgIQd70NbNs2+RrqIQ/E8FjTDTANBgkqhkiG9w0BAQsFADBX
+... 略 ...
+d0lIKO2d1xozclOzgjXPYovJJIultzkMu34qQb9Sz/yilrbCgj8=
+-----END CERTIFICATE-----
+---
+Server certificate
+subject=CN = www.google.com
+issuer=C = US, O = Google Trust Services LLC, CN = GTS CA 1C3
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: ECDSA
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 4295 bytes and written 396 bytes
+Verification: OK
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 256 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 0 (ok)
+---
+HTTP/1.0 400 Bad Request
+Content-Type: text/html; charset=UTF-8
+Referrer-Policy: no-referrer
+Content-Length: 1555
+Date: Tue, 17 Oct 2023 14:17:16 GMT
+...以下省略...
+</code></pre> <p>將 BEGIN CERTIFICATE 到 END CERTIFICATE 內容取出存成 .cer，可在 Windows 檔案總管點開檢視。(Windows 的憑證檢視方式比瀏覽器憑證檢視器友善，能一次看到指紋以外的主要資訊)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638331523224708090.png"></p> <p>OK，接下來我們簡單寫幾行程式，用 Process 跑 openssl -showcerts 接收輸出內容用 Regex 取出憑證，用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.security.cryptography.x509certificates.x509certificate2?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">X509Certificate2</a> 物件解析輸出，在 Github Copilot 的強大火力支援下，輕輕鬆鬆只用了 32 行搞定。<br> 註：Console.WriteLine 時有順便用 <a href="/blog/ansi-escape-code/">ANSI 顏色控制</a> 突顯比對重點。</p> <pre><code>using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
+var hostPort = args.FirstOrDefault() ?? "www.google.com:443";
+if (!hostPort.Contains(":")) hostPort += ":443";
+var p = new Process();
+p.StartInfo.FileName = "openssl";
+p.StartInfo.Arguments = $"s_client -showcerts -connect {hostPort}";
+p.StartInfo.UseShellExecute = false;
+p.StartInfo.RedirectStandardOutput = true;
+p.StartInfo.RedirectStandardInput = true;
+p.StartInfo.RedirectStandardError = true;
+p.Start();
+p.StandardInput.WriteLine("Q"); //按Q+Enter結束openssl
+var output = p.StandardOutput.ReadToEnd();
+p.WaitForExit();
+Func&lt;string, string&gt; highlightCN =
+(s) =&gt; {
+var m = Regex.Match(s, @"^CN=[^,]+");
+if (!m.Success) return s;
+return "\x1b[33;1m" + m.Value + "\x1b[0m" + s.Substring(m.Value.Length);
+};
+foreach (Match certB64 in Regex.Matches(output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+var pem = certB64.Groups["c"].Value.Replace("\r", "").Replace("
+", "");
+var cert = new X509Certificate2(Convert.FromBase64String(pem));
+Console.WriteLine($"\x1b[36m{new String('=', 64)}\x1b[0m");
+Console.WriteLine($"發給: {highlightCN(cert.Subject)}");
+Console.WriteLine($"簽發者: {highlightCN(cert.Issuer)}");
+Console.WriteLine($"有效期自 \x1b[33m{cert.NotBefore:yyyy-MM-dd HH:mm:ss}\x1b[0m 到 \x1b[33m{cert.NotAfter:yyyy-MM-dd HH:mm:ss}\x1b[0m");
+Console.WriteLine($"憑證指紋: \x1b[33;3m{cert.Thumbprint}\x1b[0m");
+Console.WriteLine();
+}
+</code></pre> <p>執行結果如下，讚!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638331523226649895.png"></p> <p data-slug="show-tls-certs" data-title-en=".NET CLI tool to show TLS certificates sent from web" data-catg=".NET" data-fbimg="https://ilarge.lisimg.com/image/9037738/1055full.jpg#1055#692">Another coding for fun work to display the TLS certificates returned from web with .NET console application.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png" medium="image"/>
+    <pubDate>Tue, 17 Oct 2023 15:09:48 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Windows 2019+ 之檔案總管視窗邊框消失問題]]></title>
     <link>https://blog.darkthread.net/blog/win2019-explorer-border-missing/</link>
     <itunes:title><![CDATA[Windows 2019+ 之檔案總管視窗邊框消失問題]]></itunes:title>
@@ -509,20 +785,5 @@ fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png" medium="image"/>
     <pubDate>Wed, 04 Oct 2023 15:40:35 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】IIS 管理員看不到 ARR Cache 圖示之謎]]></title>
-    <link>https://blog.darkthread.net/blog/iis-arr-cache-icon-missing/</link>
-    <itunes:title><![CDATA[【茶包射手日記】IIS 管理員看不到 ARR Cache 圖示之謎]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="/blog/arr-in-aspnet-mvc-site/">用 IIS ARR 架 Reverse Proxy</a> 已經好幾年，雖然運作正常，但有個問題始終困擾著我，我一直找不到傳說中有個「Application Request Routing Cache」圖示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638318614735766298.png"></p> <p>網路上看過有人跟我一樣抱怨找不到，起初我覺得是 ARR 太老舊跟 Windows 2016+ 相容性不佳造成，但偏偏又能找到在 Windows 2019 甚至 2022 安裝有出現 ARR Cache 圖示的<a href="https://www.cnblogs.com/AlvinLiang/p/16260316.html">案例</a>。另外，我也找到<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">微軟文件</a>佐證：Application Request Routing 3.0.1952 起可支援 IIS 10，且不再需要 Web Farm Framework 模組(該模組<a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">在 Win10/Win2016 時已退役</a>，這也能解釋為什麼原本的<a href="/blog/install-iis-arr/">四合一安裝懶人包被下架</a>)，我裝的是最新版 3.0.05311，理論上跟 IIS 10 相容性沒問題，但為什麼就是沒有 ARR Cache 管理介面可用，是個謎。</p> <p>今天，久懸多年的謎在無意間被解開! 答案在底下這張圖裡，直接開啟 IIS 管理員 vs 用電腦管理 (Compupter Management) 內嵌的 IIS 管理員：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638318613080935158.png"></p> <p>一直以來，我都習慣開電腦管理再展開 Service Applications/Internet Information Service (IIS) Manager 使用 IIS 管理員(看事件查服務設帳號一次滿足)，今天查問題時無意間單獨啟動 IIS 管理員，竟發現兩者不同。單獨開 IIS 管理員就能看到 ARR Cache 圖示，若是從電腦管理開啟，則不會有!!</p> <p>登楞! 任何正常人都會覺得它們的功能是一模一樣的吧？天曉得會存在差異，這絕對是我這幾年遇到最雷包的設計之一。</p> <p>多年的謎團解開了，心情卻很複雜，有點興奮又有點賭爛，特 PO 文留念。</p> <p data-slug="iis-arr-cache-icon-missing" data-title-en="The mystery of the disappearing ARR Cache icon in IIS manager" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG/1024px-%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG#1082#744">Issue of missing ARR cache icon in IIS Manager.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="/blog/arr-in-aspnet-mvc-site/">用 IIS ARR 架 Reverse Proxy</a> 已經好幾年，雖然運作正常，但有個問題始終困擾著我，我一直找不到傳說中有個「Application Request Routing Cache」圖示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638318614735766298.png"></p> <p>網路上看過有人跟我一樣抱怨找不到，起初我覺得是 ARR 太老舊跟 Windows 2016+ 相容性不佳造成，但偏偏又能找到在 Windows 2019 甚至 2022 安裝有出現 ARR Cache 圖示的<a href="https://www.cnblogs.com/AlvinLiang/p/16260316.html">案例</a>。另外，我也找到<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">微軟文件</a>佐證：Application Request Routing 3.0.1952 起可支援 IIS 10，且不再需要 Web Farm Framework 模組(該模組<a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">在 Win10/Win2016 時已退役</a>，這也能解釋為什麼原本的<a href="/blog/install-iis-arr/">四合一安裝懶人包被下架</a>)，我裝的是最新版 3.0.05311，理論上跟 IIS 10 相容性沒問題，但為什麼就是沒有 ARR Cache 管理介面可用，是個謎。</p> <p>今天，久懸多年的謎在無意間被解開! 答案在底下這張圖裡，直接開啟 IIS 管理員 vs 用電腦管理 (Compupter Management) 內嵌的 IIS 管理員：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638318613080935158.png"></p> <p>一直以來，我都習慣開電腦管理再展開 Service Applications/Internet Information Service (IIS) Manager 使用 IIS 管理員(看事件查服務設帳號一次滿足)，今天查問題時無意間單獨啟動 IIS 管理員，竟發現兩者不同。單獨開 IIS 管理員就能看到 ARR Cache 圖示，若是從電腦管理開啟，則不會有!!</p> <p>登楞! 任何正常人都會覺得它們的功能是一模一樣的吧？天曉得會存在差異，這絕對是我這幾年遇到最雷包的設計之一。</p> <p>多年的謎團解開了，心情卻很複雜，有點興奮又有點賭爛，特 PO 文留念。</p> <p data-slug="iis-arr-cache-icon-missing" data-title-en="The mystery of the disappearing ARR Cache icon in IIS manager" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG/1024px-%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG#1082#744">Issue of missing ARR cache icon in IIS Manager.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="/blog/arr-in-aspnet-mvc-site/">用 IIS ARR 架 Reverse Proxy</a> 已經好幾年，雖然運作正常，但有個問題始終困擾著我，我一直找不到傳說中有個「Application Request Routing Cache」圖示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638318614735766298.png"></p> <p>網路上看過有人跟我一樣抱怨找不到，起初我覺得是 ARR 太老舊跟 Windows 2016+ 相容性不佳造成，但偏偏又能找到在 Windows 2019 甚至 2022 安裝有出現 ARR Cache 圖示的<a href="https://www.cnblogs.com/AlvinLiang/p/16260316.html">案例</a>。另外，我也找到<a href="https://blogs.iis.net/iisoobs/updates-released-for-arr-url-rewrite-and-httpplatformhandler-including-windows-10-support">微軟文件</a>佐證：Application Request Routing 3.0.1952 起可支援 IIS 10，且不再需要 Web Farm Framework 模組(該模組<a href="https://halfblood.pro/status-of-iis-out-of-band-modules-80a3af57c489">在 Win10/Win2016 時已退役</a>，這也能解釋為什麼原本的<a href="/blog/install-iis-arr/">四合一安裝懶人包被下架</a>)，我裝的是最新版 3.0.05311，理論上跟 IIS 10 相容性沒問題，但為什麼就是沒有 ARR Cache 管理介面可用，是個謎。</p> <p>今天，久懸多年的謎在無意間被解開! 答案在底下這張圖裡，直接開啟 IIS 管理員 vs 用電腦管理 (Compupter Management) 內嵌的 IIS 管理員：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638318613080935158.png"></p> <p>一直以來，我都習慣開電腦管理再展開 Service Applications/Internet Information Service (IIS) Manager 使用 IIS 管理員(看事件查服務設帳號一次滿足)，今天查問題時無意間單獨啟動 IIS 管理員，竟發現兩者不同。單獨開 IIS 管理員就能看到 ARR Cache 圖示，若是從電腦管理開啟，則不會有!!</p> <p>登楞! 任何正常人都會覺得它們的功能是一模一樣的吧？天曉得會存在差異，這絕對是我這幾年遇到最雷包的設計之一。</p> <p>多年的謎團解開了，心情卻很複雜，有點興奮又有點賭爛，特 PO 文留念。</p> <p data-slug="iis-arr-cache-icon-missing" data-title-en="The mystery of the disappearing ARR Cache icon in IIS manager" data-catg="ASP.NET/IIS" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG/1024px-%27Shepherd_and_Sheep%27_by_Anton_Mauve%2C_Cincinnati_Art_Museum.JPG#1082#744">Issue of missing ARR cache icon in IIS Manager.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig3_638318614735766298.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig3_638318614735766298.png" medium="image"/>
-    <pubDate>Mon, 02 Oct 2023 16:35:51 GMT</pubDate>
   </item></channel>
 </rss>
