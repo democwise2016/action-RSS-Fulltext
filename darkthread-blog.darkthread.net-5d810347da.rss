@@ -30,6 +30,273 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></title>
+    <link>https://blog.darkthread.net/blog/show-certs-w-ps/</link>
+    <itunes:title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
+#
+if (!$hostPort.Contains(":")) {
+#
+$hostPort+=":443";
+#
+} #
+$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
+#
+$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
+#
+$output = $p.StandardOutput.ReadToEnd();
+#
+$p.WaitForExit();
+#
+$highlightCN = {param($s)
+#
+$m = [Regex]::Match($s, '^CN=[^,]+');
+#
+if (!$m.Success) {return $s;}
+#
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+#
+};
+#
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+#
+{
+#
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+#
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+#
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+#
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+#
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+#
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+#
+Write-Host "";
+#
+} #
+</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
+[string]$hostPort
+)
+$ErrorActionPreference = "Stop"
+if (!$hostPort) { $hostPort = 'www.google.com' }
+if (!$hostPort.Contains(":")) {
+$hostPort+=":443";
+}
+$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "openssl.exe"
+$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
+$output = $p.StandardOutput.ReadToEnd();
+$p.WaitForExit();
+$highlightCN = {param($s)
+$m = [Regex]::Match($s, '^CN=[^,]+');
+if (!$m.Success) {return $s;}
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+};
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+Write-Host "";
+}
+</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
+#
+if (!$hostPort.Contains(":")) {
+#
+$hostPort+=":443";
+#
+} #
+$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
+#
+$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
+#
+$output = $p.StandardOutput.ReadToEnd();
+#
+$p.WaitForExit();
+#
+$highlightCN = {param($s)
+#
+$m = [Regex]::Match($s, '^CN=[^,]+');
+#
+if (!$m.Success) {return $s;}
+#
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+#
+};
+#
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+#
+{
+#
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+#
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+#
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+#
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+#
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+#
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+#
+Write-Host "";
+#
+} #
+</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
+[string]$hostPort
+)
+$ErrorActionPreference = "Stop"
+if (!$hostPort) { $hostPort = 'www.google.com' }
+if (!$hostPort.Contains(":")) {
+$hostPort+=":443";
+}
+$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "openssl.exe"
+$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
+$output = $p.StandardOutput.ReadToEnd();
+$p.WaitForExit();
+$highlightCN = {param($s)
+$m = [Regex]::Match($s, '^CN=[^,]+');
+if (!$m.Success) {return $s;}
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+};
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+Write-Host "";
+}
+</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
+#
+if (!$hostPort.Contains(":")) {
+#
+$hostPort+=":443";
+#
+} #
+$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
+#
+$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
+#
+$output = $p.StandardOutput.ReadToEnd();
+#
+$p.WaitForExit();
+#
+$highlightCN = {param($s)
+#
+$m = [Regex]::Match($s, '^CN=[^,]+');
+#
+if (!$m.Success) {return $s;}
+#
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+#
+};
+#
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+#
+{
+#
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+#
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+#
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+#
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+#
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+#
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+#
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+#
+Write-Host "";
+#
+} #
+</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
+[string]$hostPort
+)
+$ErrorActionPreference = "Stop"
+if (!$hostPort) { $hostPort = 'www.google.com' }
+if (!$hostPort.Contains(":")) {
+$hostPort+=":443";
+}
+$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "openssl.exe"
+$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
+$output = $p.StandardOutput.ReadToEnd();
+$p.WaitForExit();
+$highlightCN = {param($s)
+$m = [Regex]::Match($s, '^CN=[^,]+');
+if (!$m.Success) {return $s;}
+return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
+};
+foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
+{
+$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
+$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
+Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
+Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
+Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
+Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
+Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
+Write-Host "";
+}
+</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png" medium="image"/>
+    <pubDate>Wed, 18 Oct 2023 14:07:59 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - 自製網站 TLS 憑證 CLI 快速檢視工具]]></title>
     <link>https://blog.darkthread.net/blog/show-tls-certs/</link>
     <itunes:title><![CDATA[Coding4Fun - 自製網站 TLS 憑證 CLI 快速檢視工具]]></itunes:title>
@@ -770,20 +1037,5 @@ fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png" medium="image"/>
     <pubDate>Fri, 06 Oct 2023 15:15:35 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.NET 連 HTTPS 網站「基礎連接已關閉」之 Windows 版本問題]]></title>
-    <link>https://blog.darkthread.net/blog/tls-cipher-suite-n-win-version/</link>
-    <itunes:title><![CDATA[.NET 連 HTTPS 網站「基礎連接已關閉」之 Windows 版本問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>幫忙查問題遇到第三次，依慣例已達專門為它寫篇文章的門檻。</p> <p>案例一，.NET 呼叫 URL，在本機測試 OK，移至目標主機後程式冒出「基礎連接已關閉」錯誤(詳細訊息在下面)，這個錯誤最典型的原因是 <a href="https://blog.darkthread.net/blog/webclient-and-tls12/">.NET 未啟用 TLS1.2 支援</a>，但確認程式有明確指定 TLS 1.2；同一時間，該主機上另有 Python 程式連相同 URL 未遇到問題。</p> <p>案例二，<a href="/blog/tls-cipher-suite-issue/">Chrome、Python 可以但 IE11、.NET 程式無法連線的 TLS 1.2 網站</a></p> <p>案例三，某個連接特定網站的 .NET 排程已運作多年，近期目標網站換版升級，之後排程便出現「基礎連接已關閉」錯誤。<a href="/blog/check-tls-version/">使用 openssl s_client -tls1_X 測試</a>確認網站同時支援 TLS 1.0/1.1/1.2，可排除升級後只限定 TLS 1.2 造成。</p> <blockquote> <p>基礎連接已關閉: 傳送時發生未預期的錯誤。 ---&gt; System.IO.IOException: 驗證失敗，因為遠端群體已經關閉傳輸資料流。 The underlying connection was closed: An unexpected error occurred on a send. ---&gt; System.IO.IOException: Authentication failed because the remote party has closed the transport stream</p> </blockquote> <p>直接說答案 - Windows 版本太舊，不支援新版 Cipher Suite。三個案例的狀況都是目標網站基於安全改用 ECDHE-RSA-AES128-GCM-SHA256 (稱為 Cipher Suite，TLS 加密的金鑰交換、數位簽章、資料傳輸對稱式加密、訊息驗證的各環節各有多種標準可選，可想成「凱薩沙拉 + 羅宋湯 + 乾煎櫻桃鴨胸佐紅酒醬 + 焦糖烤布蕾」的點餐組合概念 <a href="/blog/disable-cipher-suites/">參考</a>)，而不同版本 Windows 可支援的 Cipher Suite 不同。像是 Windows 2012R2 就不支援 ECDHE-RSA-AES128-GCM-SHA256，要到 Windows 2016/Windows 10 v1511 才支援，而上述案例的 Windows OS 版本分別為 Win 2012R2、Win 2012R2、Win 2008 (嘩...)。</p> <p>整理一下判斷及處理 Windows TLS 相容問題的 SOP：</p> <ol><li>目標若為 Internet 公開網站，可使用 <a href="https://www.ssllabs.com/ssltest">SSL Labs 的 SSL Server Test</a> 檢查 <a href="/blog/tls-cipher-suite-issue/">參考</a>；非公開站台可考慮 <a href="/blog/rdp-ssl-cipher-vulnerability/"><code>nmap -p 443 --script ssl-enum-ciphers &lt;host&gt;</code></a> (需另外下載安裝 nmap，但 nmap 因功能強大駭客愛用，被某些資安列為管制軟體，在企業內部使用小心可能被請去喝咖啡) 一次列舉 TLS 及 Cipher Suite 清單。<br> 若不用 nmap，可參考保哥這篇：<a href="https://blog.miniasp.com/post/2021/05/12/Checking-Cipher-Suites-using-OpenSSL-and-cURL">使用 OpenSSL 與 cURL 檢查網站伺服器支援哪幾種 Cipher Suites</a>，先用 <code>openssl ciphers</code> 列舉可用 Cipher Suite，再配合 curl 逐一測試是否支援。(使用 Git Bash 跑批次)<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png"></li> <li>若 Cipher Suite 如 ECDHE-RSA-AES128-GCM-SHA256 有 GCM，而你的 Windows 版本小於 Windows 2016 (Windows 2008R2、Winows 2012、Windows 2012R2)，對本上對 IE、.NET 程式來說無解。<br> 其他 Cipher Suite 及 Windows 版本，可參考這篇：<a href="https://docs.microsoft.com/en-us/windows/win32/secauthn/cipher-suites-in-schannel?WT.mc_id=DOP-MVP-37580">Cipher Suites in TLS/SSL (Schannel SSP) 及 Windows 各版本支援</a></li> <li>額外佐證：相同 .NET 程式在新一點的 Windows 跑沒問題、舊版 Windows 上跑 Chrome、Python、curl 也沒問題，就 IE 及 .NET 程式不行。若有前述狀況，亦可佐證是 Windows 不支援 Cipher Suite 造成。</li> <li>以上過時 Windows 中最晚的 2012R2 也將 EOS，故升級新版 Windows 為正解。若有苦衷無法升級作業系統，可考慮替代方案：改用 curl、Chrome、Python 或其他使用 OpenSSL 程式庫的工具。</li></ol> <p data-slug="tls-cipher-suite-n-win-version" data-title-en="Windows version issue for TLS cipher suite" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">Case of .NET program failed to connect HTTPS web becaused of expired Windows version.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>幫忙查問題遇到第三次，依慣例已達專門為它寫篇文章的門檻。</p> <p>案例一，.NET 呼叫 URL，在本機測試 OK，移至目標主機後程式冒出「基礎連接已關閉」錯誤(詳細訊息在下面)，這個錯誤最典型的原因是 <a href="https://blog.darkthread.net/blog/webclient-and-tls12/">.NET 未啟用 TLS1.2 支援</a>，但確認程式有明確指定 TLS 1.2；同一時間，該主機上另有 Python 程式連相同 URL 未遇到問題。</p> <p>案例二，<a href="/blog/tls-cipher-suite-issue/">Chrome、Python 可以但 IE11、.NET 程式無法連線的 TLS 1.2 網站</a></p> <p>案例三，某個連接特定網站的 .NET 排程已運作多年，近期目標網站換版升級，之後排程便出現「基礎連接已關閉」錯誤。<a href="/blog/check-tls-version/">使用 openssl s_client -tls1_X 測試</a>確認網站同時支援 TLS 1.0/1.1/1.2，可排除升級後只限定 TLS 1.2 造成。</p> <blockquote> <p>基礎連接已關閉: 傳送時發生未預期的錯誤。 ---&gt; System.IO.IOException: 驗證失敗，因為遠端群體已經關閉傳輸資料流。 The underlying connection was closed: An unexpected error occurred on a send. ---&gt; System.IO.IOException: Authentication failed because the remote party has closed the transport stream</p> </blockquote> <p>直接說答案 - Windows 版本太舊，不支援新版 Cipher Suite。三個案例的狀況都是目標網站基於安全改用 ECDHE-RSA-AES128-GCM-SHA256 (稱為 Cipher Suite，TLS 加密的金鑰交換、數位簽章、資料傳輸對稱式加密、訊息驗證的各環節各有多種標準可選，可想成「凱薩沙拉 + 羅宋湯 + 乾煎櫻桃鴨胸佐紅酒醬 + 焦糖烤布蕾」的點餐組合概念 <a href="/blog/disable-cipher-suites/">參考</a>)，而不同版本 Windows 可支援的 Cipher Suite 不同。像是 Windows 2012R2 就不支援 ECDHE-RSA-AES128-GCM-SHA256，要到 Windows 2016/Windows 10 v1511 才支援，而上述案例的 Windows OS 版本分別為 Win 2012R2、Win 2012R2、Win 2008 (嘩...)。</p> <p>整理一下判斷及處理 Windows TLS 相容問題的 SOP：</p> <ol><li>目標若為 Internet 公開網站，可使用 <a href="https://www.ssllabs.com/ssltest">SSL Labs 的 SSL Server Test</a> 檢查 <a href="/blog/tls-cipher-suite-issue/">參考</a>；非公開站台可考慮 <a href="/blog/rdp-ssl-cipher-vulnerability/"><code>nmap -p 443 --script ssl-enum-ciphers &lt;host&gt;</code></a> (需另外下載安裝 nmap，但 nmap 因功能強大駭客愛用，被某些資安列為管制軟體，在企業內部使用小心可能被請去喝咖啡) 一次列舉 TLS 及 Cipher Suite 清單。<br> 若不用 nmap，可參考保哥這篇：<a href="https://blog.miniasp.com/post/2021/05/12/Checking-Cipher-Suites-using-OpenSSL-and-cURL">使用 OpenSSL 與 cURL 檢查網站伺服器支援哪幾種 Cipher Suites</a>，先用 <code>openssl ciphers</code> 列舉可用 Cipher Suite，再配合 curl 逐一測試是否支援。(使用 Git Bash 跑批次)<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png"></li> <li>若 Cipher Suite 如 ECDHE-RSA-AES128-GCM-SHA256 有 GCM，而你的 Windows 版本小於 Windows 2016 (Windows 2008R2、Winows 2012、Windows 2012R2)，對本上對 IE、.NET 程式來說無解。<br> 其他 Cipher Suite 及 Windows 版本，可參考這篇：<a href="https://docs.microsoft.com/en-us/windows/win32/secauthn/cipher-suites-in-schannel?WT.mc_id=DOP-MVP-37580">Cipher Suites in TLS/SSL (Schannel SSP) 及 Windows 各版本支援</a></li> <li>額外佐證：相同 .NET 程式在新一點的 Windows 跑沒問題、舊版 Windows 上跑 Chrome、Python、curl 也沒問題，就 IE 及 .NET 程式不行。若有前述狀況，亦可佐證是 Windows 不支援 Cipher Suite 造成。</li> <li>以上過時 Windows 中最晚的 2012R2 也將 EOS，故升級新版 Windows 為正解。若有苦衷無法升級作業系統，可考慮替代方案：改用 curl、Chrome、Python 或其他使用 OpenSSL 程式庫的工具。</li></ol> <p data-slug="tls-cipher-suite-n-win-version" data-title-en="Windows version issue for TLS cipher suite" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">Case of .NET program failed to connect HTTPS web becaused of expired Windows version.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>幫忙查問題遇到第三次，依慣例已達專門為它寫篇文章的門檻。</p> <p>案例一，.NET 呼叫 URL，在本機測試 OK，移至目標主機後程式冒出「基礎連接已關閉」錯誤(詳細訊息在下面)，這個錯誤最典型的原因是 <a href="https://blog.darkthread.net/blog/webclient-and-tls12/">.NET 未啟用 TLS1.2 支援</a>，但確認程式有明確指定 TLS 1.2；同一時間，該主機上另有 Python 程式連相同 URL 未遇到問題。</p> <p>案例二，<a href="/blog/tls-cipher-suite-issue/">Chrome、Python 可以但 IE11、.NET 程式無法連線的 TLS 1.2 網站</a></p> <p>案例三，某個連接特定網站的 .NET 排程已運作多年，近期目標網站換版升級，之後排程便出現「基礎連接已關閉」錯誤。<a href="/blog/check-tls-version/">使用 openssl s_client -tls1_X 測試</a>確認網站同時支援 TLS 1.0/1.1/1.2，可排除升級後只限定 TLS 1.2 造成。</p> <blockquote> <p>基礎連接已關閉: 傳送時發生未預期的錯誤。 ---&gt; System.IO.IOException: 驗證失敗，因為遠端群體已經關閉傳輸資料流。 The underlying connection was closed: An unexpected error occurred on a send. ---&gt; System.IO.IOException: Authentication failed because the remote party has closed the transport stream</p> </blockquote> <p>直接說答案 - Windows 版本太舊，不支援新版 Cipher Suite。三個案例的狀況都是目標網站基於安全改用 ECDHE-RSA-AES128-GCM-SHA256 (稱為 Cipher Suite，TLS 加密的金鑰交換、數位簽章、資料傳輸對稱式加密、訊息驗證的各環節各有多種標準可選，可想成「凱薩沙拉 + 羅宋湯 + 乾煎櫻桃鴨胸佐紅酒醬 + 焦糖烤布蕾」的點餐組合概念 <a href="/blog/disable-cipher-suites/">參考</a>)，而不同版本 Windows 可支援的 Cipher Suite 不同。像是 Windows 2012R2 就不支援 ECDHE-RSA-AES128-GCM-SHA256，要到 Windows 2016/Windows 10 v1511 才支援，而上述案例的 Windows OS 版本分別為 Win 2012R2、Win 2012R2、Win 2008 (嘩...)。</p> <p>整理一下判斷及處理 Windows TLS 相容問題的 SOP：</p> <ol><li>目標若為 Internet 公開網站，可使用 <a href="https://www.ssllabs.com/ssltest">SSL Labs 的 SSL Server Test</a> 檢查 <a href="/blog/tls-cipher-suite-issue/">參考</a>；非公開站台可考慮 <a href="/blog/rdp-ssl-cipher-vulnerability/"><code>nmap -p 443 --script ssl-enum-ciphers &lt;host&gt;</code></a> (需另外下載安裝 nmap，但 nmap 因功能強大駭客愛用，被某些資安列為管制軟體，在企業內部使用小心可能被請去喝咖啡) 一次列舉 TLS 及 Cipher Suite 清單。<br> 若不用 nmap，可參考保哥這篇：<a href="https://blog.miniasp.com/post/2021/05/12/Checking-Cipher-Suites-using-OpenSSL-and-cURL">使用 OpenSSL 與 cURL 檢查網站伺服器支援哪幾種 Cipher Suites</a>，先用 <code>openssl ciphers</code> 列舉可用 Cipher Suite，再配合 curl 逐一測試是否支援。(使用 Git Bash 跑批次)<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png"></li> <li>若 Cipher Suite 如 ECDHE-RSA-AES128-GCM-SHA256 有 GCM，而你的 Windows 版本小於 Windows 2016 (Windows 2008R2、Winows 2012、Windows 2012R2)，對本上對 IE、.NET 程式來說無解。<br> 其他 Cipher Suite 及 Windows 版本，可參考這篇：<a href="https://docs.microsoft.com/en-us/windows/win32/secauthn/cipher-suites-in-schannel?WT.mc_id=DOP-MVP-37580">Cipher Suites in TLS/SSL (Schannel SSP) 及 Windows 各版本支援</a></li> <li>額外佐證：相同 .NET 程式在新一點的 Windows 跑沒問題、舊版 Windows 上跑 Chrome、Python、curl 也沒問題，就 IE 及 .NET 程式不行。若有前述狀況，亦可佐證是 Windows 不支援 Cipher Suite 造成。</li> <li>以上過時 Windows 中最晚的 2012R2 也將 EOS，故升級新版 Windows 為正解。若有苦衷無法升級作業系統，可考慮替代方案：改用 curl、Chrome、Python 或其他使用 OpenSSL 程式庫的工具。</li></ol> <p data-slug="tls-cipher-suite-n-win-version" data-title-en="Windows version issue for TLS cipher suite" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">Case of .NET program failed to connect HTTPS web becaused of expired Windows version.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638320345235150590.png" medium="image"/>
-    <pubDate>Wed, 04 Oct 2023 15:40:35 GMT</pubDate>
   </item></channel>
 </rss>
