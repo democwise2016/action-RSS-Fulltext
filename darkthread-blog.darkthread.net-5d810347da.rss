@@ -30,6 +30,168 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[PowerShell 小工具 - 列舉傾聽的 TCP Port 與其對應程式]]></title>
+    <link>https://blog.darkthread.net/blog/list-listening-port-w-ps/</link>
+    <itunes:title><![CDATA[PowerShell 小工具 - 列舉傾聽的 TCP Port 與其對應程式]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>想寫這個工具很久了，因緣成熟，花了點時間做出來。</p> <p>遇到 Windows 在 Listen 某個 Port，若想知道是哪支程式使用中，簡單做法是 <code>netstat -ano | findstr /i "listening"</code> 得到 Process Id (PID)，再用 PID 去查程序資料，若 Port 是被 IIS 站台繫結，PID 會指向系統(PID = 4)，要用 IIS 管理員或 CLI 查。我想要寫一段 PowerShell 一口氣查完所需資訊，使用時複製貼上執行，一次得到完整答案。</p> <p>程式原理不複雜，主體是 <code>Get-NetTCPConnection -State Listen</code> 查詢繫結中的 Port 及其 PID，用 <code>Get-Process -Id &lt;PID&gt;</code> 查詢程序名稱及路徑，實測 Get-Process 不太抓得到執行檔路徑，而 IIS 使用的 Port 會掛給 PID=4 System，我的解法是另外呼叫 <code>Get-WmiObject Win32_Process</code> 取得 PID 的程式檔路徑，用<code>Get-ChildItem -Path "IIS:\Sites"</code> 建立站台對繫結 IP 及 Port 的對照表，雙管齊下補足資訊。<br> 註：學到新知識，<code>::</code> 在 IPv6 代表一串零，等同 IPv4 0.0.0.0，用於 LISTEN 時代表所有本機 IP 位址。</p> <p>另外，發現 Get-WmiObject Win32_Process 及 Get-ChildItem -Path "IIS:\Sites" 需使用管理者權限執行才能讀取完整資訊，借用之前學過<a href="/blog/ps1-requireadministrator/">判斷管理者身分技巧</a>，提示而要管理者權限才能查看詳細資訊。</p> <p>程式範例如下：</p> <pre><code>$dict = @{}
+Get-WmiObject Win32_Process | ForEach-Object {
+$path = $_.ExecutablePath
+if (!$path) {
+$path = $_.Name
+}
+$dict['P' + $_.ProcessId] = $path + ' ' + $_.CommandLine
+}
+$wp = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+$iisInfo = @{}
+if (-Not $wp.IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+Write-Host "Need administrator privileges to show more information." -ForegroundColor Yellow
+}
+else {
+Import-Module WebAdministration
+Get-ChildItem -Path "IIS:\Sites" | ForEach-Object {
+$siteName = $_.Name
+$_.Bindings | ForEach-Object {
+$_.Collection | ForEach-Object {
+$p = $_.bindingInformation.Split(':')
+$socket = $p[0].Replace('*', '::') + ':' + $p[1]
+if ($p[2]) {
+$bindHost = "(Host=$($p[2])) "
+}
+$iisInfo[$socket] += 'IIS:\' + $siteName + $bindHost
+}
+}
+}
+}
+Get-NetTCPConnection -State Listen | Sort-Object { $_.LocalPort } |
+ForEach-Object {
+$process = Get-Process -Id $_.OwningProcess
+$procPath = $process.Path
+$socket = "$($_.LocalAddress):$($_.LocalPort)"
+if (!$procPath) {
+if ($iisInfo[$socket]) {
+$procPath = $iisInfo[$socket]
+}
+else {
+$procPath = $dict['P' + $process.Id]
+}
+}
+[PSCustomObject]@{
+ProcessName = $process.Name
+PID         = $process.Id
+Socket      = "$($_.LocalAddress):$($_.LocalPort)"
+Path        = $procPath
+}
+}
+</code></pre> <p>實測一下。用一般權限看不到 IIS Port 及檔案路徑：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png"></p> <p>使用管理者權限執行，資訊會完整一些。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334115438454293.png"></p> <p>有了這個小工具，未來要查 Port 使用狀況方便多了。</p> <p data-slug="list-listening-port-w-ps" data-title-en="PowerShell script - list all listening ports" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720">A handy PowerShell script to list all listening port witht process info.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>想寫這個工具很久了，因緣成熟，花了點時間做出來。</p> <p>遇到 Windows 在 Listen 某個 Port，若想知道是哪支程式使用中，簡單做法是 <code>netstat -ano | findstr /i "listening"</code> 得到 Process Id (PID)，再用 PID 去查程序資料，若 Port 是被 IIS 站台繫結，PID 會指向系統(PID = 4)，要用 IIS 管理員或 CLI 查。我想要寫一段 PowerShell 一口氣查完所需資訊，使用時複製貼上執行，一次得到完整答案。</p> <p>程式原理不複雜，主體是 <code>Get-NetTCPConnection -State Listen</code> 查詢繫結中的 Port 及其 PID，用 <code>Get-Process -Id &lt;PID&gt;</code> 查詢程序名稱及路徑，實測 Get-Process 不太抓得到執行檔路徑，而 IIS 使用的 Port 會掛給 PID=4 System，我的解法是另外呼叫 <code>Get-WmiObject Win32_Process</code> 取得 PID 的程式檔路徑，用<code>Get-ChildItem -Path "IIS:\Sites"</code> 建立站台對繫結 IP 及 Port 的對照表，雙管齊下補足資訊。<br> 註：學到新知識，<code>::</code> 在 IPv6 代表一串零，等同 IPv4 0.0.0.0，用於 LISTEN 時代表所有本機 IP 位址。</p> <p>另外，發現 Get-WmiObject Win32_Process 及 Get-ChildItem -Path "IIS:\Sites" 需使用管理者權限執行才能讀取完整資訊，借用之前學過<a href="/blog/ps1-requireadministrator/">判斷管理者身分技巧</a>，提示而要管理者權限才能查看詳細資訊。</p> <p>程式範例如下：</p> <pre><code>$dict = @{}
+Get-WmiObject Win32_Process | ForEach-Object {
+$path = $_.ExecutablePath
+if (!$path) {
+$path = $_.Name
+}
+$dict['P' + $_.ProcessId] = $path + ' ' + $_.CommandLine
+}
+$wp = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+$iisInfo = @{}
+if (-Not $wp.IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+Write-Host "Need administrator privileges to show more information." -ForegroundColor Yellow
+}
+else {
+Import-Module WebAdministration
+Get-ChildItem -Path "IIS:\Sites" | ForEach-Object {
+$siteName = $_.Name
+$_.Bindings | ForEach-Object {
+$_.Collection | ForEach-Object {
+$p = $_.bindingInformation.Split(':')
+$socket = $p[0].Replace('*', '::') + ':' + $p[1]
+if ($p[2]) {
+$bindHost = "(Host=$($p[2])) "
+}
+$iisInfo[$socket] += 'IIS:\' + $siteName + $bindHost
+}
+}
+}
+}
+Get-NetTCPConnection -State Listen | Sort-Object { $_.LocalPort } |
+ForEach-Object {
+$process = Get-Process -Id $_.OwningProcess
+$procPath = $process.Path
+$socket = "$($_.LocalAddress):$($_.LocalPort)"
+if (!$procPath) {
+if ($iisInfo[$socket]) {
+$procPath = $iisInfo[$socket]
+}
+else {
+$procPath = $dict['P' + $process.Id]
+}
+}
+[PSCustomObject]@{
+ProcessName = $process.Name
+PID         = $process.Id
+Socket      = "$($_.LocalAddress):$($_.LocalPort)"
+Path        = $procPath
+}
+}
+</code></pre> <p>實測一下。用一般權限看不到 IIS Port 及檔案路徑：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png"></p> <p>使用管理者權限執行，資訊會完整一些。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334115438454293.png"></p> <p>有了這個小工具，未來要查 Port 使用狀況方便多了。</p> <p data-slug="list-listening-port-w-ps" data-title-en="PowerShell script - list all listening ports" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720">A handy PowerShell script to list all listening port witht process info.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>想寫這個工具很久了，因緣成熟，花了點時間做出來。</p> <p>遇到 Windows 在 Listen 某個 Port，若想知道是哪支程式使用中，簡單做法是 <code>netstat -ano | findstr /i "listening"</code> 得到 Process Id (PID)，再用 PID 去查程序資料，若 Port 是被 IIS 站台繫結，PID 會指向系統(PID = 4)，要用 IIS 管理員或 CLI 查。我想要寫一段 PowerShell 一口氣查完所需資訊，使用時複製貼上執行，一次得到完整答案。</p> <p>程式原理不複雜，主體是 <code>Get-NetTCPConnection -State Listen</code> 查詢繫結中的 Port 及其 PID，用 <code>Get-Process -Id &lt;PID&gt;</code> 查詢程序名稱及路徑，實測 Get-Process 不太抓得到執行檔路徑，而 IIS 使用的 Port 會掛給 PID=4 System，我的解法是另外呼叫 <code>Get-WmiObject Win32_Process</code> 取得 PID 的程式檔路徑，用<code>Get-ChildItem -Path "IIS:\Sites"</code> 建立站台對繫結 IP 及 Port 的對照表，雙管齊下補足資訊。<br> 註：學到新知識，<code>::</code> 在 IPv6 代表一串零，等同 IPv4 0.0.0.0，用於 LISTEN 時代表所有本機 IP 位址。</p> <p>另外，發現 Get-WmiObject Win32_Process 及 Get-ChildItem -Path "IIS:\Sites" 需使用管理者權限執行才能讀取完整資訊，借用之前學過<a href="/blog/ps1-requireadministrator/">判斷管理者身分技巧</a>，提示而要管理者權限才能查看詳細資訊。</p> <p>程式範例如下：</p> <pre><code>$dict = @{}
+Get-WmiObject Win32_Process | ForEach-Object {
+$path = $_.ExecutablePath
+if (!$path) {
+$path = $_.Name
+}
+$dict['P' + $_.ProcessId] = $path + ' ' + $_.CommandLine
+}
+$wp = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+$iisInfo = @{}
+if (-Not $wp.IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+Write-Host "Need administrator privileges to show more information." -ForegroundColor Yellow
+}
+else {
+Import-Module WebAdministration
+Get-ChildItem -Path "IIS:\Sites" | ForEach-Object {
+$siteName = $_.Name
+$_.Bindings | ForEach-Object {
+$_.Collection | ForEach-Object {
+$p = $_.bindingInformation.Split(':')
+$socket = $p[0].Replace('*', '::') + ':' + $p[1]
+if ($p[2]) {
+$bindHost = "(Host=$($p[2])) "
+}
+$iisInfo[$socket] += 'IIS:\' + $siteName + $bindHost
+}
+}
+}
+}
+Get-NetTCPConnection -State Listen | Sort-Object { $_.LocalPort } |
+ForEach-Object {
+$process = Get-Process -Id $_.OwningProcess
+$procPath = $process.Path
+$socket = "$($_.LocalAddress):$($_.LocalPort)"
+if (!$procPath) {
+if ($iisInfo[$socket]) {
+$procPath = $iisInfo[$socket]
+}
+else {
+$procPath = $dict['P' + $process.Id]
+}
+}
+[PSCustomObject]@{
+ProcessName = $process.Name
+PID         = $process.Id
+Socket      = "$($_.LocalAddress):$($_.LocalPort)"
+Path        = $procPath
+}
+}
+</code></pre> <p>實測一下。用一般權限看不到 IIS Port 及檔案路徑：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png"></p> <p>使用管理者權限執行，資訊會完整一些。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334115438454293.png"></p> <p>有了這個小工具，未來要查 Port 使用狀況方便多了。</p> <p data-slug="list-listening-port-w-ps" data-title-en="PowerShell script - list all listening ports" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720">A handy PowerShell script to list all listening port witht process info.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png" medium="image"/>
+    <pubDate>Fri, 20 Oct 2023 04:11:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></title>
     <link>https://blog.darkthread.net/blog/show-certs-w-ps/</link>
     <itunes:title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></itunes:title>
@@ -962,80 +1124,5 @@ customElements.define('my-component', MyComponent);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638322822946440173.png" medium="image"/>
     <pubDate>Sat, 07 Oct 2023 13:27:25 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></title>
-    <link>https://blog.darkthread.net/blog/nodejs-localhost-resolving/</link>
-    <itunes:title><![CDATA[Node.js 之 localhost / 127.0.0.1 解析問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
-const clientMode = args.length &amp;&amp; args[0] === 'client';
-if (clientMode) {
-console.log('client test');
-// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
-const fetch = require('node-fetch');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-}
-else {
-console.log('server mode');
-const http = require('http');
-http.createServer((req, res) =&gt; {
-res.writeHead(200, { 'Content-Type': 'text/plain' });
-res.end('Hello World
-');
-}).listen(9527, '127.0.0.1');
-}
-</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
-const clientMode = args.length &amp;&amp; args[0] === 'client';
-if (clientMode) {
-console.log('client test');
-// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
-const fetch = require('node-fetch');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-}
-else {
-console.log('server mode');
-const http = require('http');
-http.createServer((req, res) =&gt; {
-res.writeHead(200, { 'Content-Type': 'text/plain' });
-res.end('Hello World
-');
-}).listen(9527, '127.0.0.1');
-}
-</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>踩到一個 Node.js 小問題，用一小段程式重現。</p> <p>簡單的 HTTP 客戶端測試，一人分飾兩角，預設為伺服器模式，利用內建 http 模組 Bind 127.0.0.1 9527 Port 跑一個簡單的伺服器(永遠回傳 Hello World)；若帶入參數 client，則使用 fetch 呼叫 <code>http://localhost:9527</code> 驗證結果：<br> (學到冷知識：Node 18+ <a href="https://dev.to/andrewbaisden/the-nodejs-18-fetch-api-72m">內建 fetch API</a>，若為早期版本依賴 node-fetch 套件)</p> <pre><code>const args = process.argv.slice(2);
-const clientMode = args.length &amp;&amp; args[0] === 'client';
-if (clientMode) {
-console.log('client test');
-// 註：Node 18+ 內建 fetch API，之前版本需 npm install node-fetch
-const fetch = require('node-fetch');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-}
-else {
-console.log('server mode');
-const http = require('http');
-http.createServer((req, res) =&gt; {
-res.writeHead(200, { 'Content-Type': 'text/plain' });
-res.end('Hello World
-');
-}).listen(9527, '127.0.0.1');
-}
-</code></pre> <p>狀況為程式在某些機器測試 OK，有些機器上 fetch() 動作會出現 <code>FetchError: request to http://localhost:9527/ failed, reason: connect ECONNREFUSED ::1:9527</code> 錯誤，但 <code>curl http://localhost:9527</code> 及瀏覽器檢視正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"></p> <p>由程式碼與錯誤訊息中的 "::1" 可知跟 localhost 用 IPv6 或 IPv4 網址有關。從這篇<a href="https://github.com/nodejs/node/issues/40702">Node.js 問題回報</a>得到解答：</p> <blockquote> <p>Node.js 17 版有個 Breaking Change - DNS.lookup 解析 localhost 結果，從 v17 起優先改回傳 IPv6；若伺服器繫結網址寫 127.0.0.1 但客戶端寫 localhost，就會出現 ECONNREFUSED 錯誤。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-958143154">參考</a><br> 瀏覽器及 curl 不會出錯因為遇到 localhost 時，127.0.0.1 及 ::1 兩個網址都會試。<a href="https://github.com/nodejs/node/issues/40702#issuecomment-1100385972">參考</a></p> </blockquote> <p>為了驗證這是 v16/v17 的差異，我找了一台有裝 NVM (Node 版本切換器)的 Linux 實測，證實同樣的程式用 v16 跑是好的，在 v17 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638322026063621707.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638322026066064568.png"></p> <p>【參考資料】</p> <ul><li><a href="https://titangene.github.io/article/nvm.html">nvm：安裝、切換不同 Node.js 版本的管理器 by Titangene</a></li> <li><a href="https://nodejs.org/zh-tw/download/releases">Node 主要版本最新版一覽表</a></li></ul> <p>知道原因，解法選項如下：</p> <ol><li>bind() 或 listen() 的主機名稱改用 localhost，跟呼叫端統一</li> <li>若伺服器端寫死 127.0.0.1 無法改，fetch 網址也改用 127.0.0.1</li> <li>若伺服器端非 127.0.0.1 不 Bind，fetch 端也堅持要用 localhost (人生好難)... 可加入以下程式指定 IPv4 優先 <pre><code> const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-fetch('http://localhost:9527').then(res =&gt; res.text()).then(console.log);
-</code></pre> 一樣可以解決問題<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638322026067878830.png"></li></ol> <p data-slug="nodejs-localhost-resolving" data-title-en="localhost resolving issue in node.js" data-catg="JavaScript" data-fbimg="https://cdn.pixabay.com/photo/2018/12/07/08/30/cat-3861290_960_720.jpg#960#720">Issue of localhost resolving behavior breaking change in Node.js 17.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638322026059736478.png" medium="image"/>
-    <pubDate>Fri, 06 Oct 2023 15:15:35 GMT</pubDate>
   </item></channel>
 </rss>
