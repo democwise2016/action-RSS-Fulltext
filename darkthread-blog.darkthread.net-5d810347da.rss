@@ -30,6 +30,54 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[log4net 依日期分檔設定]]></title>
+    <link>https://blog.darkthread.net/blog/log4net-config/</link>
+    <itunes:title><![CDATA[log4net 依日期分檔設定]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
+&lt;file value="D:\\Logs\\MyApp\\"/&gt;
+&lt;appendToFile value="true"/&gt;
+&lt;rollingStyle value="Date"/&gt;
+&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
+&lt;staticLogFileName value="false" /&gt;
+&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
+&lt;layout type="log4net.Layout.PatternLayout"&gt;
+&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
+&lt;/layout&gt;
+&lt;/appender&gt;
+</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
+&lt;file value="D:\\Logs\\MyApp\\"/&gt;
+&lt;appendToFile value="true"/&gt;
+&lt;rollingStyle value="Date"/&gt;
+&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
+&lt;staticLogFileName value="false" /&gt;
+&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
+&lt;layout type="log4net.Layout.PatternLayout"&gt;
+&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
+&lt;/layout&gt;
+&lt;/appender&gt;
+</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
+&lt;file value="D:\\Logs\\MyApp\\"/&gt;
+&lt;appendToFile value="true"/&gt;
+&lt;rollingStyle value="Date"/&gt;
+&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
+&lt;staticLogFileName value="false" /&gt;
+&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
+&lt;layout type="log4net.Layout.PatternLayout"&gt;
+&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
+&lt;/layout&gt;
+&lt;/appender&gt;
+</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png" medium="image"/>
+    <pubDate>Sun, 22 Oct 2023 00:23:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[【茶包射手日記】詭異的 TLS 憑證數位簽章無效問題]]></title>
     <link>https://blog.darkthread.net/blog/tls-intermediate-ca-cert-issue/</link>
     <itunes:title><![CDATA[【茶包射手日記】詭異的 TLS 憑證數位簽章無效問題]]></itunes:title>
@@ -1004,173 +1052,5 @@ return trimmed;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638324467084683838.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638324467084683838.png" medium="image"/>
     <pubDate>Mon, 09 Oct 2023 11:05:51 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - 打造個人專屬 ChatGPT 聊天室 (Azure OpenAI Service 版)]]></title>
-    <link>https://blog.darkthread.net/blog/chatty-gpt-azure-openai-version/</link>
-    <itunes:title><![CDATA[Coding4Fun - 打造個人專屬 ChatGPT 聊天室 (Azure OpenAI Service 版)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;title&gt;Web Component&lt;/title&gt;
-&lt;style&gt;
-html, body {
-font-family: '微軟正黑體', sans-serif;
-}
-my-component {
-font-size: 20pt;
-cursor: pointer;
-color: dodgerblue;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div&gt;
-&lt;input type="text" id="name" value="Jeffrey"&gt;
-&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
-Chanage
-&lt;/button&gt;
-&lt;/div&gt;
-&lt;my-component id="c" user-name="World"&gt;
-&lt;/my-component&gt;
-&lt;ul&gt;
-&lt;/ul&gt;
-&lt;script&gt;
-class MyComponent extends HTMLElement {
-get userName() {
-return this.getAttribute('user-name');
-}
-set userName(value) {
-this.setAttribute('user-name', value);
-this.render();
-}
-connectedCallback() {
-this.render();
-this.addEventListener('click', () =&gt; {
-document.querySelector('ul').innerHTML +=
-`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
-});
-}
-render() {
-this.textContent = `Hello, ${this.userName}!`;
-}
-}
-customElements.define('my-component', MyComponent);
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;title&gt;Web Component&lt;/title&gt;
-&lt;style&gt;
-html, body {
-font-family: '微軟正黑體', sans-serif;
-}
-my-component {
-font-size: 20pt;
-cursor: pointer;
-color: dodgerblue;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div&gt;
-&lt;input type="text" id="name" value="Jeffrey"&gt;
-&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
-Chanage
-&lt;/button&gt;
-&lt;/div&gt;
-&lt;my-component id="c" user-name="World"&gt;
-&lt;/my-component&gt;
-&lt;ul&gt;
-&lt;/ul&gt;
-&lt;script&gt;
-class MyComponent extends HTMLElement {
-get userName() {
-return this.getAttribute('user-name');
-}
-set userName(value) {
-this.setAttribute('user-name', value);
-this.render();
-}
-connectedCallback() {
-this.render();
-this.addEventListener('click', () =&gt; {
-document.querySelector('ul').innerHTML +=
-`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
-});
-}
-render() {
-this.textContent = `Hello, ${this.userName}!`;
-}
-}
-customElements.define('my-component', MyComponent);
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>上回提過 Azure 有提供 OpenAI Service，與 OpenAI API 相比，具有 SLA 保證、多區域備援、AD 整合、虛擬網路整合、更符合企業規範... 等特色。而對個人用戶，若手上有 Azure 免費額度(例如：Visual Studio Enterprise 訂閱 150 USD/月 或學生方案 100 USD/年)，等於有免費的 ChatGPT4 可以玩，嘗試一些有趣應用。(延伸閱讀：<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習 - 使用 .NET + Azure OpenAI API</a>)</p> <p>若想單純測試及驗證 ChatGPT 的回答，Azure OpenAI Studio 有個 Chat Playground (聊天遊樂場)，提供類似 ChatGPT 網頁的對話介面：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"></p> <p>但它畢竟是程式開發範例性質，只提供最基本功能，要順手好用還是得自己來。所幸，網路上已有不少 ChatGPT 介面開源專案，不用自己造輪子。我找到這個 - <a href="https://github.com/morphar/chatty-gpt">Chatty GPT</a>，純靜態網頁構成的前端介面，不需伺服器端程式，資料則存在 localStorage，檔案丟到 Github Pages、Live Server 或任何靜態檔網站都能跑。Chattyt GPT 沒有太多華麗功能(但需要可自行擴充)，介面簡潔操作算順手，最重要最重要的是 - 它使用香草 JavaScript，不依賴 React/Vue/Angular 等前端框架(只有 TailwindCSS 需要編譯產生 min.css)，符合我的輕前端理念，便決定以它為基礎改造我想要的個人專屬 ChatGPT 聊天室。</p> <p>每回摸開源專案總會學到滿滿的新東西，這回也不例外。</p> <p>Chatty GPT 雖然沒走前端框架，設計上卻十分模組化，靠的是 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components">Web Components</a>，一個存在超過 10 年，各瀏覽器早已內建支援的 HTML 技術。</p> <p>我做了一個簡單範例，有 userName 屬性決定顯示內容，示範對 click 事件做反應：<a href="https://output.jsbin.com/kexepat">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;title&gt;Web Component&lt;/title&gt;
-&lt;style&gt;
-html, body {
-font-family: '微軟正黑體', sans-serif;
-}
-my-component {
-font-size: 20pt;
-cursor: pointer;
-color: dodgerblue;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div&gt;
-&lt;input type="text" id="name" value="Jeffrey"&gt;
-&lt;button onclick="document.getElementById('c').userName=document.getElementById('name').value"&gt;
-Chanage
-&lt;/button&gt;
-&lt;/div&gt;
-&lt;my-component id="c" user-name="World"&gt;
-&lt;/my-component&gt;
-&lt;ul&gt;
-&lt;/ul&gt;
-&lt;script&gt;
-class MyComponent extends HTMLElement {
-get userName() {
-return this.getAttribute('user-name');
-}
-set userName(value) {
-this.setAttribute('user-name', value);
-this.render();
-}
-connectedCallback() {
-this.render();
-this.addEventListener('click', () =&gt; {
-document.querySelector('ul').innerHTML +=
-`&lt;li&gt;Hello, ${this.userName}!&lt;/li&gt;`;
-});
-}
-render() {
-this.textContent = `Hello, ${this.userName}!`;
-}
-}
-customElements.define('my-component', MyComponent);
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638323484935225113.gif"></p> <p>本次另一項收獲是實際摸到超多人大推，傳說中的 TailwindCSS。</p> <p>為了擴充增加聊天紀錄刪除鈕，我學會看懂 Web Component 的設計方式，也試著靠 Tailwind 設定 CSS。</p> <p>改用 TailwindCSS，HTML 的樣式設定會變成像這樣 <code>&lt;chatty-icon name="github" class="text-gray-400 group-hover:text-gray-400 mr-3 h-6 w-6 flex-shrink-0"&gt;</code>、<code>&lt;img src="del.svg" class="opacity-10 hover:opacity-80 del-btn absolute right-6" alt="delete" /&gt;</code>，對於習慣 class="class-name" 再用 Selector 依容器從屬關係管理樣式的開發者來說，看到這裡不免要吐糟「花惹發，怎麼又回到用 style="..." 寫死樣式的原始時代？」 這也是我原本的反應。但經過這次維護經驗，算是約略理解它的設計哲學 - 明確標示樣式簡單直覺，不需要從樣式名稱、元素類別、Attribute 特徵、從屬關係去推敲最後看到的顏色位置大小是怎麼來的，或去調查為什麼結果跟想像的不一樣。class 又長又囉嗦是 Tailwind 的特色，是種取捨。當前前端主流是將網頁拆解成組件或 Web Component，組件的 HTML 範本與樣式直接整合在一起，邏輯集中方便管理，各組件完全獨立不會互相干擾，得到的優勢便會大於成本。但如果簡單兩三頁網頁介面，用上 Tailwind 確實像沒事找事，感受不到好處，這類需求套用 Bootstrap 或其他現成 CSS 框架更方便省事。(延伸閱讀：<a href="https://5xruby.tw/posts/tailwind-css-plugin">還在跟複雜的 CSS 的設定奮鬥嗎？用 Tailwind 來幫你實現真正的高效整潔！ by Meng-Ying Tsai</a>)</p> <p>Chatty GPT 沒用到什麼 Tailwind 客製設定，但仍需要編譯，工具會掃瞄 .html, .js 找出用到的樣式宣告(即前面例子中的 mr-3, h-6, w-6, opacity-10...)，將其編譯成 global.min.css，裡面只會包含有用到的項目以縮小體積提高使用效率。因此，每次修改 HTML 或 WebComponent 有多引用或移除樣式後，都需跑 <code>npx tailwindcss -m -i ./css/global.css -o ./css/global.min.css</code> 重新編譯。</p> <p>最後，第一階段成品如下，後端由 OpenAI API 改為 Azure OpenAI Service，並加上聊天項目的刪除鈕。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638323484937705008.png"></p> <p>順便分享一個 ChatGPT 有趣應用 - 產生小圖示 SVG。如上圖，想找個簡單的紅 X 圖示當刪除鈕，找到很多，但順眼的很多需要額外授權或姓名標示，最後姑且一試請 ChatGPT 現場生一個，效果還不錯。呵!</p> <p>我的修改版本已推上 <a href="https://github.com/darkthread/chatty-gpt">Github</a>，雖然會走這條路的不多，但如果你有 Azure OpenAI Service 想試試草香 JavaScript 做的個人專屬 ChatGPT 聊天室，可以 Clone 一份玩看看。</p> <p data-slug="chatty-gpt-azure-openai-version" data-title-en="Azure OpenAI version of Chatty GPT project" data-catg="JavaScript" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Chatty GPT is an open source project which provide a pure frontend interface of ChatGPT, I folked it and provide the Azure OpenAI service version.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638323484931238546.png" medium="image"/>
-    <pubDate>Sun, 08 Oct 2023 07:54:36 GMT</pubDate>
   </item></channel>
 </rss>
