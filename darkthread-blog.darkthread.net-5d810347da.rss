@@ -30,6 +30,222 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[為檔案總管右鍵選單加入 Word 檔轉 PDF 功能]]></title>
+    <link>https://blog.darkthread.net/blog/docx-2-pdf-shell-cmd/</link>
+    <itunes:title><![CDATA[為檔案總管右鍵選單加入 Word 檔轉 PDF 功能]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
+[parameter(ValueFromRemainingArguments=$true)]
+[string]
+$docPaths,
+[parameter(ValueFromPipelineByPropertyName=$true)]
+[switch][bool]
+$Replace,
+[switch][bool]
+$Register, # 註冊右鍵選單
+[switch][bool]
+$Unregister # 取消註冊右鍵選單
+)
+$ErrorActionPreference = "STOP"
+function getDocxShellKeyPath() {
+# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
+$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
+return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
+}
+if ($Unregister) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if ($key) { $reg.DeleteSubKeyTree($regPath) }
+return
+}
+if ($Register) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if (-not $key) { $key = $reg.CreateSubKey($regPath) }
+$key.SetValue("", "轉存 PDF")
+$key = $reg.OpenSubKey("$regPath\command", $true)
+if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
+$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
+return
+}
+if (!$docPaths) {
+Write-Host "請指定要轉換的 Word 檔案路徑"
+return
+}
+try
+{
+$doc = New-Object -ComObject Word.Application
+$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
+Get-Item $docPaths | ForEach-Object {
+$path = $_.FullName
+Write-Host "開啟 $path..."
+try {
+$doc.Documents.Open($path) | Out-Null
+$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
+# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
+# WdSaveFormat.wdFormatPDF = 17
+$doc.ActiveDocument.SaveAs2($savePath, 17)
+$doc.ActiveDocument.Close()
+if ($replace) {
+Remove-Item $path
+}
+}
+catch {
+Write-Host "發生錯誤 - $path" -ForegroundColor Red
+}
+}
+}
+finally
+{
+$doc.Quit()
+}
+</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
+[parameter(ValueFromRemainingArguments=$true)]
+[string]
+$docPaths,
+[parameter(ValueFromPipelineByPropertyName=$true)]
+[switch][bool]
+$Replace,
+[switch][bool]
+$Register, # 註冊右鍵選單
+[switch][bool]
+$Unregister # 取消註冊右鍵選單
+)
+$ErrorActionPreference = "STOP"
+function getDocxShellKeyPath() {
+# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
+$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
+return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
+}
+if ($Unregister) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if ($key) { $reg.DeleteSubKeyTree($regPath) }
+return
+}
+if ($Register) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if (-not $key) { $key = $reg.CreateSubKey($regPath) }
+$key.SetValue("", "轉存 PDF")
+$key = $reg.OpenSubKey("$regPath\command", $true)
+if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
+$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
+return
+}
+if (!$docPaths) {
+Write-Host "請指定要轉換的 Word 檔案路徑"
+return
+}
+try
+{
+$doc = New-Object -ComObject Word.Application
+$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
+Get-Item $docPaths | ForEach-Object {
+$path = $_.FullName
+Write-Host "開啟 $path..."
+try {
+$doc.Documents.Open($path) | Out-Null
+$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
+# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
+# WdSaveFormat.wdFormatPDF = 17
+$doc.ActiveDocument.SaveAs2($savePath, 17)
+$doc.ActiveDocument.Close()
+if ($replace) {
+Remove-Item $path
+}
+}
+catch {
+Write-Host "發生錯誤 - $path" -ForegroundColor Red
+}
+}
+}
+finally
+{
+$doc.Quit()
+}
+</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
+[parameter(ValueFromRemainingArguments=$true)]
+[string]
+$docPaths,
+[parameter(ValueFromPipelineByPropertyName=$true)]
+[switch][bool]
+$Replace,
+[switch][bool]
+$Register, # 註冊右鍵選單
+[switch][bool]
+$Unregister # 取消註冊右鍵選單
+)
+$ErrorActionPreference = "STOP"
+function getDocxShellKeyPath() {
+# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
+$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
+return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
+}
+if ($Unregister) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if ($key) { $reg.DeleteSubKeyTree($regPath) }
+return
+}
+if ($Register) {
+$regPath = getDocxShellKeyPath
+$reg = [Microsoft.Win32.Registry]::CurrentUser
+$key = $reg.OpenSubKey($regPath, $true)
+if (-not $key) { $key = $reg.CreateSubKey($regPath) }
+$key.SetValue("", "轉存 PDF")
+$key = $reg.OpenSubKey("$regPath\command", $true)
+if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
+$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
+return
+}
+if (!$docPaths) {
+Write-Host "請指定要轉換的 Word 檔案路徑"
+return
+}
+try
+{
+$doc = New-Object -ComObject Word.Application
+$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
+Get-Item $docPaths | ForEach-Object {
+$path = $_.FullName
+Write-Host "開啟 $path..."
+try {
+$doc.Documents.Open($path) | Out-Null
+$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
+# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
+# WdSaveFormat.wdFormatPDF = 17
+$doc.ActiveDocument.SaveAs2($savePath, 17)
+$doc.ActiveDocument.Close()
+if ($replace) {
+Remove-Item $path
+}
+}
+catch {
+Write-Host "發生錯誤 - $path" -ForegroundColor Red
+}
+}
+}
+finally
+{
+$doc.Quit()
+}
+</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif" medium="image"/>
+    <pubDate>Wed, 25 Oct 2023 13:46:04 GMT</pubDate>
+  </item><item>
     <title><![CDATA[【笨問題】機車鑰匙末端的奇怪形狀是做什麼用的？]]></title>
     <link>https://blog.darkthread.net/blog/scooter-keyhole-lock/</link>
     <itunes:title><![CDATA[【笨問題】機車鑰匙末端的奇怪形狀是做什麼用的？]]></itunes:title>
@@ -905,152 +1121,5 @@ Console.WriteLine();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638326304049015857.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638326304049015857.jpg" medium="image"/>
     <pubDate>Wed, 11 Oct 2023 13:58:49 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[演算法漫談 - Padding 填充如何表示原始資料長度？]]></title>
-    <link>https://blog.darkthread.net/blog/keep-data-len-when-padding/</link>
-    <itunes:title><![CDATA[演算法漫談 - Padding 填充如何表示原始資料長度？]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
-EM = M || PS ,
-where the padding string PS consists of 8-(||M|| mod 8) octets
-each with value 8-(||M|| mod 8). The padding string PS will
-satisfy one of the following statements:
-PS = 01, if ||M|| mod 8 = 7 ;
-PS = 02 02, if ||M|| mod 8 = 6 ;
-...
-PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
-The length in octets of the encoded message will be a multiple
-of eight and it will be possible to recover the message M
-unambiguously from the encoded message. (This padding rule is
-taken from RFC 1423 [3].)
-</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
-{
-var data = new byte[i];
-for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
-var padded = pad(data, 8);
-var trimmed = trimPadding(padded);
-Console.WriteLine(new string('-', 40));
-Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
-Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
-Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
-}
-byte[] pad(byte[] data, int blockSize)
-{
-var padSize = blockSize - (data.Length % blockSize);
-var padding = new byte[padSize];
-for (var i = 0; i &lt; padSize; i++)
-{
-padding[i] = (byte)padSize;
-}
-byte[] padded = new byte[data.Length + padSize];
-data.CopyTo(padded, 0);
-padding.CopyTo(padded, data.Length);
-return padded;
-}
-byte[] trimPadding(byte[] data)
-{
-int padSize = data[data.Length - 1];
-byte[] trimmed = new byte[data.Length - padSize];
-Array.Copy(data, trimmed, trimmed.Length);
-return trimmed;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
-EM = M || PS ,
-where the padding string PS consists of 8-(||M|| mod 8) octets
-each with value 8-(||M|| mod 8). The padding string PS will
-satisfy one of the following statements:
-PS = 01, if ||M|| mod 8 = 7 ;
-PS = 02 02, if ||M|| mod 8 = 6 ;
-...
-PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
-The length in octets of the encoded message will be a multiple
-of eight and it will be possible to recover the message M
-unambiguously from the encoded message. (This padding rule is
-taken from RFC 1423 [3].)
-</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
-{
-var data = new byte[i];
-for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
-var padded = pad(data, 8);
-var trimmed = trimPadding(padded);
-Console.WriteLine(new string('-', 40));
-Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
-Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
-Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
-}
-byte[] pad(byte[] data, int blockSize)
-{
-var padSize = blockSize - (data.Length % blockSize);
-var padding = new byte[padSize];
-for (var i = 0; i &lt; padSize; i++)
-{
-padding[i] = (byte)padSize;
-}
-byte[] padded = new byte[data.Length + padSize];
-data.CopyTo(padded, 0);
-padding.CopyTo(padded, data.Length);
-return padded;
-}
-byte[] trimPadding(byte[] data)
-{
-int padSize = data[data.Length - 1];
-byte[] trimmed = new byte[data.Length - padSize];
-Array.Copy(data, trimmed, trimmed.Length);
-return trimmed;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>在演算法中常有將原始資料補到固定長度的需求，例如：Base64 編碼是將三個 Byte 資料轉成四位英數字加 +、/ 符號(大寫x26 + 小寫x26 + 數字x10 + 符號x2 = 64 = 2<sup>6</sup>，四個字元 4 x 2<sup>6</sup> == 3 x 2<sup>8</sup> 三個Byte)，若資料 Byte 數非 3 的倍數就要補零到所需長度。而 AES 加密計算區塊以 128 bits 為處理單位，DES 區塊大小則是 64 bits，不同長度原始資料必須補足 16 Bytes 或 8 Bytes 整數倍再進行運算。</p> <p>題外話：最近 Base64 編碼上了新聞，臺中市警察局提供交通違規檢舉資料出包(<a href="https://www.inside.com.tw/article/33003-base64">身分證未加密烏龍！臺中市警察局公布檢舉達人個資遭洩露</a>)，承辦人員不知缺少相關知識還是故意裝糊塗，竟把 Base64 編碼當馬賽克用，讓檢舉人身分證號穿著國王新衣遊街。殊不知這跟當年第四台鎖碼成人頻道一樣，懂門道弄支<a href="https://www.ettoday.net/news/20170314/884288.htm">解碼棒</a>，人人能看。而 Base64 解碼棒更是唾手可得，在瀏覽器按 F12 用一行指令 <code>atob('QTEyMzQ1Njc4OQ==')</code> 即可破解...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"></p> <p>補零的一項挑戰是必須記錄或辦別原始資料長度，否則還原時會搞不清楚最後一個區塊哪些是原始資料，哪些是填充物。</p> <p>Base64 採用的做法是填充部分用 64 個字元之外的符號「=」來表示，資料三個 Bytes 為單位，若結尾有兩個 =，表示資料長度除 3 的餘數為 1；若結尾有一個 =，則表除 3 餘數為 2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638325037708926790.png"></p> <p>換到 AES 或 DES byte[16]/byte[8] 填充的場景，byte 0 - 255 每一個都可能是有效資料，無法像 Base64 找 64 個字元之外的符號表示。一個無腦解法是在資料前方加個長度欄位，用幾個 Byte 記錄長度，但資料結構跟處理邏輯會因此複雜化，不夠優雅。但是，若不這麼做，原始資料有無限多種可能，就是會遇到跟填補樣式一模一樣的組合，讓你分不出是長度不足填補過的內容，還是長度剛好內容雷同的原始資料。</p> <p>問題看似無解，其實前人早就想到巧妙解法。以 <a href="https://datatracker.ietf.org/doc/html/rfc2898">PKCS #5: Password-Based Cryptography Specification Version 2.0</a> 為例，它採用的填充規則如下：(註：另有 PKCS #7，原理相同，但區塊長度支援 1 ~ 255 Bytes)</p> <pre><code>Concatenate M and a padding string PS to form an encoded message EM:
-EM = M || PS ,
-where the padding string PS consists of 8-(||M|| mod 8) octets
-each with value 8-(||M|| mod 8). The padding string PS will
-satisfy one of the following statements:
-PS = 01, if ||M|| mod 8 = 7 ;
-PS = 02 02, if ||M|| mod 8 = 6 ;
-...
-PS = 08 08 08 08 08 08 08 08, if ||M|| mod 8 = 0.
-The length in octets of the encoded message will be a multiple
-of eight and it will be possible to recover the message M
-unambiguously from the encoded message. (This padding rule is
-taken from RFC 1423 [3].)
-</code></pre> <p>若要補足 8 Bytes，當長度除 8 餘 7，補 01；除 8 餘 6 補 02 02；除 8 餘 5 補 03 03 03；... 若除 8 整除，則補 08 08 08 08 08 08 08 08。</p> <p>還原時，讀取最後區塊的最後 Bytes，若為 01 就取前 7 Bytes、02 取前 6 Bytes、03 取前 5 Bytes... 若為 08 則整個區塊丟棄，原始資料到前一區塊為止。</p> <p>就醬，靠著長度整除 8 硬補一組 8 個 8，雖然浪費 8 個 Bytes，原本無法辨別最後區塊是填補後結果還是原始資料的困擾，就這麼巧妙解決了，聰明。不過，這個做法也有限制：其適用區塊長度只到 255，且區塊愈大，長度整除時浪費的空間/頻寬就愈多。儘管如此，PKCS #5/#7 在一般應用仍是簡單有效的填充方法。</p> <p>最後，用一小段 C# 實測結束這回合。</p> <pre><code>for (int i = 1; i &lt; 10; i++)
-{
-var data = new byte[i];
-for (int j = 0; j &lt; i; j++) data[j] = (byte)0xff;
-var padded = pad(data, 8);
-var trimmed = trimPadding(padded);
-Console.WriteLine(new string('-', 40));
-Console.WriteLine($"OrigData: {BitConverter.ToString(data)}");
-Console.WriteLine($"  Padded: {BitConverter.ToString(padded)}");
-Console.WriteLine($"Restored: {BitConverter.ToString(trimmed)}");
-}
-byte[] pad(byte[] data, int blockSize)
-{
-var padSize = blockSize - (data.Length % blockSize);
-var padding = new byte[padSize];
-for (var i = 0; i &lt; padSize; i++)
-{
-padding[i] = (byte)padSize;
-}
-byte[] padded = new byte[data.Length + padSize];
-data.CopyTo(padded, 0);
-padding.CopyTo(padded, data.Length);
-return padded;
-}
-byte[] trimPadding(byte[] data)
-{
-int padSize = data[data.Length - 1];
-byte[] trimmed = new byte[data.Length - padSize];
-Array.Copy(data, trimmed, trimmed.Length);
-return trimmed;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638325045080993918.png"></p> <p data-slug="keep-data-len-when-padding" data-title-en="Padding algorithm" data-catg=".NET" data-fbimg="https://i.imgur.com/1yLgnsQ.png#1366#650">Introduction to PKCS#5 padding.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638325037707137761.gif" medium="image"/>
-    <pubDate>Tue, 10 Oct 2023 03:01:55 GMT</pubDate>
   </item></channel>
 </rss>
