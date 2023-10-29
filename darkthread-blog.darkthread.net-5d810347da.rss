@@ -30,6 +30,216 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 將 PDF 逐頁轉成圖檔(使用 PDFiumCore)]]></title>
+    <link>https://blog.darkthread.net/blog/pdfium-core/</link>
+    <itunes:title><![CDATA[Coding4Fun - 將 PDF 逐頁轉成圖檔(使用 PDFiumCore)]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
+using System.Drawing.Imaging;
+using PDFiumCore;
+var scale = 1;
+fpdfview.FPDF_InitLibrary();
+var path = "blogger-story.pdf";
+ExportImages(path, scale);
+static void ExportImages(string pdfPath, float scale)
+{
+var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
+Directory.CreateDirectory(imgFolder);
+// 載入PDF
+var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
+// 取得總頁數
+var pageCount = fpdfview.FPDF_GetPageCount(document);
+for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
+{
+// 逐頁載入
+var page = fpdfview.FPDF_LoadPage(document, pageIndex);
+// 取得尺寸，依比例縮放
+var size = new FS_SIZEF_();
+fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
+var width = (int)Math.Round(size.Width * scale);
+var height = (int)Math.Round(size.Height * scale);
+var bitmap = fpdfview.FPDFBitmapCreateEx(
+width,
+height,
+(int)FPDFBitmapFormat.BGRA,
+IntPtr.Zero,
+0);
+// 填入白色背景
+fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
+// |          | a b 0 |
+// | matrix = | c d 0 |
+// |          | e f 1 |
+using var matrix = new FS_MATRIX_();
+using var clipping = new FS_RECTF_();
+matrix.A = scale;
+matrix.B = 0;
+matrix.C = 0;
+matrix.D = scale;
+matrix.E = 0;
+matrix.F = 0;
+clipping.Left = 0;
+clipping.Right = width;
+clipping.Bottom = 0;
+clipping.Top = height;
+fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
+var bitmapImage = new Bitmap(
+width,
+height,
+fpdfview.FPDFBitmapGetStride(bitmap),
+PixelFormat.Format32bppArgb,
+fpdfview.FPDFBitmapGetBuffer(bitmap));
+bitmapImage.Save(
+Path.Combine(imgFolder, $"{pageIndex:000}.png"),
+ImageFormat.Png
+);
+}
+}
+</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
+using System.Drawing.Imaging;
+using PDFiumCore;
+var scale = 1;
+fpdfview.FPDF_InitLibrary();
+var path = "blogger-story.pdf";
+ExportImages(path, scale);
+static void ExportImages(string pdfPath, float scale)
+{
+var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
+Directory.CreateDirectory(imgFolder);
+// 載入PDF
+var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
+// 取得總頁數
+var pageCount = fpdfview.FPDF_GetPageCount(document);
+for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
+{
+// 逐頁載入
+var page = fpdfview.FPDF_LoadPage(document, pageIndex);
+// 取得尺寸，依比例縮放
+var size = new FS_SIZEF_();
+fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
+var width = (int)Math.Round(size.Width * scale);
+var height = (int)Math.Round(size.Height * scale);
+var bitmap = fpdfview.FPDFBitmapCreateEx(
+width,
+height,
+(int)FPDFBitmapFormat.BGRA,
+IntPtr.Zero,
+0);
+// 填入白色背景
+fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
+// |          | a b 0 |
+// | matrix = | c d 0 |
+// |          | e f 1 |
+using var matrix = new FS_MATRIX_();
+using var clipping = new FS_RECTF_();
+matrix.A = scale;
+matrix.B = 0;
+matrix.C = 0;
+matrix.D = scale;
+matrix.E = 0;
+matrix.F = 0;
+clipping.Left = 0;
+clipping.Right = width;
+clipping.Bottom = 0;
+clipping.Top = height;
+fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
+var bitmapImage = new Bitmap(
+width,
+height,
+fpdfview.FPDFBitmapGetStride(bitmap),
+PixelFormat.Format32bppArgb,
+fpdfview.FPDFBitmapGetBuffer(bitmap));
+bitmapImage.Save(
+Path.Combine(imgFolder, $"{pageIndex:000}.png"),
+ImageFormat.Png
+);
+}
+}
+</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
+using System.Drawing.Imaging;
+using PDFiumCore;
+var scale = 1;
+fpdfview.FPDF_InitLibrary();
+var path = "blogger-story.pdf";
+ExportImages(path, scale);
+static void ExportImages(string pdfPath, float scale)
+{
+var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
+Directory.CreateDirectory(imgFolder);
+// 載入PDF
+var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
+// 取得總頁數
+var pageCount = fpdfview.FPDF_GetPageCount(document);
+for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
+{
+// 逐頁載入
+var page = fpdfview.FPDF_LoadPage(document, pageIndex);
+// 取得尺寸，依比例縮放
+var size = new FS_SIZEF_();
+fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
+var width = (int)Math.Round(size.Width * scale);
+var height = (int)Math.Round(size.Height * scale);
+var bitmap = fpdfview.FPDFBitmapCreateEx(
+width,
+height,
+(int)FPDFBitmapFormat.BGRA,
+IntPtr.Zero,
+0);
+// 填入白色背景
+fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
+// |          | a b 0 |
+// | matrix = | c d 0 |
+// |          | e f 1 |
+using var matrix = new FS_MATRIX_();
+using var clipping = new FS_RECTF_();
+matrix.A = scale;
+matrix.B = 0;
+matrix.C = 0;
+matrix.D = scale;
+matrix.E = 0;
+matrix.F = 0;
+clipping.Left = 0;
+clipping.Right = width;
+clipping.Bottom = 0;
+clipping.Top = height;
+fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
+var bitmapImage = new Bitmap(
+width,
+height,
+fpdfview.FPDFBitmapGetStride(bitmap),
+PixelFormat.Format32bppArgb,
+fpdfview.FPDFBitmapGetBuffer(bitmap));
+bitmapImage.Save(
+Path.Combine(imgFolder, $"{pageIndex:000}.png"),
+ImageFormat.Png
+);
+}
+}
+</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png" medium="image"/>
+    <pubDate>Sun, 29 Oct 2023 13:33:20 GMT</pubDate>
+  </item><item>
+    <title><![CDATA[T5 日光燈故障案例 - 點亮三秒後兩支燈管一起熄滅]]></title>
+    <link>https://blog.darkthread.net/blog/t5-light-tube-failure-case/</link>
+    <itunes:title><![CDATA[T5 日光燈故障案例 - 點亮三秒後兩支燈管一起熄滅]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" medium="image"/>
+    <pubDate>Sun, 29 Oct 2023 02:42:43 GMT</pubDate>
+  </item><item>
     <title><![CDATA[【茶包射手日記】有深度的 ASP.NET WebForm Web Site Project 編譯錯誤]]></title>
     <link>https://blog.darkthread.net/blog/aspnet-compiler-nullref-issue-again/</link>
     <itunes:title><![CDATA[【茶包射手日記】有深度的 ASP.NET WebForm Web Site Project 編譯錯誤]]></itunes:title>
@@ -1166,35 +1376,5 @@ Console.WriteLine();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638331523221052119.png" medium="image"/>
     <pubDate>Tue, 17 Oct 2023 15:09:48 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Windows 2019+ 之檔案總管視窗邊框消失問題]]></title>
-    <link>https://blog.darkthread.net/blog/win2019-explorer-border-missing/</link>
-    <itunes:title><![CDATA[Windows 2019+ 之檔案總管視窗邊框消失問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>Windows 2019/2022 有個糟糕設計 - 目前正在操作的檔案總管視窗邊框會消失!</p> <p>如下圖，開啟兩個檔案總管，焦點在較上層的檔案總管，原本淺灰邊框消失，與下方視窗融為一體，要點選位於邊邊角角的選單或縮放關閉鈕時常點錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638330671496056619.png"></p> <p>聽同事在抱怨，發現原來不只我有困擾，噗。查了一下，有個簡單解法：開啟「個人化設定/色彩/在標題列和視窗框線上顯示輔色」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638330671497907242.png"></p> <p>效果如下，感覺好多了。配色突兀歸突兀，但不會再傻傻分不清視窗囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638330671499854700.png"></p> <p data-slug="win2019-explorer-border-missing" data-fbimg="https://cdn.pixabay.com/photo/2019/09/08/20/11/football-4461803_1280.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>Windows 2019/2022 有個糟糕設計 - 目前正在操作的檔案總管視窗邊框會消失!</p> <p>如下圖，開啟兩個檔案總管，焦點在較上層的檔案總管，原本淺灰邊框消失，與下方視窗融為一體，要點選位於邊邊角角的選單或縮放關閉鈕時常點錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638330671496056619.png"></p> <p>聽同事在抱怨，發現原來不只我有困擾，噗。查了一下，有個簡單解法：開啟「個人化設定/色彩/在標題列和視窗框線上顯示輔色」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638330671497907242.png"></p> <p>效果如下，感覺好多了。配色突兀歸突兀，但不會再傻傻分不清視窗囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638330671499854700.png"></p> <p data-slug="win2019-explorer-border-missing" data-fbimg="https://cdn.pixabay.com/photo/2019/09/08/20/11/football-4461803_1280.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>Windows 2019/2022 有個糟糕設計 - 目前正在操作的檔案總管視窗邊框會消失!</p> <p>如下圖，開啟兩個檔案總管，焦點在較上層的檔案總管，原本淺灰邊框消失，與下方視窗融為一體，要點選位於邊邊角角的選單或縮放關閉鈕時常點錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638330671496056619.png"></p> <p>聽同事在抱怨，發現原來不只我有困擾，噗。查了一下，有個簡單解法：開啟「個人化設定/色彩/在標題列和視窗框線上顯示輔色」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638330671497907242.png"></p> <p>效果如下，感覺好多了。配色突兀歸突兀，但不會再傻傻分不清視窗囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638330671499854700.png"></p> <p data-slug="win2019-explorer-border-missing" data-fbimg="https://cdn.pixabay.com/photo/2019/09/08/20/11/football-4461803_1280.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638330671496056619.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638330671496056619.png" medium="image"/>
-    <pubDate>Mon, 16 Oct 2023 15:32:25 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[介紹 Github 學生大禮包 - Developer Pack 與魔法武器 Github Copilot]]></title>
-    <link>https://blog.darkthread.net/blog/github-student-dev-pack-n-copliot/</link>
-    <itunes:title><![CDATA[介紹 Github 學生大禮包 - Developer Pack 與魔法武器 Github Copilot]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>如果你是在學學生，平日會寫到程式但還沒體驗過神奇的 Github Copilot，那這篇值得看一下，錯過可惜。</p> <p>有許多同學還不知道在學學生可以免費申請 Github Copilot，讓你寫程式<a href="/blog/github-copilot-demo/">如有神助</a>，避免被 AI 的時代巨輪碾壓(還是那句老話：你不會被 AI 取代，而是被會用 AI 的人取代)，這篇來簡單介紹 Github 給學生的大禮包 - <a href="https://education.github.com/pack">Github Student Developer Pack</a>，開局就送<del>魔關羽</del> Github Copilot。</p> <p>Github Student Developer Pack 包含以下內容，東西爆多，我依個人觀點的實用度排序：<br> 來源 <a href="https://education.github.com/pack#offers">GitHub Student Developer Pack Offers</a></p> <ul><li>Github Copilot - 讓 AI 幫忙寫程式，跟 ChatGPT 不同，Copilot 更像副駕駛的角色，方向盤由你掌握，方向由你決定，至於留意路況、前後車距離、踩油門踩煞車等瑣事]就交給 Copilot 打理，能有效降低腦力負擔，把心思放在系統架構設計上。<br> 對我來說，整套 Developer Pack，光有 Copilot 就值了。<br> 【延伸閱讀】 <ul><li><a href="/blog/github-copilot/">小試 Github Copilot</a></li> <li><a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a></li></ul> </li> <li>Github Pro 方案 - Github Actions、Github Codespaces 等空間及儲存空間額度 <a href="https://docs.github.com/en/get-started/learning-about-github/githubs-plans#github-pro">參考</a></li> <li>VSCode Community - 不解釋，別放著神兵利器不用</li> <li>Visual Studio Community - 不解釋，有寫 .NET 不用它是為難自己</li> <li>JetBrains 開發工具 - 開發體驗不輸 Visaul Studio 的 IDE，且跨平台，許多開發者愛它更甚 Visual Studio</li> <li><a href="https://github.com/features/codespaces">Github Codespace</a> - 雲端開發環境，直接用瀏覽器開 VSCode、JetBrain、Jupyter 等 IDE 寫程式，依小時計費 (Github Pro 方案有包含 180 Core 小時額度)</li> <li>Microsoft Azure - Azure 雲端服務一年 100 USD 的，包含 <a href="/blog/chatgpt-console-chat/">OpenAI API</a> (同 ChatGPT API)</li> <li>DeepSource - 靜態源碼檢測，開放 Github 學生用戶免費使用</li> <li>GitKraken - Windows 平台強化版 Git 客戶端，免費 Pro 版及 GitLens Pro 版授權</li> <li>GitLens - VSCode Git 擴充套件，提供在學學生免費 GitLens+ Pro 授權</li> <li>DigitalOcean - 雲端主機免費一年 200 USD 額度</li> <li>Heroku - 每個月 13 USD 額度，共 12 個月 <a href="%E5%8F%83%E8%80%83">/blog/aspnetcore-heroku-postgresql/</a></li> <li><a href="https://pages.github.com/">Github Pages</a> - 將 Repo 轉為靜態網站，每個帳號或組織可建立一個站台(擁有 *.github.io 網域名)、無限個專案站台 (username.github.io/repo-name)</li> <li>Namecheap - 一年的免費 .me 網域名稱及 TLS(SSL) 憑證</li> <li>.tech 網域名稱服務 - 免費一年 .tech 網域名稱</li> <li>Name.com 網域名稱服務 - 免費一年 .live 網域名稱及 TLS 憑證</li> <li>MongoDB - 文件資料庫，50 USD 額度</li> <li>IconScout - 4,900 萬個圖示、SVG、3D 素材、Lottie 動畫，一年內每月下載最多 60 個 Premium 圖示</li> <li>Icons8 - 圖示資料庫，三個月免費訂閱</li> <li>Adafruit - 一年 Adafruit IO+ IoT 雲端服務</li> <li>Sentry - 程式錯誤管理，學生享用：50K 錯誤、100K 交易、1GB 附件、500 重播，效期一年(可續約)</li> <li>1Password - 密碼管理軟體，一年免費授權(含開發工具)</li></ul> <p>次要項目：</p> <ul><li>Educative - 六個月 70 門課程免費存取 (Python/Java/Machine Learning)</li> <li>FrontendMasters - 六個月所有課程免費存取</li> <li>DataCamp - 三個月個人訂閱</li> <li>Bootstrap Studio - Bootstrap 網頁設計工具，提供在學學生免費授權</li> <li>Scrimba - 前端學習課程，一個月免費存取</li> <li>Termius - 跨裝置同步軟體，學生免費授權</li> <li>PomoDone - 整合 Todolist、Trello、JIRA、Google Tasks、Outlook Tasks 的工作管理軟體，2 年免費授權</li> <li>Testmail - 自動測試時支援用 API 產生無限多 Email 地址及信件，免費 Essential 授權</li> <li>AlgoExpert - 程式開發工作面試準備，免費 20 題</li> <li>OneMonth - HTML, CSS, JavaScript, Python 課程，30 天訂閱</li> <li>Replit - 50 種語言線上編譯，6 個月免費使用</li> <li>Stripe - 網頁及 App 金流服務，前 1000USD 免交易費</li> <li>Datadog - 雲端基礎設備監控，免費兩年 Pro 帳號(10 台伺服器)</li> <li>Netwise - 資料中心(IDC)，單主機 12 個月免費</li> <li>New Relic - 使用者互動行為追蹤，300USD/月額度</li> <li>Deepnote - Jupyter 相容雲端筆記協作，免費 Team Plan</li> <li>Pageclip - 免費 HTML 靜態網站</li> <li>GoRails - Ruby/JS/Turbolinks/Stimulus.js/Vue.js 學習影片及課程，免費 12 個月</li> <li>Mailgun - 收送及追蹤 Email 的 API，2 萬封信件，100 次 Email 驗證，最多 12 個月</li> <li>BrowserStack - 提供 2000 個以上瀏覽器及真實 iOS/Android 裝置進行測試，免費 Automate Mobile Plan (一平行一使用者一年)</li> <li>Octicons - 為 Github UI 建立的開源圖示庫，可使用 Figma Design 建立 Oticons 圖示庫</li> <li>HazeOver - 協助工作專心的 Mac 軟體，免費授權</li> <li>Arduino Create Maker Plan - 免費六個月</li> <li>Polypane - 網頁開發工具，Individual Plan 一年</li> <li>Typeform - 互動式線上問卷，Pro Plan 一年</li> <li>CodeScene - 提供程式開發建議，自動 PR Code Review，支援 25 程以上語言，學生帳號可免費分析私有 Git Repo</li> <li>PopSQL - SQL 編輯器及查詢軟體，學生可享有免費 Premium 訂閱</li> <li>StreamYard - 建立線上串流，學生可享有免費 Essential Plan</li> <li>InterviewCake - 程式面試參考資源，可存取程式面試準備課程三週</li> <li>Bump.sh - 透過 OpenAPI/AsyncAPI 實現 API 文件即時同步，免費 Standard Plan (價值 148USD/月)</li> <li>Imgbot - 自動對公開及私有 Repo 之圖形檔執行最佳化</li> <li>Thinkful - 網頁開發課程，一個月免費</li> <li>Visme - 互動展示、視覺化文件、資料視覺化、短影片及品牌內容製作的 All-In-One 平台，三個月 Visme Starter Plan</li> <li>Tower - Git/Github 客戶端(Mac/Windows)，免費 Tower Pro 授權</li> <li>Kodika - 拖拉方式建立 iOS App，六個月免費 Kodika Unlimited Pro 訂閱</li> <li>Zyte's Scrapy Cloud - 網頁爬蟲平台，免費 Forever Scrapy Cloud Unit</li> <li>Travis CI - CI 平台，學生可用於私有專案</li> <li>Doppler - 機敏設定資料(帳密、Key、連線字串)管理，學生免費訂閱</li> <li>Themeisle - 網站主機，一年 Neve Agency WordPress 主題</li> <li>Blackfire - 程式效能分析，免費 Profiler 訂閱</li> <li>WorkingCopy - iPhone/iPad 專用 Git 客戶端，Pro 授權</li> <li>LambdaTest - 2000+ 瀏覽器及 OS 線上測試，一年 LambdaTest Live Plan</li> <li>CARTO - 空間數據分析、視覺化和應用程式創建平臺，兩年 Premium 功能授權</li> <li>Xojo - 跨平台程式語言及多平台開發工具，能為 Windows、Mac OS X 及 Linux 開發桌面程式，免費 Xojo Desktop 授權</li> <li>SQLGate - SQL IDE，一年 Standard 訂閱</li> <li>Freshpaint - 行銷分析工具，一年 Freshpaint Growth Plan</li> <li>DailyBot - Scrum 輔助軟體，DailyBot Business Plan (10 使用者、6 個月)</li> <li>Cryptolens - 軟體授權銷售及重理，10 個授權，使用者無上限</li> <li>Lingohub - Web、桌面和行動應用程式的翻譯管理服務，免費 Professional Plan (10,000 Segments)</li> <li>ConfigCat - Feature Flag 服務，免費 1000 個 Flag，無限使用者</li> <li>SymfonyCasts - Symfony 及 PHP 課程，免費三個月訂閱</li> <li>Vaadin - 建立 PWA 之 Java 框架，免費 Pro 訂閱</li> <li>Dashlane - 雲端密碼管理，Premium 授權 6 個月</li> <li>SimpleAnalytics - 網站活動分析，一年 Starter Plan，100K Page Views/月</li> <li>DevCycle - Feature Flag 管理，一年 Starter Plan，無限 Seats, Feature Flags</li> <li>DeepScan - JavaScript 應用程式開發輔助，六個月試用</li> <li>Codecov - 代碼覆蓋率輔助，免費公開及私有 Repo 存取</li> <li>Honeybadger - 網站例外、服務狀態、排程監控，一年 Small Account</li> <li>Restyled - 自動 PR 格式整理，免費用於私有 Repo</li> <li>Blockchair - 介接公開區塊鏈的 API，免費 100,000 請求</li> <li>AstraSecurity - 網站防火牆、惡意軟體掃描程式和管理漏洞賞金平臺，六個月網站防火牆、惡意軟體掃描程式</li> <li>POEditor - 語系國際化工具，一年 Plus Plan</li> <li>AccessLint - 自動化網站測試工具，學生可用於公開及私有 Repo</li> <li>Appfigures - App Store 分析、優化，一年免費使用</li></ul> <p>接著簡單說說申請流程，首先請先建立一個 Github 帳號，或使用現有的帳號，增加一個 .edu 信箱。連上 <a href="https://education.github.com/pack">Github 學生開發者大禮包</a>入口：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638329816862841828.png"></p> <p>點下 Sign up 後進入畫面，選 Get student benefits：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638329816865468987.png"></p> <p>取得學生福利的必要條件是 1) 已有 Github 帳號 2) 年滿 13 歲 3) 目前在被認可的學校機構修習學位課程(學士/碩士/博士) 4) 能提供在學狀態的有效文件。Before you begin 部分是建議，除登記學校 edu 信箱並通過驗證，其餘非必要。(但強烈建議開啟雙因子驗證，能有效防止帳號被盜用)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638329816867674913.png"></p> <p>下一階段要選擇學校信箱，若你的學校已被 Github 識別過(由信箱 *.edu.tw 判定)，橘箭頭會顯示打勾的校名，不需再額外上傳學校資訊供查證。接著填寫你打算怎麼用 Github，按 Continue：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638329816869577083.png"></p> <p>下一步要上傳目前在學的證明，若你的學生證有印有效期限(咦，如果「延畢」要換證嗎？)是最省事的，掃瞄學生證上傳即可；不然的話要找找包含日期可以證明學藉有效的文件，例如最近一學期的成績單、入學通知書... 等等(中文的也行)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638329816871745820.png"></p> <p>上傳完成，再來就靜候佳音了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638329816873626664.png"></p> <p>送出說明頁有提，資格審查將在 11 天內完成，依經驗只需 2 - 3 個工作天，等收到如下的通知信，就代表通過審核囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638329816875506868.png"></p> <p>拿到 Github 學生大禮包第一件要做的事應該是安裝 VSCode 開始體驗 AI 輔助程式開發的美妙。完全沒用過 VSCode 的同學可參考這篇 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>無腦裝好 VSCode。</p> <p>開啟 VSCode，點左側的四個小方塊的擴充套件圖示，輸入 Copilot，清單將顯示 Copilot 系列套件，除了讓你寫 Code 如有神助的 Github Copilot 外，還有 Github Copilot Chat (提供 ChatGPT 式問答)、Github Copilot Lab (快速輔助功能)，以及用嘴寫程式的 Github Copilot Voice，相關簡介請見舊文<a href="/blog/github-next/">GitHub Copilot 開發者訓練營筆記</a>。其中最實用的非 Github Copilot 莫屬，寫程式時每敲幾個字元就跳出來問你是不是想這樣寫，聰慧到令人想起立鼓掌。如果你是程式老手，能省下極其可觀的打字時間；如果你是新手，則像是有位貼心家教在旁不斷提示這裡可以怎麼寫，讓你快速上手。Github Copilot 的好，講再多也比不上實際用個五分鐘，瞬間明白。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638329816877419698.png"></p> <p>安裝好之後，右下角會跑出提示開啟 Github 登入網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638329816879333279.png"></p> <p>登入完成後再授權 VSCode 使用你的 Github 登入身分：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638329816881272151.png"></p> <p>除了登入 Github 帳號，還有個步驟是同意啟用 Github Copilot：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638329816883155514.png"></p> <p>啟用 Github Copilot 時有兩個選項設定，一個是否允許建議包含來自 GPL 類專案使用後再公開源碼的程式碼，另一個則是願不願意將你寫的程式當成 Github Copilot 的研究資料，用於改進 AI 模型：(商業應用較會在意引用公開源碼授引發問題，學術研究性質的程式通常無此顧慮；願意貢獻自己的程式碼讓 AI 模型更完善，則也符合讓世界更美好的學術精神。)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig12_638329816885127199.png"></p> <p>設定完成後，就能開始享受「AI 幫忙寫程式」的尊榮服務囉，Enjoy。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig13_638329816887032179.png"></p> <p data-slug="github-student-dev-pack-n-copliot" data-fbimg="https://cdn.pixabay.com/photo/2017/10/26/17/48/present-2891870_1280.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>如果你是在學學生，平日會寫到程式但還沒體驗過神奇的 Github Copilot，那這篇值得看一下，錯過可惜。</p> <p>有許多同學還不知道在學學生可以免費申請 Github Copilot，讓你寫程式<a href="/blog/github-copilot-demo/">如有神助</a>，避免被 AI 的時代巨輪碾壓(還是那句老話：你不會被 AI 取代，而是被會用 AI 的人取代)，這篇來簡單介紹 Github 給學生的大禮包 - <a href="https://education.github.com/pack">Github Student Developer Pack</a>，開局就送<del>魔關羽</del> Github Copilot。</p> <p>Github Student Developer Pack 包含以下內容，東西爆多，我依個人觀點的實用度排序：<br> 來源 <a href="https://education.github.com/pack#offers">GitHub Student Developer Pack Offers</a></p> <ul><li>Github Copilot - 讓 AI 幫忙寫程式，跟 ChatGPT 不同，Copilot 更像副駕駛的角色，方向盤由你掌握，方向由你決定，至於留意路況、前後車距離、踩油門踩煞車等瑣事]就交給 Copilot 打理，能有效降低腦力負擔，把心思放在系統架構設計上。<br> 對我來說，整套 Developer Pack，光有 Copilot 就值了。<br> 【延伸閱讀】 <ul><li><a href="/blog/github-copilot/">小試 Github Copilot</a></li> <li><a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a></li></ul> </li> <li>Github Pro 方案 - Github Actions、Github Codespaces 等空間及儲存空間額度 <a href="https://docs.github.com/en/get-started/learning-about-github/githubs-plans#github-pro">參考</a></li> <li>VSCode Community - 不解釋，別放著神兵利器不用</li> <li>Visual Studio Community - 不解釋，有寫 .NET 不用它是為難自己</li> <li>JetBrains 開發工具 - 開發體驗不輸 Visaul Studio 的 IDE，且跨平台，許多開發者愛它更甚 Visual Studio</li> <li><a href="https://github.com/features/codespaces">Github Codespace</a> - 雲端開發環境，直接用瀏覽器開 VSCode、JetBrain、Jupyter 等 IDE 寫程式，依小時計費 (Github Pro 方案有包含 180 Core 小時額度)</li> <li>Microsoft Azure - Azure 雲端服務一年 100 USD 的，包含 <a href="/blog/chatgpt-console-chat/">OpenAI API</a> (同 ChatGPT API)</li> <li>DeepSource - 靜態源碼檢測，開放 Github 學生用戶免費使用</li> <li>GitKraken - Windows 平台強化版 Git 客戶端，免費 Pro 版及 GitLens Pro 版授權</li> <li>GitLens - VSCode Git 擴充套件，提供在學學生免費 GitLens+ Pro 授權</li> <li>DigitalOcean - 雲端主機免費一年 200 USD 額度</li> <li>Heroku - 每個月 13 USD 額度，共 12 個月 <a href="%E5%8F%83%E8%80%83">/blog/aspnetcore-heroku-postgresql/</a></li> <li><a href="https://pages.github.com/">Github Pages</a> - 將 Repo 轉為靜態網站，每個帳號或組織可建立一個站台(擁有 *.github.io 網域名)、無限個專案站台 (username.github.io/repo-name)</li> <li>Namecheap - 一年的免費 .me 網域名稱及 TLS(SSL) 憑證</li> <li>.tech 網域名稱服務 - 免費一年 .tech 網域名稱</li> <li>Name.com 網域名稱服務 - 免費一年 .live 網域名稱及 TLS 憑證</li> <li>MongoDB - 文件資料庫，50 USD 額度</li> <li>IconScout - 4,900 萬個圖示、SVG、3D 素材、Lottie 動畫，一年內每月下載最多 60 個 Premium 圖示</li> <li>Icons8 - 圖示資料庫，三個月免費訂閱</li> <li>Adafruit - 一年 Adafruit IO+ IoT 雲端服務</li> <li>Sentry - 程式錯誤管理，學生享用：50K 錯誤、100K 交易、1GB 附件、500 重播，效期一年(可續約)</li> <li>1Password - 密碼管理軟體，一年免費授權(含開發工具)</li></ul> <p>次要項目：</p> <ul><li>Educative - 六個月 70 門課程免費存取 (Python/Java/Machine Learning)</li> <li>FrontendMasters - 六個月所有課程免費存取</li> <li>DataCamp - 三個月個人訂閱</li> <li>Bootstrap Studio - Bootstrap 網頁設計工具，提供在學學生免費授權</li> <li>Scrimba - 前端學習課程，一個月免費存取</li> <li>Termius - 跨裝置同步軟體，學生免費授權</li> <li>PomoDone - 整合 Todolist、Trello、JIRA、Google Tasks、Outlook Tasks 的工作管理軟體，2 年免費授權</li> <li>Testmail - 自動測試時支援用 API 產生無限多 Email 地址及信件，免費 Essential 授權</li> <li>AlgoExpert - 程式開發工作面試準備，免費 20 題</li> <li>OneMonth - HTML, CSS, JavaScript, Python 課程，30 天訂閱</li> <li>Replit - 50 種語言線上編譯，6 個月免費使用</li> <li>Stripe - 網頁及 App 金流服務，前 1000USD 免交易費</li> <li>Datadog - 雲端基礎設備監控，免費兩年 Pro 帳號(10 台伺服器)</li> <li>Netwise - 資料中心(IDC)，單主機 12 個月免費</li> <li>New Relic - 使用者互動行為追蹤，300USD/月額度</li> <li>Deepnote - Jupyter 相容雲端筆記協作，免費 Team Plan</li> <li>Pageclip - 免費 HTML 靜態網站</li> <li>GoRails - Ruby/JS/Turbolinks/Stimulus.js/Vue.js 學習影片及課程，免費 12 個月</li> <li>Mailgun - 收送及追蹤 Email 的 API，2 萬封信件，100 次 Email 驗證，最多 12 個月</li> <li>BrowserStack - 提供 2000 個以上瀏覽器及真實 iOS/Android 裝置進行測試，免費 Automate Mobile Plan (一平行一使用者一年)</li> <li>Octicons - 為 Github UI 建立的開源圖示庫，可使用 Figma Design 建立 Oticons 圖示庫</li> <li>HazeOver - 協助工作專心的 Mac 軟體，免費授權</li> <li>Arduino Create Maker Plan - 免費六個月</li> <li>Polypane - 網頁開發工具，Individual Plan 一年</li> <li>Typeform - 互動式線上問卷，Pro Plan 一年</li> <li>CodeScene - 提供程式開發建議，自動 PR Code Review，支援 25 程以上語言，學生帳號可免費分析私有 Git Repo</li> <li>PopSQL - SQL 編輯器及查詢軟體，學生可享有免費 Premium 訂閱</li> <li>StreamYard - 建立線上串流，學生可享有免費 Essential Plan</li> <li>InterviewCake - 程式面試參考資源，可存取程式面試準備課程三週</li> <li>Bump.sh - 透過 OpenAPI/AsyncAPI 實現 API 文件即時同步，免費 Standard Plan (價值 148USD/月)</li> <li>Imgbot - 自動對公開及私有 Repo 之圖形檔執行最佳化</li> <li>Thinkful - 網頁開發課程，一個月免費</li> <li>Visme - 互動展示、視覺化文件、資料視覺化、短影片及品牌內容製作的 All-In-One 平台，三個月 Visme Starter Plan</li> <li>Tower - Git/Github 客戶端(Mac/Windows)，免費 Tower Pro 授權</li> <li>Kodika - 拖拉方式建立 iOS App，六個月免費 Kodika Unlimited Pro 訂閱</li> <li>Zyte's Scrapy Cloud - 網頁爬蟲平台，免費 Forever Scrapy Cloud Unit</li> <li>Travis CI - CI 平台，學生可用於私有專案</li> <li>Doppler - 機敏設定資料(帳密、Key、連線字串)管理，學生免費訂閱</li> <li>Themeisle - 網站主機，一年 Neve Agency WordPress 主題</li> <li>Blackfire - 程式效能分析，免費 Profiler 訂閱</li> <li>WorkingCopy - iPhone/iPad 專用 Git 客戶端，Pro 授權</li> <li>LambdaTest - 2000+ 瀏覽器及 OS 線上測試，一年 LambdaTest Live Plan</li> <li>CARTO - 空間數據分析、視覺化和應用程式創建平臺，兩年 Premium 功能授權</li> <li>Xojo - 跨平台程式語言及多平台開發工具，能為 Windows、Mac OS X 及 Linux 開發桌面程式，免費 Xojo Desktop 授權</li> <li>SQLGate - SQL IDE，一年 Standard 訂閱</li> <li>Freshpaint - 行銷分析工具，一年 Freshpaint Growth Plan</li> <li>DailyBot - Scrum 輔助軟體，DailyBot Business Plan (10 使用者、6 個月)</li> <li>Cryptolens - 軟體授權銷售及重理，10 個授權，使用者無上限</li> <li>Lingohub - Web、桌面和行動應用程式的翻譯管理服務，免費 Professional Plan (10,000 Segments)</li> <li>ConfigCat - Feature Flag 服務，免費 1000 個 Flag，無限使用者</li> <li>SymfonyCasts - Symfony 及 PHP 課程，免費三個月訂閱</li> <li>Vaadin - 建立 PWA 之 Java 框架，免費 Pro 訂閱</li> <li>Dashlane - 雲端密碼管理，Premium 授權 6 個月</li> <li>SimpleAnalytics - 網站活動分析，一年 Starter Plan，100K Page Views/月</li> <li>DevCycle - Feature Flag 管理，一年 Starter Plan，無限 Seats, Feature Flags</li> <li>DeepScan - JavaScript 應用程式開發輔助，六個月試用</li> <li>Codecov - 代碼覆蓋率輔助，免費公開及私有 Repo 存取</li> <li>Honeybadger - 網站例外、服務狀態、排程監控，一年 Small Account</li> <li>Restyled - 自動 PR 格式整理，免費用於私有 Repo</li> <li>Blockchair - 介接公開區塊鏈的 API，免費 100,000 請求</li> <li>AstraSecurity - 網站防火牆、惡意軟體掃描程式和管理漏洞賞金平臺，六個月網站防火牆、惡意軟體掃描程式</li> <li>POEditor - 語系國際化工具，一年 Plus Plan</li> <li>AccessLint - 自動化網站測試工具，學生可用於公開及私有 Repo</li> <li>Appfigures - App Store 分析、優化，一年免費使用</li></ul> <p>接著簡單說說申請流程，首先請先建立一個 Github 帳號，或使用現有的帳號，增加一個 .edu 信箱。連上 <a href="https://education.github.com/pack">Github 學生開發者大禮包</a>入口：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638329816862841828.png"></p> <p>點下 Sign up 後進入畫面，選 Get student benefits：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638329816865468987.png"></p> <p>取得學生福利的必要條件是 1) 已有 Github 帳號 2) 年滿 13 歲 3) 目前在被認可的學校機構修習學位課程(學士/碩士/博士) 4) 能提供在學狀態的有效文件。Before you begin 部分是建議，除登記學校 edu 信箱並通過驗證，其餘非必要。(但強烈建議開啟雙因子驗證，能有效防止帳號被盜用)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638329816867674913.png"></p> <p>下一階段要選擇學校信箱，若你的學校已被 Github 識別過(由信箱 *.edu.tw 判定)，橘箭頭會顯示打勾的校名，不需再額外上傳學校資訊供查證。接著填寫你打算怎麼用 Github，按 Continue：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638329816869577083.png"></p> <p>下一步要上傳目前在學的證明，若你的學生證有印有效期限(咦，如果「延畢」要換證嗎？)是最省事的，掃瞄學生證上傳即可；不然的話要找找包含日期可以證明學藉有效的文件，例如最近一學期的成績單、入學通知書... 等等(中文的也行)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638329816871745820.png"></p> <p>上傳完成，再來就靜候佳音了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638329816873626664.png"></p> <p>送出說明頁有提，資格審查將在 11 天內完成，依經驗只需 2 - 3 個工作天，等收到如下的通知信，就代表通過審核囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638329816875506868.png"></p> <p>拿到 Github 學生大禮包第一件要做的事應該是安裝 VSCode 開始體驗 AI 輔助程式開發的美妙。完全沒用過 VSCode 的同學可參考這篇 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>無腦裝好 VSCode。</p> <p>開啟 VSCode，點左側的四個小方塊的擴充套件圖示，輸入 Copilot，清單將顯示 Copilot 系列套件，除了讓你寫 Code 如有神助的 Github Copilot 外，還有 Github Copilot Chat (提供 ChatGPT 式問答)、Github Copilot Lab (快速輔助功能)，以及用嘴寫程式的 Github Copilot Voice，相關簡介請見舊文<a href="/blog/github-next/">GitHub Copilot 開發者訓練營筆記</a>。其中最實用的非 Github Copilot 莫屬，寫程式時每敲幾個字元就跳出來問你是不是想這樣寫，聰慧到令人想起立鼓掌。如果你是程式老手，能省下極其可觀的打字時間；如果你是新手，則像是有位貼心家教在旁不斷提示這裡可以怎麼寫，讓你快速上手。Github Copilot 的好，講再多也比不上實際用個五分鐘，瞬間明白。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638329816877419698.png"></p> <p>安裝好之後，右下角會跑出提示開啟 Github 登入網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638329816879333279.png"></p> <p>登入完成後再授權 VSCode 使用你的 Github 登入身分：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638329816881272151.png"></p> <p>除了登入 Github 帳號，還有個步驟是同意啟用 Github Copilot：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638329816883155514.png"></p> <p>啟用 Github Copilot 時有兩個選項設定，一個是否允許建議包含來自 GPL 類專案使用後再公開源碼的程式碼，另一個則是願不願意將你寫的程式當成 Github Copilot 的研究資料，用於改進 AI 模型：(商業應用較會在意引用公開源碼授引發問題，學術研究性質的程式通常無此顧慮；願意貢獻自己的程式碼讓 AI 模型更完善，則也符合讓世界更美好的學術精神。)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig12_638329816885127199.png"></p> <p>設定完成後，就能開始享受「AI 幫忙寫程式」的尊榮服務囉，Enjoy。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig13_638329816887032179.png"></p> <p data-slug="github-student-dev-pack-n-copliot" data-fbimg="https://cdn.pixabay.com/photo/2017/10/26/17/48/present-2891870_1280.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>如果你是在學學生，平日會寫到程式但還沒體驗過神奇的 Github Copilot，那這篇值得看一下，錯過可惜。</p> <p>有許多同學還不知道在學學生可以免費申請 Github Copilot，讓你寫程式<a href="/blog/github-copilot-demo/">如有神助</a>，避免被 AI 的時代巨輪碾壓(還是那句老話：你不會被 AI 取代，而是被會用 AI 的人取代)，這篇來簡單介紹 Github 給學生的大禮包 - <a href="https://education.github.com/pack">Github Student Developer Pack</a>，開局就送<del>魔關羽</del> Github Copilot。</p> <p>Github Student Developer Pack 包含以下內容，東西爆多，我依個人觀點的實用度排序：<br> 來源 <a href="https://education.github.com/pack#offers">GitHub Student Developer Pack Offers</a></p> <ul><li>Github Copilot - 讓 AI 幫忙寫程式，跟 ChatGPT 不同，Copilot 更像副駕駛的角色，方向盤由你掌握，方向由你決定，至於留意路況、前後車距離、踩油門踩煞車等瑣事]就交給 Copilot 打理，能有效降低腦力負擔，把心思放在系統架構設計上。<br> 對我來說，整套 Developer Pack，光有 Copilot 就值了。<br> 【延伸閱讀】 <ul><li><a href="/blog/github-copilot/">小試 Github Copilot</a></li> <li><a href="/blog/github-copilot-demo/">讓會讀心術的 Github Copilot 陪你寫程式</a></li></ul> </li> <li>Github Pro 方案 - Github Actions、Github Codespaces 等空間及儲存空間額度 <a href="https://docs.github.com/en/get-started/learning-about-github/githubs-plans#github-pro">參考</a></li> <li>VSCode Community - 不解釋，別放著神兵利器不用</li> <li>Visual Studio Community - 不解釋，有寫 .NET 不用它是為難自己</li> <li>JetBrains 開發工具 - 開發體驗不輸 Visaul Studio 的 IDE，且跨平台，許多開發者愛它更甚 Visual Studio</li> <li><a href="https://github.com/features/codespaces">Github Codespace</a> - 雲端開發環境，直接用瀏覽器開 VSCode、JetBrain、Jupyter 等 IDE 寫程式，依小時計費 (Github Pro 方案有包含 180 Core 小時額度)</li> <li>Microsoft Azure - Azure 雲端服務一年 100 USD 的，包含 <a href="/blog/chatgpt-console-chat/">OpenAI API</a> (同 ChatGPT API)</li> <li>DeepSource - 靜態源碼檢測，開放 Github 學生用戶免費使用</li> <li>GitKraken - Windows 平台強化版 Git 客戶端，免費 Pro 版及 GitLens Pro 版授權</li> <li>GitLens - VSCode Git 擴充套件，提供在學學生免費 GitLens+ Pro 授權</li> <li>DigitalOcean - 雲端主機免費一年 200 USD 額度</li> <li>Heroku - 每個月 13 USD 額度，共 12 個月 <a href="%E5%8F%83%E8%80%83">/blog/aspnetcore-heroku-postgresql/</a></li> <li><a href="https://pages.github.com/">Github Pages</a> - 將 Repo 轉為靜態網站，每個帳號或組織可建立一個站台(擁有 *.github.io 網域名)、無限個專案站台 (username.github.io/repo-name)</li> <li>Namecheap - 一年的免費 .me 網域名稱及 TLS(SSL) 憑證</li> <li>.tech 網域名稱服務 - 免費一年 .tech 網域名稱</li> <li>Name.com 網域名稱服務 - 免費一年 .live 網域名稱及 TLS 憑證</li> <li>MongoDB - 文件資料庫，50 USD 額度</li> <li>IconScout - 4,900 萬個圖示、SVG、3D 素材、Lottie 動畫，一年內每月下載最多 60 個 Premium 圖示</li> <li>Icons8 - 圖示資料庫，三個月免費訂閱</li> <li>Adafruit - 一年 Adafruit IO+ IoT 雲端服務</li> <li>Sentry - 程式錯誤管理，學生享用：50K 錯誤、100K 交易、1GB 附件、500 重播，效期一年(可續約)</li> <li>1Password - 密碼管理軟體，一年免費授權(含開發工具)</li></ul> <p>次要項目：</p> <ul><li>Educative - 六個月 70 門課程免費存取 (Python/Java/Machine Learning)</li> <li>FrontendMasters - 六個月所有課程免費存取</li> <li>DataCamp - 三個月個人訂閱</li> <li>Bootstrap Studio - Bootstrap 網頁設計工具，提供在學學生免費授權</li> <li>Scrimba - 前端學習課程，一個月免費存取</li> <li>Termius - 跨裝置同步軟體，學生免費授權</li> <li>PomoDone - 整合 Todolist、Trello、JIRA、Google Tasks、Outlook Tasks 的工作管理軟體，2 年免費授權</li> <li>Testmail - 自動測試時支援用 API 產生無限多 Email 地址及信件，免費 Essential 授權</li> <li>AlgoExpert - 程式開發工作面試準備，免費 20 題</li> <li>OneMonth - HTML, CSS, JavaScript, Python 課程，30 天訂閱</li> <li>Replit - 50 種語言線上編譯，6 個月免費使用</li> <li>Stripe - 網頁及 App 金流服務，前 1000USD 免交易費</li> <li>Datadog - 雲端基礎設備監控，免費兩年 Pro 帳號(10 台伺服器)</li> <li>Netwise - 資料中心(IDC)，單主機 12 個月免費</li> <li>New Relic - 使用者互動行為追蹤，300USD/月額度</li> <li>Deepnote - Jupyter 相容雲端筆記協作，免費 Team Plan</li> <li>Pageclip - 免費 HTML 靜態網站</li> <li>GoRails - Ruby/JS/Turbolinks/Stimulus.js/Vue.js 學習影片及課程，免費 12 個月</li> <li>Mailgun - 收送及追蹤 Email 的 API，2 萬封信件，100 次 Email 驗證，最多 12 個月</li> <li>BrowserStack - 提供 2000 個以上瀏覽器及真實 iOS/Android 裝置進行測試，免費 Automate Mobile Plan (一平行一使用者一年)</li> <li>Octicons - 為 Github UI 建立的開源圖示庫，可使用 Figma Design 建立 Oticons 圖示庫</li> <li>HazeOver - 協助工作專心的 Mac 軟體，免費授權</li> <li>Arduino Create Maker Plan - 免費六個月</li> <li>Polypane - 網頁開發工具，Individual Plan 一年</li> <li>Typeform - 互動式線上問卷，Pro Plan 一年</li> <li>CodeScene - 提供程式開發建議，自動 PR Code Review，支援 25 程以上語言，學生帳號可免費分析私有 Git Repo</li> <li>PopSQL - SQL 編輯器及查詢軟體，學生可享有免費 Premium 訂閱</li> <li>StreamYard - 建立線上串流，學生可享有免費 Essential Plan</li> <li>InterviewCake - 程式面試參考資源，可存取程式面試準備課程三週</li> <li>Bump.sh - 透過 OpenAPI/AsyncAPI 實現 API 文件即時同步，免費 Standard Plan (價值 148USD/月)</li> <li>Imgbot - 自動對公開及私有 Repo 之圖形檔執行最佳化</li> <li>Thinkful - 網頁開發課程，一個月免費</li> <li>Visme - 互動展示、視覺化文件、資料視覺化、短影片及品牌內容製作的 All-In-One 平台，三個月 Visme Starter Plan</li> <li>Tower - Git/Github 客戶端(Mac/Windows)，免費 Tower Pro 授權</li> <li>Kodika - 拖拉方式建立 iOS App，六個月免費 Kodika Unlimited Pro 訂閱</li> <li>Zyte's Scrapy Cloud - 網頁爬蟲平台，免費 Forever Scrapy Cloud Unit</li> <li>Travis CI - CI 平台，學生可用於私有專案</li> <li>Doppler - 機敏設定資料(帳密、Key、連線字串)管理，學生免費訂閱</li> <li>Themeisle - 網站主機，一年 Neve Agency WordPress 主題</li> <li>Blackfire - 程式效能分析，免費 Profiler 訂閱</li> <li>WorkingCopy - iPhone/iPad 專用 Git 客戶端，Pro 授權</li> <li>LambdaTest - 2000+ 瀏覽器及 OS 線上測試，一年 LambdaTest Live Plan</li> <li>CARTO - 空間數據分析、視覺化和應用程式創建平臺，兩年 Premium 功能授權</li> <li>Xojo - 跨平台程式語言及多平台開發工具，能為 Windows、Mac OS X 及 Linux 開發桌面程式，免費 Xojo Desktop 授權</li> <li>SQLGate - SQL IDE，一年 Standard 訂閱</li> <li>Freshpaint - 行銷分析工具，一年 Freshpaint Growth Plan</li> <li>DailyBot - Scrum 輔助軟體，DailyBot Business Plan (10 使用者、6 個月)</li> <li>Cryptolens - 軟體授權銷售及重理，10 個授權，使用者無上限</li> <li>Lingohub - Web、桌面和行動應用程式的翻譯管理服務，免費 Professional Plan (10,000 Segments)</li> <li>ConfigCat - Feature Flag 服務，免費 1000 個 Flag，無限使用者</li> <li>SymfonyCasts - Symfony 及 PHP 課程，免費三個月訂閱</li> <li>Vaadin - 建立 PWA 之 Java 框架，免費 Pro 訂閱</li> <li>Dashlane - 雲端密碼管理，Premium 授權 6 個月</li> <li>SimpleAnalytics - 網站活動分析，一年 Starter Plan，100K Page Views/月</li> <li>DevCycle - Feature Flag 管理，一年 Starter Plan，無限 Seats, Feature Flags</li> <li>DeepScan - JavaScript 應用程式開發輔助，六個月試用</li> <li>Codecov - 代碼覆蓋率輔助，免費公開及私有 Repo 存取</li> <li>Honeybadger - 網站例外、服務狀態、排程監控，一年 Small Account</li> <li>Restyled - 自動 PR 格式整理，免費用於私有 Repo</li> <li>Blockchair - 介接公開區塊鏈的 API，免費 100,000 請求</li> <li>AstraSecurity - 網站防火牆、惡意軟體掃描程式和管理漏洞賞金平臺，六個月網站防火牆、惡意軟體掃描程式</li> <li>POEditor - 語系國際化工具，一年 Plus Plan</li> <li>AccessLint - 自動化網站測試工具，學生可用於公開及私有 Repo</li> <li>Appfigures - App Store 分析、優化，一年免費使用</li></ul> <p>接著簡單說說申請流程，首先請先建立一個 Github 帳號，或使用現有的帳號，增加一個 .edu 信箱。連上 <a href="https://education.github.com/pack">Github 學生開發者大禮包</a>入口：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638329816862841828.png"></p> <p>點下 Sign up 後進入畫面，選 Get student benefits：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638329816865468987.png"></p> <p>取得學生福利的必要條件是 1) 已有 Github 帳號 2) 年滿 13 歲 3) 目前在被認可的學校機構修習學位課程(學士/碩士/博士) 4) 能提供在學狀態的有效文件。Before you begin 部分是建議，除登記學校 edu 信箱並通過驗證，其餘非必要。(但強烈建議開啟雙因子驗證，能有效防止帳號被盜用)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638329816867674913.png"></p> <p>下一階段要選擇學校信箱，若你的學校已被 Github 識別過(由信箱 *.edu.tw 判定)，橘箭頭會顯示打勾的校名，不需再額外上傳學校資訊供查證。接著填寫你打算怎麼用 Github，按 Continue：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638329816869577083.png"></p> <p>下一步要上傳目前在學的證明，若你的學生證有印有效期限(咦，如果「延畢」要換證嗎？)是最省事的，掃瞄學生證上傳即可；不然的話要找找包含日期可以證明學藉有效的文件，例如最近一學期的成績單、入學通知書... 等等(中文的也行)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638329816871745820.png"></p> <p>上傳完成，再來就靜候佳音了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638329816873626664.png"></p> <p>送出說明頁有提，資格審查將在 11 天內完成，依經驗只需 2 - 3 個工作天，等收到如下的通知信，就代表通過審核囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638329816875506868.png"></p> <p>拿到 Github 學生大禮包第一件要做的事應該是安裝 VSCode 開始體驗 AI 輔助程式開發的美妙。完全沒用過 VSCode 的同學可參考這篇 <a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>無腦裝好 VSCode。</p> <p>開啟 VSCode，點左側的四個小方塊的擴充套件圖示，輸入 Copilot，清單將顯示 Copilot 系列套件，除了讓你寫 Code 如有神助的 Github Copilot 外，還有 Github Copilot Chat (提供 ChatGPT 式問答)、Github Copilot Lab (快速輔助功能)，以及用嘴寫程式的 Github Copilot Voice，相關簡介請見舊文<a href="/blog/github-next/">GitHub Copilot 開發者訓練營筆記</a>。其中最實用的非 Github Copilot 莫屬，寫程式時每敲幾個字元就跳出來問你是不是想這樣寫，聰慧到令人想起立鼓掌。如果你是程式老手，能省下極其可觀的打字時間；如果你是新手，則像是有位貼心家教在旁不斷提示這裡可以怎麼寫，讓你快速上手。Github Copilot 的好，講再多也比不上實際用個五分鐘，瞬間明白。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638329816877419698.png"></p> <p>安裝好之後，右下角會跑出提示開啟 Github 登入網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638329816879333279.png"></p> <p>登入完成後再授權 VSCode 使用你的 Github 登入身分：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638329816881272151.png"></p> <p>除了登入 Github 帳號，還有個步驟是同意啟用 Github Copilot：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638329816883155514.png"></p> <p>啟用 Github Copilot 時有兩個選項設定，一個是否允許建議包含來自 GPL 類專案使用後再公開源碼的程式碼，另一個則是願不願意將你寫的程式當成 Github Copilot 的研究資料，用於改進 AI 模型：(商業應用較會在意引用公開源碼授引發問題，學術研究性質的程式通常無此顧慮；願意貢獻自己的程式碼讓 AI 模型更完善，則也符合讓世界更美好的學術精神。)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig12_638329816885127199.png"></p> <p>設定完成後，就能開始享受「AI 幫忙寫程式」的尊榮服務囉，Enjoy。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig13_638329816887032179.png"></p> <p data-slug="github-student-dev-pack-n-copliot" data-fbimg="https://cdn.pixabay.com/photo/2017/10/26/17/48/present-2891870_1280.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638329816862841828.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638329816862841828.png" medium="image"/>
-    <pubDate>Sun, 15 Oct 2023 15:42:59 GMT</pubDate>
   </item></channel>
 </rss>
