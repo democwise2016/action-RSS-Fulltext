@@ -30,6 +30,279 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[大砲打小鳥之 ChatGPT 翻譯鳳梨酥 LINE Bot]]></title>
+    <link>https://blog.darkthread.net/blog/line-gpt-trans-bot/</link>
+    <itunes:title><![CDATA[大砲打小鳥之 ChatGPT 翻譯鳳梨酥 LINE Bot]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using isRock.LineBot;
+NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+var builder = WebApplication.CreateBuilder(args);
+Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
+var pwdChk = readConfig("GrantPwd");
+var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
+var lineBotKey = readConfig("LineBotToken");
+var lineBot = new Bot(lineBotKey);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Line GPT Translator Bot");
+List&lt;string&gt; groupIds = new List&lt;string&gt;();
+var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
+LoadGroupIds();
+app.MapPost("/Grant", async (context) =&gt;
+{
+var grpId = context.Request.Form["grpId"].ToString();
+var pwd = context.Request.Form["pwd"].ToString();
+if (pwd == pwdChk)
+{
+if (!groupIds.Contains(grpId))
+{
+logger.Info($"Grant {grpId}");
+groupIds.Add(grpId);
+SaveGroupIds();
+}
+await context.Response.WriteAsync("OK");
+}
+else
+{
+context.Response.StatusCode = 401;
+await context.Response.WriteAsync("Unauthorized");
+}
+});
+app.MapPost("/MsgCallback", async (context) =&gt;
+{
+var body = context.Request.Body;
+using var reader = new StreamReader(body);
+var json = await reader.ReadToEndAsync();
+var msg = Utility.Parsing(json);
+foreach (var evt in msg.events)
+{
+if (evt.type == "message")
+{
+if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
+{
+var grpId = evt.source.groupId;
+var text = evt.message.text;
+logger.Trace("訊息[{0}]： {1}", grpId, text);
+if (text.StartsWith("#REG"))
+{
+lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
+break;
+}
+if (!groupIds.Contains(grpId))
+{
+lineBot.PushMessage(grpId, "群組未註冊");
+break;
+}
+var src = text.Substring(3);
+if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
+{
+var transText = await chatSvc.Translate(lang, src);
+logger.Trace("翻譯：
+" + transText);
+lineBot.PushMessage(grpId, transText);
+}
+}
+}
+}
+await context.Response.WriteAsync("OK");
+});
+app.UsePathBase("/line-gpt-trans-bot");
+app.Run();
+void LoadGroupIds()
+{
+if (File.Exists(grpIdPath))
+{
+groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
+}
+}
+void SaveGroupIds()
+{
+File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
+}
+</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using isRock.LineBot;
+NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+var builder = WebApplication.CreateBuilder(args);
+Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
+var pwdChk = readConfig("GrantPwd");
+var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
+var lineBotKey = readConfig("LineBotToken");
+var lineBot = new Bot(lineBotKey);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Line GPT Translator Bot");
+List&lt;string&gt; groupIds = new List&lt;string&gt;();
+var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
+LoadGroupIds();
+app.MapPost("/Grant", async (context) =&gt;
+{
+var grpId = context.Request.Form["grpId"].ToString();
+var pwd = context.Request.Form["pwd"].ToString();
+if (pwd == pwdChk)
+{
+if (!groupIds.Contains(grpId))
+{
+logger.Info($"Grant {grpId}");
+groupIds.Add(grpId);
+SaveGroupIds();
+}
+await context.Response.WriteAsync("OK");
+}
+else
+{
+context.Response.StatusCode = 401;
+await context.Response.WriteAsync("Unauthorized");
+}
+});
+app.MapPost("/MsgCallback", async (context) =&gt;
+{
+var body = context.Request.Body;
+using var reader = new StreamReader(body);
+var json = await reader.ReadToEndAsync();
+var msg = Utility.Parsing(json);
+foreach (var evt in msg.events)
+{
+if (evt.type == "message")
+{
+if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
+{
+var grpId = evt.source.groupId;
+var text = evt.message.text;
+logger.Trace("訊息[{0}]： {1}", grpId, text);
+if (text.StartsWith("#REG"))
+{
+lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
+break;
+}
+if (!groupIds.Contains(grpId))
+{
+lineBot.PushMessage(grpId, "群組未註冊");
+break;
+}
+var src = text.Substring(3);
+if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
+{
+var transText = await chatSvc.Translate(lang, src);
+logger.Trace("翻譯：
+" + transText);
+lineBot.PushMessage(grpId, transText);
+}
+}
+}
+}
+await context.Response.WriteAsync("OK");
+});
+app.UsePathBase("/line-gpt-trans-bot");
+app.Run();
+void LoadGroupIds()
+{
+if (File.Exists(grpIdPath))
+{
+groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
+}
+}
+void SaveGroupIds()
+{
+File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
+}
+</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using isRock.LineBot;
+NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+var builder = WebApplication.CreateBuilder(args);
+Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
+var pwdChk = readConfig("GrantPwd");
+var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
+var lineBotKey = readConfig("LineBotToken");
+var lineBot = new Bot(lineBotKey);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Line GPT Translator Bot");
+List&lt;string&gt; groupIds = new List&lt;string&gt;();
+var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
+LoadGroupIds();
+app.MapPost("/Grant", async (context) =&gt;
+{
+var grpId = context.Request.Form["grpId"].ToString();
+var pwd = context.Request.Form["pwd"].ToString();
+if (pwd == pwdChk)
+{
+if (!groupIds.Contains(grpId))
+{
+logger.Info($"Grant {grpId}");
+groupIds.Add(grpId);
+SaveGroupIds();
+}
+await context.Response.WriteAsync("OK");
+}
+else
+{
+context.Response.StatusCode = 401;
+await context.Response.WriteAsync("Unauthorized");
+}
+});
+app.MapPost("/MsgCallback", async (context) =&gt;
+{
+var body = context.Request.Body;
+using var reader = new StreamReader(body);
+var json = await reader.ReadToEndAsync();
+var msg = Utility.Parsing(json);
+foreach (var evt in msg.events)
+{
+if (evt.type == "message")
+{
+if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
+{
+var grpId = evt.source.groupId;
+var text = evt.message.text;
+logger.Trace("訊息[{0}]： {1}", grpId, text);
+if (text.StartsWith("#REG"))
+{
+lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
+break;
+}
+if (!groupIds.Contains(grpId))
+{
+lineBot.PushMessage(grpId, "群組未註冊");
+break;
+}
+var src = text.Substring(3);
+if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
+{
+var transText = await chatSvc.Translate(lang, src);
+logger.Trace("翻譯：
+" + transText);
+lineBot.PushMessage(grpId, transText);
+}
+}
+}
+}
+await context.Response.WriteAsync("OK");
+});
+app.UsePathBase("/line-gpt-trans-bot");
+app.Run();
+void LoadGroupIds()
+{
+if (File.Exists(grpIdPath))
+{
+groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
+}
+}
+void SaveGroupIds()
+{
+File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
+}
+</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png" medium="image"/>
+    <pubDate>Sun, 05 Nov 2023 09:45:08 GMT</pubDate>
+  </item><item>
     <title><![CDATA[CLI 小技巧 - 文字檔搜尋關鍵字並顯示前後文(grep / PowerShell Select-String)]]></title>
     <link>https://blog.darkthread.net/blog/cli-show-matched-line-with-context/</link>
     <itunes:title><![CDATA[CLI 小技巧 - 文字檔搜尋關鍵字並顯示前後文(grep / PowerShell Select-String)]]></itunes:title>
@@ -848,272 +1121,5 @@ Path        = $procPath
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638334115436512242.png" medium="image"/>
     <pubDate>Fri, 20 Oct 2023 04:11:47 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></title>
-    <link>https://blog.darkthread.net/blog/show-certs-w-ps/</link>
-    <itunes:title><![CDATA[網站 TLS 憑證 CLI 檢視工具 PowerShell 版 ft. Github Copilot Labs]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
-#
-if (!$hostPort.Contains(":")) {
-#
-$hostPort+=":443";
-#
-} #
-$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
-#
-$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
-#
-$output = $p.StandardOutput.ReadToEnd();
-#
-$p.WaitForExit();
-#
-$highlightCN = {param($s)
-#
-$m = [Regex]::Match($s, '^CN=[^,]+');
-#
-if (!$m.Success) {return $s;}
-#
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-#
-};
-#
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-#
-{
-#
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-#
-$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-#
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-#
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-#
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-#
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-#
-Write-Host "";
-#
-} #
-</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
-[string]$hostPort
-)
-$ErrorActionPreference = "Stop"
-if (!$hostPort) { $hostPort = 'www.google.com' }
-if (!$hostPort.Contains(":")) {
-$hostPort+=":443";
-}
-$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "openssl.exe"
-$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
-$output = $p.StandardOutput.ReadToEnd();
-$p.WaitForExit();
-$highlightCN = {param($s)
-$m = [Regex]::Match($s, '^CN=[^,]+');
-if (!$m.Success) {return $s;}
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-};
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-{
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-Write-Host "";
-}
-</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
-#
-if (!$hostPort.Contains(":")) {
-#
-$hostPort+=":443";
-#
-} #
-$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
-#
-$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
-#
-$output = $p.StandardOutput.ReadToEnd();
-#
-$p.WaitForExit();
-#
-$highlightCN = {param($s)
-#
-$m = [Regex]::Match($s, '^CN=[^,]+');
-#
-if (!$m.Success) {return $s;}
-#
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-#
-};
-#
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-#
-{
-#
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-#
-$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-#
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-#
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-#
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-#
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-#
-Write-Host "";
-#
-} #
-</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
-[string]$hostPort
-)
-$ErrorActionPreference = "Stop"
-if (!$hostPort) { $hostPort = 'www.google.com' }
-if (!$hostPort.Contains(":")) {
-$hostPort+=":443";
-}
-$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "openssl.exe"
-$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
-$output = $p.StandardOutput.ReadToEnd();
-$p.WaitForExit();
-$highlightCN = {param($s)
-$m = [Regex]::Match($s, '^CN=[^,]+');
-if (!$m.Success) {return $s;}
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-};
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-{
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-Write-Host "";
-}
-</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>昨天寫好的<a href="/blog/show-tls-certs/">網站 TLS 憑證 CLI 快速檢視工具</a>只算是原型機，在工作環境 EXE 檔使用前需先部署，易有病毒木馬疑慮，應用阻力較大。相形之下，腳本形式的 PowerShell 傳送方便(可以貼在 Word 或 Email 裡)，程式為明文可直接審閱，從管理稽查角度較易接受，是更可行的方案。因此 PowerShell 版才是最終量產的實用版本，但我通常會先用熟悉順手的 C# 完成雛型再轉 PowerShell 版，事半功倍。</p> <p><a href="/blog/github-next/">Github Copilot Labs</a> 包含程式語言翻譯功能(Language Translation)，這回 C# 轉 PowerShell 的任務就交給它，實測一下效果。</p> <p>選取程式碼後，點左側的飛行員圖示[1]，找到 Language Translation，程式碼會自動帶入[2]，從下拉選單選取要轉換成的程式語言 PowerShell [3]，按下【Ask Copilot】就能開始轉換：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"></p> <p>翻譯結果會顯示在下方視窗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638332349486401494.png"></p> <p>PowerShell 不算熱門語言，訓練資料量不比 Python、JavaScript，翻譯品質略差在預期內，以下是原始翻譯結果。</p> <pre><code>$hostPort = $args[0];
-#
-if (!$hostPort.Contains(":")) {
-#
-$hostPort+=":443";
-#
-} #
-$p = Start-Process "openssl" -ArgumentList "s_client -showcerts -connect $hostPort" -PassThru -NoNewWindow -Wait -RedirectStandardOutput $true -RedirectStandardInput $true -RedirectStandardError $true;
-#
-$p.StandardInput.WriteLine("Q"); #按Q+Enter結束openssl
-#
-$output = $p.StandardOutput.ReadToEnd();
-#
-$p.WaitForExit();
-#
-$highlightCN = {param($s)
-#
-$m = [Regex]::Match($s, '^CN=[^,]+');
-#
-if (!$m.Success) {return $s;}
-#
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-#
-};
-#
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-#
-{
-#
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-#
-$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem));
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-#
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-#
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-#
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-#
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-#
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-#
-Write-Host "";
-#
-} #
-</code></pre> <p>Copilot 翻譯的版本有幾個問題：</p> <ol><li>args[0] 被硬翻成 $arg[0]，對應 PowerShell 應宣告 Param([string]$hostPort) 才順</li> <li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580">Start-Process</a> 雖有 -RedirectStandardInput、-RedirectStandardOutput 等參數，但須事先將輸入內容寫成檔案及從輸出檔案讀取結果，後面的 $p.StandardInput.WriteLine("Q")、$p.StandardOutput.ReadToEnd() 屬無效寫法。 我想維持資料不落地，仍得依賴 System.Diagnostics.Process。<a href="https://stackoverflow.com/a/8762068/288936">參考</a></li> <li><code>New-Object System.Security.Cryptography.X509Certificates.X509Certificate2([Convert]::FromBase64String($pem))</code> 寫法傳入 byte[] 當建構式參數，byte[1200] 會被當成傳入 1200 個 byte 型別參數，正確做法是寫成 @(,$certBinary) 強制當成單一 byte[] 型別參數；或是改用 PS5 支援的 ::new 寫法 <code>[System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certBinary)</code> <a href="https://stackoverflow.com/a/12875189/288936">參考</a></li></ol> <p>微調後的版本如下：</p> <pre><code>param (
-[string]$hostPort
-)
-$ErrorActionPreference = "Stop"
-if (!$hostPort) { $hostPort = 'www.google.com' }
-if (!$hostPort.Contains(":")) {
-$hostPort+=":443";
-}
-$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "openssl.exe"
-$p.StartInfo.Arguments = "s_client -showcerts -connect $hostPort"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.StandardInput.WriteLine("Q") #按Q+Enter結束openssl
-$output = $p.StandardOutput.ReadToEnd();
-$p.WaitForExit();
-$highlightCN = {param($s)
-$m = [Regex]::Match($s, '^CN=[^,]+');
-if (!$m.Success) {return $s;}
-return "$([char]0x1b)[33;1m" + $m.Value + "$([char]0x1b)[0m" + $s.Substring($m.Value.Length);
-};
-foreach ($certB64 in [Regex]::Matches($output, "(?ims)-----BEGIN CERTIFICATE-----(?&lt;c&gt;.+?)-----END CERTIFICATE-----"))
-{
-$pem = $certB64.Groups["c"].Value.Replace("`r", "").Replace("`n", "");
-$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([Convert]::FromBase64String($pem))
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m" -NoNewline;
-Write-Host "$([char]0x1b)[36m$([char]0x1b)[0m".PadRight(64,"=");
-Write-Host "發給: $($highlightCN.Invoke($cert.Subject))";
-Write-Host "簽發者: $($highlightCN.Invoke($cert.Issuer))";
-Write-Host "有效期自 $([char]0x1b)[33m$($cert.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m 到 $([char]0x1b)[33m$($cert.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"))$([char]0x1b)[0m";
-Write-Host "憑證指紋: $([char]0x1b)[33;3m$($cert.Thumbprint)$([char]0x1b)[0m";
-Write-Host "";
-}
-</code></pre> <p>使用 <code>git diff -U0 ./show-cert.ps1</code> 統計所有修改的行數並不多(忽略無效 # 註解)，而該解該查的問題純手刻也得花時間查，算算省下蠻多時間。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638332349488307327.png"></p> <p>但我覺得使用 AI 輔助開發，仍需具備識別及驗證結果正確優劣的基本能力，才能充分發揮其威力，用到開心盡興。AI 生成結果不可能 100% 沒有錯誤，若缺乏基本知識背景抓不出問題，連為什麼能動跟為什麼不能動都沒頭緒，只會得到滿滿的挫折吧!</p> <p>原本就會寫 PowerShell 用 Github Copilot 翻譯 C# 程式，基本上會用得很開心，輕鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638332349490150310.png"></p> <p data-slug="show-certs-w-ps" data-title-en="Converting C# tool to PowerShell with Github Copilot" data-catg=".NET" data-fbimg="https://i.imgur.com/dm3nKaC.jpg#640#349">Experience of using Github Copilot Labs to translate C# to PowerShell. </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638332349484464158.png" medium="image"/>
-    <pubDate>Wed, 18 Oct 2023 14:07:59 GMT</pubDate>
   </item></channel>
 </rss>
