@@ -30,6 +30,48 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></title>
+    <link>https://blog.darkthread.net/blog/aspnethostingpermission-securityexception/</link>
+    <itunes:title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
+Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
+Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
+Stacktrace:
+[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
+System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
+System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
+System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
+System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
+</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
+Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
+Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
+Stacktrace:
+[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
+System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
+System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
+System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
+System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
+</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
+Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
+Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
+Stacktrace:
+[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
+System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
+System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
+System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
+System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
+</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png" medium="image"/>
+    <pubDate>Thu, 09 Nov 2023 15:59:17 GMT</pubDate>
+  </item><item>
     <title><![CDATA[「網站執行 Stored Procedure 爆慢，移到 SSMS 跑卻飛快」問題之徹底研究]]></title>
     <link>https://blog.darkthread.net/blog/sql-slow-in-ap-fast-in-ssms/</link>
     <itunes:title><![CDATA[「網站執行 Stored Procedure 爆慢，移到 SSMS 跑卻飛快」問題之徹底研究]]></itunes:title>
@@ -1052,68 +1094,5 @@ $doc.Quit()
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png" medium="image"/>
     <pubDate>Sun, 22 Oct 2023 00:23:47 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】詭異的 TLS 憑證數位簽章無效問題]]></title>
-    <link>https://blog.darkthread.net/blog/tls-intermediate-ca-cert-issue/</link>
-    <itunes:title><![CDATA[【茶包射手日記】詭異的 TLS 憑證數位簽章無效問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>之前處理過不少 TLS 憑證無效問題，這回遇上一枚絕對新鮮的罕見茶包。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334990357219625.png"></p> <p>狀況如上圖所示(純屬模擬示意，非實際狀況)，瀏覽器警示網站不安全，檢視憑證信任鏈，根憑證(TWCA Global Root CA)、中繼憑證(TWCA Global EVSSL Certification Authority)跟網站憑證三者名稱及有效期限都沒問題，網站憑證被標註紅 X 標示顯示無效/不安全，網站憑證錯誤訊息為：「這個憑證具有無效的數位簽章 / This certificate has an invalid digital signature.」，另外網站憑證也出現「無法保證這個憑證的完整性。憑證可能已經損毁或被竄改」的警示。</p> <p>網站憑證剛換新，前幾天生效還熱騰騰，一年後才到期，主體名稱也與網站 Domain Name <a href="http://www.xxx.tw">www.xxx.tw</a> 相符，看不出瑕疵。</p> <p>改用 <code>openssl s_client -connnect www.xxx.tw:443</code> 檢查，得到更詳細的錯誤訊息：(此處借用 TWCA 憑證鏈結構舉例，非實際遇到狀況)</p> <pre><code>CONNECTED(00000134)
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify error:num=20:unable to get local issuer certificate
-verify return:1
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify eror:num=21:unable to verify the first certificate
-verify return:1
----
-Cerificate chain
-0 s:C = TW, ST = Taiwan, L = Taipei, O = "XXX Co.", CN = www.xxx.tw
-i:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-1 s:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-2 s:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Root Certification Authority
-...以下省略...
-</code></pre> <p>openssl 提供了兩條重要線索，網站憑證有兩則錯誤 unable to get local issuer certificate 跟 unable to verify the first certificate。</p> <p>意思是 openssl 找不到網站憑證(depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的簽發者憑證(depth 1, CN = TWCA Global EVSSL Certification Authority)，無法驗證第一張憑證(即網站憑證，depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的有效性。但檢查網站傳回的憑證鏈(Certificate Chain)，網站、中繼 CA、Root CA 都有，且彼此銜接 depth 0 的 i (Issuer) 與 depth 1 的 s (Subject) 一致，depth 1 i == depth s，加上瀏覽器憑證檢視器確認中繼 CA 與 Root CA 憑證皆為有效狀態，為什麼說找不到中繼 CA 憑證無法驗證？</p> <p>讓情況更加撲溯迷離的是，此一憑證無效問題僅出現在部分客戶端，有些顯示憑證無效的瀏覽器隔天問題自己消失，同時歸納不出什麼情況問題會被觸發，也無法解釋為什麼問題自己消失。</p> <p>經過一番調查，採集到更多樣本，對照正常瀏覽器與異常瀏覽器看到的憑證差異，也訪談了相關人員，總算理出頭緒：</p> <ol><li>問題網站因舊憑證即將到期，稍早有更新 TLS 憑證</li> <li>網站為 Web Farm 架構共兩台，並有做 Load Balance (故有些人會連到第一台、有些人連到的是第二台)</li> <li>檢視正常與異常案例的三張憑證，發現 CN = TWCA Global EVSSL Certification Authority 這張中繼 CA 憑證有兩種版本，一張到期日為 2024 年，一張則到 2030。網站憑證剛換新，約一年後到期，而 Root CA 憑證則是 2030 到期。</li> <li>請 OP 確認本次收到的憑證更新檔與 openssl 列出的三張一致，中繼 CA 憑證與 Root CA 憑證的到時日均為 2030 年(故 2024 到期的中繼 CA 憑證應是舊的)，依據憑證廠商操作手冊，三張憑證都要安裝在網站上</li></ol> <p>一瞬間，貌似見鬼的現象全有了合理解釋：</p> <p>合理推論，Web Farm 其中一台網站漏裝了中繼 CA 憑證，導致其傳回舊的中繼 CA 憑證(2024 到期)，新舊中繼 CA 憑證由同一張 Root CA 憑證簽發，都在效期內。</p> <p>出問題的客戶端連上的是漏裝 2030 中繼 CA 憑證的網站，收到的三張憑證中，網站跟 Root CA 憑證正確，但中繼 CA 憑證卻是 2024 舊版(疑問：IIS 比對不到指紋時會用 CN 相同的憑證替代？)，雖在效期內仍有效，但不是新版網站憑證的真正簽發者，於是出現「找不到憑證的簽發者憑證，無法驗證」錯誤。</p> <p>Web Farm 其中一台有問題，被 Load Balance 分配到漏裝中繼 CA 憑證網站的客戶端便會遇到憑證失效，其餘客戶端則沒問題，隔陣子被 Load Balance 導向未漏裝網站後，客戶端則會記住 2030 中繼 CA 憑證，之後即使再連到漏裝網站，也能從快取或憑證儲存區找到正確中斷 CA 憑證完成驗證，不再出現憑證無效狀況。</p> <p>靠著<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>，連上兩台網站 IP 明確對照出中繼 CA 憑證到期日及指紋差異，獲得鐵證。請 OP 補安裝中繼 CA 憑證，移除及重新匯入網站憑證後，兩台網站傳回的三張憑證都是最新版，問題終告排除。</p> <p>而歷經本次經驗，我也整理出類似憑證無效案例的處理 SOP：</p> <ol><li>先從瀏覽器憑證檢視器初步查看憑證鏈的有效狀況</li> <li>使用 <code>openssl s_client -connnect &lt;host&gt;:443</code> 取得詳細錯誤訊息</li> <li>使用<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>確認是否傳回憑證鏈(網站、中繼CA、根CA)的所有憑證，檢查名稱、到期日、指紋是否正確</li></ol> <p data-slug="tls-intermediate-ca-cert-issue" data-title-en="TLS certificate has an invalid digital signature" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2018/04/02/16/18/police-3284258_960_720.jpg#960#720">An odd case of TLS Certificate with an invalid digital signature: This article organizes the problem phenomenon, root cause analysis, and methods of elimination.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>之前處理過不少 TLS 憑證無效問題，這回遇上一枚絕對新鮮的罕見茶包。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334990357219625.png"></p> <p>狀況如上圖所示(純屬模擬示意，非實際狀況)，瀏覽器警示網站不安全，檢視憑證信任鏈，根憑證(TWCA Global Root CA)、中繼憑證(TWCA Global EVSSL Certification Authority)跟網站憑證三者名稱及有效期限都沒問題，網站憑證被標註紅 X 標示顯示無效/不安全，網站憑證錯誤訊息為：「這個憑證具有無效的數位簽章 / This certificate has an invalid digital signature.」，另外網站憑證也出現「無法保證這個憑證的完整性。憑證可能已經損毁或被竄改」的警示。</p> <p>網站憑證剛換新，前幾天生效還熱騰騰，一年後才到期，主體名稱也與網站 Domain Name <a href="http://www.xxx.tw">www.xxx.tw</a> 相符，看不出瑕疵。</p> <p>改用 <code>openssl s_client -connnect www.xxx.tw:443</code> 檢查，得到更詳細的錯誤訊息：(此處借用 TWCA 憑證鏈結構舉例，非實際遇到狀況)</p> <pre><code>CONNECTED(00000134)
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify error:num=20:unable to get local issuer certificate
-verify return:1
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify eror:num=21:unable to verify the first certificate
-verify return:1
----
-Cerificate chain
-0 s:C = TW, ST = Taiwan, L = Taipei, O = "XXX Co.", CN = www.xxx.tw
-i:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-1 s:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-2 s:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Root Certification Authority
-...以下省略...
-</code></pre> <p>openssl 提供了兩條重要線索，網站憑證有兩則錯誤 unable to get local issuer certificate 跟 unable to verify the first certificate。</p> <p>意思是 openssl 找不到網站憑證(depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的簽發者憑證(depth 1, CN = TWCA Global EVSSL Certification Authority)，無法驗證第一張憑證(即網站憑證，depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的有效性。但檢查網站傳回的憑證鏈(Certificate Chain)，網站、中繼 CA、Root CA 都有，且彼此銜接 depth 0 的 i (Issuer) 與 depth 1 的 s (Subject) 一致，depth 1 i == depth s，加上瀏覽器憑證檢視器確認中繼 CA 與 Root CA 憑證皆為有效狀態，為什麼說找不到中繼 CA 憑證無法驗證？</p> <p>讓情況更加撲溯迷離的是，此一憑證無效問題僅出現在部分客戶端，有些顯示憑證無效的瀏覽器隔天問題自己消失，同時歸納不出什麼情況問題會被觸發，也無法解釋為什麼問題自己消失。</p> <p>經過一番調查，採集到更多樣本，對照正常瀏覽器與異常瀏覽器看到的憑證差異，也訪談了相關人員，總算理出頭緒：</p> <ol><li>問題網站因舊憑證即將到期，稍早有更新 TLS 憑證</li> <li>網站為 Web Farm 架構共兩台，並有做 Load Balance (故有些人會連到第一台、有些人連到的是第二台)</li> <li>檢視正常與異常案例的三張憑證，發現 CN = TWCA Global EVSSL Certification Authority 這張中繼 CA 憑證有兩種版本，一張到期日為 2024 年，一張則到 2030。網站憑證剛換新，約一年後到期，而 Root CA 憑證則是 2030 到期。</li> <li>請 OP 確認本次收到的憑證更新檔與 openssl 列出的三張一致，中繼 CA 憑證與 Root CA 憑證的到時日均為 2030 年(故 2024 到期的中繼 CA 憑證應是舊的)，依據憑證廠商操作手冊，三張憑證都要安裝在網站上</li></ol> <p>一瞬間，貌似見鬼的現象全有了合理解釋：</p> <p>合理推論，Web Farm 其中一台網站漏裝了中繼 CA 憑證，導致其傳回舊的中繼 CA 憑證(2024 到期)，新舊中繼 CA 憑證由同一張 Root CA 憑證簽發，都在效期內。</p> <p>出問題的客戶端連上的是漏裝 2030 中繼 CA 憑證的網站，收到的三張憑證中，網站跟 Root CA 憑證正確，但中繼 CA 憑證卻是 2024 舊版(疑問：IIS 比對不到指紋時會用 CN 相同的憑證替代？)，雖在效期內仍有效，但不是新版網站憑證的真正簽發者，於是出現「找不到憑證的簽發者憑證，無法驗證」錯誤。</p> <p>Web Farm 其中一台有問題，被 Load Balance 分配到漏裝中繼 CA 憑證網站的客戶端便會遇到憑證失效，其餘客戶端則沒問題，隔陣子被 Load Balance 導向未漏裝網站後，客戶端則會記住 2030 中繼 CA 憑證，之後即使再連到漏裝網站，也能從快取或憑證儲存區找到正確中斷 CA 憑證完成驗證，不再出現憑證無效狀況。</p> <p>靠著<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>，連上兩台網站 IP 明確對照出中繼 CA 憑證到期日及指紋差異，獲得鐵證。請 OP 補安裝中繼 CA 憑證，移除及重新匯入網站憑證後，兩台網站傳回的三張憑證都是最新版，問題終告排除。</p> <p>而歷經本次經驗，我也整理出類似憑證無效案例的處理 SOP：</p> <ol><li>先從瀏覽器憑證檢視器初步查看憑證鏈的有效狀況</li> <li>使用 <code>openssl s_client -connnect &lt;host&gt;:443</code> 取得詳細錯誤訊息</li> <li>使用<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>確認是否傳回憑證鏈(網站、中繼CA、根CA)的所有憑證，檢查名稱、到期日、指紋是否正確</li></ol> <p data-slug="tls-intermediate-ca-cert-issue" data-title-en="TLS certificate has an invalid digital signature" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2018/04/02/16/18/police-3284258_960_720.jpg#960#720">An odd case of TLS Certificate with an invalid digital signature: This article organizes the problem phenomenon, root cause analysis, and methods of elimination.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>之前處理過不少 TLS 憑證無效問題，這回遇上一枚絕對新鮮的罕見茶包。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638334990357219625.png"></p> <p>狀況如上圖所示(純屬模擬示意，非實際狀況)，瀏覽器警示網站不安全，檢視憑證信任鏈，根憑證(TWCA Global Root CA)、中繼憑證(TWCA Global EVSSL Certification Authority)跟網站憑證三者名稱及有效期限都沒問題，網站憑證被標註紅 X 標示顯示無效/不安全，網站憑證錯誤訊息為：「這個憑證具有無效的數位簽章 / This certificate has an invalid digital signature.」，另外網站憑證也出現「無法保證這個憑證的完整性。憑證可能已經損毁或被竄改」的警示。</p> <p>網站憑證剛換新，前幾天生效還熱騰騰，一年後才到期，主體名稱也與網站 Domain Name <a href="http://www.xxx.tw">www.xxx.tw</a> 相符，看不出瑕疵。</p> <p>改用 <code>openssl s_client -connnect www.xxx.tw:443</code> 檢查，得到更詳細的錯誤訊息：(此處借用 TWCA 憑證鏈結構舉例，非實際遇到狀況)</p> <pre><code>CONNECTED(00000134)
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify error:num=20:unable to get local issuer certificate
-verify return:1
-depth=0 C = TW, ST = Taiwan, L = Taipei, O = "XXX Company", CN = www.xxx.tw
-verify eror:num=21:unable to verify the first certificate
-verify return:1
----
-Cerificate chain
-0 s:C = TW, ST = Taiwan, L = Taipei, O = "XXX Co.", CN = www.xxx.tw
-i:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-1 s:C = TW, O = TAIWAN-CA, OU = Global EVSSL Sub-CA, CN = TWCA Global EVSSL Certification Authority
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-2 s:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Global Root CA
-i:C = TW, O = TAIWAN-CA, OU = Root CA, CN = TWCA Root Certification Authority
-...以下省略...
-</code></pre> <p>openssl 提供了兩條重要線索，網站憑證有兩則錯誤 unable to get local issuer certificate 跟 unable to verify the first certificate。</p> <p>意思是 openssl 找不到網站憑證(depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的簽發者憑證(depth 1, CN = TWCA Global EVSSL Certification Authority)，無法驗證第一張憑證(即網站憑證，depth 0, CN = <a href="http://www.xxx.tw">www.xxx.tw</a>)的有效性。但檢查網站傳回的憑證鏈(Certificate Chain)，網站、中繼 CA、Root CA 都有，且彼此銜接 depth 0 的 i (Issuer) 與 depth 1 的 s (Subject) 一致，depth 1 i == depth s，加上瀏覽器憑證檢視器確認中繼 CA 與 Root CA 憑證皆為有效狀態，為什麼說找不到中繼 CA 憑證無法驗證？</p> <p>讓情況更加撲溯迷離的是，此一憑證無效問題僅出現在部分客戶端，有些顯示憑證無效的瀏覽器隔天問題自己消失，同時歸納不出什麼情況問題會被觸發，也無法解釋為什麼問題自己消失。</p> <p>經過一番調查，採集到更多樣本，對照正常瀏覽器與異常瀏覽器看到的憑證差異，也訪談了相關人員，總算理出頭緒：</p> <ol><li>問題網站因舊憑證即將到期，稍早有更新 TLS 憑證</li> <li>網站為 Web Farm 架構共兩台，並有做 Load Balance (故有些人會連到第一台、有些人連到的是第二台)</li> <li>檢視正常與異常案例的三張憑證，發現 CN = TWCA Global EVSSL Certification Authority 這張中繼 CA 憑證有兩種版本，一張到期日為 2024 年，一張則到 2030。網站憑證剛換新，約一年後到期，而 Root CA 憑證則是 2030 到期。</li> <li>請 OP 確認本次收到的憑證更新檔與 openssl 列出的三張一致，中繼 CA 憑證與 Root CA 憑證的到時日均為 2030 年(故 2024 到期的中繼 CA 憑證應是舊的)，依據憑證廠商操作手冊，三張憑證都要安裝在網站上</li></ol> <p>一瞬間，貌似見鬼的現象全有了合理解釋：</p> <p>合理推論，Web Farm 其中一台網站漏裝了中繼 CA 憑證，導致其傳回舊的中繼 CA 憑證(2024 到期)，新舊中繼 CA 憑證由同一張 Root CA 憑證簽發，都在效期內。</p> <p>出問題的客戶端連上的是漏裝 2030 中繼 CA 憑證的網站，收到的三張憑證中，網站跟 Root CA 憑證正確，但中繼 CA 憑證卻是 2024 舊版(疑問：IIS 比對不到指紋時會用 CN 相同的憑證替代？)，雖在效期內仍有效，但不是新版網站憑證的真正簽發者，於是出現「找不到憑證的簽發者憑證，無法驗證」錯誤。</p> <p>Web Farm 其中一台有問題，被 Load Balance 分配到漏裝中繼 CA 憑證網站的客戶端便會遇到憑證失效，其餘客戶端則沒問題，隔陣子被 Load Balance 導向未漏裝網站後，客戶端則會記住 2030 中繼 CA 憑證，之後即使再連到漏裝網站，也能從快取或憑證儲存區找到正確中斷 CA 憑證完成驗證，不再出現憑證無效狀況。</p> <p>靠著<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>，連上兩台網站 IP 明確對照出中繼 CA 憑證到期日及指紋差異，獲得鐵證。請 OP 補安裝中繼 CA 憑證，移除及重新匯入網站憑證後，兩台網站傳回的三張憑證都是最新版，問題終告排除。</p> <p>而歷經本次經驗，我也整理出類似憑證無效案例的處理 SOP：</p> <ol><li>先從瀏覽器憑證檢視器初步查看憑證鏈的有效狀況</li> <li>使用 <code>openssl s_client -connnect &lt;host&gt;:443</code> 取得詳細錯誤訊息</li> <li>使用<a href="/blog/show-certs-w-ps/">網站 TLS 憑證 CLI 快速檢視工具</a>確認是否傳回憑證鏈(網站、中繼CA、根CA)的所有憑證，檢查名稱、到期日、指紋是否正確</li></ol> <p data-slug="tls-intermediate-ca-cert-issue" data-title-en="TLS certificate has an invalid digital signature" data-catg="ASP.NET/IIS" data-fbimg="https://cdn.pixabay.com/photo/2018/04/02/16/18/police-3284258_960_720.jpg#960#720">An odd case of TLS Certificate with an invalid digital signature: This article organizes the problem phenomenon, root cause analysis, and methods of elimination.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638334990357219625.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638334990357219625.png" medium="image"/>
-    <pubDate>Sat, 21 Oct 2023 15:30:03 GMT</pubDate>
   </item></channel>
 </rss>
