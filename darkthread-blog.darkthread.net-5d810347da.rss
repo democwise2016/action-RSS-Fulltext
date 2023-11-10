@@ -30,6 +30,441 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[深入 SQL Parameter Sniffing 與執行計劃效能問題]]></title>
+    <link>https://blog.darkthread.net/blog/inside-param-sniffing-n-exec-plan/</link>
+    <itunes:title><![CDATA[深入 SQL Parameter Sniffing 與執行計劃效能問題]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
+go
+EXEC that_very_sp 4711, 123, 1
+go
+SET ARITHABORT OFF
+go
+EXEC that_very_sp 4711, 123, 1
+</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
+@procname  nvarchar(256)
+SELECT @dbname = 'Northwind', -- DB 名稱
+@procname = 'dbo.List_orders_2' -- SP 名稱
+; WITH basedata AS (
+SELECT qs.statement_start_offset/2 AS stmt_start,
+qs.statement_end_offset/2 AS stmt_end,
+est.encrypted AS isencrypted, est.text AS sqltext,
+epa.value AS set_options, qp.query_plan,
+charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
+AS paramstart,
+charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
+qs.statement_start_offset,
+qs.statement_end_offset) qp
+CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
+WHERE  est.objectid  = object_id (@procname)
+AND  est.dbid      = db_id(@dbname)
+AND  epa.attribute = 'set_options'
+), next_level AS (
+SELECT stmt_start, set_options, query_plan,
+CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
+WHEN stmt_start &gt;= 0
+THEN substring(sqltext, stmt_start + 1,
+CASE stmt_end
+WHEN 0 THEN datalength(sqltext)
+ELSE stmt_end - stmt_start + 1
+END)
+END AS Statement,
+CASE WHEN paramend &gt; paramstart
+THEN CAST (substring(query_plan, paramstart,
+paramend - paramstart) AS xml)
+END AS params
+FROM   basedata
+)
+SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
+CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
+CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
+CAST (query_plan AS xml) AS [Query plan]
+FROM   next_level n
+CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
+ORDER  BY n.set_options, n.stmt_start, Parameter
+</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, i.index_id, i.name, i.type_desc,
+substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
+substring(inc.cols, 3, len(inc.cols)) AS included_cols,
+stats_date(o.object_id, i.index_id) AS stats_date,
+i.filter_definition
+FROM   sys.objects o
+JOIN   sys.indexes i ON i.object_id = o.object_id
+OUTER  APPLY (SELECT ', ' + c.name +
+CASE ic.is_descending_key
+WHEN 1 THEN ' DESC'
+ELSE ''
+END
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 0
+ORDER  BY ic.key_ordinal
+FOR XML PATH('')) AS ikey(cols)
+OUTER  APPLY (SELECT ', ' + c.name
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 1
+ORDER  BY ic.index_column_id
+FOR XML PATH('')) AS inc(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, i.index_id
+</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
+substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
+stats_date(o.object_id, s.stats_id) AS stats_date,
+s.filter_definition
+FROM   sys.objects o
+JOIN   sys.stats s ON s.object_id = o.object_id
+CROSS  APPLY (SELECT ', ' + c.name
+FROM   sys.stats_columns sc
+JOIN   sys.columns c ON sc.object_id = c.object_id
+AND sc.column_id = c.column_id
+WHERE  sc.object_id = s.object_id
+AND  sc.stats_id  = s.stats_id
+ORDER  BY sc.stats_column_id
+FOR XML PATH('')) AS scols(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, s.stats_id
+</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
+cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
+--會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
+/*
+exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
+N'@c nvarchar(5)',@c=N'ALFKI'
+*/
+--字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
+--若要避免請指定長度
+cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
+</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
+DBCC FREEPROCCACHE
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
+go
+</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+WHERE  est.text LIKE '%some significant SQL text here%'
+</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19960101'
+go
+EXEC sp_create_plan_guide
+@name = N'MyGuide',
+@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+@type = N'SQL',
+@module_or_batch = NULL,
+@params = N'@orderdate datetime',
+@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19980101'
+go
+EXEC sp_control_plan_guide N'DROP', N'MyGuide'
+</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
+go
+EXEC that_very_sp 4711, 123, 1
+go
+SET ARITHABORT OFF
+go
+EXEC that_very_sp 4711, 123, 1
+</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
+@procname  nvarchar(256)
+SELECT @dbname = 'Northwind', -- DB 名稱
+@procname = 'dbo.List_orders_2' -- SP 名稱
+; WITH basedata AS (
+SELECT qs.statement_start_offset/2 AS stmt_start,
+qs.statement_end_offset/2 AS stmt_end,
+est.encrypted AS isencrypted, est.text AS sqltext,
+epa.value AS set_options, qp.query_plan,
+charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
+AS paramstart,
+charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
+qs.statement_start_offset,
+qs.statement_end_offset) qp
+CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
+WHERE  est.objectid  = object_id (@procname)
+AND  est.dbid      = db_id(@dbname)
+AND  epa.attribute = 'set_options'
+), next_level AS (
+SELECT stmt_start, set_options, query_plan,
+CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
+WHEN stmt_start &gt;= 0
+THEN substring(sqltext, stmt_start + 1,
+CASE stmt_end
+WHEN 0 THEN datalength(sqltext)
+ELSE stmt_end - stmt_start + 1
+END)
+END AS Statement,
+CASE WHEN paramend &gt; paramstart
+THEN CAST (substring(query_plan, paramstart,
+paramend - paramstart) AS xml)
+END AS params
+FROM   basedata
+)
+SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
+CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
+CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
+CAST (query_plan AS xml) AS [Query plan]
+FROM   next_level n
+CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
+ORDER  BY n.set_options, n.stmt_start, Parameter
+</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, i.index_id, i.name, i.type_desc,
+substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
+substring(inc.cols, 3, len(inc.cols)) AS included_cols,
+stats_date(o.object_id, i.index_id) AS stats_date,
+i.filter_definition
+FROM   sys.objects o
+JOIN   sys.indexes i ON i.object_id = o.object_id
+OUTER  APPLY (SELECT ', ' + c.name +
+CASE ic.is_descending_key
+WHEN 1 THEN ' DESC'
+ELSE ''
+END
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 0
+ORDER  BY ic.key_ordinal
+FOR XML PATH('')) AS ikey(cols)
+OUTER  APPLY (SELECT ', ' + c.name
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 1
+ORDER  BY ic.index_column_id
+FOR XML PATH('')) AS inc(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, i.index_id
+</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
+substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
+stats_date(o.object_id, s.stats_id) AS stats_date,
+s.filter_definition
+FROM   sys.objects o
+JOIN   sys.stats s ON s.object_id = o.object_id
+CROSS  APPLY (SELECT ', ' + c.name
+FROM   sys.stats_columns sc
+JOIN   sys.columns c ON sc.object_id = c.object_id
+AND sc.column_id = c.column_id
+WHERE  sc.object_id = s.object_id
+AND  sc.stats_id  = s.stats_id
+ORDER  BY sc.stats_column_id
+FOR XML PATH('')) AS scols(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, s.stats_id
+</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
+cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
+--會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
+/*
+exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
+N'@c nvarchar(5)',@c=N'ALFKI'
+*/
+--字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
+--若要避免請指定長度
+cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
+</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
+DBCC FREEPROCCACHE
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
+go
+</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+WHERE  est.text LIKE '%some significant SQL text here%'
+</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19960101'
+go
+EXEC sp_create_plan_guide
+@name = N'MyGuide',
+@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+@type = N'SQL',
+@module_or_batch = NULL,
+@params = N'@orderdate datetime',
+@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19980101'
+go
+EXEC sp_control_plan_guide N'DROP', N'MyGuide'
+</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
+go
+EXEC that_very_sp 4711, 123, 1
+go
+SET ARITHABORT OFF
+go
+EXEC that_very_sp 4711, 123, 1
+</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
+@procname  nvarchar(256)
+SELECT @dbname = 'Northwind', -- DB 名稱
+@procname = 'dbo.List_orders_2' -- SP 名稱
+; WITH basedata AS (
+SELECT qs.statement_start_offset/2 AS stmt_start,
+qs.statement_end_offset/2 AS stmt_end,
+est.encrypted AS isencrypted, est.text AS sqltext,
+epa.value AS set_options, qp.query_plan,
+charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
+AS paramstart,
+charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
+qs.statement_start_offset,
+qs.statement_end_offset) qp
+CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
+WHERE  est.objectid  = object_id (@procname)
+AND  est.dbid      = db_id(@dbname)
+AND  epa.attribute = 'set_options'
+), next_level AS (
+SELECT stmt_start, set_options, query_plan,
+CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
+WHEN stmt_start &gt;= 0
+THEN substring(sqltext, stmt_start + 1,
+CASE stmt_end
+WHEN 0 THEN datalength(sqltext)
+ELSE stmt_end - stmt_start + 1
+END)
+END AS Statement,
+CASE WHEN paramend &gt; paramstart
+THEN CAST (substring(query_plan, paramstart,
+paramend - paramstart) AS xml)
+END AS params
+FROM   basedata
+)
+SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
+CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
+CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
+CAST (query_plan AS xml) AS [Query plan]
+FROM   next_level n
+CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
+ORDER  BY n.set_options, n.stmt_start, Parameter
+</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, i.index_id, i.name, i.type_desc,
+substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
+substring(inc.cols, 3, len(inc.cols)) AS included_cols,
+stats_date(o.object_id, i.index_id) AS stats_date,
+i.filter_definition
+FROM   sys.objects o
+JOIN   sys.indexes i ON i.object_id = o.object_id
+OUTER  APPLY (SELECT ', ' + c.name +
+CASE ic.is_descending_key
+WHEN 1 THEN ' DESC'
+ELSE ''
+END
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 0
+ORDER  BY ic.key_ordinal
+FOR XML PATH('')) AS ikey(cols)
+OUTER  APPLY (SELECT ', ' + c.name
+FROM   sys.index_columns ic
+JOIN   sys.columns c ON ic.object_id = c.object_id
+AND ic.column_id = c.column_id
+WHERE  ic.object_id = i.object_id
+AND  ic.index_id  = i.index_id
+AND  ic.is_included_column = 1
+ORDER  BY ic.index_column_id
+FOR XML PATH('')) AS inc(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, i.index_id
+</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
+SELECT @tbl = 'Orders'
+SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
+substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
+stats_date(o.object_id, s.stats_id) AS stats_date,
+s.filter_definition
+FROM   sys.objects o
+JOIN   sys.stats s ON s.object_id = o.object_id
+CROSS  APPLY (SELECT ', ' + c.name
+FROM   sys.stats_columns sc
+JOIN   sys.columns c ON sc.object_id = c.object_id
+AND sc.column_id = c.column_id
+WHERE  sc.object_id = s.object_id
+AND  sc.stats_id  = s.stats_id
+ORDER  BY sc.stats_column_id
+FOR XML PATH('')) AS scols(cols)
+WHERE  o.name = @tbl
+ORDER  BY o.name, s.stats_id
+</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
+cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
+--會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
+/*
+exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
+N'@c nvarchar(5)',@c=N'ALFKI'
+*/
+--字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
+--若要避免請指定長度
+cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
+</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
+DBCC FREEPROCCACHE
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
+go
+SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
+go
+</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
+FROM   sys.dm_exec_query_stats qs
+CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
+WHERE  est.text LIKE '%some significant SQL text here%'
+</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19960101'
+go
+EXEC sp_create_plan_guide
+@name = N'MyGuide',
+@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+@type = N'SQL',
+@module_or_batch = NULL,
+@params = N'@orderdate datetime',
+@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
+go
+EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
+N'@orderdate datetime', @orderdate = '19980101'
+go
+EXEC sp_control_plan_guide N'DROP', N'MyGuide'
+</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png" medium="image"/>
+    <pubDate>Fri, 10 Nov 2023 14:37:44 GMT</pubDate>
+  </item><item>
     <title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></title>
     <link>https://blog.darkthread.net/blog/aspnethostingpermission-securityexception/</link>
     <itunes:title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></itunes:title>
@@ -1046,53 +1481,5 @@ $doc.Quit()
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638335537555268975.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638335537555268975.png" medium="image"/>
     <pubDate>Sun, 22 Oct 2023 06:41:26 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[log4net 依日期分檔設定]]></title>
-    <link>https://blog.darkthread.net/blog/log4net-config/</link>
-    <itunes:title><![CDATA[log4net 依日期分檔設定]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
-&lt;file value="D:\\Logs\\MyApp\\"/&gt;
-&lt;appendToFile value="true"/&gt;
-&lt;rollingStyle value="Date"/&gt;
-&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
-&lt;staticLogFileName value="false" /&gt;
-&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
-&lt;layout type="log4net.Layout.PatternLayout"&gt;
-&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
-&lt;/layout&gt;
-&lt;/appender&gt;
-</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
-&lt;file value="D:\\Logs\\MyApp\\"/&gt;
-&lt;appendToFile value="true"/&gt;
-&lt;rollingStyle value="Date"/&gt;
-&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
-&lt;staticLogFileName value="false" /&gt;
-&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
-&lt;layout type="log4net.Layout.PatternLayout"&gt;
-&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
-&lt;/layout&gt;
-&lt;/appender&gt;
-</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>工作環境有些祖傳專案是用 log4net 寫 Log (後來的專案大多以 NLog 為主 <a href="/blog/high-capacity-dotnet-logging-survey/">參考</a> )，前人慣用 RollingFileAppender 的兩種設定方式，第一種是固定檔名，依指定大小分檔(rollingStyle="Size")，舊檔附加 .1、.2 順序編號，類似這樣：<br> 註：超過上限時會寫完最後一筆，故不會剛好是設定大小</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"></p> <p>另一種是時間跟大小組合模式(rollingStyle="Compsite")，目前的 Log 檔案固定，換日時檔名加上 yyyyMMdd，另起新檔，若檔名超過大小上限，會分檔加上 .1、.2：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638335310489914770.png"></p> <p>第一種做法每個檔涵蓋的期間不同且檔名看不出日期，要查特定時間的 Log 很不方便；第二種則是日期串接在 .txt 後方讓副檔名變得不可識別，而依大小切檔有點多餘，變成同一天的資料分散在多個檔，徒增查找麻煩。</p> <p>過去秉持「If it works, don't touch it.」，就這麼運轉多年，最近剛好有機會整頓，就花了點時間看了 log4net 設定方式，讓它與其他程式慣用的 NLog 分檔規則一致：以日期為檔名存成 yyyyMMdd.txt (必要時以月分資料夾)，一天一檔。</p> <pre><code>&lt;appender name="RollingLogFileAppender" type="log4net.Appender.RollingFileAppender"&gt;
-&lt;file value="D:\\Logs\\MyApp\\"/&gt;
-&lt;appendToFile value="true"/&gt;
-&lt;rollingStyle value="Date"/&gt;
-&lt;datePattern value="yyyyMM\\yyyyMMdd'.txt'"/&gt;
-&lt;staticLogFileName value="false" /&gt;
-&lt;lockingModel type="log4net.Appender.FileAppender+MinimalLock" /&gt;
-&lt;layout type="log4net.Layout.PatternLayout"&gt;
-&lt;conversionPattern value="%d [%t] %-5p %c [%x] - %m%n"/&gt;
-&lt;/layout&gt;
-&lt;/appender&gt;
-</code></pre> <p>整理檔名規則相關設定的意義：<a href="https://logging.apache.org/log4net/release/sdk/html/T_log4net_Appender_RollingFileAppender.htm">參考</a></p> <ol><li>file 檔案路徑，可以是資料夾路徑，也可能細到檔名。<br> 若是傳統以大小分檔,可能寫成 x:\log-path\file-name.log，滿了再把舊檔更名成 file-name.log.1、file-name.log.2。<br> 若檔名會依日期跳動，這裡只給資料夾路徑，後面再用 datePattern 指定細節</li> <li>appendToFile 幾乎都會設成 true，否則檔案只記最後一個事件，有新的就覆寫</li> <li>rollingStyle 有四個選項 Once 每次程式啟動換新檔、Size 檔案達到大小上限才另起新檔、Date 依據日期時間切換新檔、Composite 依據日期，但若大小滿了也換新檔</li> <li>dataPattern 依日期決定檔名的規則，可包含依日期變化的資料夾名稱，依年、月、日分資料夾，固定不變的部分用單引號包夾，如副檔名部分寫 '.txt'</li> <li>staticLogFileName 若要依日期動態決定檔名，要設 false</li> <li>預設大小拆檔會在副檔名後方加 .1、.2，在 Winows 會變成不認得的副檔名(.txt.1、.log.2)無法當成文字檔直接開啟，較新版本支援 preserveLogFileNameExtension = true 可改為 .1.log 維持副檔名不變</li> <li>log4net 是上回<a href="/blog/dotnet-read-locked-file/">讀取其他程式開啟中的檔案技巧</a>的源頭，有個 lockingModel 設定，預設為 ExclusiveLock，改為 log4net.Appender.FileAppender+MinimalLock 即可減少檔案鎖定問題</li></ol> <p data-slug="log4net-config" data-title-en="About log4net file naming configuration" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/27/19/42/diary-614149_1280.jpg#1280#720">Tips about how to configure log4net use date as filename.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638335310484153297.png" medium="image"/>
-    <pubDate>Sun, 22 Oct 2023 00:23:47 GMT</pubDate>
   </item></channel>
 </rss>
