@@ -30,6 +30,198 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[PowerShell 命令加了 -ErrorAction SlientlyContinue 照樣出錯]]></title>
+    <link>https://blog.darkthread.net/blog/ps-slientlycontinue-not-work/</link>
+    <itunes:title><![CDATA[PowerShell 命令加了 -ErrorAction SlientlyContinue 照樣出錯]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>PowerShell 有個 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#-erroraction"><code>-ErrorAction SilentlyContinue</code> 參數</a>可在出錯時隱藏錯誤訊息，並繼續執行命令。</p> <p>今天發現，ErrorAction 參數不是對所有命令都有效，以下是個簡單測試，用 Get-LocalGroup 跟 Get-ADGroup 查詢本機及 AD 群組，故意輸入不存在的群組名稱會出現錯誤訊息。Get-LocalGroup 可加上 -ErrorAction SilentlyContinue 不顯示錯誤，但 Get-ADGroup 加了卻沒效。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png"></p> <p>查了文件發現，PowerShell 命令有兩種拋出錯誤的方式，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.cmdlet.throwterminatingerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#remarks">Cmdlet.ThrowTerminatingError(ErrorRecord)</a> 跟 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.icommandruntime.writeerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#system-management-automation-icommandruntime-writeerror(system-management-automation-errorrecord)">ICommandRuntime.WriteError(ErrorRecord)</a>，ErrorAction 參數只對後者有效，前者會中斷程式，但可以用 Try Catch 捕捉例外，所以真要出錯時繼續，用 Try Catch 包起來就對了。</p> <pre><code>Try {
+$Grp = Get-ADGroup 'NoSuchGroup'
+}
+Catch {
+# NOT FOUND OR OTHER ERROR
+}
+</code></pre> <p>好奇心起，追了一下原始碼找到 Get-ADGroup 是用 ThrowTerminatingError 的證據：</p> <p>Microsoft.ActiveDirectory.Management.Commands.ADCmdletBase 型別</p> <pre><code>internal virtual void ProcessError(Exception e)
+{
+if (e is RuntimeException)
+{
+throw e;
+}
+bool flag = true;
+this._recordExceptionHandler.ProcessingRecord = this._processingRecord;
+if (this != null &amp;&amp; ((IADCustomExceptionFiltering)this).ExceptionFilter.FilterException(e, ref flag) &amp;&amp; !flag)
+{
+this.WriteErrorBuffered(this.ConstructErrorRecord(e));
+return;
+}
+base.ThrowTerminatingError(this.ConstructErrorRecord(e));
+}
+</code></pre> <p>Micrsoft.PowerShell.LocalAccounts.GetLocalGroupCommand 則是用 WriteError：</p> <pre><code>private void ProcessNames()
+{
+if (this.Name != null)
+{
+foreach (string text in this.Name)
+{
+try
+{
+if (WildcardPattern.ContainsWildcardCharacters(text))
+{
+WildcardPattern pattern = new WildcardPattern(text, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+Sam sam = this.sam;
+Predicate&lt;string&gt; pred;
+Predicate&lt;string&gt; &lt;&gt;9__0;
+if ((pred = &lt;&gt;9__0) == null)
+{
+pred = (&lt;&gt;9__0 = ((string n) =&gt; pattern.IsMatch(n)));
+}
+using (IEnumerator&lt;LocalGroup&gt; enumerator = sam.GetMatchingLocalGroups(pred).GetEnumerator())
+{
+while (enumerator.MoveNext())
+{
+LocalGroup sendToPipeline = enumerator.Current;
+base.WriteObject(sendToPipeline);
+}
+goto IL_A7;
+}
+}
+base.WriteObject(this.sam.GetLocalGroup(text));
+IL_A7:;
+}
+catch (Exception ex)
+{
+base.WriteError(ex.MakeErrorRecord(null));
+}
+}
+}
+}
+</code></pre> <p>打完收工。</p> <p data-slug="ps-slientlycontinue-not-work" data-title-en="Why ErrorAction SilentlyContinue doen't work?" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/01/03/01/54/recycle-237874_960_720.jpg#960#720">The reason why ErrorAction SilentlyContinue doesn't work on some cmdlets is because it depends on whether the cmdlets use WriteError or ThrowTerminatingError. For the latter, you need to use a try-catch block.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>PowerShell 有個 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#-erroraction"><code>-ErrorAction SilentlyContinue</code> 參數</a>可在出錯時隱藏錯誤訊息，並繼續執行命令。</p> <p>今天發現，ErrorAction 參數不是對所有命令都有效，以下是個簡單測試，用 Get-LocalGroup 跟 Get-ADGroup 查詢本機及 AD 群組，故意輸入不存在的群組名稱會出現錯誤訊息。Get-LocalGroup 可加上 -ErrorAction SilentlyContinue 不顯示錯誤，但 Get-ADGroup 加了卻沒效。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png"></p> <p>查了文件發現，PowerShell 命令有兩種拋出錯誤的方式，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.cmdlet.throwterminatingerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#remarks">Cmdlet.ThrowTerminatingError(ErrorRecord)</a> 跟 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.icommandruntime.writeerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#system-management-automation-icommandruntime-writeerror(system-management-automation-errorrecord)">ICommandRuntime.WriteError(ErrorRecord)</a>，ErrorAction 參數只對後者有效，前者會中斷程式，但可以用 Try Catch 捕捉例外，所以真要出錯時繼續，用 Try Catch 包起來就對了。</p> <pre><code>Try {
+$Grp = Get-ADGroup 'NoSuchGroup'
+}
+Catch {
+# NOT FOUND OR OTHER ERROR
+}
+</code></pre> <p>好奇心起，追了一下原始碼找到 Get-ADGroup 是用 ThrowTerminatingError 的證據：</p> <p>Microsoft.ActiveDirectory.Management.Commands.ADCmdletBase 型別</p> <pre><code>internal virtual void ProcessError(Exception e)
+{
+if (e is RuntimeException)
+{
+throw e;
+}
+bool flag = true;
+this._recordExceptionHandler.ProcessingRecord = this._processingRecord;
+if (this != null &amp;&amp; ((IADCustomExceptionFiltering)this).ExceptionFilter.FilterException(e, ref flag) &amp;&amp; !flag)
+{
+this.WriteErrorBuffered(this.ConstructErrorRecord(e));
+return;
+}
+base.ThrowTerminatingError(this.ConstructErrorRecord(e));
+}
+</code></pre> <p>Micrsoft.PowerShell.LocalAccounts.GetLocalGroupCommand 則是用 WriteError：</p> <pre><code>private void ProcessNames()
+{
+if (this.Name != null)
+{
+foreach (string text in this.Name)
+{
+try
+{
+if (WildcardPattern.ContainsWildcardCharacters(text))
+{
+WildcardPattern pattern = new WildcardPattern(text, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+Sam sam = this.sam;
+Predicate&lt;string&gt; pred;
+Predicate&lt;string&gt; &lt;&gt;9__0;
+if ((pred = &lt;&gt;9__0) == null)
+{
+pred = (&lt;&gt;9__0 = ((string n) =&gt; pattern.IsMatch(n)));
+}
+using (IEnumerator&lt;LocalGroup&gt; enumerator = sam.GetMatchingLocalGroups(pred).GetEnumerator())
+{
+while (enumerator.MoveNext())
+{
+LocalGroup sendToPipeline = enumerator.Current;
+base.WriteObject(sendToPipeline);
+}
+goto IL_A7;
+}
+}
+base.WriteObject(this.sam.GetLocalGroup(text));
+IL_A7:;
+}
+catch (Exception ex)
+{
+base.WriteError(ex.MakeErrorRecord(null));
+}
+}
+}
+}
+</code></pre> <p>打完收工。</p> <p data-slug="ps-slientlycontinue-not-work" data-title-en="Why ErrorAction SilentlyContinue doen't work?" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/01/03/01/54/recycle-237874_960_720.jpg#960#720">The reason why ErrorAction SilentlyContinue doesn't work on some cmdlets is because it depends on whether the cmdlets use WriteError or ThrowTerminatingError. For the latter, you need to use a try-catch block.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>PowerShell 有個 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#-erroraction"><code>-ErrorAction SilentlyContinue</code> 參數</a>可在出錯時隱藏錯誤訊息，並繼續執行命令。</p> <p>今天發現，ErrorAction 參數不是對所有命令都有效，以下是個簡單測試，用 Get-LocalGroup 跟 Get-ADGroup 查詢本機及 AD 群組，故意輸入不存在的群組名稱會出現錯誤訊息。Get-LocalGroup 可加上 -ErrorAction SilentlyContinue 不顯示錯誤，但 Get-ADGroup 加了卻沒效。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png"></p> <p>查了文件發現，PowerShell 命令有兩種拋出錯誤的方式，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.cmdlet.throwterminatingerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#remarks">Cmdlet.ThrowTerminatingError(ErrorRecord)</a> 跟 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.icommandruntime.writeerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#system-management-automation-icommandruntime-writeerror(system-management-automation-errorrecord)">ICommandRuntime.WriteError(ErrorRecord)</a>，ErrorAction 參數只對後者有效，前者會中斷程式，但可以用 Try Catch 捕捉例外，所以真要出錯時繼續，用 Try Catch 包起來就對了。</p> <pre><code>Try {
+$Grp = Get-ADGroup 'NoSuchGroup'
+}
+Catch {
+# NOT FOUND OR OTHER ERROR
+}
+</code></pre> <p>好奇心起，追了一下原始碼找到 Get-ADGroup 是用 ThrowTerminatingError 的證據：</p> <p>Microsoft.ActiveDirectory.Management.Commands.ADCmdletBase 型別</p> <pre><code>internal virtual void ProcessError(Exception e)
+{
+if (e is RuntimeException)
+{
+throw e;
+}
+bool flag = true;
+this._recordExceptionHandler.ProcessingRecord = this._processingRecord;
+if (this != null &amp;&amp; ((IADCustomExceptionFiltering)this).ExceptionFilter.FilterException(e, ref flag) &amp;&amp; !flag)
+{
+this.WriteErrorBuffered(this.ConstructErrorRecord(e));
+return;
+}
+base.ThrowTerminatingError(this.ConstructErrorRecord(e));
+}
+</code></pre> <p>Micrsoft.PowerShell.LocalAccounts.GetLocalGroupCommand 則是用 WriteError：</p> <pre><code>private void ProcessNames()
+{
+if (this.Name != null)
+{
+foreach (string text in this.Name)
+{
+try
+{
+if (WildcardPattern.ContainsWildcardCharacters(text))
+{
+WildcardPattern pattern = new WildcardPattern(text, WildcardOptions.Compiled | WildcardOptions.IgnoreCase);
+Sam sam = this.sam;
+Predicate&lt;string&gt; pred;
+Predicate&lt;string&gt; &lt;&gt;9__0;
+if ((pred = &lt;&gt;9__0) == null)
+{
+pred = (&lt;&gt;9__0 = ((string n) =&gt; pattern.IsMatch(n)));
+}
+using (IEnumerator&lt;LocalGroup&gt; enumerator = sam.GetMatchingLocalGroups(pred).GetEnumerator())
+{
+while (enumerator.MoveNext())
+{
+LocalGroup sendToPipeline = enumerator.Current;
+base.WriteObject(sendToPipeline);
+}
+goto IL_A7;
+}
+}
+base.WriteObject(this.sam.GetLocalGroup(text));
+IL_A7:;
+}
+catch (Exception ex)
+{
+base.WriteError(ex.MakeErrorRecord(null));
+}
+}
+}
+}
+</code></pre> <p>打完收工。</p> <p data-slug="ps-slientlycontinue-not-work" data-title-en="Why ErrorAction SilentlyContinue doen't work?" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/01/03/01/54/recycle-237874_960_720.jpg#960#720">The reason why ErrorAction SilentlyContinue doesn't work on some cmdlets is because it depends on whether the cmdlets use WriteError or ThrowTerminatingError. For the latter, you need to use a try-catch block.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png" medium="image"/>
+    <pubDate>Tue, 14 Nov 2023 15:34:21 GMT</pubDate>
+  </item><item>
     <title><![CDATA[「機碼用在特定狀態時無效」錯誤與 Windows 無腦加密冷知識]]></title>
     <link>https://blog.darkthread.net/blog/key-not-valid-error-n-dpapi-master-keys/</link>
     <itunes:title><![CDATA[「機碼用在特定狀態時無效」錯誤與 Windows 無腦加密冷知識]]></itunes:title>
@@ -1265,221 +1457,5 @@ D:\Lab&gt;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png" medium="image"/>
     <pubDate>Thu, 26 Oct 2023 15:29:21 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[為檔案總管右鍵選單加入 Word 檔轉 PDF 功能]]></title>
-    <link>https://blog.darkthread.net/blog/docx-2-pdf-shell-cmd/</link>
-    <itunes:title><![CDATA[為檔案總管右鍵選單加入 Word 檔轉 PDF 功能]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
-[parameter(ValueFromRemainingArguments=$true)]
-[string]
-$docPaths,
-[parameter(ValueFromPipelineByPropertyName=$true)]
-[switch][bool]
-$Replace,
-[switch][bool]
-$Register, # 註冊右鍵選單
-[switch][bool]
-$Unregister # 取消註冊右鍵選單
-)
-$ErrorActionPreference = "STOP"
-function getDocxShellKeyPath() {
-# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
-$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
-return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
-}
-if ($Unregister) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if ($key) { $reg.DeleteSubKeyTree($regPath) }
-return
-}
-if ($Register) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if (-not $key) { $key = $reg.CreateSubKey($regPath) }
-$key.SetValue("", "轉存 PDF")
-$key = $reg.OpenSubKey("$regPath\command", $true)
-if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
-$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
-return
-}
-if (!$docPaths) {
-Write-Host "請指定要轉換的 Word 檔案路徑"
-return
-}
-try
-{
-$doc = New-Object -ComObject Word.Application
-$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
-Get-Item $docPaths | ForEach-Object {
-$path = $_.FullName
-Write-Host "開啟 $path..."
-try {
-$doc.Documents.Open($path) | Out-Null
-$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
-# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
-# WdSaveFormat.wdFormatPDF = 17
-$doc.ActiveDocument.SaveAs2($savePath, 17)
-$doc.ActiveDocument.Close()
-if ($replace) {
-Remove-Item $path
-}
-}
-catch {
-Write-Host "發生錯誤 - $path" -ForegroundColor Red
-}
-}
-}
-finally
-{
-$doc.Quit()
-}
-</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
-[parameter(ValueFromRemainingArguments=$true)]
-[string]
-$docPaths,
-[parameter(ValueFromPipelineByPropertyName=$true)]
-[switch][bool]
-$Replace,
-[switch][bool]
-$Register, # 註冊右鍵選單
-[switch][bool]
-$Unregister # 取消註冊右鍵選單
-)
-$ErrorActionPreference = "STOP"
-function getDocxShellKeyPath() {
-# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
-$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
-return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
-}
-if ($Unregister) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if ($key) { $reg.DeleteSubKeyTree($regPath) }
-return
-}
-if ($Register) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if (-not $key) { $key = $reg.CreateSubKey($regPath) }
-$key.SetValue("", "轉存 PDF")
-$key = $reg.OpenSubKey("$regPath\command", $true)
-if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
-$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
-return
-}
-if (!$docPaths) {
-Write-Host "請指定要轉換的 Word 檔案路徑"
-return
-}
-try
-{
-$doc = New-Object -ComObject Word.Application
-$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
-Get-Item $docPaths | ForEach-Object {
-$path = $_.FullName
-Write-Host "開啟 $path..."
-try {
-$doc.Documents.Open($path) | Out-Null
-$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
-# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
-# WdSaveFormat.wdFormatPDF = 17
-$doc.ActiveDocument.SaveAs2($savePath, 17)
-$doc.ActiveDocument.Close()
-if ($replace) {
-Remove-Item $path
-}
-}
-catch {
-Write-Host "發生錯誤 - $path" -ForegroundColor Red
-}
-}
-}
-finally
-{
-$doc.Quit()
-}
-</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>生活中有不少用 Word 撰寫文件，但交件格式限定 PDF 的需求。Word 很早已內建另存 PDF 功能，所以我都是用 Word 編輯修改，最後再另存轉 PDF。</p> <p>但我有個壞習慣，寫文章寫文件喜歡反覆琢磨補充潤飾，總覺得還可以改得更好。所以寫完交卷前我會存成 PDF 先擱一陣子，確保萬一想到新點子還可以改，動不動就開 Word、修改、另存 PDF 更新，保持隨時可交件的機動性；上廁所靈光乍現，想到可以加兩句，就再開 Word、修改、另存 PDF。</p> <p>結果這個壞習慣產生一堆無意義的另存 PDF 動作，感覺有改進空間。</p> <p>我想起之前寫過 <a href="/blog/ps-batch-conv-doc-to-docx/">DOCX 轉 PDF PowerShell 小工具</a>，如果做成右鍵選單便能解決問題。平時專心編輯 Word 檔即可，交卷前一刻，在檔案按滑鼠右鍵再點兩下，馬上 Word 變 PDF，是不是很方便？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"></p> <p>上回寫的 PowerShell 會呼叫 Word 將 docx 轉 pdf，功能已完整，現在只需在 docx 右鍵加入快捷選單即大功告成。這裡會用到之前學過的技巧，在 Registry 針對 Word.Document.12 加上自動 Command：(不是加在 .docx 副檔名)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638338384914437852.png"></p> <p>擴充了上次的 .ps1，加入 -Register、-Unregister 兩個參數用來註冊及移除 Registry。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638338384916219500.png"></p> <p>註冊好，在 .docx 檔案用滑鼠右鍵點開選單，會有個「轉存 PDF」選項，點下去等三四秒，熱騰騰的 PDF 檔就出現了。(Word 轉 PDF 的速度無法跟商業元件相比，但看在不用多花錢的份上，相信大家都能接受)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638338384918012580.png"></p> <p>Talk is cheap, show me the code! 範例程式碼如下，有需要的朋友歡迎自取修改使用。</p> <pre><code>Param(
-[parameter(ValueFromRemainingArguments=$true)]
-[string]
-$docPaths,
-[parameter(ValueFromPipelineByPropertyName=$true)]
-[switch][bool]
-$Replace,
-[switch][bool]
-$Register, # 註冊右鍵選單
-[switch][bool]
-$Unregister # 取消註冊右鍵選單
-)
-$ErrorActionPreference = "STOP"
-function getDocxShellKeyPath() {
-# 由 HKEY_CLASSES_ROOT\.docx 取得 Word 文件對應的機碼名稱(如：Word.Document.12)
-$docxKeyName = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey(".docx").GetValue('')
-return "SOFTWARE\Classes\$docxKeyName\shell\ToPdf"
-}
-if ($Unregister) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if ($key) { $reg.DeleteSubKeyTree($regPath) }
-return
-}
-if ($Register) {
-$regPath = getDocxShellKeyPath
-$reg = [Microsoft.Win32.Registry]::CurrentUser
-$key = $reg.OpenSubKey($regPath, $true)
-if (-not $key) { $key = $reg.CreateSubKey($regPath) }
-$key.SetValue("", "轉存 PDF")
-$key = $reg.OpenSubKey("$regPath\command", $true)
-if (-not $key) { $key = $reg.CreateSubKey("$regPath\command") }
-$key.SetValue("", "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSScriptRoot\Atk-Docx2Pdf.ps1 %1`"")
-return
-}
-if (!$docPaths) {
-Write-Host "請指定要轉換的 Word 檔案路徑"
-return
-}
-try
-{
-$doc = New-Object -ComObject Word.Application
-$doc.Visible = $true # 顯示 UI，方便使用者了解處理進度、輸入密碼等
-Get-Item $docPaths | ForEach-Object {
-$path = $_.FullName
-Write-Host "開啟 $path..."
-try {
-$doc.Documents.Open($path) | Out-Null
-$savePath = [System.IO.Path]::ChangeExtension($path, ".pdf")
-# https://docs.microsoft.com/en-us/office/vba/api/word.wdsaveformat
-# WdSaveFormat.wdFormatPDF = 17
-$doc.ActiveDocument.SaveAs2($savePath, 17)
-$doc.ActiveDocument.Close()
-if ($replace) {
-Remove-Item $path
-}
-}
-catch {
-Write-Host "發生錯誤 - $path" -ForegroundColor Red
-}
-}
-}
-finally
-{
-$doc.Quit()
-}
-</code></pre> <p data-slug="docx-2-pdf-shell-cmd" data-title-en="Converting DOCX to PDF with Windows Explorper shell command" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/10/25/05/53/saber-3771701_960_720.jpg#960#720">Example of PowerShell to register explorer shell command to convert .docx to .pdf with MS Word.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638338384912613325.gif" medium="image"/>
-    <pubDate>Wed, 25 Oct 2023 13:46:04 GMT</pubDate>
   </item></channel>
 </rss>
