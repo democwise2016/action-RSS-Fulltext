@@ -30,6 +30,231 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></title>
+    <link>https://blog.darkthread.net/blog/pwd-crack-time/</link>
+    <itunes:title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
+$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$complexity = [ordered]@{
+'純數字'       = '0';
+'全大寫/全小寫'   = 'A';
+'大小寫混合'     = 'Aa';
+'大小寫+數字'    = 'Aa0';
+'大小寫+數字+符號' = 'Aa0!';
+}
+$html = @"
+&lt;style&gt;
+table { border-collapse: collapse; text-align: center; font-size: 9pt; }
+td, th { border: 1px solid #888; padding: 0.5em; }
+thead th { background-color: #ccc; }
+tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
+tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
+.hps { margin-left: 2em; color: blue; }
+&lt;/style&gt;
+&lt;h3&gt;
+$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
+&lt;/h3&gt;
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
+$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+"@
+$units = @('', '萬', '億')
+For ($len = 6; $len -lt 25; $len++) {
+$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
+$complexity.Keys | ForEach-Object {
+$pattern = $complexity.$_
+$charCount = 0;
+if ($pattern -match '[0-9]') { $charCount += 10; }
+if ($pattern -cmatch '[a-z]') { $charCount += 26; }
+if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
+if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
+#Write-Host $_ $charCount
+[bigint]$count = [bigint]::Pow($charCount, $len)
+$secs = [bigint]::Divide($count, $hitsPerSec)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$years = [bigint]::Divide($secs, 86400 * 365)
+$unitIdx = 0
+$unit = $units[$unitIdx]
+while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
+$years = [bigint]::Divide($years, 10000)
+$unit = $units[++$unitIdx]
+}
+if ($years -gt 100000000) {
+$years = $years.ToString('e')
+$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
+$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
+}
+else {
+$years = $years.ToString('n0')
+}
+$time = $years + ' ' + $unit + '年'
+}
+$html += "&lt;td&gt;$time&lt;/td&gt;"
+}
+$html += "&lt;/tr&gt;"
+}
+$html += "&lt;/tbody&gt;&lt;/table&gt;"
+$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
+$html | Out-File $tempFilePath -Encoding UTF8
+Start-Process $tempFilePath
+</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
+$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$complexity = [ordered]@{
+'純數字'       = '0';
+'全大寫/全小寫'   = 'A';
+'大小寫混合'     = 'Aa';
+'大小寫+數字'    = 'Aa0';
+'大小寫+數字+符號' = 'Aa0!';
+}
+$html = @"
+&lt;style&gt;
+table { border-collapse: collapse; text-align: center; font-size: 9pt; }
+td, th { border: 1px solid #888; padding: 0.5em; }
+thead th { background-color: #ccc; }
+tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
+tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
+.hps { margin-left: 2em; color: blue; }
+&lt;/style&gt;
+&lt;h3&gt;
+$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
+&lt;/h3&gt;
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
+$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+"@
+$units = @('', '萬', '億')
+For ($len = 6; $len -lt 25; $len++) {
+$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
+$complexity.Keys | ForEach-Object {
+$pattern = $complexity.$_
+$charCount = 0;
+if ($pattern -match '[0-9]') { $charCount += 10; }
+if ($pattern -cmatch '[a-z]') { $charCount += 26; }
+if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
+if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
+#Write-Host $_ $charCount
+[bigint]$count = [bigint]::Pow($charCount, $len)
+$secs = [bigint]::Divide($count, $hitsPerSec)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$years = [bigint]::Divide($secs, 86400 * 365)
+$unitIdx = 0
+$unit = $units[$unitIdx]
+while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
+$years = [bigint]::Divide($years, 10000)
+$unit = $units[++$unitIdx]
+}
+if ($years -gt 100000000) {
+$years = $years.ToString('e')
+$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
+$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
+}
+else {
+$years = $years.ToString('n0')
+}
+$time = $years + ' ' + $unit + '年'
+}
+$html += "&lt;td&gt;$time&lt;/td&gt;"
+}
+$html += "&lt;/tr&gt;"
+}
+$html += "&lt;/tbody&gt;&lt;/table&gt;"
+$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
+$html | Out-File $tempFilePath -Encoding UTF8
+Start-Process $tempFilePath
+</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
+$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$complexity = [ordered]@{
+'純數字'       = '0';
+'全大寫/全小寫'   = 'A';
+'大小寫混合'     = 'Aa';
+'大小寫+數字'    = 'Aa0';
+'大小寫+數字+符號' = 'Aa0!';
+}
+$html = @"
+&lt;style&gt;
+table { border-collapse: collapse; text-align: center; font-size: 9pt; }
+td, th { border: 1px solid #888; padding: 0.5em; }
+thead th { background-color: #ccc; }
+tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
+tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
+.hps { margin-left: 2em; color: blue; }
+&lt;/style&gt;
+&lt;h3&gt;
+$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
+&lt;/h3&gt;
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
+$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+"@
+$units = @('', '萬', '億')
+For ($len = 6; $len -lt 25; $len++) {
+$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
+$complexity.Keys | ForEach-Object {
+$pattern = $complexity.$_
+$charCount = 0;
+if ($pattern -match '[0-9]') { $charCount += 10; }
+if ($pattern -cmatch '[a-z]') { $charCount += 26; }
+if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
+if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
+#Write-Host $_ $charCount
+[bigint]$count = [bigint]::Pow($charCount, $len)
+$secs = [bigint]::Divide($count, $hitsPerSec)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$years = [bigint]::Divide($secs, 86400 * 365)
+$unitIdx = 0
+$unit = $units[$unitIdx]
+while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
+$years = [bigint]::Divide($years, 10000)
+$unit = $units[++$unitIdx]
+}
+if ($years -gt 100000000) {
+$years = $years.ToString('e')
+$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
+$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
+}
+else {
+$years = $years.ToString('n0')
+}
+$time = $years + ' ' + $unit + '年'
+}
+$html += "&lt;td&gt;$time&lt;/td&gt;"
+}
+$html += "&lt;/tr&gt;"
+}
+$html += "&lt;/tbody&gt;&lt;/table&gt;"
+$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
+$html | Out-File $tempFilePath -Encoding UTF8
+Start-Process $tempFilePath
+</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png" medium="image"/>
+    <pubDate>Wed, 15 Nov 2023 14:55:42 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PowerShell 命令加了 -ErrorAction SilentlyContinue 照樣出錯]]></title>
     <link>https://blog.darkthread.net/blog/ps-slientlycontinue-not-work/</link>
     <itunes:title><![CDATA[PowerShell 命令加了 -ErrorAction SilentlyContinue 照樣出錯]]></itunes:title>
@@ -1367,95 +1592,5 @@ ImageFormat.Png
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" medium="image"/>
     <pubDate>Sun, 29 Oct 2023 02:42:43 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】有深度的 ASP.NET WebForm Web Site Project 編譯錯誤]]></title>
-    <link>https://blog.darkthread.net/blog/aspnet-compiler-nullref-issue-again/</link>
-    <itunes:title><![CDATA[【茶包射手日記】有深度的 ASP.NET WebForm Web Site Project 編譯錯誤]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>接獲報案，某運作多年 ASP.NET WebForm 專案(Web Site Project)，專案成員忽然都無法成功編譯 <a href="/blog/msbuild-wsp/">.wdrpoj 部署專案</a>，會出現「並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png"></p> <p>詢問近期有無異動，得知原始碼未改，除一人外其餘成員有換新電腦，但安裝軟體及 Visual Studio 版本與原電腦相同，之前大家都能 Build，一下子全部人都不行超詭異。(包含沒換電腦的成員也不行)</p> <p>面對這類的問題的 SOP 是先<a href="/blog/msbuild-copy-files-after-publish/">將 Build and Run / MSBuild project build output verbosity 開到 Diagnotics</a>，但錯誤訊息仍只有短短一句：<code>並未將物件參考設定為物件的執行個體錯誤</code>，跟<a href="/blog/weird-wsp-build-error/">上回</a>處理 WSP 編譯錯誤的經驗一樣，沒有任何幫助。</p> <p>但由 Log 看到爆炸點是在 <code>C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir</code> 執行，單獨取出執行即可重現問題，算是離真相近了一小步。由 aspnet_compiler.exe /? 查到有個 -errorstack 參數可顯示錯誤行數，加上後得到新線索，得知出錯函式為 <code>System.Web.Compilation.BuildManager.CopyPrecompiledFile</code>。</p> <pre><code>D:\Lab&gt;C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir -errorstack
-Microsoft (R) ASP.NET Compilation Tool version 4.8.4161.0
-Utility to precompile an ASP.NET application
-Copyright (C) Microsoft Corporation. All rights reserved.
-error ASPRUNTIME: Object reference not set to an instance of an object.
-[NullReferenceException]: Object reference not set to an instance of an object.
-at System.Web.Compilation.BuildManager.CopyPrecompiledFile(VirtualFile vfile, String destPhysicalPath)
-at System.Web.Compilation.BuildManager.CopyStaticFilesRecursive(VirtualDirectory sourceVdir, String destPhysicalDir, Boolean topLevel)
-at System.Web.Compilation.BuildManager.PrecompileAppInternal(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(ClientBuildManagerCallback callback, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback, Boolean forceCleanBuild)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback)
-at System.Web.Compilation.Precompiler.Main(String[] args)
-D:\Lab&gt;
-</code></pre> <p>加上 CopyPrecompiledFile 關鍵字爬文找到一篇<a href="https://stackoverflow.com/q/2289129/288936">經典討論</a>，集類似案例之大成，原因或解法包含：</p> <ul><li>關閉 <a href="/blog/kb-asp-net-2-0">Allow this precompiled site to be updatable</a> 可避開問題<br> 試過的有效，但網站運作模式會變(ASPX 只剩一行註解)，不算解決方案</li> <li>Windows 資料夾被設定壓縮 (排除)</li> <li>存在無效的 *.dll.refresh (排除)</li> <li>McAfee 防毒軟體搞鬼 (排除)</li> <li>關閉發行 Emit Debug Information 選項 (不適用)</li> <li>VS2017 修復後恢復 (有新裝 VS 對照亦重現問題，排除)</li> <li>誤加 PrecompiledApp.config 到專案 (排除)</li></ul> <p>查到的方法比較測試過一輪，依然無解。回歸基本除錯技巧 - 用消去法找出造成錯誤的關鍵再縮小範圍。</p> <p>將專案項目逐一移去，每移掉一部分就觀察能否成功編譯，經過抽絲剝繭，我找到能重現問題的最小組合，全站只留一個 WebForm，在其中呼叫 DataSvc.dll 元件的資料庫相關功能，該元件使用 Oracle.ManagedDataAccess.dll，這三者並存即會出錯，將 WebForm 呼叫資料庫動作註解掉錯誤便消失。</p> <p>靈光一現，該不會是 Managed ODP.NET DLL 版本不對，DataSvc.dll 參照不到所需版本，導致複製已編譯結果時找不到檔案？查了 Oracle.ManagedDataAccess.dll 版號為 4.122.19.1，用 <a href="/blog/dnspy/">dnSpy</a> 檢查 DataSvc.dll 參照的 Managed ODP.NET 版本則是 4.121.2.0，而 web.config 沒有加 <a href="/blog/more-bindingredirect-issues/">bindingRedirect</a> 將 4.121.2.0 導向 4.122.19.1，DataSvc.dll 理應找不到所需的 ODP.NET 版本，BINGO!!</p> <p>在 web.config 加入舊版統一改用 4.122.19.1 的導向設定，錯誤消失。纏鬥數小時，終於宣告破案。</p> <pre><code>&lt;runtime&gt;
-&lt;assemblyBinding&gt;
-&lt;dependentAssembly&gt;
-&lt;assemblyIdentity name="Oracle.ManagedDataAccess" publicKeyToken="89B483F429C47342"/&gt;
-&lt;bindingRedirect oldVersion="4.0.0.0-4.122.19.1" newVersion="4.122.19.1"/&gt;
-&lt;/dependentAssembly&gt;
-&lt;/assemblyBinding&gt;
-&lt;/runtime&gt;
-</code></pre> <p>至於以前可以 Biuld，換新電腦後不行是怎麼回事？我推測應跟<a href="/blog/odpnet-publisher-policy-issue">發行者原則檔</a>有關，舊電腦曾為 Manage ODP.NET 4.122.19.1 註冊 GAC 及發行者原則將舊版導向新版(參考：<a href="/blog/odpnet-reg-sop/">ODP.NET 元件註冊 SOP</a>)，即便 web.config 沒設 bindingRedirect 也會統一改用新版，DataSvc.dll 自動改用 4.122.19.1。新裝主機漏做這件事，而 web.config 又沒補上版本導向設定，aspnet_compiler.exe 便因版本不相容出了錯，只是錯誤訊息一整個模糊，讓案件難以追查。至於沒換電腦的同事為何也出錯，則有待釐清，但相信一定能找到合理解釋。</p> <p>心得：ASP.NET (.NET Framework) 專案編譯發行檔會用到 aspnet_compiler.exe，出錯時訊息一律為 並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object，需自行調查原因。加上 -errorstack 參數會顯示錯誤 StackTrace，能提供額外線索。</p> <p>這次辦案用到了好多過去累積的技巧與知識，多虧之前有追究到底搞懂原理，如今才能找對方向順利破解，要是少了其中一塊知識拼圖，有可能查到死也猜不出為什麼，說來是枚很有深度的茶包呢，竟有棋逢對手的感覺，哈!</p> <p data-slug="aspnet-compiler-nullref-issue-again" data-title-en="Another stubborn 'Object reference not set to an instance of an object' issue of wdproj compilation" data-catg=".NET" data-fbimg="https://i.imgur.com/tURF7uU.jpg#1280#720">A stubborn aspnet_compiler compilation error due to incorrect version of referenced library, but the message is vague and difficult to trace.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>接獲報案，某運作多年 ASP.NET WebForm 專案(Web Site Project)，專案成員忽然都無法成功編譯 <a href="/blog/msbuild-wsp/">.wdrpoj 部署專案</a>，會出現「並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png"></p> <p>詢問近期有無異動，得知原始碼未改，除一人外其餘成員有換新電腦，但安裝軟體及 Visual Studio 版本與原電腦相同，之前大家都能 Build，一下子全部人都不行超詭異。(包含沒換電腦的成員也不行)</p> <p>面對這類的問題的 SOP 是先<a href="/blog/msbuild-copy-files-after-publish/">將 Build and Run / MSBuild project build output verbosity 開到 Diagnotics</a>，但錯誤訊息仍只有短短一句：<code>並未將物件參考設定為物件的執行個體錯誤</code>，跟<a href="/blog/weird-wsp-build-error/">上回</a>處理 WSP 編譯錯誤的經驗一樣，沒有任何幫助。</p> <p>但由 Log 看到爆炸點是在 <code>C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir</code> 執行，單獨取出執行即可重現問題，算是離真相近了一小步。由 aspnet_compiler.exe /? 查到有個 -errorstack 參數可顯示錯誤行數，加上後得到新線索，得知出錯函式為 <code>System.Web.Compilation.BuildManager.CopyPrecompiledFile</code>。</p> <pre><code>D:\Lab&gt;C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir -errorstack
-Microsoft (R) ASP.NET Compilation Tool version 4.8.4161.0
-Utility to precompile an ASP.NET application
-Copyright (C) Microsoft Corporation. All rights reserved.
-error ASPRUNTIME: Object reference not set to an instance of an object.
-[NullReferenceException]: Object reference not set to an instance of an object.
-at System.Web.Compilation.BuildManager.CopyPrecompiledFile(VirtualFile vfile, String destPhysicalPath)
-at System.Web.Compilation.BuildManager.CopyStaticFilesRecursive(VirtualDirectory sourceVdir, String destPhysicalDir, Boolean topLevel)
-at System.Web.Compilation.BuildManager.PrecompileAppInternal(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(ClientBuildManagerCallback callback, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback, Boolean forceCleanBuild)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback)
-at System.Web.Compilation.Precompiler.Main(String[] args)
-D:\Lab&gt;
-</code></pre> <p>加上 CopyPrecompiledFile 關鍵字爬文找到一篇<a href="https://stackoverflow.com/q/2289129/288936">經典討論</a>，集類似案例之大成，原因或解法包含：</p> <ul><li>關閉 <a href="/blog/kb-asp-net-2-0">Allow this precompiled site to be updatable</a> 可避開問題<br> 試過的有效，但網站運作模式會變(ASPX 只剩一行註解)，不算解決方案</li> <li>Windows 資料夾被設定壓縮 (排除)</li> <li>存在無效的 *.dll.refresh (排除)</li> <li>McAfee 防毒軟體搞鬼 (排除)</li> <li>關閉發行 Emit Debug Information 選項 (不適用)</li> <li>VS2017 修復後恢復 (有新裝 VS 對照亦重現問題，排除)</li> <li>誤加 PrecompiledApp.config 到專案 (排除)</li></ul> <p>查到的方法比較測試過一輪，依然無解。回歸基本除錯技巧 - 用消去法找出造成錯誤的關鍵再縮小範圍。</p> <p>將專案項目逐一移去，每移掉一部分就觀察能否成功編譯，經過抽絲剝繭，我找到能重現問題的最小組合，全站只留一個 WebForm，在其中呼叫 DataSvc.dll 元件的資料庫相關功能，該元件使用 Oracle.ManagedDataAccess.dll，這三者並存即會出錯，將 WebForm 呼叫資料庫動作註解掉錯誤便消失。</p> <p>靈光一現，該不會是 Managed ODP.NET DLL 版本不對，DataSvc.dll 參照不到所需版本，導致複製已編譯結果時找不到檔案？查了 Oracle.ManagedDataAccess.dll 版號為 4.122.19.1，用 <a href="/blog/dnspy/">dnSpy</a> 檢查 DataSvc.dll 參照的 Managed ODP.NET 版本則是 4.121.2.0，而 web.config 沒有加 <a href="/blog/more-bindingredirect-issues/">bindingRedirect</a> 將 4.121.2.0 導向 4.122.19.1，DataSvc.dll 理應找不到所需的 ODP.NET 版本，BINGO!!</p> <p>在 web.config 加入舊版統一改用 4.122.19.1 的導向設定，錯誤消失。纏鬥數小時，終於宣告破案。</p> <pre><code>&lt;runtime&gt;
-&lt;assemblyBinding&gt;
-&lt;dependentAssembly&gt;
-&lt;assemblyIdentity name="Oracle.ManagedDataAccess" publicKeyToken="89B483F429C47342"/&gt;
-&lt;bindingRedirect oldVersion="4.0.0.0-4.122.19.1" newVersion="4.122.19.1"/&gt;
-&lt;/dependentAssembly&gt;
-&lt;/assemblyBinding&gt;
-&lt;/runtime&gt;
-</code></pre> <p>至於以前可以 Biuld，換新電腦後不行是怎麼回事？我推測應跟<a href="/blog/odpnet-publisher-policy-issue">發行者原則檔</a>有關，舊電腦曾為 Manage ODP.NET 4.122.19.1 註冊 GAC 及發行者原則將舊版導向新版(參考：<a href="/blog/odpnet-reg-sop/">ODP.NET 元件註冊 SOP</a>)，即便 web.config 沒設 bindingRedirect 也會統一改用新版，DataSvc.dll 自動改用 4.122.19.1。新裝主機漏做這件事，而 web.config 又沒補上版本導向設定，aspnet_compiler.exe 便因版本不相容出了錯，只是錯誤訊息一整個模糊，讓案件難以追查。至於沒換電腦的同事為何也出錯，則有待釐清，但相信一定能找到合理解釋。</p> <p>心得：ASP.NET (.NET Framework) 專案編譯發行檔會用到 aspnet_compiler.exe，出錯時訊息一律為 並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object，需自行調查原因。加上 -errorstack 參數會顯示錯誤 StackTrace，能提供額外線索。</p> <p>這次辦案用到了好多過去累積的技巧與知識，多虧之前有追究到底搞懂原理，如今才能找對方向順利破解，要是少了其中一塊知識拼圖，有可能查到死也猜不出為什麼，說來是枚很有深度的茶包呢，竟有棋逢對手的感覺，哈!</p> <p data-slug="aspnet-compiler-nullref-issue-again" data-title-en="Another stubborn 'Object reference not set to an instance of an object' issue of wdproj compilation" data-catg=".NET" data-fbimg="https://i.imgur.com/tURF7uU.jpg#1280#720">A stubborn aspnet_compiler compilation error due to incorrect version of referenced library, but the message is vague and difficult to trace.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>接獲報案，某運作多年 ASP.NET WebForm 專案(Web Site Project)，專案成員忽然都無法成功編譯 <a href="/blog/msbuild-wsp/">.wdrpoj 部署專案</a>，會出現「並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object」。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png"></p> <p>詢問近期有無異動，得知原始碼未改，除一人外其餘成員有換新電腦，但安裝軟體及 Visual Studio 版本與原電腦相同，之前大家都能 Build，一下子全部人都不行超詭異。(包含沒換電腦的成員也不行)</p> <p>面對這類的問題的 SOP 是先<a href="/blog/msbuild-copy-files-after-publish/">將 Build and Run / MSBuild project build output verbosity 開到 Diagnotics</a>，但錯誤訊息仍只有短短一句：<code>並未將物件參考設定為物件的執行個體錯誤</code>，跟<a href="/blog/weird-wsp-build-error/">上回</a>處理 WSP 編譯錯誤的經驗一樣，沒有任何幫助。</p> <p>但由 Log 看到爆炸點是在 <code>C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir</code> 執行，單獨取出執行即可重現問題，算是離真相近了一小步。由 aspnet_compiler.exe /? 查到有個 -errorstack 參數可顯示錯誤行數，加上後得到新線索，得知出錯函式為 <code>System.Web.Compilation.BuildManager.CopyPrecompiledFile</code>。</p> <pre><code>D:\Lab&gt;C:\Windows\Microsoft.NET\Framework\v4.0.30319\aspnet_compiler.exe -v /WebUI -p D:\Lab\WebUI -u -f -d D:\Lab\TempBuildDir -errorstack
-Microsoft (R) ASP.NET Compilation Tool version 4.8.4161.0
-Utility to precompile an ASP.NET application
-Copyright (C) Microsoft Corporation. All rights reserved.
-error ASPRUNTIME: Object reference not set to an instance of an object.
-[NullReferenceException]: Object reference not set to an instance of an object.
-at System.Web.Compilation.BuildManager.CopyPrecompiledFile(VirtualFile vfile, String destPhysicalPath)
-at System.Web.Compilation.BuildManager.CopyStaticFilesRecursive(VirtualDirectory sourceVdir, String destPhysicalDir, Boolean topLevel)
-at System.Web.Compilation.BuildManager.PrecompileAppInternal(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(VirtualPath startingVirtualDir, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManager.PrecompileApp(ClientBuildManagerCallback callback, IEnumerable`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.BuildManagerHost.PrecompileApp(ClientBuildManagerCallback callback, List`1 excludedVirtualPaths)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback, Boolean forceCleanBuild)
-at System.Web.Compilation.ClientBuildManager.PrecompileApplication(ClientBuildManagerCallback callback)
-at System.Web.Compilation.Precompiler.Main(String[] args)
-D:\Lab&gt;
-</code></pre> <p>加上 CopyPrecompiledFile 關鍵字爬文找到一篇<a href="https://stackoverflow.com/q/2289129/288936">經典討論</a>，集類似案例之大成，原因或解法包含：</p> <ul><li>關閉 <a href="/blog/kb-asp-net-2-0">Allow this precompiled site to be updatable</a> 可避開問題<br> 試過的有效，但網站運作模式會變(ASPX 只剩一行註解)，不算解決方案</li> <li>Windows 資料夾被設定壓縮 (排除)</li> <li>存在無效的 *.dll.refresh (排除)</li> <li>McAfee 防毒軟體搞鬼 (排除)</li> <li>關閉發行 Emit Debug Information 選項 (不適用)</li> <li>VS2017 修復後恢復 (有新裝 VS 對照亦重現問題，排除)</li> <li>誤加 PrecompiledApp.config 到專案 (排除)</li></ul> <p>查到的方法比較測試過一輪，依然無解。回歸基本除錯技巧 - 用消去法找出造成錯誤的關鍵再縮小範圍。</p> <p>將專案項目逐一移去，每移掉一部分就觀察能否成功編譯，經過抽絲剝繭，我找到能重現問題的最小組合，全站只留一個 WebForm，在其中呼叫 DataSvc.dll 元件的資料庫相關功能，該元件使用 Oracle.ManagedDataAccess.dll，這三者並存即會出錯，將 WebForm 呼叫資料庫動作註解掉錯誤便消失。</p> <p>靈光一現，該不會是 Managed ODP.NET DLL 版本不對，DataSvc.dll 參照不到所需版本，導致複製已編譯結果時找不到檔案？查了 Oracle.ManagedDataAccess.dll 版號為 4.122.19.1，用 <a href="/blog/dnspy/">dnSpy</a> 檢查 DataSvc.dll 參照的 Managed ODP.NET 版本則是 4.121.2.0，而 web.config 沒有加 <a href="/blog/more-bindingredirect-issues/">bindingRedirect</a> 將 4.121.2.0 導向 4.122.19.1，DataSvc.dll 理應找不到所需的 ODP.NET 版本，BINGO!!</p> <p>在 web.config 加入舊版統一改用 4.122.19.1 的導向設定，錯誤消失。纏鬥數小時，終於宣告破案。</p> <pre><code>&lt;runtime&gt;
-&lt;assemblyBinding&gt;
-&lt;dependentAssembly&gt;
-&lt;assemblyIdentity name="Oracle.ManagedDataAccess" publicKeyToken="89B483F429C47342"/&gt;
-&lt;bindingRedirect oldVersion="4.0.0.0-4.122.19.1" newVersion="4.122.19.1"/&gt;
-&lt;/dependentAssembly&gt;
-&lt;/assemblyBinding&gt;
-&lt;/runtime&gt;
-</code></pre> <p>至於以前可以 Biuld，換新電腦後不行是怎麼回事？我推測應跟<a href="/blog/odpnet-publisher-policy-issue">發行者原則檔</a>有關，舊電腦曾為 Manage ODP.NET 4.122.19.1 註冊 GAC 及發行者原則將舊版導向新版(參考：<a href="/blog/odpnet-reg-sop/">ODP.NET 元件註冊 SOP</a>)，即便 web.config 沒設 bindingRedirect 也會統一改用新版，DataSvc.dll 自動改用 4.122.19.1。新裝主機漏做這件事，而 web.config 又沒補上版本導向設定，aspnet_compiler.exe 便因版本不相容出了錯，只是錯誤訊息一整個模糊，讓案件難以追查。至於沒換電腦的同事為何也出錯，則有待釐清，但相信一定能找到合理解釋。</p> <p>心得：ASP.NET (.NET Framework) 專案編譯發行檔會用到 aspnet_compiler.exe，出錯時訊息一律為 並未將物件參考設定為物件的執行個體錯誤 / Object reference not set to an instance of an object，需自行調查原因。加上 -errorstack 參數會顯示錯誤 StackTrace，能提供額外線索。</p> <p>這次辦案用到了好多過去累積的技巧與知識，多虧之前有追究到底搞懂原理，如今才能找對方向順利破解，要是少了其中一塊知識拼圖，有可能查到死也猜不出為什麼，說來是枚很有深度的茶包呢，竟有棋逢對手的感覺，哈!</p> <p data-slug="aspnet-compiler-nullref-issue-again" data-title-en="Another stubborn 'Object reference not set to an instance of an object' issue of wdproj compilation" data-catg=".NET" data-fbimg="https://i.imgur.com/tURF7uU.jpg#1280#720">A stubborn aspnet_compiler compilation error due to incorrect version of referenced library, but the message is vague and difficult to trace.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638339309628805573.png" medium="image"/>
-    <pubDate>Thu, 26 Oct 2023 15:29:21 GMT</pubDate>
   </item></channel>
 </rss>
