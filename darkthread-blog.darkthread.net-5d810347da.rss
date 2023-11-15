@@ -30,9 +30,9 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
-    <title><![CDATA[PowerShell 命令加了 -ErrorAction SlientlyContinue 照樣出錯]]></title>
+    <title><![CDATA[PowerShell 命令加了 -ErrorAction SilentlyContinue 照樣出錯]]></title>
     <link>https://blog.darkthread.net/blog/ps-slientlycontinue-not-work/</link>
-    <itunes:title><![CDATA[PowerShell 命令加了 -ErrorAction SlientlyContinue 照樣出錯]]></itunes:title>
+    <itunes:title><![CDATA[PowerShell 命令加了 -ErrorAction SilentlyContinue 照樣出錯]]></itunes:title>
     <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
     <itunes:summary>
       <![CDATA[<p>PowerShell 有個 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.3&amp;WT.mc_id=DOP-MVP-37580#-erroraction"><code>-ErrorAction SilentlyContinue</code> 參數</a>可在出錯時隱藏錯誤訊息，並繼續執行命令。</p> <p>今天發現，ErrorAction 參數不是對所有命令都有效，以下是個簡單測試，用 Get-LocalGroup 跟 Get-ADGroup 查詢本機及 AD 群組，故意輸入不存在的群組名稱會出現錯誤訊息。Get-LocalGroup 可加上 -ErrorAction SilentlyContinue 不顯示錯誤，但 Get-ADGroup 加了卻沒效。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638355728967818218.png"></p> <p>查了文件發現，PowerShell 命令有兩種拋出錯誤的方式，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.cmdlet.throwterminatingerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#remarks">Cmdlet.ThrowTerminatingError(ErrorRecord)</a> 跟 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.icommandruntime.writeerror?view=powershellsdk-7.3.0&amp;WT.mc_id=DOP-MVP-37580#system-management-automation-icommandruntime-writeerror(system-management-automation-errorrecord)">ICommandRuntime.WriteError(ErrorRecord)</a>，ErrorAction 參數只對後者有效，前者會中斷程式，但可以用 Try Catch 捕捉例外，所以真要出錯時繼續，用 Try Catch 包起來就對了。</p> <pre><code>Try {
