@@ -30,6 +30,162 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[我的密碼會被一秒破解嗎？遇上暴力破解能撐多久？]]></title>
+    <link>https://blog.darkthread.net/blog/pwd-hibp-check/</link>
+    <itunes:title><![CDATA[我的密碼會被一秒破解嗎？遇上暴力破解能撐多久？]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
+while ($true) {
+$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
+if ($secString.Length -eq 0) {
+Write-Host "Bye~"
+break
+}
+# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
+$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
+$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
+[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
+$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
+$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
+$prefix = $hash.Substring(0, 5)
+$remaining = $hash.Substring(5)
+Write-Host "$prefix - $remaining" -ForegroundColor Cyan
+$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
+if ($found) {
+$p = $found -split ':'
+Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
+Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
+Write-Host " 次，不建議使用" -ForegroundColor Red
+Write-Host $found -ForegroundColor Cyan
+}
+else {
+Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
+$charPool = 0
+$setNames = @();
+if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
+if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
+if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
+if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
+$length = $passwd.Length
+[bigint]$count = [bigint]::Pow($charPool, $length)
+$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$secs = [bigint]::Divide($count, $rtx4090Power)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
+}
+Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
+}
+Write-Host
+}
+</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
+while ($true) {
+$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
+if ($secString.Length -eq 0) {
+Write-Host "Bye~"
+break
+}
+# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
+$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
+$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
+[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
+$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
+$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
+$prefix = $hash.Substring(0, 5)
+$remaining = $hash.Substring(5)
+Write-Host "$prefix - $remaining" -ForegroundColor Cyan
+$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
+if ($found) {
+$p = $found -split ':'
+Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
+Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
+Write-Host " 次，不建議使用" -ForegroundColor Red
+Write-Host $found -ForegroundColor Cyan
+}
+else {
+Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
+$charPool = 0
+$setNames = @();
+if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
+if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
+if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
+if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
+$length = $passwd.Length
+[bigint]$count = [bigint]::Pow($charPool, $length)
+$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$secs = [bigint]::Divide($count, $rtx4090Power)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
+}
+Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
+}
+Write-Host
+}
+</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
+while ($true) {
+$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
+if ($secString.Length -eq 0) {
+Write-Host "Bye~"
+break
+}
+# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
+$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
+$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
+[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
+$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
+$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
+$prefix = $hash.Substring(0, 5)
+$remaining = $hash.Substring(5)
+Write-Host "$prefix - $remaining" -ForegroundColor Cyan
+$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
+if ($found) {
+$p = $found -split ':'
+Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
+Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
+Write-Host " 次，不建議使用" -ForegroundColor Red
+Write-Host $found -ForegroundColor Cyan
+}
+else {
+Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
+$charPool = 0
+$setNames = @();
+if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
+if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
+if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
+if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
+$length = $passwd.Length
+[bigint]$count = [bigint]::Pow($charPool, $length)
+$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
+$secs = [bigint]::Divide($count, $rtx4090Power)
+if ($secs -lt 60) { $time = "$secs 秒" }
+elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
+elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
+elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
+else {
+$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
+}
+Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
+}
+Write-Host
+}
+</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png" medium="image"/>
+    <pubDate>Thu, 16 Nov 2023 15:26:55 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></title>
     <link>https://blog.darkthread.net/blog/pwd-crack-time/</link>
     <itunes:title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></itunes:title>
@@ -1577,20 +1733,5 @@ ImageFormat.Png
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png" medium="image"/>
     <pubDate>Sun, 29 Oct 2023 13:33:20 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[T5 日光燈故障案例 - 點亮三秒後兩支燈管一起熄滅]]></title>
-    <link>https://blog.darkthread.net/blog/t5-light-tube-failure-case/</link>
-    <itunes:title><![CDATA[T5 日光燈故障案例 - 點亮三秒後兩支燈管一起熄滅]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>廚房的日光燈，四年前<a href="/blog/t5-lamp/">學到 T5 燈管比 T8 省電、壽命長</a>後就由 T8 兩尺雙管換成 T5 四尺雙管，耗電雖由 40W (20Wx2) 上升到 56W (28Wx2) 增加 16 瓦，但理論亮度由 3200 流明(80lm/W x 40W)提高到 5768 (103lm/W x 56W)，廚房從此大放光明，划算。</p> <p>前幾天燈壞了，開燈後亮 2 ~ 3 秒熄滅。心頭一涼，燈管本身會亮又兩支一起不亮，該不會電子安定器壞了吧？</p> <p><a href="https://www.youtube.com/watch?v=7X-j8WnLLiY">故障症狀</a></p> <p>燈座當年是買便宜的款式，四尺雙管山型燈座含燈管只要五百大洋，這種產品成本主要貴在電子安定器，故障換新成本跟買新的差不多。滑了網拍，發現這年頭 T5 傳統燈座不好買，T8 燈座直接改裝 T8 LED 燈管是大勢所趨，拔起動器換燈管即完成升級(改線路移除安定器能再省一點電，但差異不大)。 <a href="https://www.youtube.com/watch?v=_2Yd9tk1TLI">參考</a> 選項不多，一時沒找到中意的替換品，索性先回頭看一下故障狀況。</p> <p>發現拆掉其中一根末端偏黑的燈管(照片上方那支，另一支為對照組)，只留單管就不會三秒熄滅。由此推測電子安定器沒壞，應只是其中一支燈管故障，可能電流變化觸發保護機制，安定器才停止運作。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" alt="thumbnail"></p> <p>買了新燈管換上，故障宣告排除。</p> <p>這查資料順便複習了日光燈電子安定器，隨手整理筆記：</p> <ol><li>電子安定器是影響日光燈管壽命及耗電效率的關鍵，傳統 T8 燈座更換電子安定器可能會比換省電燈泡或 T5 燈具更合乎成本效率。但更換電子安定器是個工程(要有 DIY 魂)，加上 T8 LED 燈管價格親民(四尺也才一百多塊)選擇也多，現在評估的話，換 T8 LED 燈管成本效益及方便性較好。<br> 延伸閱讀：<br> <a href="https://ericecheng2266.wordpress.com/2014/04/09/t8t5-%E9%A0%90%E7%86%B1%E5%9E%8B%E9%9B%BB%E5%AD%90%E5%AE%89%E5%AE%9A%E5%99%A8%E6%8F%9B%E8%A3%9D-diy/">T8/T5 預熱型電子安定器換裝 DIY</a><br> <a href="https://www.mobile01.com/topicdetail.php?f=168&amp;t=2986166">實戰 T8傳統燈具輕鬆改裝電子式安定器</a></li> <li>電子安定器有四類：預熱啟動、快速啟動、程式快速啟動、瞬時啟動。 預熱啟動與瞬時啟動較常見。瞬時啟動便宜，點燈速度快，但易造成燈管黑化，燈絲斷裂，燈管壽命降低，常用要壓低成本、開關次數少的場合。<br> 預熱啟動會延遲 0.5 ~ 2 秒，將燈絲加熱到 700 度再點燈，能減輕燈管黑化，延長燈管壽命。<br> (最理想狀態，安定器壽命 10 萬小時，燈管 1.6 ~ 2.4 萬小時，以每天 8 小時估算，換 5 次燈管可以用 34 年)<br> 延伸閱讀：<a href="http://ahmow.blogspot.com/2008/10/t5-t8-t9-t6-ballast.html">電子安定器才是日光燈效率(省電)和壽命關鍵</a></li> <li>雙管 T5 燈座，只裝一支會亮嗎？<br> 一對二安定器有串接式與並接式，若為並接式可裝單管使用。一對四的安定器較常是兩支一串再並聯，只能點兩支或四支。</li></ol> <p>檢查燈具用的電子安定器是常見的東亞預熱啟動型 FX-35AED-BS，但實測點亮度速很快，幾乎感覺不到預熱延遲，跟網路上找到的 <a href="https://www.youtube.com/watch?v=HKIeXJSWfSk">T8 預熱啟動影片</a>相比快如閃電(與文首影片對照)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341442099902095.jpg" alt="thumbnail"></p> <p>依技術文章，預熱時間最快可到 0.5 秒，故這種速度仍可在合理範圍。從官網找規格文件查證，但東亞網站提供的技術資料不多，最接近的來源是一份 99MB 的型錄影像 PDF (文字無法選取搜尋)，目前產品幾乎以 LED 為主，T5/T8 螢光燈相關的極少，更別提電子安定器的資訊了，而 Google 也沒查到該款電子安定器的技術規格，調查到此中止。大家如果也有類似的預熱啟動式 T5 日光燈具或屬業內人士，歡迎分享。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638341442101996488.png"></p> <p data-slug="t5-light-tube-failure-case" data-fbimg="https://i.imgur.com/SMAoH5s.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341442097459608.jpg" medium="image"/>
-    <pubDate>Sun, 29 Oct 2023 02:42:43 GMT</pubDate>
   </item></channel>
 </rss>
