@@ -30,6 +30,48 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></title>
+    <link>https://blog.darkthread.net/blog/run-procmon-long-time/</link>
+    <itunes:title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
+FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
+C:\Batch\ProcMon.exe /Terminate
+C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
+</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
+FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
+C:\Batch\ProcMon.exe /Terminate
+C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
+</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
+FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
+C:\Batch\ProcMon.exe /Terminate
+C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
+</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png" medium="image"/>
+    <pubDate>Sat, 18 Nov 2023 14:05:08 GMT</pubDate>
+  </item><item>
+    <title><![CDATA[五分鐘排除雷射印表機印出黑點雜線問題]]></title>
+    <link>https://blog.darkthread.net/blog/clean-laser-printer-drum/</link>
+    <itunes:title><![CDATA[五分鐘排除雷射印表機印出黑點雜線問題]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" medium="image"/>
+    <pubDate>Sat, 18 Nov 2023 09:11:30 GMT</pubDate>
+  </item><item>
     <title><![CDATA[小工具：快速檢測密碼是否外洩或被列入已知清單]]></title>
     <link>https://blog.darkthread.net/blog/pwd-hibp-check/</link>
     <itunes:title><![CDATA[小工具：快速檢測密碼是否外洩或被列入已知清單]]></itunes:title>
@@ -1523,215 +1565,5 @@ File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png" medium="image"/>
     <pubDate>Sun, 05 Nov 2023 09:45:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[CLI 小技巧 - 文字檔搜尋關鍵字並顯示前後文(grep / PowerShell Select-String)]]></title>
-    <link>https://blog.darkthread.net/blog/cli-show-matched-line-with-context/</link>
-    <itunes:title><![CDATA[CLI 小技巧 - 文字檔搜尋關鍵字並顯示前後文(grep / PowerShell Select-String)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>最近有個小需求，想從 cmdkey /list 記憶密碼清單找出用某帳號登入的伺服器對象，例如想查出 jeffrey 被用來登入 TERMSRV/RemoteSvr、RemoteSvr(Domain)、TERMSRV/172.28.1.1。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347065063323322.png"></p> <p>上圖項目不多，直接用眼睛看即可。我的實際案例包含 git、sourcetree、MongoDB Compass... 等五花八門紀錄數十條，我想下指令篩選，試了 findstr，找到是找到了，但只看到帳號不知連到哪裡，查了個寂寞。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638347065065231368.png"></p> <p>findstr 的能耐只到這裡，想多顯示帳號上方兩行內容，需要換工具。</p> <p><a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 內附 UNIX 界的強大文字搜尋工具 - <a href="https://zh.wikipedia.org/zh-tw/Grep">grep</a>，grep 除了支援正則表示式查詢(Regular Expression 也是讓程式設計師人生變彩色的技能之一，推薦花點時間學會)，<a href="https://www.gnu.org/software/grep/manual/grep.html#Context-Line-Control-1">顯示參數</a>包含 -B <em>num</em>、-A <em>num</em>，可指定多顯示前後幾行內容。<code>cmdkey /list | grep -B 3 jeffrey</code> 會顯示 jeffrey 所在行及其上方三行內容，得到我要的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638347065067069025.png"></p> <p>在 Windows 要使用 grep 需另外安裝，有沒有原生的 CLI 工具？</p> <p>有，Windows PowerShell 對映 grep 的 CLI 工具是 Select-String，一樣支援正則表示式並有 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.utility/select-string?view=powershell-5.1&amp;WT.mc_id=DOP-MVP-37580#-context">-Context 參數</a>指定前後文要包含的行數，-Context 3,1 代表包含上三行下一行，-Context 3 表前後多顯示三行。故本例可寫成 <code>cmdkey /list | Select-String jeffrey -Context 3,0</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638347065068942299.png"></p> <p>CLI 技能 + 0.5。</p> <p data-slug="cli-show-matched-line-with-context" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>最近有個小需求，想從 cmdkey /list 記憶密碼清單找出用某帳號登入的伺服器對象，例如想查出 jeffrey 被用來登入 TERMSRV/RemoteSvr、RemoteSvr(Domain)、TERMSRV/172.28.1.1。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347065063323322.png"></p> <p>上圖項目不多，直接用眼睛看即可。我的實際案例包含 git、sourcetree、MongoDB Compass... 等五花八門紀錄數十條，我想下指令篩選，試了 findstr，找到是找到了，但只看到帳號不知連到哪裡，查了個寂寞。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638347065065231368.png"></p> <p>findstr 的能耐只到這裡，想多顯示帳號上方兩行內容，需要換工具。</p> <p><a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 內附 UNIX 界的強大文字搜尋工具 - <a href="https://zh.wikipedia.org/zh-tw/Grep">grep</a>，grep 除了支援正則表示式查詢(Regular Expression 也是讓程式設計師人生變彩色的技能之一，推薦花點時間學會)，<a href="https://www.gnu.org/software/grep/manual/grep.html#Context-Line-Control-1">顯示參數</a>包含 -B <em>num</em>、-A <em>num</em>，可指定多顯示前後幾行內容。<code>cmdkey /list | grep -B 3 jeffrey</code> 會顯示 jeffrey 所在行及其上方三行內容，得到我要的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638347065067069025.png"></p> <p>在 Windows 要使用 grep 需另外安裝，有沒有原生的 CLI 工具？</p> <p>有，Windows PowerShell 對映 grep 的 CLI 工具是 Select-String，一樣支援正則表示式並有 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.utility/select-string?view=powershell-5.1&amp;WT.mc_id=DOP-MVP-37580#-context">-Context 參數</a>指定前後文要包含的行數，-Context 3,1 代表包含上三行下一行，-Context 3 表前後多顯示三行。故本例可寫成 <code>cmdkey /list | Select-String jeffrey -Context 3,0</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638347065068942299.png"></p> <p>CLI 技能 + 0.5。</p> <p data-slug="cli-show-matched-line-with-context" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>最近有個小需求，想從 cmdkey /list 記憶密碼清單找出用某帳號登入的伺服器對象，例如想查出 jeffrey 被用來登入 TERMSRV/RemoteSvr、RemoteSvr(Domain)、TERMSRV/172.28.1.1。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347065063323322.png"></p> <p>上圖項目不多，直接用眼睛看即可。我的實際案例包含 git、sourcetree、MongoDB Compass... 等五花八門紀錄數十條，我想下指令篩選，試了 findstr，找到是找到了，但只看到帳號不知連到哪裡，查了個寂寞。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638347065065231368.png"></p> <p>findstr 的能耐只到這裡，想多顯示帳號上方兩行內容，需要換工具。</p> <p><a href="https://blog.miniasp.com/post/2015/09/27/Useful-tool-Cmder">Cmder</a> 內附 UNIX 界的強大文字搜尋工具 - <a href="https://zh.wikipedia.org/zh-tw/Grep">grep</a>，grep 除了支援正則表示式查詢(Regular Expression 也是讓程式設計師人生變彩色的技能之一，推薦花點時間學會)，<a href="https://www.gnu.org/software/grep/manual/grep.html#Context-Line-Control-1">顯示參數</a>包含 -B <em>num</em>、-A <em>num</em>，可指定多顯示前後幾行內容。<code>cmdkey /list | grep -B 3 jeffrey</code> 會顯示 jeffrey 所在行及其上方三行內容，得到我要的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638347065067069025.png"></p> <p>在 Windows 要使用 grep 需另外安裝，有沒有原生的 CLI 工具？</p> <p>有，Windows PowerShell 對映 grep 的 CLI 工具是 Select-String，一樣支援正則表示式並有 <a href="https://learn.microsoft.com/zh-tw/powershell/module/microsoft.powershell.utility/select-string?view=powershell-5.1&amp;WT.mc_id=DOP-MVP-37580#-context">-Context 參數</a>指定前後文要包含的行數，-Context 3,1 代表包含上三行下一行，-Context 3 表前後多顯示三行。故本例可寫成 <code>cmdkey /list | Select-String jeffrey -Context 3,0</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638347065068942299.png"></p> <p>CLI 技能 + 0.5。</p> <p data-slug="cli-show-matched-line-with-context" data-fbimg="https://cdn.pixabay.com/photo/2017/05/07/22/40/uncorking-2293858_960_720.jpg#960#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638347065063323322.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638347065063323322.png" medium="image"/>
-    <pubDate>Sat, 04 Nov 2023 14:53:09 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - 將 PDF 逐頁轉成圖檔(使用 PDFiumCore)]]></title>
-    <link>https://blog.darkthread.net/blog/pdfium-core/</link>
-    <itunes:title><![CDATA[Coding4Fun - 將 PDF 逐頁轉成圖檔(使用 PDFiumCore)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
-using System.Drawing.Imaging;
-using PDFiumCore;
-var scale = 1;
-fpdfview.FPDF_InitLibrary();
-var path = "blogger-story.pdf";
-ExportImages(path, scale);
-static void ExportImages(string pdfPath, float scale)
-{
-var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
-Directory.CreateDirectory(imgFolder);
-// 載入PDF
-var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
-// 取得總頁數
-var pageCount = fpdfview.FPDF_GetPageCount(document);
-for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
-{
-// 逐頁載入
-var page = fpdfview.FPDF_LoadPage(document, pageIndex);
-// 取得尺寸，依比例縮放
-var size = new FS_SIZEF_();
-fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
-var width = (int)Math.Round(size.Width * scale);
-var height = (int)Math.Round(size.Height * scale);
-var bitmap = fpdfview.FPDFBitmapCreateEx(
-width,
-height,
-(int)FPDFBitmapFormat.BGRA,
-IntPtr.Zero,
-0);
-// 填入白色背景
-fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
-// |          | a b 0 |
-// | matrix = | c d 0 |
-// |          | e f 1 |
-using var matrix = new FS_MATRIX_();
-using var clipping = new FS_RECTF_();
-matrix.A = scale;
-matrix.B = 0;
-matrix.C = 0;
-matrix.D = scale;
-matrix.E = 0;
-matrix.F = 0;
-clipping.Left = 0;
-clipping.Right = width;
-clipping.Bottom = 0;
-clipping.Top = height;
-fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
-var bitmapImage = new Bitmap(
-width,
-height,
-fpdfview.FPDFBitmapGetStride(bitmap),
-PixelFormat.Format32bppArgb,
-fpdfview.FPDFBitmapGetBuffer(bitmap));
-bitmapImage.Save(
-Path.Combine(imgFolder, $"{pageIndex:000}.png"),
-ImageFormat.Png
-);
-}
-}
-</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
-using System.Drawing.Imaging;
-using PDFiumCore;
-var scale = 1;
-fpdfview.FPDF_InitLibrary();
-var path = "blogger-story.pdf";
-ExportImages(path, scale);
-static void ExportImages(string pdfPath, float scale)
-{
-var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
-Directory.CreateDirectory(imgFolder);
-// 載入PDF
-var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
-// 取得總頁數
-var pageCount = fpdfview.FPDF_GetPageCount(document);
-for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
-{
-// 逐頁載入
-var page = fpdfview.FPDF_LoadPage(document, pageIndex);
-// 取得尺寸，依比例縮放
-var size = new FS_SIZEF_();
-fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
-var width = (int)Math.Round(size.Width * scale);
-var height = (int)Math.Round(size.Height * scale);
-var bitmap = fpdfview.FPDFBitmapCreateEx(
-width,
-height,
-(int)FPDFBitmapFormat.BGRA,
-IntPtr.Zero,
-0);
-// 填入白色背景
-fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
-// |          | a b 0 |
-// | matrix = | c d 0 |
-// |          | e f 1 |
-using var matrix = new FS_MATRIX_();
-using var clipping = new FS_RECTF_();
-matrix.A = scale;
-matrix.B = 0;
-matrix.C = 0;
-matrix.D = scale;
-matrix.E = 0;
-matrix.F = 0;
-clipping.Left = 0;
-clipping.Right = width;
-clipping.Bottom = 0;
-clipping.Top = height;
-fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
-var bitmapImage = new Bitmap(
-width,
-height,
-fpdfview.FPDFBitmapGetStride(bitmap),
-PixelFormat.Format32bppArgb,
-fpdfview.FPDFBitmapGetBuffer(bitmap));
-bitmapImage.Save(
-Path.Combine(imgFolder, $"{pageIndex:000}.png"),
-ImageFormat.Png
-);
-}
-}
-</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>突發奇想閃過念頭，想把 PDF 投影片逐頁轉成圖檔，索性當成 .NET 練習題伸展暖身，說做就做。</p> <p>.NET PDF 元件選擇不少，但好用的多是商用軟體，開源專案如 <a href="https://blog.darkthread.net/blog/regex-positive-lookahead/">iTextSharp</a>、<a href="https://fullstackladder.dev/blog/2023/02/05/introduction-quest-pdf/">QuestPDF</a> 新版也改成商業授權，而轉存圖檔不同於編譯修改文件，訴求重點不同，順便趁機認識不同的程式庫。</p> <p>這回我選擇的是 Google 的開源 PDF 引擎 - <a href="https://pdfium.googlesource.com/pdfium/">PDFium</a> (Google 與 Foxit 共同開源，採 <a href="https://zh.wikipedia.org/wiki/BSD%E8%AE%B8%E5%8F%AF%E8%AF%81">BSD 3-Clause 授權</a>，<a href="https://zhuanlan.zhihu.com/p/440886739">參考</a>)，其最大賣點為 Chrome 就是靠它顯示 PDF 文件! 沒人敢懷疑 Chrome/Edge 顯示 PDF 的效能或正確性(PDF 文件沒法用 Chrome 看，大家會覺得 PDF 文件有問題 XD)，用 PDFium 完全不用擔心跑不動大檔或排版錯亂，若不幸遇上，請儘速通知 PDF 文件作者自我檢討 😛</p> <p>PDFium 是原生程式庫，直接用 .NET 呼叫太累，一般會借助第三方 .NET Wrapper 程式庫，生活比較輕鬆愉快。我找到兩個較多人推的 PDFium Wrapper：</p> <ul><li><a href="https://github.com/ArgusMagnus/PDFiumSharp">PDFiumSharp</a><br> 版本偏舊，適合 .NET Framework/Windows 平台，已六年未更新</li> <li><a href="https://github.com/Dtronix/PDFiumCore">PDFiumCore</a><br> 仍持續更新，可支援 .NET 6 及跨 Linux 平台</li></ul> <p>想用在 .NET 6+，選 PDFiumCore 就對了。</p> <p>PDFium 是個渲染引擎，核心功能是將 PDF 文件繪製成畫面，轉存圖檔正是它的拿手好戲，PDFiumCore 專案也有現成的<a href="https://github.com/Dtronix/PDFiumCore/blob/master/src/PDFiumCoreDemo/Program.cs">頁面轉存圖檔範例</a>，轉檔過程有點小複雜，需動用到矩陣運算：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"></p> <p>不過，我只是單純 PDF 頁面轉圖檔，程式不用怎麼改，拿香跟著拜就對了。程式範例如下：</p> <pre><code>using System.Drawing;
-using System.Drawing.Imaging;
-using PDFiumCore;
-var scale = 1;
-fpdfview.FPDF_InitLibrary();
-var path = "blogger-story.pdf";
-ExportImages(path, scale);
-static void ExportImages(string pdfPath, float scale)
-{
-var imgFolder = Path.Combine("images", Path.GetFileNameWithoutExtension(pdfPath));
-Directory.CreateDirectory(imgFolder);
-// 載入PDF
-var document = fpdfview.FPDF_LoadDocument(pdfPath, null);
-// 取得總頁數
-var pageCount = fpdfview.FPDF_GetPageCount(document);
-for (var pageIndex = 0; pageIndex &lt; pageCount; pageIndex++)
-{
-// 逐頁載入
-var page = fpdfview.FPDF_LoadPage(document, pageIndex);
-// 取得尺寸，依比例縮放
-var size = new FS_SIZEF_();
-fpdfview.FPDF_GetPageSizeByIndexF(document, 0, size);
-var width = (int)Math.Round(size.Width * scale);
-var height = (int)Math.Round(size.Height * scale);
-var bitmap = fpdfview.FPDFBitmapCreateEx(
-width,
-height,
-(int)FPDFBitmapFormat.BGRA,
-IntPtr.Zero,
-0);
-// 填入白色背景
-fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, (uint)Color.White.ToArgb());
-// |          | a b 0 |
-// | matrix = | c d 0 |
-// |          | e f 1 |
-using var matrix = new FS_MATRIX_();
-using var clipping = new FS_RECTF_();
-matrix.A = scale;
-matrix.B = 0;
-matrix.C = 0;
-matrix.D = scale;
-matrix.E = 0;
-matrix.F = 0;
-clipping.Left = 0;
-clipping.Right = width;
-clipping.Bottom = 0;
-clipping.Top = height;
-fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, (int)RenderFlags.RenderAnnotations);
-var bitmapImage = new Bitmap(
-width,
-height,
-fpdfview.FPDFBitmapGetStride(bitmap),
-PixelFormat.Format32bppArgb,
-fpdfview.FPDFBitmapGetBuffer(bitmap));
-bitmapImage.Save(
-Path.Combine(imgFolder, $"{pageIndex:000}.png"),
-ImageFormat.Png
-);
-}
-}
-</code></pre> <p>簡單拼裝一下。插電，開機，輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638341833439259530.png"></p> <p data-slug="pdfium-core" data-title-en="Export PDF to images with PDFiumCore" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/31/11/37/cold-2557515_960_720.jpg#960#720">Example of how to export PDF to images with PDFiumCore library.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638341833431896825.png" medium="image"/>
-    <pubDate>Sun, 29 Oct 2023 13:33:20 GMT</pubDate>
   </item></channel>
 </rss>
