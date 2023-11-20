@@ -30,6 +30,270 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></title>
+    <link>https://blog.darkthread.net/blog/asp-append-version-for-webform/</link>
+    <itunes:title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Web;
+using System.Web.Hosting;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+namespace FrontEndPack
+{
+public class IncludeResWithVersion : WebControl
+{
+public string Src
+{
+get { return (string)ViewState["src"]; }
+set { ViewState["src"] = value; }
+}
+public string GetFileHash(string src)
+{
+var cache = HttpContext.Current.Cache;
+var path = HttpContext.Current.Server.MapPath(src);
+if (!File.Exists(path)) return string.Empty;
+string cacheKey = "_res_hash__" + path;
+if (cache[cacheKey] != null) return cache[cacheKey] as string;
+using (SHA256 sha256 = SHA256.Create())
+{
+var hash = HttpServerUtility.UrlTokenEncode(
+sha256.ComputeHash(File.ReadAllBytes(path)));
+cache.Add(cacheKey, hash,
+// 指定快取依賴，檔案異動時自動更新快取
+new System.Web.Caching.CacheDependency(path),
+DateTime.MaxValue, TimeSpan.FromMinutes(10),
+System.Web.Caching.CacheItemPriority.Normal, null);
+return hash;
+}
+}
+protected override void Render(HtmlTextWriter writer)
+{
+var src = Src.Split('?').First();
+var hash = GetFileHash(src);
+var ext = Path.GetExtension(src);
+writer.Write("
+");
+switch (ext) {
+case ".js":
+writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
+break;
+case ".css":
+writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
+break;
+default:
+throw new Exception("File type " + ext + " not supported.");
+}
+writer.Write("
+");
+}
+}
+}
+</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
+&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
+&lt;/head&gt;
+&lt;body style="width: 400px;"&gt;
+&lt;span&gt;&lt;/span&gt;
+&lt;pre style="background: #ccc; padding: 6px;"&gt;
+&lt;/pre&gt;
+&lt;script&gt;
+let src = document.head.querySelector('script').src;
+document.querySelector('span').innerHTML = src;
+this.fetch(src)
+.then(response =&gt; response.text())
+.then(text =&gt; {
+document.querySelector('pre').innerHTML = text;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Web;
+using System.Web.Hosting;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+namespace FrontEndPack
+{
+public class IncludeResWithVersion : WebControl
+{
+public string Src
+{
+get { return (string)ViewState["src"]; }
+set { ViewState["src"] = value; }
+}
+public string GetFileHash(string src)
+{
+var cache = HttpContext.Current.Cache;
+var path = HttpContext.Current.Server.MapPath(src);
+if (!File.Exists(path)) return string.Empty;
+string cacheKey = "_res_hash__" + path;
+if (cache[cacheKey] != null) return cache[cacheKey] as string;
+using (SHA256 sha256 = SHA256.Create())
+{
+var hash = HttpServerUtility.UrlTokenEncode(
+sha256.ComputeHash(File.ReadAllBytes(path)));
+cache.Add(cacheKey, hash,
+// 指定快取依賴，檔案異動時自動更新快取
+new System.Web.Caching.CacheDependency(path),
+DateTime.MaxValue, TimeSpan.FromMinutes(10),
+System.Web.Caching.CacheItemPriority.Normal, null);
+return hash;
+}
+}
+protected override void Render(HtmlTextWriter writer)
+{
+var src = Src.Split('?').First();
+var hash = GetFileHash(src);
+var ext = Path.GetExtension(src);
+writer.Write("
+");
+switch (ext) {
+case ".js":
+writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
+break;
+case ".css":
+writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
+break;
+default:
+throw new Exception("File type " + ext + " not supported.");
+}
+writer.Write("
+");
+}
+}
+}
+</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
+&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
+&lt;/head&gt;
+&lt;body style="width: 400px;"&gt;
+&lt;span&gt;&lt;/span&gt;
+&lt;pre style="background: #ccc; padding: 6px;"&gt;
+&lt;/pre&gt;
+&lt;script&gt;
+let src = document.head.querySelector('script').src;
+document.querySelector('span').innerHTML = src;
+this.fetch(src)
+.then(response =&gt; response.text())
+.then(text =&gt; {
+document.querySelector('pre').innerHTML = text;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Web;
+using System.Web.Hosting;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+namespace FrontEndPack
+{
+public class IncludeResWithVersion : WebControl
+{
+public string Src
+{
+get { return (string)ViewState["src"]; }
+set { ViewState["src"] = value; }
+}
+public string GetFileHash(string src)
+{
+var cache = HttpContext.Current.Cache;
+var path = HttpContext.Current.Server.MapPath(src);
+if (!File.Exists(path)) return string.Empty;
+string cacheKey = "_res_hash__" + path;
+if (cache[cacheKey] != null) return cache[cacheKey] as string;
+using (SHA256 sha256 = SHA256.Create())
+{
+var hash = HttpServerUtility.UrlTokenEncode(
+sha256.ComputeHash(File.ReadAllBytes(path)));
+cache.Add(cacheKey, hash,
+// 指定快取依賴，檔案異動時自動更新快取
+new System.Web.Caching.CacheDependency(path),
+DateTime.MaxValue, TimeSpan.FromMinutes(10),
+System.Web.Caching.CacheItemPriority.Normal, null);
+return hash;
+}
+}
+protected override void Render(HtmlTextWriter writer)
+{
+var src = Src.Split('?').First();
+var hash = GetFileHash(src);
+var ext = Path.GetExtension(src);
+writer.Write("
+");
+switch (ext) {
+case ".js":
+writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
+break;
+case ".css":
+writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
+break;
+default:
+throw new Exception("File type " + ext + " not supported.");
+}
+writer.Write("
+");
+}
+}
+}
+</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
+&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
+&lt;/head&gt;
+&lt;body style="width: 400px;"&gt;
+&lt;span&gt;&lt;/span&gt;
+&lt;pre style="background: #ccc; padding: 6px;"&gt;
+&lt;/pre&gt;
+&lt;script&gt;
+let src = document.head.querySelector('script').src;
+document.querySelector('span').innerHTML = src;
+this.fetch(src)
+.then(response =&gt; response.text())
+.then(text =&gt; {
+document.querySelector('pre').innerHTML = text;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png" medium="image"/>
+    <pubDate>Mon, 20 Nov 2023 14:37:35 GMT</pubDate>
+  </item><item>
     <title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></title>
     <link>https://blog.darkthread.net/blog/run-procmon-long-time/</link>
     <itunes:title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></itunes:title>
@@ -1292,278 +1556,5 @@ set_options=4347   user_id=1
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png" medium="image"/>
     <pubDate>Wed, 08 Nov 2023 15:53:56 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[大砲打小鳥之 ChatGPT 翻譯鳳梨酥 LINE Bot]]></title>
-    <link>https://blog.darkthread.net/blog/line-gpt-trans-bot/</link>
-    <itunes:title><![CDATA[大砲打小鳥之 ChatGPT 翻譯鳳梨酥 LINE Bot]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using isRock.LineBot;
-NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
-var builder = WebApplication.CreateBuilder(args);
-Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
-var pwdChk = readConfig("GrantPwd");
-var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
-var lineBotKey = readConfig("LineBotToken");
-var lineBot = new Bot(lineBotKey);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Line GPT Translator Bot");
-List&lt;string&gt; groupIds = new List&lt;string&gt;();
-var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
-LoadGroupIds();
-app.MapPost("/Grant", async (context) =&gt;
-{
-var grpId = context.Request.Form["grpId"].ToString();
-var pwd = context.Request.Form["pwd"].ToString();
-if (pwd == pwdChk)
-{
-if (!groupIds.Contains(grpId))
-{
-logger.Info($"Grant {grpId}");
-groupIds.Add(grpId);
-SaveGroupIds();
-}
-await context.Response.WriteAsync("OK");
-}
-else
-{
-context.Response.StatusCode = 401;
-await context.Response.WriteAsync("Unauthorized");
-}
-});
-app.MapPost("/MsgCallback", async (context) =&gt;
-{
-var body = context.Request.Body;
-using var reader = new StreamReader(body);
-var json = await reader.ReadToEndAsync();
-var msg = Utility.Parsing(json);
-foreach (var evt in msg.events)
-{
-if (evt.type == "message")
-{
-if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
-{
-var grpId = evt.source.groupId;
-var text = evt.message.text;
-logger.Trace("訊息[{0}]： {1}", grpId, text);
-if (text.StartsWith("#REG"))
-{
-lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
-break;
-}
-if (!groupIds.Contains(grpId))
-{
-lineBot.PushMessage(grpId, "群組未註冊");
-break;
-}
-var src = text.Substring(3);
-if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
-{
-var transText = await chatSvc.Translate(lang, src);
-logger.Trace("翻譯：
-" + transText);
-lineBot.PushMessage(grpId, transText);
-}
-}
-}
-}
-await context.Response.WriteAsync("OK");
-});
-app.UsePathBase("/line-gpt-trans-bot");
-app.Run();
-void LoadGroupIds()
-{
-if (File.Exists(grpIdPath))
-{
-groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
-}
-}
-void SaveGroupIds()
-{
-File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
-}
-</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using isRock.LineBot;
-NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
-var builder = WebApplication.CreateBuilder(args);
-Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
-var pwdChk = readConfig("GrantPwd");
-var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
-var lineBotKey = readConfig("LineBotToken");
-var lineBot = new Bot(lineBotKey);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Line GPT Translator Bot");
-List&lt;string&gt; groupIds = new List&lt;string&gt;();
-var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
-LoadGroupIds();
-app.MapPost("/Grant", async (context) =&gt;
-{
-var grpId = context.Request.Form["grpId"].ToString();
-var pwd = context.Request.Form["pwd"].ToString();
-if (pwd == pwdChk)
-{
-if (!groupIds.Contains(grpId))
-{
-logger.Info($"Grant {grpId}");
-groupIds.Add(grpId);
-SaveGroupIds();
-}
-await context.Response.WriteAsync("OK");
-}
-else
-{
-context.Response.StatusCode = 401;
-await context.Response.WriteAsync("Unauthorized");
-}
-});
-app.MapPost("/MsgCallback", async (context) =&gt;
-{
-var body = context.Request.Body;
-using var reader = new StreamReader(body);
-var json = await reader.ReadToEndAsync();
-var msg = Utility.Parsing(json);
-foreach (var evt in msg.events)
-{
-if (evt.type == "message")
-{
-if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
-{
-var grpId = evt.source.groupId;
-var text = evt.message.text;
-logger.Trace("訊息[{0}]： {1}", grpId, text);
-if (text.StartsWith("#REG"))
-{
-lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
-break;
-}
-if (!groupIds.Contains(grpId))
-{
-lineBot.PushMessage(grpId, "群組未註冊");
-break;
-}
-var src = text.Substring(3);
-if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
-{
-var transText = await chatSvc.Translate(lang, src);
-logger.Trace("翻譯：
-" + transText);
-lineBot.PushMessage(grpId, transText);
-}
-}
-}
-}
-await context.Response.WriteAsync("OK");
-});
-app.UsePathBase("/line-gpt-trans-bot");
-app.Run();
-void LoadGroupIds()
-{
-if (File.Exists(grpIdPath))
-{
-groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
-}
-}
-void SaveGroupIds()
-{
-File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
-}
-</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>身為程序員，一直把「增進人類全體之生活」當成使命，沒能力為人類產生貢獻，能「增進家人之生活」也好。</p> <p>長輩請了外籍看護，國語跟英文只到勉強溝通，最後 LINE 加翻譯軟體竟是目前效果最好的溝通方式。結果我做了件「用大砲打小鳥」的事 - 用 ASP.NET Core 寫 LINE Bot 接 ChatGPT 在 LINE 群組幫忙翻譯，專案代號就命名為「翻譯鳳梨酥 」。</p> <p><a href="https://www.facebook.com/darkthread.lds/posts/828434687819280">群組回話 LINE Bot</a>、<a href="/blog/chatgpt-console-chat/">串 ChatGPT API </a>之前玩過了，這回只是把兩個功能摻在一起，主程式不用一小時寫完，小有快刀斬亂麻的暢快。<br> (所以說，平日老為賦新辭強說愁，四處找雞毛蒜皮的無聊題目練習，看似沒意義，但說不準能在某個關鍵時刻派上用場，「你練過的功不會背叛你」再添一例。)</p> <p>使用方式是將「翻譯鳳梨酥」加入群組偷聽對話，看到 # 語系標記它就會跳出來翻譯，貼心設計是翻譯內容一併附上英文供對照，方便核結果正確性。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"></p> <p>初始版本有點小問題，像是 "早上七點幫阿公量血壓" 被翻成 "I measured my grandpa's blood pressure at seven in the morning"，英文對照發揮作用有看得出問題。</p> <p>加上 "請" 字強調指示是個 Workaround，但時時需要注意措辭是小看了 ChatGPT 的能耐，也讓開發者面子掛不住，這類問題一般可以透過調整 ChatGPT 提示改善。我的原本的初始化提示是：</p> <p><code>你是一名多國語言翻譯，請將以下文字內容分別翻譯成英文以及{指定言語}，用語需口語化及生活化。</code></p> <p>修改成：</p> <p><code>你是一名語言翻譯，負責協助僱主與外籍看護溝通，主要工作為將僱主的中文指令翻成外語，將外語翻成中文，用語需口語化及生活化。現在請將以下文字內容分別翻譯成英文以及{指定言語}。</code></p> <p>Prompt 調整後，效果明顯改善，目前沒再看到明顯錯誤。</p> <p>簡單說下程式寫法。ChatGPT 部分我是直接拿 <a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a> 的 ChatGptService 來用，每次當成全新對談，不必帶入先前內容，省 Token (ChatGPT API 以 Token 計費)也加快處理速度。LINE Bot API 需一次送出完整內容，故也用不到 Streaming 技巧。</p> <p>餘下的全部程式邏輯我寫在 Minimal API Program.cs，整個專案程式就一個 Program.cs 加一個 ChatGptService.cs。Program.cs 如下，LINE API 串接細節由 David 老師的 <a href="/blog/line-bot-sdk-notes/">LineBot SDK</a> 包辦，我的實作邏輯不到一百行，其中三分之一還是我資安強迫症發作，加了 LINE 群組 ID 白名單機制管控權限，防止機器人被加到其他群組盜用。</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using isRock.LineBot;
-NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
-var builder = WebApplication.CreateBuilder(args);
-Func&lt;string, string&gt; readConfig = (key) =&gt; builder.Configuration.GetValue&lt;string&gt;(key) ?? throw new ArgumentNullException(key);
-var pwdChk = readConfig("GrantPwd");
-var chatSvc = new GptTranslatorService(readConfig("OpenAiUrl"), readConfig("OpenAiKey"), readConfig("OpenAiDepName"));
-var lineBotKey = readConfig("LineBotToken");
-var lineBot = new Bot(lineBotKey);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Line GPT Translator Bot");
-List&lt;string&gt; groupIds = new List&lt;string&gt;();
-var grpIdPath = Path.Combine(app.Environment.ContentRootPath, "data", "groupIds.txt");
-LoadGroupIds();
-app.MapPost("/Grant", async (context) =&gt;
-{
-var grpId = context.Request.Form["grpId"].ToString();
-var pwd = context.Request.Form["pwd"].ToString();
-if (pwd == pwdChk)
-{
-if (!groupIds.Contains(grpId))
-{
-logger.Info($"Grant {grpId}");
-groupIds.Add(grpId);
-SaveGroupIds();
-}
-await context.Response.WriteAsync("OK");
-}
-else
-{
-context.Response.StatusCode = 401;
-await context.Response.WriteAsync("Unauthorized");
-}
-});
-app.MapPost("/MsgCallback", async (context) =&gt;
-{
-var body = context.Request.Body;
-using var reader = new StreamReader(body);
-var json = await reader.ReadToEndAsync();
-var msg = Utility.Parsing(json);
-foreach (var evt in msg.events)
-{
-if (evt.type == "message")
-{
-if (evt.source.type == "group" &amp;&amp; evt.message.type == "text")
-{
-var grpId = evt.source.groupId;
-var text = evt.message.text;
-logger.Trace("訊息[{0}]： {1}", grpId, text);
-if (text.StartsWith("#REG"))
-{
-lineBot.PushMessage(grpId, "註冊序號 - " + grpId);
-break;
-}
-if (!groupIds.Contains(grpId))
-{
-lineBot.PushMessage(grpId, "群組未註冊");
-break;
-}
-var src = text.Substring(3);
-if (text.StartsWith("#") &amp;&amp; Enum.TryParse&lt;Langs&gt;(text.Substring(1, 2).ToUpper(), out var lang))
-{
-var transText = await chatSvc.Translate(lang, src);
-logger.Trace("翻譯：
-" + transText);
-lineBot.PushMessage(grpId, transText);
-}
-}
-}
-}
-await context.Response.WriteAsync("OK");
-});
-app.UsePathBase("/line-gpt-trans-bot");
-app.Run();
-void LoadGroupIds()
-{
-if (File.Exists(grpIdPath))
-{
-groupIds = File.ReadAllLines(grpIdPath).Where(o =&gt; !string.IsNullOrEmpty(o)).ToList();
-}
-}
-void SaveGroupIds()
-{
-File.WriteAllLines(grpIdPath!, groupIds.Distinct().ToArray());
-}
-</code></pre> <p>會寫程式真好!</p> <p data-slug="line-gpt-trans-bot" data-title-en="Group language translator Line BOT with ChatGPT" data-catg=".NET" data-fbimg="https://i.imgur.com/TMfgSka.jpg#1706#960">Example of LINE Bot which using Azure OpenAI ChatGPT API to translate between languages in group conversation.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638347745633587367.png" medium="image"/>
-    <pubDate>Sun, 05 Nov 2023 09:45:08 GMT</pubDate>
   </item></channel>
 </rss>
