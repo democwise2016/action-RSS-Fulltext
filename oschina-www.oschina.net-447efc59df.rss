@@ -30,6 +30,590 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[「X」Embedding in NLP｜初识自然语言处理（NLP）]]></title>
+    <link>https://my.oschina.net/u/4209276/blog/10149535</link>
+    <itunes:title><![CDATA[「X」Embedding in NLP｜初识自然语言处理（NLP）]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>从情感分析到信息提取，再到机器翻译、问答系统、聊天机器人……自然语言处理（Natural Language Processing，NLP）的应用可谓复杂多样。向量数据库的加入，则为 NLP 注入了更多的可能性。</p>
+<p>为了方便大家能够深入了解向量数据库与 NLP 的关系及应用，我们上线了「X」Embedding in NLP 系列专题，分为初阶和进阶两部分。本文为初阶第一篇，将详细介绍 NLP 以及以 Zilliz Cloud、Milvus 为代表的向量数据库是如何为 NLP 赋能的。</p>
+<h2>01.什么是 NLP ？</h2>
+<p>自然语言处理（NLP）是跨学科的机器学习技术，结合了人工智能和计算语言学。其主要目标是让计算机能够以有意义和有价值的方式理解和响应人类语言。</p>
+<p>当然，我们可以构建一个包含所有句子的词典来实现这一目标，但这有些不切实际，因为人类语言中用于构成句子的单词组合无穷无尽。不仅如此，口音、多样的同义词汇、错误发音或句中省略单词等情况，进一步加深了人类语言的复杂性。</p>
+<p>NLP 运用各种技术和算法处理自然语言数据。本质上，NLP 用于处理非结构化数据，特别是非结构化文本，并通过自然语言理解（NLU），使用文本和语音的句法和语义分析来确定句子的含义，并生成计算机可以使用的结构化文本。相反，自然语言生成（NLG）是指计算机根据一些数据输入生成人类语言文本的响应。</p>
+<p>通过利用 NLP 技术，开发人员可以从文本数据中提取信息和洞见，使机器能够理解和响应人类查询，并将所有涉及语言处理的任务自动化。可以说，NLP 使人机交互过程更直观、高效和流畅。NLP 在现实世界中有众多应用，如虚拟助手、聊天机器人、信息检索系统、语言翻译服务、情感分析工具和自动化内容生成等。而向量数据库，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。</p>
+<h2>02.NLP 用例</h2>
+<p>开发人员可以使用 NLP 构建多种应用，包括：</p>
+<h3>情感分析</h3>
+<p>情感分析是指确定文本中表达的情感或情绪。情感分析涉及将文本分类为正面、负面或中性。情感分析技术可能使用机器学习算法在标记数据集上训练模型，或利用预训练模型捕捉单词和短语的情感。情感分析常见的场景之一是电影评论分类，可以统计出正负面的影评占的比例。</p>
+<h3>信息提取</h3>
+<p>信息提取是指从文本中识别特定信息，例如提取名称、日期或数值。信息提取使用命名实体识别（NER）和关系提取从非结构化文本中提取结构化数据。</p>
+<h3>机器翻译</h3>
+<p>NLP 通过利用统计或神经网络机器翻译模型实现机器翻译。这些模型从大量平行文本数据中学习语言之间的模式和关系，允许它们适当借助上下文将文本从一种语言翻译成另一种语言。</p>
+<h3>问答系统</h3>
+<p>问答系统使用 NLP 技术理解用户问题并从给定的文本语料库中检索相关信息。问答系统包含文本理解、文档检索和信息提取等步骤，为用户提供准确和相关的查询答案。</p>
+<h3>虚拟助手或聊天机器人</h3>
+<p>虚拟助手是诸如 Alexa 或 Siri 这样的产品，它们接收人类的话语并从人类语言中推导出命令从而触发动作。（例如：嘿，Alexa，打开灯！）。聊天机器人使用书面语言与人类互动，从而协助用户处理账户或账单问题或其他一般问题。在完成文本处理后，聊天机器人就可以遍历决策树从而做出正确的操作。</p>
+<h3>文本生成</h3>
+<p>NLP 模型可以基于给定的提示或输入生成文本。这包括语言建模、文本摘要和使用诸如循环神经网络（RNN）或 Transformer 模型等技术的文本生成等任务。</p>
+<h3>垃圾邮件检测</h3>
+<p>自然语言处理可以辅助垃圾邮件检测。例如，通过查看过度使用的单词、错误的语法或不适当的紧急声明，检查电子邮件的内容以确定它是否是垃圾邮件。</p>
+<h2>03.NLP 原理</h2>
+<p>NLP 是指通过一系列技术和算法，使计算机能够处理、理解和生成人类语言。以下是 NLP 工作流程：</p>
+<p>文本预处理—— NLP 的初始步骤通常是文本数据的预处理。预处理涉及诸如分段（将句子分解为组成词）、token 化（将文本分割为单个单词或 token）、停用词（去除像停用词和普通词如“the”或“is”这样不携带太多含义的标点）以及应用词干提取（为给定标记推导词干）或词形还原（从字典中获取标记的含义以得到根源）以将单词还原为其基本形式的任务。</p>
+<p>语言理解—— NLP 算法使用各种技术来理解文本的含义和结构。这些技术包括：词性标注（通过为每个单词分配语法标签进行语法分析）、句法解析（分析句子结构）和命名实体识别（识别和分类命名实体，如人物、组织、地点或流行文化参考）等任务。</p>
+<p><em>“观其伴而知其意（You shall know a word by the company it keeps）”</em></p>
+<p>-- 英国语言学家 J. R. Firth</p>
+<h2>04.NLP 模型</h2>
+<p>在大型数据集上接受训练以执行特定NLP任务的深度学习模型被称为 NLP 的预训练模型（PTM），它们可以通过避免从头开始训练新模型来帮助下游 NLP 任务。以下是一些著名的自然语言处理模型，以便模型更准确地执行：</p>
+<ul>
+<li> <p>BERT（Bidirectional Encoder Representations from Transformer） 是由Google 开发的自然语言处理模型，可学习文本的双向表示。</p> </li>
+<li> <p>XLNet 是CMU和Google Brain团队在2019年6月份于论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1906.08237" target="_blank">《XLNet: Generalized Autoregressive Pretraining for Language Understanding》</a>发布的模型。</p> </li>
+<li> <p>RoBERTa 是 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1907.11692" target="_blank">《RoBERTa: A Robustly Optimized BERT Pretraining Approach》</a>中被提出的。</p> </li>
+<li> <p>ALBERT 模型来自 Google 2019 年公布的论文《ALBERT: A LITE BERT FOR SELF-SUPERVISED LEARNING OF LANGUAGE REPRESENTATIONS》。</p> </li>
+<li> <p>StructBERT 是阿里对 BERT 的一个改进，于 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1908.04577" target="_blank">《StructBERT: Incorporating Language Structures into Pre-training for Deep Language Understanding》</a>中提出。</p> </li>
+<li> <p>PaLM 2是下一代大语言模型，已经过大量数据训练，能够预测人类输入后的下一个单词。</p> </li>
+<li> <p>GPT-4 是 OpenAI 开发的多模态大语言模型。它是 GPT 系列中的第四个模型，以其强大的自然语言生成能力而闻名。</p> </li>
+<li> <p>SentenceTransformers 是一个用于句子、文本和图像 Embedding 的 Python 框架，最初于论文《Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks》中提出。</p> </li>
+</ul>
+<h2>05.Zilliz 如何赋能 NLP？</h2>
+<p>开发者正在使用向量数据库革新 NLP 领域。向量数据库能够有效存储和检索 NLP 模型生成的 Embedding <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fglossary%2Fembedding-%25E5%2590%2591%25E9%2587%258F" target="_blank">向量</a>，简化了基于语义相似性寻找相似文档、短语或甚至单个词的过程。此外，使用向量数据库后，开发者可以快速总结 Collection 文档。使用 NLP 算法可以从文本语料库中提取最重要的句子，然后借助 Milvus 便可找到与提取的短语语义上最相似的短语。</p>
+<p>另一个广泛的向量数据库 + NLP 用例就是检索增强生成（Retrieval Augmented Generation，RAG）。<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fuse-cases%2Fllm-retrieval-augmented-generation" target="_blank">RAG</a> 通常以聊天机器人的形式出现。大语言模型仅基于公开可用的数据进行训练。因此，它们可能缺乏特定领域知识或者私有信息。开发者可以在 LLM 之外的向量数据库中存储特定领域的数据，进行相似性搜索以返回与用户提问相关的 top-K 结果。最终将这些结果合并发送至 LLM，使其生成准确的答案。</p>
+<h2>06.总结</h2>
+<p>使用<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fblog%2Fvectordatabase-introduction-milvus" target="_blank">向量数据库</a>，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。NLP 结合了人工智能和计算语言学，帮助计算机理解并响应人类语言，其应用场景广泛，包括虚拟助手、聊天机器人、翻译服务和情感分析等。诸如 BERT、XLNet、RoBERTa、ALBERT 和 GPT-4 之类的 NLP 模型和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fcloud" target="_blank">Zilliz Cloud</a> 之类的向量数据库能够进一步增强 NLP，简化基于语义相似性检索相似文档或短语的过程。</p>
+<hr>
+<ul>
+<li> <p>如果在使用 Milvus 或 Zilliz 产品有任何问题，可添加小助手微信 “zilliz-tech” 加入交流群。</p> </li>
+<li> <p>欢迎关注微信公众号“Zilliz”，了解最新资讯。</p> </li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>从情感分析到信息提取，再到机器翻译、问答系统、聊天机器人……自然语言处理（Natural Language Processing，NLP）的应用可谓复杂多样。向量数据库的加入，则为 NLP 注入了更多的可能性。</p>
+<p>为了方便大家能够深入了解向量数据库与 NLP 的关系及应用，我们上线了「X」Embedding in NLP 系列专题，分为初阶和进阶两部分。本文为初阶第一篇，将详细介绍 NLP 以及以 Zilliz Cloud、Milvus 为代表的向量数据库是如何为 NLP 赋能的。</p>
+<h2>01.什么是 NLP ？</h2>
+<p>自然语言处理（NLP）是跨学科的机器学习技术，结合了人工智能和计算语言学。其主要目标是让计算机能够以有意义和有价值的方式理解和响应人类语言。</p>
+<p>当然，我们可以构建一个包含所有句子的词典来实现这一目标，但这有些不切实际，因为人类语言中用于构成句子的单词组合无穷无尽。不仅如此，口音、多样的同义词汇、错误发音或句中省略单词等情况，进一步加深了人类语言的复杂性。</p>
+<p>NLP 运用各种技术和算法处理自然语言数据。本质上，NLP 用于处理非结构化数据，特别是非结构化文本，并通过自然语言理解（NLU），使用文本和语音的句法和语义分析来确定句子的含义，并生成计算机可以使用的结构化文本。相反，自然语言生成（NLG）是指计算机根据一些数据输入生成人类语言文本的响应。</p>
+<p>通过利用 NLP 技术，开发人员可以从文本数据中提取信息和洞见，使机器能够理解和响应人类查询，并将所有涉及语言处理的任务自动化。可以说，NLP 使人机交互过程更直观、高效和流畅。NLP 在现实世界中有众多应用，如虚拟助手、聊天机器人、信息检索系统、语言翻译服务、情感分析工具和自动化内容生成等。而向量数据库，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。</p>
+<h2>02.NLP 用例</h2>
+<p>开发人员可以使用 NLP 构建多种应用，包括：</p>
+<h3>情感分析</h3>
+<p>情感分析是指确定文本中表达的情感或情绪。情感分析涉及将文本分类为正面、负面或中性。情感分析技术可能使用机器学习算法在标记数据集上训练模型，或利用预训练模型捕捉单词和短语的情感。情感分析常见的场景之一是电影评论分类，可以统计出正负面的影评占的比例。</p>
+<h3>信息提取</h3>
+<p>信息提取是指从文本中识别特定信息，例如提取名称、日期或数值。信息提取使用命名实体识别（NER）和关系提取从非结构化文本中提取结构化数据。</p>
+<h3>机器翻译</h3>
+<p>NLP 通过利用统计或神经网络机器翻译模型实现机器翻译。这些模型从大量平行文本数据中学习语言之间的模式和关系，允许它们适当借助上下文将文本从一种语言翻译成另一种语言。</p>
+<h3>问答系统</h3>
+<p>问答系统使用 NLP 技术理解用户问题并从给定的文本语料库中检索相关信息。问答系统包含文本理解、文档检索和信息提取等步骤，为用户提供准确和相关的查询答案。</p>
+<h3>虚拟助手或聊天机器人</h3>
+<p>虚拟助手是诸如 Alexa 或 Siri 这样的产品，它们接收人类的话语并从人类语言中推导出命令从而触发动作。（例如：嘿，Alexa，打开灯！）。聊天机器人使用书面语言与人类互动，从而协助用户处理账户或账单问题或其他一般问题。在完成文本处理后，聊天机器人就可以遍历决策树从而做出正确的操作。</p>
+<h3>文本生成</h3>
+<p>NLP 模型可以基于给定的提示或输入生成文本。这包括语言建模、文本摘要和使用诸如循环神经网络（RNN）或 Transformer 模型等技术的文本生成等任务。</p>
+<h3>垃圾邮件检测</h3>
+<p>自然语言处理可以辅助垃圾邮件检测。例如，通过查看过度使用的单词、错误的语法或不适当的紧急声明，检查电子邮件的内容以确定它是否是垃圾邮件。</p>
+<h2>03.NLP 原理</h2>
+<p>NLP 是指通过一系列技术和算法，使计算机能够处理、理解和生成人类语言。以下是 NLP 工作流程：</p>
+<p>文本预处理—— NLP 的初始步骤通常是文本数据的预处理。预处理涉及诸如分段（将句子分解为组成词）、token 化（将文本分割为单个单词或 token）、停用词（去除像停用词和普通词如“the”或“is”这样不携带太多含义的标点）以及应用词干提取（为给定标记推导词干）或词形还原（从字典中获取标记的含义以得到根源）以将单词还原为其基本形式的任务。</p>
+<p>语言理解—— NLP 算法使用各种技术来理解文本的含义和结构。这些技术包括：词性标注（通过为每个单词分配语法标签进行语法分析）、句法解析（分析句子结构）和命名实体识别（识别和分类命名实体，如人物、组织、地点或流行文化参考）等任务。</p>
+<p><em>“观其伴而知其意（You shall know a word by the company it keeps）”</em></p>
+<p>-- 英国语言学家 J. R. Firth</p>
+<h2>04.NLP 模型</h2>
+<p>在大型数据集上接受训练以执行特定NLP任务的深度学习模型被称为 NLP 的预训练模型（PTM），它们可以通过避免从头开始训练新模型来帮助下游 NLP 任务。以下是一些著名的自然语言处理模型，以便模型更准确地执行：</p>
+<ul>
+<li> <p>BERT（Bidirectional Encoder Representations from Transformer） 是由Google 开发的自然语言处理模型，可学习文本的双向表示。</p> </li>
+<li> <p>XLNet 是CMU和Google Brain团队在2019年6月份于论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1906.08237" target="_blank">《XLNet: Generalized Autoregressive Pretraining for Language Understanding》</a>发布的模型。</p> </li>
+<li> <p>RoBERTa 是 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1907.11692" target="_blank">《RoBERTa: A Robustly Optimized BERT Pretraining Approach》</a>中被提出的。</p> </li>
+<li> <p>ALBERT 模型来自 Google 2019 年公布的论文《ALBERT: A LITE BERT FOR SELF-SUPERVISED LEARNING OF LANGUAGE REPRESENTATIONS》。</p> </li>
+<li> <p>StructBERT 是阿里对 BERT 的一个改进，于 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1908.04577" target="_blank">《StructBERT: Incorporating Language Structures into Pre-training for Deep Language Understanding》</a>中提出。</p> </li>
+<li> <p>PaLM 2是下一代大语言模型，已经过大量数据训练，能够预测人类输入后的下一个单词。</p> </li>
+<li> <p>GPT-4 是 OpenAI 开发的多模态大语言模型。它是 GPT 系列中的第四个模型，以其强大的自然语言生成能力而闻名。</p> </li>
+<li> <p>SentenceTransformers 是一个用于句子、文本和图像 Embedding 的 Python 框架，最初于论文《Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks》中提出。</p> </li>
+</ul>
+<h2>05.Zilliz 如何赋能 NLP？</h2>
+<p>开发者正在使用向量数据库革新 NLP 领域。向量数据库能够有效存储和检索 NLP 模型生成的 Embedding <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fglossary%2Fembedding-%25E5%2590%2591%25E9%2587%258F" target="_blank">向量</a>，简化了基于语义相似性寻找相似文档、短语或甚至单个词的过程。此外，使用向量数据库后，开发者可以快速总结 Collection 文档。使用 NLP 算法可以从文本语料库中提取最重要的句子，然后借助 Milvus 便可找到与提取的短语语义上最相似的短语。</p>
+<p>另一个广泛的向量数据库 + NLP 用例就是检索增强生成（Retrieval Augmented Generation，RAG）。<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fuse-cases%2Fllm-retrieval-augmented-generation" target="_blank">RAG</a> 通常以聊天机器人的形式出现。大语言模型仅基于公开可用的数据进行训练。因此，它们可能缺乏特定领域知识或者私有信息。开发者可以在 LLM 之外的向量数据库中存储特定领域的数据，进行相似性搜索以返回与用户提问相关的 top-K 结果。最终将这些结果合并发送至 LLM，使其生成准确的答案。</p>
+<h2>06.总结</h2>
+<p>使用<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fblog%2Fvectordatabase-introduction-milvus" target="_blank">向量数据库</a>，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。NLP 结合了人工智能和计算语言学，帮助计算机理解并响应人类语言，其应用场景广泛，包括虚拟助手、聊天机器人、翻译服务和情感分析等。诸如 BERT、XLNet、RoBERTa、ALBERT 和 GPT-4 之类的 NLP 模型和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fcloud" target="_blank">Zilliz Cloud</a> 之类的向量数据库能够进一步增强 NLP，简化基于语义相似性检索相似文档或短语的过程。</p>
+<hr>
+<ul>
+<li> <p>如果在使用 Milvus 或 Zilliz 产品有任何问题，可添加小助手微信 “zilliz-tech” 加入交流群。</p> </li>
+<li> <p>欢迎关注微信公众号“Zilliz”，了解最新资讯。</p> </li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>从情感分析到信息提取，再到机器翻译、问答系统、聊天机器人……自然语言处理（Natural Language Processing，NLP）的应用可谓复杂多样。向量数据库的加入，则为 NLP 注入了更多的可能性。</p>
+<p>为了方便大家能够深入了解向量数据库与 NLP 的关系及应用，我们上线了「X」Embedding in NLP 系列专题，分为初阶和进阶两部分。本文为初阶第一篇，将详细介绍 NLP 以及以 Zilliz Cloud、Milvus 为代表的向量数据库是如何为 NLP 赋能的。</p>
+<h2>01.什么是 NLP ？</h2>
+<p>自然语言处理（NLP）是跨学科的机器学习技术，结合了人工智能和计算语言学。其主要目标是让计算机能够以有意义和有价值的方式理解和响应人类语言。</p>
+<p>当然，我们可以构建一个包含所有句子的词典来实现这一目标，但这有些不切实际，因为人类语言中用于构成句子的单词组合无穷无尽。不仅如此，口音、多样的同义词汇、错误发音或句中省略单词等情况，进一步加深了人类语言的复杂性。</p>
+<p>NLP 运用各种技术和算法处理自然语言数据。本质上，NLP 用于处理非结构化数据，特别是非结构化文本，并通过自然语言理解（NLU），使用文本和语音的句法和语义分析来确定句子的含义，并生成计算机可以使用的结构化文本。相反，自然语言生成（NLG）是指计算机根据一些数据输入生成人类语言文本的响应。</p>
+<p>通过利用 NLP 技术，开发人员可以从文本数据中提取信息和洞见，使机器能够理解和响应人类查询，并将所有涉及语言处理的任务自动化。可以说，NLP 使人机交互过程更直观、高效和流畅。NLP 在现实世界中有众多应用，如虚拟助手、聊天机器人、信息检索系统、语言翻译服务、情感分析工具和自动化内容生成等。而向量数据库，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。</p>
+<h2>02.NLP 用例</h2>
+<p>开发人员可以使用 NLP 构建多种应用，包括：</p>
+<h3>情感分析</h3>
+<p>情感分析是指确定文本中表达的情感或情绪。情感分析涉及将文本分类为正面、负面或中性。情感分析技术可能使用机器学习算法在标记数据集上训练模型，或利用预训练模型捕捉单词和短语的情感。情感分析常见的场景之一是电影评论分类，可以统计出正负面的影评占的比例。</p>
+<h3>信息提取</h3>
+<p>信息提取是指从文本中识别特定信息，例如提取名称、日期或数值。信息提取使用命名实体识别（NER）和关系提取从非结构化文本中提取结构化数据。</p>
+<h3>机器翻译</h3>
+<p>NLP 通过利用统计或神经网络机器翻译模型实现机器翻译。这些模型从大量平行文本数据中学习语言之间的模式和关系，允许它们适当借助上下文将文本从一种语言翻译成另一种语言。</p>
+<h3>问答系统</h3>
+<p>问答系统使用 NLP 技术理解用户问题并从给定的文本语料库中检索相关信息。问答系统包含文本理解、文档检索和信息提取等步骤，为用户提供准确和相关的查询答案。</p>
+<h3>虚拟助手或聊天机器人</h3>
+<p>虚拟助手是诸如 Alexa 或 Siri 这样的产品，它们接收人类的话语并从人类语言中推导出命令从而触发动作。（例如：嘿，Alexa，打开灯！）。聊天机器人使用书面语言与人类互动，从而协助用户处理账户或账单问题或其他一般问题。在完成文本处理后，聊天机器人就可以遍历决策树从而做出正确的操作。</p>
+<h3>文本生成</h3>
+<p>NLP 模型可以基于给定的提示或输入生成文本。这包括语言建模、文本摘要和使用诸如循环神经网络（RNN）或 Transformer 模型等技术的文本生成等任务。</p>
+<h3>垃圾邮件检测</h3>
+<p>自然语言处理可以辅助垃圾邮件检测。例如，通过查看过度使用的单词、错误的语法或不适当的紧急声明，检查电子邮件的内容以确定它是否是垃圾邮件。</p>
+<h2>03.NLP 原理</h2>
+<p>NLP 是指通过一系列技术和算法，使计算机能够处理、理解和生成人类语言。以下是 NLP 工作流程：</p>
+<p>文本预处理—— NLP 的初始步骤通常是文本数据的预处理。预处理涉及诸如分段（将句子分解为组成词）、token 化（将文本分割为单个单词或 token）、停用词（去除像停用词和普通词如“the”或“is”这样不携带太多含义的标点）以及应用词干提取（为给定标记推导词干）或词形还原（从字典中获取标记的含义以得到根源）以将单词还原为其基本形式的任务。</p>
+<p>语言理解—— NLP 算法使用各种技术来理解文本的含义和结构。这些技术包括：词性标注（通过为每个单词分配语法标签进行语法分析）、句法解析（分析句子结构）和命名实体识别（识别和分类命名实体，如人物、组织、地点或流行文化参考）等任务。</p>
+<p><em>“观其伴而知其意（You shall know a word by the company it keeps）”</em></p>
+<p>-- 英国语言学家 J. R. Firth</p>
+<h2>04.NLP 模型</h2>
+<p>在大型数据集上接受训练以执行特定NLP任务的深度学习模型被称为 NLP 的预训练模型（PTM），它们可以通过避免从头开始训练新模型来帮助下游 NLP 任务。以下是一些著名的自然语言处理模型，以便模型更准确地执行：</p>
+<ul>
+<li> <p>BERT（Bidirectional Encoder Representations from Transformer） 是由Google 开发的自然语言处理模型，可学习文本的双向表示。</p> </li>
+<li> <p>XLNet 是CMU和Google Brain团队在2019年6月份于论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1906.08237" target="_blank">《XLNet: Generalized Autoregressive Pretraining for Language Understanding》</a>发布的模型。</p> </li>
+<li> <p>RoBERTa 是 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1907.11692" target="_blank">《RoBERTa: A Robustly Optimized BERT Pretraining Approach》</a>中被提出的。</p> </li>
+<li> <p>ALBERT 模型来自 Google 2019 年公布的论文《ALBERT: A LITE BERT FOR SELF-SUPERVISED LEARNING OF LANGUAGE REPRESENTATIONS》。</p> </li>
+<li> <p>StructBERT 是阿里对 BERT 的一个改进，于 2019 年在论文<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F1908.04577" target="_blank">《StructBERT: Incorporating Language Structures into Pre-training for Deep Language Understanding》</a>中提出。</p> </li>
+<li> <p>PaLM 2是下一代大语言模型，已经过大量数据训练，能够预测人类输入后的下一个单词。</p> </li>
+<li> <p>GPT-4 是 OpenAI 开发的多模态大语言模型。它是 GPT 系列中的第四个模型，以其强大的自然语言生成能力而闻名。</p> </li>
+<li> <p>SentenceTransformers 是一个用于句子、文本和图像 Embedding 的 Python 框架，最初于论文《Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks》中提出。</p> </li>
+</ul>
+<h2>05.Zilliz 如何赋能 NLP？</h2>
+<p>开发者正在使用向量数据库革新 NLP 领域。向量数据库能够有效存储和检索 NLP 模型生成的 Embedding <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fglossary%2Fembedding-%25E5%2590%2591%25E9%2587%258F" target="_blank">向量</a>，简化了基于语义相似性寻找相似文档、短语或甚至单个词的过程。此外，使用向量数据库后，开发者可以快速总结 Collection 文档。使用 NLP 算法可以从文本语料库中提取最重要的句子，然后借助 Milvus 便可找到与提取的短语语义上最相似的短语。</p>
+<p>另一个广泛的向量数据库 + NLP 用例就是检索增强生成（Retrieval Augmented Generation，RAG）。<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fuse-cases%2Fllm-retrieval-augmented-generation" target="_blank">RAG</a> 通常以聊天机器人的形式出现。大语言模型仅基于公开可用的数据进行训练。因此，它们可能缺乏特定领域知识或者私有信息。开发者可以在 LLM 之外的向量数据库中存储特定领域的数据，进行相似性搜索以返回与用户提问相关的 top-K 结果。最终将这些结果合并发送至 LLM，使其生成准确的答案。</p>
+<h2>06.总结</h2>
+<p>使用<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fblog%2Fvectordatabase-introduction-milvus" target="_blank">向量数据库</a>，尤其是其高效的 embedding 向量存储和检索能力能够为 NLP 领域带来革新，简化相似文档或短语的搜索过程。NLP 结合了人工智能和计算语言学，帮助计算机理解并响应人类语言，其应用场景广泛，包括虚拟助手、聊天机器人、翻译服务和情感分析等。诸如 BERT、XLNet、RoBERTa、ALBERT 和 GPT-4 之类的 NLP 模型和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzilliz.com.cn%2Fcloud" target="_blank">Zilliz Cloud</a> 之类的向量数据库能够进一步增强 NLP，简化基于语义相似性检索相似文档或短语的过程。</p>
+<hr>
+<ul>
+<li> <p>如果在使用 Milvus 或 Zilliz 产品有任何问题，可添加小助手微信 “zilliz-tech” 加入交流群。</p> </li>
+<li> <p>欢迎关注微信公众号“Zilliz”，了解最新资讯。</p> </li>
+</ul>]]></content:encoded>
+    
+    <pubDate>Tue, 21 Nov 2023 19:01:07 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[AWebSocket - 基于 OkHttp 封装的 WebSocket]]></title>
+    <link>https://www.oschina.net/p/awebsocket</link>
+    <itunes:title><![CDATA[AWebSocket - 基于 OkHttp 封装的 WebSocket]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>AWebSocket for Android 一个基于 okhttp 封装的<span>&nbsp;</span><strong>WebSocket</strong>，简洁易用。</p>
+<h2>Gif 展示</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af11772154.gif"></p>
+<blockquote>&nbsp;</blockquote>
+<p>你也可以直接下载<span>&nbsp;</span><a href="https://gitee.com/link?target=https%3A%2F%2Fraw.githubusercontent.com%2Fjenly1314%2FAWebSocket%2Fmaster%2Fapp%2Frelease%2Fapp-release.apk">演示App</a><span>&nbsp;</span>体验效果</p>
+<h2>引入</h2>
+<h3>Gradle:</h3>
+<ol>
+<li>
+<p>在Project的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>或<span>&nbsp;</span><strong>setting.gradle</strong><span>&nbsp;</span>中添加远程仓库</p>
+<div>
+<pre><span><strong>repositories</strong> <span>{</span></span>
+<span>    <span>//...</span></span>
+<span>    <span>mavenCentral</span><span>()</span></span>
+<span><span>}</span></span></pre>
+<div>&nbsp;</div>
+</div>
+</li>
+<li>
+<p>在Module的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>里面添加引入依赖项</p>
+<div>
+<pre><span><span>implementation</span> <span>'com.github.jenly1314:awebsocket:1.0.0'</span></span>
+</pre>
+</div>
+</li>
+</ol>
+<h2>使用</h2>
+<h3>主要使用示例</h3>
+<div>
+<div>
+<pre><span><span>//初始化AWebSocket</span></span>
+<span><strong>val</strong> <strong>aWebSocket</strong> <span>=</span> <strong>AWebSocket</strong><span>(</span><span>url</span><span>)</span></span>
+<span><span>// 设置监听</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>setWebSocketListener</strong><span>(</span><strong>object</strong> <span>: </span><strong>WebSocketListener</strong><span>()</span> <span>{</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onOpen</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onOpen</strong><span>(</span><span>webSocket</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接成功，可以进⾏通信了</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>text</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>text</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>bytes</span><span>:</span> <strong>ByteString</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>bytes</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosing</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosing</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接关闭中</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosed</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosed</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接已关闭</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onFailure</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>t</span><span>:</span> <strong>Throwable</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>?)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onFailure</strong><span>(</span><span>webSocket</span><span>,</span> <span>t</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接出错</span></span>
+<span>    <span>}</span></span>
+<span><span>})</span></span>
+<span><span>// 连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>connect</strong><span>()</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 发送消息</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>send</strong><span>(</span><span>data</span><span>)</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 关闭连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>close</strong><span>()</span></span>
+</pre>
+</div>
+</div>
+<p>更多使用详情，请查看<a href="https://gitee.com/jenly1314/AWebSocket/blob/master/app">Demo</a>中的源码使用示例或直接查看<a href="https://gitee.com/link?target=https%3A%2F%2Fjitpack.io%2Fcom%2Fgithub%2Fjenly1314%2FAWebSocket%2Flatest%2Fjavadoc%2F">API帮助文档</a></p>
+<h3>相关推荐</h3>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FANetty">ANetty</a><span>&nbsp;</span>基于Netty封装的Android链路通讯库，用以快速开发高性能，高可靠性的网络交互。在保证易于开发的同时还保证其应用的性能，稳定性和伸缩性。</p>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FASocket">ASocket</a><span>&nbsp;</span>一个TCP/UDP协议的封装库，方便快速实现TCP的长连接与UDP的单播、组播、广播等相关通信。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>AWebSocket for Android 一个基于 okhttp 封装的<span>&nbsp;</span><strong>WebSocket</strong>，简洁易用。</p>
+<h2>Gif 展示</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af11772154.gif"></p>
+<blockquote>&nbsp;</blockquote>
+<p>你也可以直接下载<span>&nbsp;</span><a href="https://gitee.com/link?target=https%3A%2F%2Fraw.githubusercontent.com%2Fjenly1314%2FAWebSocket%2Fmaster%2Fapp%2Frelease%2Fapp-release.apk">演示App</a><span>&nbsp;</span>体验效果</p>
+<h2>引入</h2>
+<h3>Gradle:</h3>
+<ol>
+<li>
+<p>在Project的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>或<span>&nbsp;</span><strong>setting.gradle</strong><span>&nbsp;</span>中添加远程仓库</p>
+<div>
+<pre><span><strong>repositories</strong> <span>{</span></span>
+<span>    <span>//...</span></span>
+<span>    <span>mavenCentral</span><span>()</span></span>
+<span><span>}</span></span></pre>
+<div>&nbsp;</div>
+</div>
+</li>
+<li>
+<p>在Module的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>里面添加引入依赖项</p>
+<div>
+<pre><span><span>implementation</span> <span>'com.github.jenly1314:awebsocket:1.0.0'</span></span>
+</pre>
+</div>
+</li>
+</ol>
+<h2>使用</h2>
+<h3>主要使用示例</h3>
+<div>
+<div>
+<pre><span><span>//初始化AWebSocket</span></span>
+<span><strong>val</strong> <strong>aWebSocket</strong> <span>=</span> <strong>AWebSocket</strong><span>(</span><span>url</span><span>)</span></span>
+<span><span>// 设置监听</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>setWebSocketListener</strong><span>(</span><strong>object</strong> <span>: </span><strong>WebSocketListener</strong><span>()</span> <span>{</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onOpen</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onOpen</strong><span>(</span><span>webSocket</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接成功，可以进⾏通信了</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>text</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>text</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>bytes</span><span>:</span> <strong>ByteString</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>bytes</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosing</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosing</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接关闭中</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosed</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosed</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接已关闭</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onFailure</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>t</span><span>:</span> <strong>Throwable</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>?)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onFailure</strong><span>(</span><span>webSocket</span><span>,</span> <span>t</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接出错</span></span>
+<span>    <span>}</span></span>
+<span><span>})</span></span>
+<span><span>// 连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>connect</strong><span>()</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 发送消息</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>send</strong><span>(</span><span>data</span><span>)</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 关闭连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>close</strong><span>()</span></span>
+</pre>
+</div>
+</div>
+<p>更多使用详情，请查看<a href="https://gitee.com/jenly1314/AWebSocket/blob/master/app">Demo</a>中的源码使用示例或直接查看<a href="https://gitee.com/link?target=https%3A%2F%2Fjitpack.io%2Fcom%2Fgithub%2Fjenly1314%2FAWebSocket%2Flatest%2Fjavadoc%2F">API帮助文档</a></p>
+<h3>相关推荐</h3>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FANetty">ANetty</a><span>&nbsp;</span>基于Netty封装的Android链路通讯库，用以快速开发高性能，高可靠性的网络交互。在保证易于开发的同时还保证其应用的性能，稳定性和伸缩性。</p>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FASocket">ASocket</a><span>&nbsp;</span>一个TCP/UDP协议的封装库，方便快速实现TCP的长连接与UDP的单播、组播、广播等相关通信。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>AWebSocket for Android 一个基于 okhttp 封装的<span>&nbsp;</span><strong>WebSocket</strong>，简洁易用。</p>
+<h2>Gif 展示</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af11772154.gif"></p>
+<blockquote>&nbsp;</blockquote>
+<p>你也可以直接下载<span>&nbsp;</span><a href="https://gitee.com/link?target=https%3A%2F%2Fraw.githubusercontent.com%2Fjenly1314%2FAWebSocket%2Fmaster%2Fapp%2Frelease%2Fapp-release.apk">演示App</a><span>&nbsp;</span>体验效果</p>
+<h2>引入</h2>
+<h3>Gradle:</h3>
+<ol>
+<li>
+<p>在Project的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>或<span>&nbsp;</span><strong>setting.gradle</strong><span>&nbsp;</span>中添加远程仓库</p>
+<div>
+<pre><span><strong>repositories</strong> <span>{</span></span>
+<span>    <span>//...</span></span>
+<span>    <span>mavenCentral</span><span>()</span></span>
+<span><span>}</span></span></pre>
+<div>&nbsp;</div>
+</div>
+</li>
+<li>
+<p>在Module的<span>&nbsp;</span><strong>build.gradle</strong><span>&nbsp;</span>里面添加引入依赖项</p>
+<div>
+<pre><span><span>implementation</span> <span>'com.github.jenly1314:awebsocket:1.0.0'</span></span>
+</pre>
+</div>
+</li>
+</ol>
+<h2>使用</h2>
+<h3>主要使用示例</h3>
+<div>
+<div>
+<pre><span><span>//初始化AWebSocket</span></span>
+<span><strong>val</strong> <strong>aWebSocket</strong> <span>=</span> <strong>AWebSocket</strong><span>(</span><span>url</span><span>)</span></span>
+<span><span>// 设置监听</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>setWebSocketListener</strong><span>(</span><strong>object</strong> <span>: </span><strong>WebSocketListener</strong><span>()</span> <span>{</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onOpen</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onOpen</strong><span>(</span><span>webSocket</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接成功，可以进⾏通信了</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>text</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>text</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onMessage</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>bytes</span><span>:</span> <strong>ByteString</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onMessage</strong><span>(</span><span>webSocket</span><span>,</span> <span>bytes</span><span>)</span></span>
+<span>        <span>// TODO 接收消息</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosing</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosing</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接关闭中</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onClosed</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>code</span><span>:</span> <strong>Int</strong><span>,</span> <span>reason</span><span>:</span> <strong>String</strong><span>)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onClosed</strong><span>(</span><span>webSocket</span><span>,</span> <span>code</span><span>,</span> <span>reason</span><span>)</span></span>
+<span>        <span>// TODO 连接已关闭</span></span>
+<span>    <span>}</span></span>
+<span>    <strong>override</strong> <strong>fun</strong> <strong>onFailure</strong><span>(</span><span>webSocket</span><span>:</span> <strong>IWebSocket</strong><span>,</span> <span>t</span><span>:</span> <strong>Throwable</strong><span>,</span> <span>response</span><span>:</span> <strong>Response</strong><span>?)</span> <span>{</span></span>
+<span>        <strong>super</strong><span>.</span><strong>onFailure</strong><span>(</span><span>webSocket</span><span>,</span> <span>t</span><span>,</span> <span>response</span><span>)</span></span>
+<span>        <span>// TODO 连接出错</span></span>
+<span>    <span>}</span></span>
+<span><span>})</span></span>
+<span><span>// 连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>connect</strong><span>()</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 发送消息</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>send</strong><span>(</span><span>data</span><span>)</span></span>
+<span><span>//---------------------------</span></span>
+<span><span>//...</span></span>
+<span><span>// 关闭连接</span></span>
+<span><span>aWebSocket</span><span>.</span><strong>close</strong><span>()</span></span>
+</pre>
+</div>
+</div>
+<p>更多使用详情，请查看<a href="https://gitee.com/jenly1314/AWebSocket/blob/master/app">Demo</a>中的源码使用示例或直接查看<a href="https://gitee.com/link?target=https%3A%2F%2Fjitpack.io%2Fcom%2Fgithub%2Fjenly1314%2FAWebSocket%2Flatest%2Fjavadoc%2F">API帮助文档</a></p>
+<h3>相关推荐</h3>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FANetty">ANetty</a><span>&nbsp;</span>基于Netty封装的Android链路通讯库，用以快速开发高性能，高可靠性的网络交互。在保证易于开发的同时还保证其应用的性能，稳定性和伸缩性。</p>
+<p><a href="https://gitee.com/link?target=https%3A%2F%2Fgithub.com%2Fjenly1314%2FASocket">ASocket</a><span>&nbsp;</span>一个TCP/UDP协议的封装库，方便快速实现TCP的长连接与UDP的单播、组播、广播等相关通信。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af11772154.gif"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af11772154.gif" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 18:37:24 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[微软开源 Terminal Chat]]></title>
+    <link>https://www.oschina.net/news/267428/terminal-chat-in-windows-terminal-canary</link>
+    <itunes:title><![CDATA[微软开源 Terminal Chat]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>微软<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdevblogs.microsoft.com%2Fcommandline%2Fterminal-chat-in-windows-terminal-canary%2F" target="_blank">宣布</a>开源其 AI 聊天功能 Terminal Chat 的工作，邀请开发人员尝试体验并参与构建。“Windows Terminal 团队致力于提高透明度，我们希望让开源社区有机会帮助我们定义 terminal 应用程序中的人工智能。”</p>
+<p><span>Terminal Chat 是 Windows Terminal Canary 中的一项功能，允许用户保持在 terminal 上下文中的同时，与 AI 服务聊天以获得智能建议（例如查找命令或解释错误消息）。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b966edf73.png"></p>
+<p>值得注意的是，Windows Terminal Canary 不提供默认模型或内置 AI 模型。因此要使用 Terminal Chat，用户必须手动在 Windows Terminal Canary 的 Terminal Chat 设置中添加 AI 服务端点和密钥。</p>
+<p>目前，Terminal Chat 仅支持 Azure OpenAI 服务。要获取必要的 Azure OpenAI 服务端点和密钥，用户需要创建和部署 Azure OpenAI 服务资源。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14cf81cb92.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-958fc0c662.png"></p>
+<p><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>Windows Terminal Canary 仅在用户发送消息时与 AI 服务进行通信，聊天记录和用户活动 shell 的名称也会附加到发送给 AI 服务的信息中。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span>Terminal Chat&nbsp;<span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>结束后，Windows Terminal Canary 不会保存聊天历史记录。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></p>
+<p><span><span>微软方面表示，他们知道“AI in a terminal”听起来令人生畏，因此他们将致力于提高透明度并积极听取用户反馈。“我们坚信，开源社区的加入将帮助我们确定人工智能路线图，并帮助我们确定可用于核心产品 Windows Terminal 的最基本的 AI 功能集。”</span></span></p>
+<p><span>Terminal Chat&nbsp;<span>功能目前仅在 Windows Terminal Canary 中提供，不会包含在 WindowsTerminal 预览版或 Windows Terminal 稳定版的构建中。</span></span></p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fterminal%23installing-windows-terminal-canary" target="_blank"><span><span>下载地址</span></span></a></strong></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>微软<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdevblogs.microsoft.com%2Fcommandline%2Fterminal-chat-in-windows-terminal-canary%2F" target="_blank">宣布</a>开源其 AI 聊天功能 Terminal Chat 的工作，邀请开发人员尝试体验并参与构建。“Windows Terminal 团队致力于提高透明度，我们希望让开源社区有机会帮助我们定义 terminal 应用程序中的人工智能。”</p>
+<p><span>Terminal Chat 是 Windows Terminal Canary 中的一项功能，允许用户保持在 terminal 上下文中的同时，与 AI 服务聊天以获得智能建议（例如查找命令或解释错误消息）。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b966edf73.png"></p>
+<p>值得注意的是，Windows Terminal Canary 不提供默认模型或内置 AI 模型。因此要使用 Terminal Chat，用户必须手动在 Windows Terminal Canary 的 Terminal Chat 设置中添加 AI 服务端点和密钥。</p>
+<p>目前，Terminal Chat 仅支持 Azure OpenAI 服务。要获取必要的 Azure OpenAI 服务端点和密钥，用户需要创建和部署 Azure OpenAI 服务资源。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14cf81cb92.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-958fc0c662.png"></p>
+<p><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>Windows Terminal Canary 仅在用户发送消息时与 AI 服务进行通信，聊天记录和用户活动 shell 的名称也会附加到发送给 AI 服务的信息中。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span>Terminal Chat&nbsp;<span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>结束后，Windows Terminal Canary 不会保存聊天历史记录。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></p>
+<p><span><span>微软方面表示，他们知道“AI in a terminal”听起来令人生畏，因此他们将致力于提高透明度并积极听取用户反馈。“我们坚信，开源社区的加入将帮助我们确定人工智能路线图，并帮助我们确定可用于核心产品 Windows Terminal 的最基本的 AI 功能集。”</span></span></p>
+<p><span>Terminal Chat&nbsp;<span>功能目前仅在 Windows Terminal Canary 中提供，不会包含在 WindowsTerminal 预览版或 Windows Terminal 稳定版的构建中。</span></span></p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fterminal%23installing-windows-terminal-canary" target="_blank"><span><span>下载地址</span></span></a></strong></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>微软<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdevblogs.microsoft.com%2Fcommandline%2Fterminal-chat-in-windows-terminal-canary%2F" target="_blank">宣布</a>开源其 AI 聊天功能 Terminal Chat 的工作，邀请开发人员尝试体验并参与构建。“Windows Terminal 团队致力于提高透明度，我们希望让开源社区有机会帮助我们定义 terminal 应用程序中的人工智能。”</p>
+<p><span>Terminal Chat 是 Windows Terminal Canary 中的一项功能，允许用户保持在 terminal 上下文中的同时，与 AI 服务聊天以获得智能建议（例如查找命令或解释错误消息）。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b966edf73.png"></p>
+<p>值得注意的是，Windows Terminal Canary 不提供默认模型或内置 AI 模型。因此要使用 Terminal Chat，用户必须手动在 Windows Terminal Canary 的 Terminal Chat 设置中添加 AI 服务端点和密钥。</p>
+<p>目前，Terminal Chat 仅支持 Azure OpenAI 服务。要获取必要的 Azure OpenAI 服务端点和密钥，用户需要创建和部署 Azure OpenAI 服务资源。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14cf81cb92.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-958fc0c662.png"></p>
+<p><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>Windows Terminal Canary 仅在用户发送消息时与 AI 服务进行通信，聊天记录和用户活动 shell 的名称也会附加到发送给 AI 服务的信息中。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span>Terminal Chat&nbsp;<span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span><span>结束后，Windows Terminal Canary 不会保存聊天历史记录。</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></p>
+<p><span><span>微软方面表示，他们知道“AI in a terminal”听起来令人生畏，因此他们将致力于提高透明度并积极听取用户反馈。“我们坚信，开源社区的加入将帮助我们确定人工智能路线图，并帮助我们确定可用于核心产品 Windows Terminal 的最基本的 AI 功能集。”</span></span></p>
+<p><span>Terminal Chat&nbsp;<span>功能目前仅在 Windows Terminal Canary 中提供，不会包含在 WindowsTerminal 预览版或 Windows Terminal 稳定版的构建中。</span></span></p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fterminal%23installing-windows-terminal-canary" target="_blank"><span><span>下载地址</span></span></a></strong></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b966edf73.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b966edf73.png" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 17:04:17 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[假如你是开源项目维护者，遇到这种回复能忍到哪步？]]></title>
+    <link>https://www.oschina.net/news/267411</link>
+    <itunes:title><![CDATA[假如你是开源项目维护者，遇到这种回复能忍到哪步？]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>背景：</p>
+<p>Vant 是一个轻量、可定制的移动端组件库，由有赞团队开源。近日，一名开发者在 Vant 的 GitHub 仓库提交了一个 issue：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fyouzan%2Fvant%2Fissues%2F12453" target="_blank">https://github.com/youzan/vant/issues/12453</a></u></em>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c9f26da6a4.png"></p>
+<hr>
+<p>直奔主题，请阅读这名开发者与维护者的问答互动：</p>
+<p>Vant 维护者对该 issue 先是进行了如下回复：</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a8205a065.png"></p>
+</blockquote>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a4d2fd10b.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-402c823071.png"></p>
+<p>提问者（询问项目维护者这到底是不是 bug）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-282d072a01.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3f3929b04.png"></p>
+<p>提问者（没得到自己想要的答案，开始阴阳怪气）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-719e9fe6c3.png"></p>
+<p>项目维护者（准备到此为止）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06c5367424.png"></p>
+<p>提问者继续追问：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f9d2ec689.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1126c714e2.png"></p>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dfb09a959c.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ff726db41.png"></p>
+<p>最后一个来回：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8b9b9a9421.png"></p>
+<p>然后，这名提问者去社区发帖分享了“一次 github 跟开源大佬的抬杠经历”。</p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fv2ex.com%2Ft%2F993100" target="_blank">https://v2ex.com/t/993100</a></u></em></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>背景：</p>
+<p>Vant 是一个轻量、可定制的移动端组件库，由有赞团队开源。近日，一名开发者在 Vant 的 GitHub 仓库提交了一个 issue：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fyouzan%2Fvant%2Fissues%2F12453" target="_blank">https://github.com/youzan/vant/issues/12453</a></u></em>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c9f26da6a4.png"></p>
+<hr>
+<p>直奔主题，请阅读这名开发者与维护者的问答互动：</p>
+<p>Vant 维护者对该 issue 先是进行了如下回复：</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a8205a065.png"></p>
+</blockquote>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a4d2fd10b.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-402c823071.png"></p>
+<p>提问者（询问项目维护者这到底是不是 bug）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-282d072a01.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3f3929b04.png"></p>
+<p>提问者（没得到自己想要的答案，开始阴阳怪气）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-719e9fe6c3.png"></p>
+<p>项目维护者（准备到此为止）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06c5367424.png"></p>
+<p>提问者继续追问：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f9d2ec689.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1126c714e2.png"></p>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dfb09a959c.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ff726db41.png"></p>
+<p>最后一个来回：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8b9b9a9421.png"></p>
+<p>然后，这名提问者去社区发帖分享了“一次 github 跟开源大佬的抬杠经历”。</p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fv2ex.com%2Ft%2F993100" target="_blank">https://v2ex.com/t/993100</a></u></em></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>背景：</p>
+<p>Vant 是一个轻量、可定制的移动端组件库，由有赞团队开源。近日，一名开发者在 Vant 的 GitHub 仓库提交了一个 issue：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fyouzan%2Fvant%2Fissues%2F12453" target="_blank">https://github.com/youzan/vant/issues/12453</a></u></em>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c9f26da6a4.png"></p>
+<hr>
+<p>直奔主题，请阅读这名开发者与维护者的问答互动：</p>
+<p>Vant 维护者对该 issue 先是进行了如下回复：</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a8205a065.png"></p>
+</blockquote>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a4d2fd10b.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-402c823071.png"></p>
+<p>提问者（询问项目维护者这到底是不是 bug）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-282d072a01.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3f3929b04.png"></p>
+<p>提问者（没得到自己想要的答案，开始阴阳怪气）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-719e9fe6c3.png"></p>
+<p>项目维护者（准备到此为止）：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06c5367424.png"></p>
+<p>提问者继续追问：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f9d2ec689.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1126c714e2.png"></p>
+<p>提问者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dfb09a959c.png"></p>
+<p>项目维护者：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ff726db41.png"></p>
+<p>最后一个来回：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8b9b9a9421.png"></p>
+<p>然后，这名提问者去社区发帖分享了“一次 github 跟开源大佬的抬杠经历”。</p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fv2ex.com%2Ft%2F993100" target="_blank">https://v2ex.com/t/993100</a></u></em></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c9f26da6a4.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c9f26da6a4.png" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 15:29:30 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[LineageOS 全球安装量达 150 万台]]></title>
+    <link>https://www.oschina.net/news/267410</link>
+    <itunes:title><![CDATA[LineageOS 全球安装量达 150 万台]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>LineageOS 团队日前在知名数码 UP主 MKBHD 播客中回顾了 LineageOS 的历史，<strong>并介绍称目前全球有 150 万台 Android 设备采用 LineageOS</strong>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9e8b7e82.png"></p>
+<p>LineageOS 是一个面向智能手机和平板电脑的自由、免费、开源的 Android 系统分支。它是深受欢迎的定制 ROM CyanogenMod 的继任者，在 2016 年首次推出，至今仍在积极更新。</p>
+<p>LineageOS 可在不同 Android 品牌的各种不同设备上使用，包括谷歌、HMD Global、三星、索尼、一加、小米等，这款&nbsp;ROM&nbsp;也让一些久远的品牌继续前行，例如早期的 Essential Phone、LG 等。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>LineageOS 团队日前在知名数码 UP主 MKBHD 播客中回顾了 LineageOS 的历史，<strong>并介绍称目前全球有 150 万台 Android 设备采用 LineageOS</strong>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9e8b7e82.png"></p>
+<p>LineageOS 是一个面向智能手机和平板电脑的自由、免费、开源的 Android 系统分支。它是深受欢迎的定制 ROM CyanogenMod 的继任者，在 2016 年首次推出，至今仍在积极更新。</p>
+<p>LineageOS 可在不同 Android 品牌的各种不同设备上使用，包括谷歌、HMD Global、三星、索尼、一加、小米等，这款&nbsp;ROM&nbsp;也让一些久远的品牌继续前行，例如早期的 Essential Phone、LG 等。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>LineageOS 团队日前在知名数码 UP主 MKBHD 播客中回顾了 LineageOS 的历史，<strong>并介绍称目前全球有 150 万台 Android 设备采用 LineageOS</strong>。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9e8b7e82.png"></p>
+<p>LineageOS 是一个面向智能手机和平板电脑的自由、免费、开源的 Android 系统分支。它是深受欢迎的定制 ROM CyanogenMod 的继任者，在 2016 年首次推出，至今仍在积极更新。</p>
+<p>LineageOS 可在不同 Android 品牌的各种不同设备上使用，包括谷歌、HMD Global、三星、索尼、一加、小米等，这款&nbsp;ROM&nbsp;也让一些久远的品牌继续前行，例如早期的 Essential Phone、LG 等。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9e8b7e82.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9e8b7e82.png" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 15:01:20 +0800</pubDate>
+  </item><item>
     <title><![CDATA[基于 Triple 实现 Web 移动端后端全面打通]]></title>
     <link>https://my.oschina.net/u/6214966/blog/10116068</link>
     <itunes:title><![CDATA[基于 Triple 实现 Web 移动端后端全面打通]]></itunes:title>
@@ -1493,17 +2077,57 @@ default:
     <pubDate>Tue, 21 Nov 2023 10:17:40 +0800</pubDate>
   </item><item>
     <title><![CDATA[修完这个 Bug 后，MySQL 性能提升了 300%]]></title>
-    <link></link>
+    <link>https://my.oschina.net/u/6148470/blog/10143821</link>
     <itunes:title><![CDATA[修完这个 Bug 后，MySQL 性能提升了 300%]]></itunes:title>
     <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
     <itunes:summary>
-      <![CDATA[这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。]]>
+      <![CDATA[<p>最近 MySQL 官方在 8.0.35 上修复了一个 bug：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-229dbb062c.png" alt="file"></p>
+<p>这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-72ca65ccea.png" alt="file"></p>
+<p>Mark 在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbugs.mysql.com%2Fbug.php%3Fid%3D109595" target="_blank">#109595</a> 的 bug report 给出了非常详细的复现步骤</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-42a856e382.png" alt="file"></p>
+<p>在官方修复后，Mark 在他的读写 benchmark 上验证有 300% 的提升 (4x)。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c70d768dbc.png" alt="file"></p>
+<p>这样的性能提升在 Hacker News 上也引起了讨论，评论区也呈现了 HN 一贯的嘲讽风格。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ecaaaa8f07.png" alt="file"></p>
+<p>其实 infra 层这种性能提升的空间并不少。业界缺少的是像 Mark 这样躬身入局，抽丝剥茧的钻研态度。之前 Jeff Dean 在 Google 内部也做过一个分享，讲了通过优化一小段代码，就给 Google 一年省了十几万核。</p>
+<p>画根线很容易，难的永远是知道在哪儿画。</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
     </itunes:summary>
     <description>
-      <![CDATA[这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。]]>
+      <![CDATA[<p>最近 MySQL 官方在 8.0.35 上修复了一个 bug：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-229dbb062c.png" alt="file"></p>
+<p>这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-72ca65ccea.png" alt="file"></p>
+<p>Mark 在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbugs.mysql.com%2Fbug.php%3Fid%3D109595" target="_blank">#109595</a> 的 bug report 给出了非常详细的复现步骤</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-42a856e382.png" alt="file"></p>
+<p>在官方修复后，Mark 在他的读写 benchmark 上验证有 300% 的提升 (4x)。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c70d768dbc.png" alt="file"></p>
+<p>这样的性能提升在 Hacker News 上也引起了讨论，评论区也呈现了 HN 一贯的嘲讽风格。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ecaaaa8f07.png" alt="file"></p>
+<p>其实 infra 层这种性能提升的空间并不少。业界缺少的是像 Mark 这样躬身入局，抽丝剥茧的钻研态度。之前 Jeff Dean 在 Google 内部也做过一个分享，讲了通过优化一小段代码，就给 Google 一年省了十几万核。</p>
+<p>画根线很容易，难的永远是知道在哪儿画。</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
     </description>
-    <content:encoded><![CDATA[这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。]]></content:encoded>
-    
+    <content:encoded><![CDATA[<p>最近 MySQL 官方在 8.0.35 上修复了一个 bug：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-229dbb062c.png" alt="file"></p>
+<p>这个 bug 是由 Mark Callaghan 发现的。Mark 早年在 Google MySQL 团队，后来去了 Meta MySQL，也主导了 RocksDB 的开发。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-72ca65ccea.png" alt="file"></p>
+<p>Mark 在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbugs.mysql.com%2Fbug.php%3Fid%3D109595" target="_blank">#109595</a> 的 bug report 给出了非常详细的复现步骤</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-42a856e382.png" alt="file"></p>
+<p>在官方修复后，Mark 在他的读写 benchmark 上验证有 300% 的提升 (4x)。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c70d768dbc.png" alt="file"></p>
+<p>这样的性能提升在 Hacker News 上也引起了讨论，评论区也呈现了 HN 一贯的嘲讽风格。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ecaaaa8f07.png" alt="file"></p>
+<p>其实 infra 层这种性能提升的空间并不少。业界缺少的是像 Mark 这样躬身入局，抽丝剥茧的钻研态度。之前 Jeff Dean 在 Google 内部也做过一个分享，讲了通过优化一小段代码，就给 Google 一年省了十几万核。</p>
+<p>画根线很容易，难的永远是知道在哪儿画。</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-229dbb062c.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-229dbb062c.png" medium="image"/>
     <pubDate>Tue, 21 Nov 2023 10:08:59 +0800</pubDate>
   </item><item>
     <title><![CDATA[目标导向主义失效了？前 OpenAI 科学家现身说法]]></title>

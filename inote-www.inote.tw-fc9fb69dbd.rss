@@ -30,6 +30,243 @@
     </itunes:owner>
     <itunes:image href="https://www.inote.tw/wp-content/uploads/2017/05/cropped-site_icon-192x192.jpg"/>
 <item>
+    <title><![CDATA[[Swift] class 在繼承時如何正確使用 Encoder]]></title>
+    <link>https://www.inote.tw/swift-class-inherit-encoder</link>
+    <itunes:title><![CDATA[[Swift] class 在繼承時如何正確使用 Encoder]]></itunes:title>
+    <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在 Swift 中，只要繼承 Codable Protocol，就可以將 struct、enum 或是 class 做 Encoder，並變成一個 Json 物件或是 Dictionary，然而，如果 class 有使用繼承的話，事情就不是想的這麼簡單了。</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] class 在繼承時如何正確使用 Encoder 1"><p>以下列例子為例，我們預期得到的答案會是「{“name”:”Sparky”,”age”:5,”breed”:”Labrador”}」，但是實際跑起來，卻是「{“name”:”Sparky”,”age”:5}」，為什麼呢？</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)
+</code></pre><p>原來是因為 Animal 實做 Codable，所以 Swift 只認得 Animal 的參數，並且將其 Encode，那麼我們如何將 Dog 的參數也 Encode 呢？很簡單，只要在 Dog 類別加入以下的程式碼。</p><pre><code>private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}</code></pre><p>原始的程式如下，你會發現 Dog 也被 Encode 了</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)</code></pre>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在 Swift 中，只要繼承 Codable Protocol，就可以將 struct、enum 或是 class 做 Encoder，並變成一個 Json 物件或是 Dictionary，然而，如果 class 有使用繼承的話，事情就不是想的這麼簡單了。</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] class 在繼承時如何正確使用 Encoder 1"><p>以下列例子為例，我們預期得到的答案會是「{“name”:”Sparky”,”age”:5,”breed”:”Labrador”}」，但是實際跑起來，卻是「{“name”:”Sparky”,”age”:5}」，為什麼呢？</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)
+</code></pre><p>原來是因為 Animal 實做 Codable，所以 Swift 只認得 Animal 的參數，並且將其 Encode，那麼我們如何將 Dog 的參數也 Encode 呢？很簡單，只要在 Dog 類別加入以下的程式碼。</p><pre><code>private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}</code></pre><p>原始的程式如下，你會發現 Dog 也被 Encode 了</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)</code></pre>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在 Swift 中，只要繼承 Codable Protocol，就可以將 struct、enum 或是 class 做 Encoder，並變成一個 Json 物件或是 Dictionary，然而，如果 class 有使用繼承的話，事情就不是想的這麼簡單了。</p><img src="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" alt="swift 1" title="[Swift] class 在繼承時如何正確使用 Encoder 1"><p>以下列例子為例，我們預期得到的答案會是「{“name”:”Sparky”,”age”:5,”breed”:”Labrador”}」，但是實際跑起來，卻是「{“name”:”Sparky”,”age”:5}」，為什麼呢？</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)
+</code></pre><p>原來是因為 Animal 實做 Codable，所以 Swift 只認得 Animal 的參數，並且將其 Encode，那麼我們如何將 Dog 的參數也 Encode 呢？很簡單，只要在 Dog 類別加入以下的程式碼。</p><pre><code>private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}</code></pre><p>原始的程式如下，你會發現 Dog 也被 Encode 了</p><pre><code>class Animal: Codable {
+var name: String
+var age: Int
+init(name: String, age: Int) {
+self.name = name
+self.age = age
+}
+func speak() {
+print("\(name) says something")
+}
+}
+class Dog: Animal {
+var breed: String
+init(name: String, age: Int, breed: String) {
+self.breed = breed
+super.init(name: name, age: age)
+}
+required init(from decoder: Decoder) throws {
+fatalError("init(from:) has not been implemented")
+}
+private enum CodingKeys: String, CodingKey {
+case breed
+}
+override func encode(to encoder: Encoder) throws {
+try super.encode(to: encoder)
+var container = encoder.container(keyedBy: CodingKeys.self)
+try container.encode(breed, forKey: .breed)
+}
+override func speak() {
+print("\(name) barks")
+}
+}
+let dog = Dog(name: "Sparky", age: 5, breed: "Labrador")
+// 使用父類別的 JSONEncoder
+let encoder = JSONEncoder()
+let jsonData = try! encoder.encode(dog)
+let jsonString = String(decoding: jsonData, as: UTF8.self)
+print(jsonString)</code></pre>]]></content:encoded>
+    <itunes:image href="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png"/>
+          <media:content url="https://www.inote.tw/wp-content/uploads/2020/02/swift-1.png" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 14:24:38 +0000</pubDate>
+  </item><item>
     <title><![CDATA[【圓素食】中和圓通路上素食簡餐，靠雙和醫院]]></title>
     <link>https://www.inote.tw/%e5%9c%93%e7%b4%a0%e9%a3%9f</link>
     <itunes:title><![CDATA[【圓素食】中和圓通路上素食簡餐，靠雙和醫院]]></itunes:title>
@@ -170,20 +407,5 @@
     <itunes:image href="https://www.inote.tw/wp-content/uploads/2022/02/台北等公車-scaled.jpg"/>
           <media:content url="https://www.inote.tw/wp-content/uploads/2022/02/台北等公車-scaled.jpg" medium="image"/>
     <pubDate>Sun, 29 Oct 2023 09:18:43 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體]]></title>
-    <link>https://www.inote.tw/kmplayer-download</link>
-    <itunes:title><![CDATA[KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體]]></itunes:title>
-    <itunes:author><![CDATA[海芋小站[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>KMPlayer 是一個超強的影片播放器，操作方式類似 <a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer</a>，支援多種的多媒體檔案格式的播放，如我們從&nbsp;<a href="https://www.inote.tw/tag/youtube-%e5%bd%b1%e7%89%87%e4%b8%8b%e8%bc%89">YouTube下載</a>的 FLV 檔案，以及近期常見的 MKV、MPEG、AVI等格式，當然也支援DVD的播放，以及預覽P2P軟體未下載完成的檔案。除了常見的播放功能外，此軟體並支援<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">影片截圖</a>的功能、聲音截取及多國語系，是許多人愛用的影音播放軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2017/09/kmplayer.jpg" alt="kmplayer" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#KMPlayer-xia-zai"> <span>1</span> <span>KMPlayer 下載</span> </a></div><div> <a href="#KMPlayer-jiao-xue"> <span>2</span> <span>KMPlayer 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>KMPlayer 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>KMPlayer / KMPlayer 64X<br>■&nbsp;<strong>軟體版本：</strong>4.2.3.5 / 2023.10.26.12<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-kmplayer/" target="_blank">【32位元版下載】</a>&nbsp;|&nbsp;<a href="https://www.inote.tools/windows-kmplayer-64x/" target="_blank">【64位元版下載】</a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="https://inotetw.page.link/zMgF" target="_blank">【前往官網】</a></p><h2><span>KMPlayer 教學</span></h2><p><strong><span>Step 1.<br></span></strong>先將下載的檔案解壓縮後，執行「KMPlayer.exe」，就可以開啟 KMPlayer 了喔！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-1.jpg?is-pending-load=1" alt="kmplayer-1" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 2"><figcaption>▲執行「KMPlayer.exe」</figcaption><p><strong><span>Step 2.<br></span></strong>要使用 KMPlayer 播放影片很簡單，只要將影片「拖曳」進 KMPlayer 視窗中就可以播放啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-5.jpg?is-pending-load=1" alt="kmplayer-5" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 3"><figcaption>▲KMPlayer 播放影片畫面</figcaption><p><mark><strong>Step 3.</strong><br></mark>開啟 KMPlayer 後，建議您做一些設定，按下〔滑鼠右鍵〕→〔偏好設定〕，勾選「保存設定到 KMPCfg.ini」。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-2.jpg?is-pending-load=1" alt="kmplayer-2" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 4"><p><br><strong><span>Step 4.<br></span></strong>在「檔案關聯」處，則是可以設定那些副檔名要由 KMPlayer 開啟。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-3.jpg?is-pending-load=1" alt="kmplayer-3" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 5"><p><strong><span>Step 5.<br></span></strong>KMPlayer 也支援影片截圖功能，只要在「擷取」分頁，則是可以設定影片截圖的保存路徑，而影片截圖在稍後會解釋。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-4.jpg?is-pending-load=1" alt="kmplayer-4" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 6"><p><strong><span>Step 6.<br></span></strong>除了開啟本機的檔案外，KMPlayer 也支援相當多路徑的檔案開啟，比如說你可以開啟 FTP 中的檔案。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-6.jpg?is-pending-load=1" alt="kmplayer-6" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 7"><p><mark><strong>Step 7.</strong><br></mark>前面我們說過了如何截圖路徑，而我們可以透過 KMPlayer 內的「擷取」的功能，<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">將影片目前的畫面存成圖檔</a>，只要按下【滑鼠右鍵】→【擷取】。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-7.jpg?is-pending-load=1" alt="kmplayer-7" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 8"><p><strong><span>Step 8.<br></span></strong>你可以設定將影片截圖存到特定的路徑，也可以設定幾秒內的連續擷取。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-8.jpg?is-pending-load=1" alt="kmplayer-8" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 9"><p><strong><span>Step 9.<br></span></strong>底下是透過 KMPlayer 截圖後的畫面，都會存在圖片留在硬碟中！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-10.jpg?is-pending-load=1" alt="kmplayer-10" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 10"><p><strong><span>Step 10.<br></span></strong>如果影片是直的，想要將影片轉成橫的，也可以透過 KMPlayer 中的「視訊 (基本)」→「螢幕旋轉」來將影片轉個角度！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-12.jpg?is-pending-load=1" alt="kmplayer-12" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 11"><p><strong><span>Step 11.<br></span></strong>KMPlayer 也支援收藏夾功能，也就是說您可以將影片加入收藏夾，下次可以快速存取這個影片檔案。只要按下【收藏夾】→【新增當前的檔案】就可以啦！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-14.jpg?is-pending-load=1" alt="kmplayer-14" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 12"><p><strong><span>Step 12.<br></span></strong>加入 KMPlayer 收藏夾後，就可以快速存取影片檔案啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-15.jpg?is-pending-load=1" alt="kmplayer-15" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 13"><p><strong><span>Step 13.<br></span></strong>另外有一個「書籤/章節」的功能，更是不可以錯過，書籤有點像是 DVD 的章節，比如說你想要將一個影片分成兩個時間點來播放，分別為「1:00」和「2:00」的時間點來播放，那麼你可以將「1:00」和「2:00」的時間點分別加入書籤中，這樣你只要按下滑鼠右鍵，就可快速從時間點「1:00」或時間點「2:00」來播放影片囉！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-13.jpg?is-pending-load=1" alt="kmplayer-13" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 14"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/gom-player" target="_blank">GOM Player 中文安裝版 ~ 免費好用的影音播放軟體，無廣告，可取代 KMPlayer</a></li><li><a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer 中文免安裝版 ~ 支援多種影片格式的影音播放軟體</a></li><li><a href="https://www.inote.tw/vlc-media-player-download" target="_blank">VLC Media Player 中文可攜免安裝版 ~ 開放程式碼的影片、音樂播放軟體</a></li><li><a href="https://www.inote.tw/5kplayer" target="_blank">5KPlayer 英文版 ~ 支援 4K/5K 的影片播放程式，支援 AirPlay</a></li><li><a href="https://www.inote.tw/smplayer" target="_blank">SMPlayer &nbsp;中文可攜版~ 內建解碼器的開源影音播放軟體</a></li></ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>KMPlayer 是一個超強的影片播放器，操作方式類似 <a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer</a>，支援多種的多媒體檔案格式的播放，如我們從&nbsp;<a href="https://www.inote.tw/tag/youtube-%e5%bd%b1%e7%89%87%e4%b8%8b%e8%bc%89">YouTube下載</a>的 FLV 檔案，以及近期常見的 MKV、MPEG、AVI等格式，當然也支援DVD的播放，以及預覽P2P軟體未下載完成的檔案。除了常見的播放功能外，此軟體並支援<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">影片截圖</a>的功能、聲音截取及多國語系，是許多人愛用的影音播放軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2017/09/kmplayer.jpg" alt="kmplayer" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#KMPlayer-xia-zai"> <span>1</span> <span>KMPlayer 下載</span> </a></div><div> <a href="#KMPlayer-jiao-xue"> <span>2</span> <span>KMPlayer 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>KMPlayer 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>KMPlayer / KMPlayer 64X<br>■&nbsp;<strong>軟體版本：</strong>4.2.3.5 / 2023.10.26.12<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-kmplayer/" target="_blank">【32位元版下載】</a>&nbsp;|&nbsp;<a href="https://www.inote.tools/windows-kmplayer-64x/" target="_blank">【64位元版下載】</a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="https://inotetw.page.link/zMgF" target="_blank">【前往官網】</a></p><h2><span>KMPlayer 教學</span></h2><p><strong><span>Step 1.<br></span></strong>先將下載的檔案解壓縮後，執行「KMPlayer.exe」，就可以開啟 KMPlayer 了喔！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-1.jpg?is-pending-load=1" alt="kmplayer-1" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 2"><figcaption>▲執行「KMPlayer.exe」</figcaption><p><strong><span>Step 2.<br></span></strong>要使用 KMPlayer 播放影片很簡單，只要將影片「拖曳」進 KMPlayer 視窗中就可以播放啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-5.jpg?is-pending-load=1" alt="kmplayer-5" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 3"><figcaption>▲KMPlayer 播放影片畫面</figcaption><p><mark><strong>Step 3.</strong><br></mark>開啟 KMPlayer 後，建議您做一些設定，按下〔滑鼠右鍵〕→〔偏好設定〕，勾選「保存設定到 KMPCfg.ini」。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-2.jpg?is-pending-load=1" alt="kmplayer-2" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 4"><p><br><strong><span>Step 4.<br></span></strong>在「檔案關聯」處，則是可以設定那些副檔名要由 KMPlayer 開啟。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-3.jpg?is-pending-load=1" alt="kmplayer-3" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 5"><p><strong><span>Step 5.<br></span></strong>KMPlayer 也支援影片截圖功能，只要在「擷取」分頁，則是可以設定影片截圖的保存路徑，而影片截圖在稍後會解釋。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-4.jpg?is-pending-load=1" alt="kmplayer-4" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 6"><p><strong><span>Step 6.<br></span></strong>除了開啟本機的檔案外，KMPlayer 也支援相當多路徑的檔案開啟，比如說你可以開啟 FTP 中的檔案。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-6.jpg?is-pending-load=1" alt="kmplayer-6" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 7"><p><mark><strong>Step 7.</strong><br></mark>前面我們說過了如何截圖路徑，而我們可以透過 KMPlayer 內的「擷取」的功能，<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">將影片目前的畫面存成圖檔</a>，只要按下【滑鼠右鍵】→【擷取】。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-7.jpg?is-pending-load=1" alt="kmplayer-7" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 8"><p><strong><span>Step 8.<br></span></strong>你可以設定將影片截圖存到特定的路徑，也可以設定幾秒內的連續擷取。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-8.jpg?is-pending-load=1" alt="kmplayer-8" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 9"><p><strong><span>Step 9.<br></span></strong>底下是透過 KMPlayer 截圖後的畫面，都會存在圖片留在硬碟中！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-10.jpg?is-pending-load=1" alt="kmplayer-10" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 10"><p><strong><span>Step 10.<br></span></strong>如果影片是直的，想要將影片轉成橫的，也可以透過 KMPlayer 中的「視訊 (基本)」→「螢幕旋轉」來將影片轉個角度！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-12.jpg?is-pending-load=1" alt="kmplayer-12" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 11"><p><strong><span>Step 11.<br></span></strong>KMPlayer 也支援收藏夾功能，也就是說您可以將影片加入收藏夾，下次可以快速存取這個影片檔案。只要按下【收藏夾】→【新增當前的檔案】就可以啦！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-14.jpg?is-pending-load=1" alt="kmplayer-14" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 12"><p><strong><span>Step 12.<br></span></strong>加入 KMPlayer 收藏夾後，就可以快速存取影片檔案啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-15.jpg?is-pending-load=1" alt="kmplayer-15" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 13"><p><strong><span>Step 13.<br></span></strong>另外有一個「書籤/章節」的功能，更是不可以錯過，書籤有點像是 DVD 的章節，比如說你想要將一個影片分成兩個時間點來播放，分別為「1:00」和「2:00」的時間點來播放，那麼你可以將「1:00」和「2:00」的時間點分別加入書籤中，這樣你只要按下滑鼠右鍵，就可快速從時間點「1:00」或時間點「2:00」來播放影片囉！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-13.jpg?is-pending-load=1" alt="kmplayer-13" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 14"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/gom-player" target="_blank">GOM Player 中文安裝版 ~ 免費好用的影音播放軟體，無廣告，可取代 KMPlayer</a></li><li><a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer 中文免安裝版 ~ 支援多種影片格式的影音播放軟體</a></li><li><a href="https://www.inote.tw/vlc-media-player-download" target="_blank">VLC Media Player 中文可攜免安裝版 ~ 開放程式碼的影片、音樂播放軟體</a></li><li><a href="https://www.inote.tw/5kplayer" target="_blank">5KPlayer 英文版 ~ 支援 4K/5K 的影片播放程式，支援 AirPlay</a></li><li><a href="https://www.inote.tw/smplayer" target="_blank">SMPlayer &nbsp;中文可攜版~ 內建解碼器的開源影音播放軟體</a></li></ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p>KMPlayer 是一個超強的影片播放器，操作方式類似 <a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer</a>，支援多種的多媒體檔案格式的播放，如我們從&nbsp;<a href="https://www.inote.tw/tag/youtube-%e5%bd%b1%e7%89%87%e4%b8%8b%e8%bc%89">YouTube下載</a>的 FLV 檔案，以及近期常見的 MKV、MPEG、AVI等格式，當然也支援DVD的播放，以及預覽P2P軟體未下載完成的檔案。除了常見的播放功能外，此軟體並支援<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">影片截圖</a>的功能、聲音截取及多國語系，是許多人愛用的影音播放軟體。</p><img src="https://www.inote.tw/wp-content/uploads/2017/09/kmplayer.jpg" alt="kmplayer" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 1"><div data-smooth-scroll="1" data-smooth-scroll-offset="24"><div><div> <b>內容目錄</b> <span> <a href="#" data-label="顯示">隱藏</a> </span></div><div><div><div> <a href="#KMPlayer-xia-zai"> <span>1</span> <span>KMPlayer 下載</span> </a></div><div> <a href="#KMPlayer-jiao-xue"> <span>2</span> <span>KMPlayer 教學</span> </a></div><div> <a href="#xiang-shi-ruan-ti"> <span>3</span> <span>相似軟體</span> </a></div></div></div></div></div><h2><span>KMPlayer 下載</span></h2><p><mark><strong>◎◎軟體小檔案◎◎</strong><br></mark>■&nbsp;<strong>軟體名稱：</strong>KMPlayer / KMPlayer 64X<br>■&nbsp;<strong>軟體版本：</strong>4.2.3.5 / 2023.10.26.12<br>■&nbsp;<strong>軟體介面：</strong>中文<br>■&nbsp;<strong>軟體性質：</strong>免費軟體<br>■&nbsp;<strong>支援系統：</strong>Windows<br><strong><mark>■ 軟體下載：</mark><a href="https://www.inote.tools/windows-kmplayer/" target="_blank">【32位元版下載】</a>&nbsp;|&nbsp;<a href="https://www.inote.tools/windows-kmplayer-64x/" target="_blank">【64位元版下載】</a></strong><br>■&nbsp;<strong>官方網站：</strong><a href="https://inotetw.page.link/zMgF" target="_blank">【前往官網】</a></p><h2><span>KMPlayer 教學</span></h2><p><strong><span>Step 1.<br></span></strong>先將下載的檔案解壓縮後，執行「KMPlayer.exe」，就可以開啟 KMPlayer 了喔！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-1.jpg?is-pending-load=1" alt="kmplayer-1" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 2"><figcaption>▲執行「KMPlayer.exe」</figcaption><p><strong><span>Step 2.<br></span></strong>要使用 KMPlayer 播放影片很簡單，只要將影片「拖曳」進 KMPlayer 視窗中就可以播放啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-5.jpg?is-pending-load=1" alt="kmplayer-5" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 3"><figcaption>▲KMPlayer 播放影片畫面</figcaption><p><mark><strong>Step 3.</strong><br></mark>開啟 KMPlayer 後，建議您做一些設定，按下〔滑鼠右鍵〕→〔偏好設定〕，勾選「保存設定到 KMPCfg.ini」。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-2.jpg?is-pending-load=1" alt="kmplayer-2" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 4"><p><br><strong><span>Step 4.<br></span></strong>在「檔案關聯」處，則是可以設定那些副檔名要由 KMPlayer 開啟。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-3.jpg?is-pending-load=1" alt="kmplayer-3" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 5"><p><strong><span>Step 5.<br></span></strong>KMPlayer 也支援影片截圖功能，只要在「擷取」分頁，則是可以設定影片截圖的保存路徑，而影片截圖在稍後會解釋。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-4.jpg?is-pending-load=1" alt="kmplayer-4" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 6"><p><strong><span>Step 6.<br></span></strong>除了開啟本機的檔案外，KMPlayer 也支援相當多路徑的檔案開啟，比如說你可以開啟 FTP 中的檔案。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-6.jpg?is-pending-load=1" alt="kmplayer-6" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 7"><p><mark><strong>Step 7.</strong><br></mark>前面我們說過了如何截圖路徑，而我們可以透過 KMPlayer 內的「擷取」的功能，<a href="https://www.inote.tw/tag/%e5%bd%b1%e7%89%87%e6%88%aa%e5%9c%96">將影片目前的畫面存成圖檔</a>，只要按下【滑鼠右鍵】→【擷取】。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-7.jpg?is-pending-load=1" alt="kmplayer-7" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 8"><p><strong><span>Step 8.<br></span></strong>你可以設定將影片截圖存到特定的路徑，也可以設定幾秒內的連續擷取。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-8.jpg?is-pending-load=1" alt="kmplayer-8" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 9"><p><strong><span>Step 9.<br></span></strong>底下是透過 KMPlayer 截圖後的畫面，都會存在圖片留在硬碟中！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-10.jpg?is-pending-load=1" alt="kmplayer-10" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 10"><p><strong><span>Step 10.<br></span></strong>如果影片是直的，想要將影片轉成橫的，也可以透過 KMPlayer 中的「視訊 (基本)」→「螢幕旋轉」來將影片轉個角度！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-12.jpg?is-pending-load=1" alt="kmplayer-12" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 11"><p><strong><span>Step 11.<br></span></strong>KMPlayer 也支援收藏夾功能，也就是說您可以將影片加入收藏夾，下次可以快速存取這個影片檔案。只要按下【收藏夾】→【新增當前的檔案】就可以啦！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-14.jpg?is-pending-load=1" alt="kmplayer-14" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 12"><p><strong><span>Step 12.<br></span></strong>加入 KMPlayer 收藏夾後，就可以快速存取影片檔案啦。</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-15.jpg?is-pending-load=1" alt="kmplayer-15" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 13"><p><strong><span>Step 13.<br></span></strong>另外有一個「書籤/章節」的功能，更是不可以錯過，書籤有點像是 DVD 的章節，比如說你想要將一個影片分成兩個時間點來播放，分別為「1:00」和「2:00」的時間點來播放，那麼你可以將「1:00」和「2:00」的時間點分別加入書籤中，這樣你只要按下滑鼠右鍵，就可快速從時間點「1:00」或時間點「2:00」來播放影片囉！</p><img src="https://www.inote.tw/wp-content/uploads/2018/01/kmplayer-13.jpg?is-pending-load=1" alt="kmplayer-13" title="KMPlayer 4.2.3.5 (KMPlayer 64X 2023.10.26.12) 中文免安裝版 ~ 播放 FLV、MOV、MKV…等多種影片的影音播放軟體 14"><h2><span>相似軟體</span></h2><ul><li><a href="https://www.inote.tw/gom-player" target="_blank">GOM Player 中文安裝版 ~ 免費好用的影音播放軟體，無廣告，可取代 KMPlayer</a></li><li><a href="https://www.inote.tw/potplayer" target="_blank">PotPlayer 中文免安裝版 ~ 支援多種影片格式的影音播放軟體</a></li><li><a href="https://www.inote.tw/vlc-media-player-download" target="_blank">VLC Media Player 中文可攜免安裝版 ~ 開放程式碼的影片、音樂播放軟體</a></li><li><a href="https://www.inote.tw/5kplayer" target="_blank">5KPlayer 英文版 ~ 支援 4K/5K 的影片播放程式，支援 AirPlay</a></li><li><a href="https://www.inote.tw/smplayer" target="_blank">SMPlayer &nbsp;中文可攜版~ 內建解碼器的開源影音播放軟體</a></li></ul>]]></content:encoded>
-    <itunes:image href="https://www.inote.tw/wp-content/uploads/2017/09/kmplayer.jpg"/>
-          <media:content url="https://www.inote.tw/wp-content/uploads/2017/09/kmplayer.jpg" medium="image"/>
-    <pubDate>Sun, 29 Oct 2023 09:07:11 +0000</pubDate>
   </item></channel>
 </rss>
