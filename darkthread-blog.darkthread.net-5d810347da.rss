@@ -30,6 +30,54 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[再談 js/css 快取控制：Cache-Control vs 版本化網址(雜湊指紋參數)]]></title>
+    <link>https://blog.darkthread.net/blog/versioned-url-vs-http-control/</link>
+    <itunes:title><![CDATA[再談 js/css 快取控制：Cache-Control vs 版本化網址(雜湊指紋參數)]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天說到 <a href="/blog/asp-append-version-for-webform/">WebForm 版 js/css 自帶版本參數元件</a>，讀者 yoyo 提了一好問題：HTTP 針對靜態檔已有 ETag、Last-Modified、If-Modified-Since、If-None-Match 等快取管理機制(延伸閱讀：<a href="/blog/iis-static-content-cache/">IIS HTML 檔 Cache 行為觀察</a>，何需自己處理？</p> <p>對於這個問題我的理解停在：1) 經驗裡 HTTP 快取管理靠不住，還是自己控制比較安心 2) ASP.NET MVC Core 跟許多前端框架也都是採用 URL 加上 <code>?v=&lt;file_hash&gt;</code> 的做法，必有其道理，拿香跟著拜準沒錯。(<code>?v=&lt;file_hash&gt;</code> 的專業術語叫版本化網址(Versioned Url)，串接的雜湊參數叫指紋 Fingerprint，<a href="https://web.dev/articles/http-cache?hl=zh-tw#versioned-urls">參考</a>)</p> <p>但既然被問到，這篇文章就來鑽深一寸，談談為什麼版本化網址優於 HTTP 快取控制，進而成為當前主流。</p> <p>由網站取得 js/css 時在 Response Header 附上 ETag (相當於檔案雜湊，內容異動後會改變) 跟 Last-Modified 最後更新時間；瀏覽器儲存成快取時一併保存 ETag 及更新時間，使用快取前，在 GET Request Header 加入 If-None-Match 及 If-Modified-Since 將 ETag 跟最後更新時間交給網站比對，若檔案未異動回傳 HTTP 304 告知瀏覽器可使用快取內容；否則以 HTTP 200 回傳新版內容。聽起來也是不錯的運作方法，但有以下缺點：</p> <ol><li>瀏覽器及伺服器都需要支援這種做法，若中間串接的 WAF/Reverse Proxy/CDN 等機制有不同實作邏輯，可能出現預期外的結果。</li> <li>即使檔案未變可使用記憶體或檔案快取，還是要產生一次 HTTP 來回傳輸進行確認，對頻寬及伺服器都屬無謂損耗，不利於效能。</li> <li>最嚴重的一點，各家瀏覽器的快取原則可能不一致，這也是印象中這套做法不如版本化網址可靠的主要原因，下面用 Chrome/Edge 實測說明。</li></ol> <p>我做了一個簡單網頁，網頁 index.html 會載入 test.js、site.css 及 logo.png，四個都是靜態檔，但可觀察到 Chrome/Edge 不同的處理原則。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="./test.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="./site.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;img src="./logo.png" /&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>單獨瀏覽 png/css/js，每次按 F5 會發請求確認，得到 304 後再用快取，這符合我們的預期。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png"></p> <p>但當 css/js/png 被包含在網頁裡，行為則不同。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638361770442180518.png"></p> <p>上圖紅框的 Request 來自按 Ctrl-F5 強制重新讀取，四個 GET 都會由網站重新下載內容，結果為 200。黃框是按 F5 重新整理的結果，只有 index.html 有送出 HTTP Request，附上 If-Modified-Since 及 If-None-Match(下圖橘框)，收到 HTTP 304 後再使用快取；其餘 test.js/site.css/logo.png 則未問網站，直接用快取(下圖黃框)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638361770444080298.png"></p> <p>由此可知，Chrome/Edge 載入網頁時會直接由快取讀取 js/css，不會跟伺服器確認檔案是否異動。期待瀏覽器會與伺服器自行協調，在檔案異動時自動更新快取的夢想宣告破滅。</p> <p>猜想，調整網站或瀏覽器某些設定或許可以改變這個行為，但使用版本化網址不依賴瀏覽器或伺服器種類，在各種環境下都能正確運作，又可省下每次確認檔案是否更新的 HTTP 304 請求，評估下來是更強韌且有效率的設計，應是它成為前端主流的原因吧。</p> <p data-slug="versioned-url-vs-http-control" data-title-en="Why versioned url is better than HTTP cache control?" data-catg="Web Development" data-fbimg="https://i.imgur.com/tzUXjI0.jpg#1638#922">Explaining why versioned url is better than ETag, If-None-Match HTTP cache control.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天說到 <a href="/blog/asp-append-version-for-webform/">WebForm 版 js/css 自帶版本參數元件</a>，讀者 yoyo 提了一好問題：HTTP 針對靜態檔已有 ETag、Last-Modified、If-Modified-Since、If-None-Match 等快取管理機制(延伸閱讀：<a href="/blog/iis-static-content-cache/">IIS HTML 檔 Cache 行為觀察</a>，何需自己處理？</p> <p>對於這個問題我的理解停在：1) 經驗裡 HTTP 快取管理靠不住，還是自己控制比較安心 2) ASP.NET MVC Core 跟許多前端框架也都是採用 URL 加上 <code>?v=&lt;file_hash&gt;</code> 的做法，必有其道理，拿香跟著拜準沒錯。(<code>?v=&lt;file_hash&gt;</code> 的專業術語叫版本化網址(Versioned Url)，串接的雜湊參數叫指紋 Fingerprint，<a href="https://web.dev/articles/http-cache?hl=zh-tw#versioned-urls">參考</a>)</p> <p>但既然被問到，這篇文章就來鑽深一寸，談談為什麼版本化網址優於 HTTP 快取控制，進而成為當前主流。</p> <p>由網站取得 js/css 時在 Response Header 附上 ETag (相當於檔案雜湊，內容異動後會改變) 跟 Last-Modified 最後更新時間；瀏覽器儲存成快取時一併保存 ETag 及更新時間，使用快取前，在 GET Request Header 加入 If-None-Match 及 If-Modified-Since 將 ETag 跟最後更新時間交給網站比對，若檔案未異動回傳 HTTP 304 告知瀏覽器可使用快取內容；否則以 HTTP 200 回傳新版內容。聽起來也是不錯的運作方法，但有以下缺點：</p> <ol><li>瀏覽器及伺服器都需要支援這種做法，若中間串接的 WAF/Reverse Proxy/CDN 等機制有不同實作邏輯，可能出現預期外的結果。</li> <li>即使檔案未變可使用記憶體或檔案快取，還是要產生一次 HTTP 來回傳輸進行確認，對頻寬及伺服器都屬無謂損耗，不利於效能。</li> <li>最嚴重的一點，各家瀏覽器的快取原則可能不一致，這也是印象中這套做法不如版本化網址可靠的主要原因，下面用 Chrome/Edge 實測說明。</li></ol> <p>我做了一個簡單網頁，網頁 index.html 會載入 test.js、site.css 及 logo.png，四個都是靜態檔，但可觀察到 Chrome/Edge 不同的處理原則。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="./test.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="./site.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;img src="./logo.png" /&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>單獨瀏覽 png/css/js，每次按 F5 會發請求確認，得到 304 後再用快取，這符合我們的預期。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png"></p> <p>但當 css/js/png 被包含在網頁裡，行為則不同。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638361770442180518.png"></p> <p>上圖紅框的 Request 來自按 Ctrl-F5 強制重新讀取，四個 GET 都會由網站重新下載內容，結果為 200。黃框是按 F5 重新整理的結果，只有 index.html 有送出 HTTP Request，附上 If-Modified-Since 及 If-None-Match(下圖橘框)，收到 HTTP 304 後再使用快取；其餘 test.js/site.css/logo.png 則未問網站，直接用快取(下圖黃框)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638361770444080298.png"></p> <p>由此可知，Chrome/Edge 載入網頁時會直接由快取讀取 js/css，不會跟伺服器確認檔案是否異動。期待瀏覽器會與伺服器自行協調，在檔案異動時自動更新快取的夢想宣告破滅。</p> <p>猜想，調整網站或瀏覽器某些設定或許可以改變這個行為，但使用版本化網址不依賴瀏覽器或伺服器種類，在各種環境下都能正確運作，又可省下每次確認檔案是否更新的 HTTP 304 請求，評估下來是更強韌且有效率的設計，應是它成為前端主流的原因吧。</p> <p data-slug="versioned-url-vs-http-control" data-title-en="Why versioned url is better than HTTP cache control?" data-catg="Web Development" data-fbimg="https://i.imgur.com/tzUXjI0.jpg#1638#922">Explaining why versioned url is better than ETag, If-None-Match HTTP cache control.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天說到 <a href="/blog/asp-append-version-for-webform/">WebForm 版 js/css 自帶版本參數元件</a>，讀者 yoyo 提了一好問題：HTTP 針對靜態檔已有 ETag、Last-Modified、If-Modified-Since、If-None-Match 等快取管理機制(延伸閱讀：<a href="/blog/iis-static-content-cache/">IIS HTML 檔 Cache 行為觀察</a>，何需自己處理？</p> <p>對於這個問題我的理解停在：1) 經驗裡 HTTP 快取管理靠不住，還是自己控制比較安心 2) ASP.NET MVC Core 跟許多前端框架也都是採用 URL 加上 <code>?v=&lt;file_hash&gt;</code> 的做法，必有其道理，拿香跟著拜準沒錯。(<code>?v=&lt;file_hash&gt;</code> 的專業術語叫版本化網址(Versioned Url)，串接的雜湊參數叫指紋 Fingerprint，<a href="https://web.dev/articles/http-cache?hl=zh-tw#versioned-urls">參考</a>)</p> <p>但既然被問到，這篇文章就來鑽深一寸，談談為什麼版本化網址優於 HTTP 快取控制，進而成為當前主流。</p> <p>由網站取得 js/css 時在 Response Header 附上 ETag (相當於檔案雜湊，內容異動後會改變) 跟 Last-Modified 最後更新時間；瀏覽器儲存成快取時一併保存 ETag 及更新時間，使用快取前，在 GET Request Header 加入 If-None-Match 及 If-Modified-Since 將 ETag 跟最後更新時間交給網站比對，若檔案未異動回傳 HTTP 304 告知瀏覽器可使用快取內容；否則以 HTTP 200 回傳新版內容。聽起來也是不錯的運作方法，但有以下缺點：</p> <ol><li>瀏覽器及伺服器都需要支援這種做法，若中間串接的 WAF/Reverse Proxy/CDN 等機制有不同實作邏輯，可能出現預期外的結果。</li> <li>即使檔案未變可使用記憶體或檔案快取，還是要產生一次 HTTP 來回傳輸進行確認，對頻寬及伺服器都屬無謂損耗，不利於效能。</li> <li>最嚴重的一點，各家瀏覽器的快取原則可能不一致，這也是印象中這套做法不如版本化網址可靠的主要原因，下面用 Chrome/Edge 實測說明。</li></ol> <p>我做了一個簡單網頁，網頁 index.html 會載入 test.js、site.css 及 logo.png，四個都是靜態檔，但可觀察到 Chrome/Edge 不同的處理原則。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="./test.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="./site.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;img src="./logo.png" /&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>單獨瀏覽 png/css/js，每次按 F5 會發請求確認，得到 304 後再用快取，這符合我們的預期。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png"></p> <p>但當 css/js/png 被包含在網頁裡，行為則不同。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638361770442180518.png"></p> <p>上圖紅框的 Request 來自按 Ctrl-F5 強制重新讀取，四個 GET 都會由網站重新下載內容，結果為 200。黃框是按 F5 重新整理的結果，只有 index.html 有送出 HTTP Request，附上 If-Modified-Since 及 If-None-Match(下圖橘框)，收到 HTTP 304 後再使用快取；其餘 test.js/site.css/logo.png 則未問網站，直接用快取(下圖黃框)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638361770444080298.png"></p> <p>由此可知，Chrome/Edge 載入網頁時會直接由快取讀取 js/css，不會跟伺服器確認檔案是否異動。期待瀏覽器會與伺服器自行協調，在檔案異動時自動更新快取的夢想宣告破滅。</p> <p>猜想，調整網站或瀏覽器某些設定或許可以改變這個行為，但使用版本化網址不依賴瀏覽器或伺服器種類，在各種環境下都能正確運作，又可省下每次確認檔案是否更新的 HTTP 304 請求，評估下來是更強韌且有效率的設計，應是它成為前端主流的原因吧。</p> <p data-slug="versioned-url-vs-http-control" data-title-en="Why versioned url is better than HTTP cache control?" data-catg="Web Development" data-fbimg="https://i.imgur.com/tzUXjI0.jpg#1638#922">Explaining why versioned url is better than ETag, If-None-Match HTTP cache control.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png" medium="image"/>
+    <pubDate>Tue, 21 Nov 2023 15:21:08 GMT</pubDate>
+  </item><item>
     <title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></title>
     <link>https://blog.darkthread.net/blog/asp-append-version-for-webform/</link>
     <itunes:title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></itunes:title>
@@ -1400,161 +1448,5 @@ System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png" medium="image"/>
     <pubDate>Thu, 09 Nov 2023 15:59:17 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[「網站執行 Stored Procedure 爆慢，移到 SSMS 跑卻飛快」問題之徹底研究]]></title>
-    <link>https://blog.darkthread.net/blog/sql-slow-in-ap-fast-in-ssms/</link>
-    <itunes:title><![CDATA[「網站執行 Stored Procedure 爆慢，移到 SSMS 跑卻飛快」問題之徹底研究]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>一個常見問題：SQL 上某個 Stored Procedure (以下簡稱 SP)，從網站應用程式執行超慢，甚至等到逾時報錯；將同樣的 SP 及呼叫參數拿到 SSMS (SQL Server Management Studio) 執行卻瞬間完成；或是 SP 慢到無法忍受，將其中語法邏輯 Copy 出來單獨執行卻沒半點問題。</p> <p>我最近遇到的案例是 SP 在查詢某類別資料時超過 30 秒，所有其他類別都是一秒完成；將 SP 查詢移到 SSMS 測試，不管任何類別都是一秒完成。問題關鍵很神奇也很簡單，差在一個旗標設定 <a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-arithabort-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">SET ARITHABORT ON</a>，原因是旗標不同導致 ASP.NET 與 SSMS 使用不同的執行計劃，而 ASP.NET 採用的執行計劃遇上問題類別明顯有問題，清除並重新產生執行計劃通常就能解決。<br> 印象中看過 Rico 這篇 <a href="https://medium.com/ricos-note/ssms%E5%9F%B7%E8%A1%8Csp%E5%B0%B1%E6%98%AF%E6%AF%94-net-%E5%BF%AB%E5%BE%88%E5%A4%9A-b6de95068af6">SSMS執行SP就是比.NET 快很多? - RiCosNote</a>，停用 SSMS <code>SET ARITHABORT ON</code> 成功重現查詢超過 30 秒才快速破案，特此感謝。</p> <p>問題雖解，但對我來說具體發生原因仍然是謎，如何防範心中也沒譜，便再花了點時深入研究，略有心得，在此分享。</p> <p>推薦這篇 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，SQL Server MVP Erland Sommarskog 一篇 2011 年的老文章(網頁風格充滿年代感)，但作者到今年都還有更新，範圍甚至涵蓋 SQL 2022，故不用擔心資訊過時。</p> <p>文章詳細解釋 SP 如何編譯、何謂 Parameter Sniffing、SQL 的執行計劃快取行為，讀完可完全理解「SP 在 SSMS 跑得比較快」這件事是怎麼發生的。</p> <p>文章宇宙無敵長，內容即深且廣，不寫筆記很難吸收，以下是我摘要的重點。</p> <ol><li>查詢 Plan Cache 需要 <a href="https://learn.microsoft.com/zh-tw/sql/t-sql/statements/grant-server-permissions-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#remarks">VIEW SERVER STATE</a> 權限 (SQL 2022 則是 VIEW SERVER PERFORMANCE STATE)</li> <li>SP、Scalar UDF (SQL 2019+)、Multi-Step Table Value Function、Trigger 擁有自己專屬的執行計劃</li> <li>在 SP 呼叫另一個 SP，二者的執行計劃是獨立的，在 SP 動態組裝 SQL 用 sp_executesql 執行，則不會包含在 SP 的執行計劃裡</li> <li>SP 直到第一次執才會建立執行計劃，每次執行 SQL 依資料分佈統計預測最佳執行方式(這個程序稱為 Optimisation)</li> <li>List_orders_3 的執行計劃會跟前兩者不同，不會查索引，而是使用 Clustered Index Scan (相當於 Table Scan)，原因其預測 Estimated Number of Rows Per Execution 是 249 (前二個是 1)，筆數多 Table Scan 比 Index Seek + Key Lookup 有效率。(北風資料庫 Orders 資料表只有 830 筆)</li></ol> <pre><code>CREATE PROCEDURE List_orders_1 AS
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-CREATE PROCEDURE List_orders_2 @fromdate datetime AS
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-go
-CREATE PROCEDURE List_orders_3 @fromdate datetime AS
-DECLARE @fromdate_copy datetime
-SELECT @fromdate_copy = @fromdate
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate_copy
-go
-</code></pre> <ol start="6"><li>List_orders_1 日期寫成常數，SQL 分析資料分佈都介於 1968-1998，理論上沒有半筆，但基於參考來源是統計數據非實際資料，不確定一定沒資料，Estimated Number of Rows Per Execution 取 1</li> <li>List_orders_2 日期為參數，但 Optimisation 過程會用 20000101 分析，預測筆數也是 1。這個過程稱為 Parameter Sniffing (參數嗅探)</li> <li>List_orders_3 執行時，SQL 不會分析流程邏輯，不知區域變數 @fromdate_copy 來自 @fromdate，假設日期未知，猜 30%，830 * 0.3 = 249</li> <li>List_orders_4 與跟 List_orders_1、List_orders_2 執行計劃相同，理由是編譯時 @formdate 是用 NULL 預估無符合值，預測筆數取 1，但實際會傳回所有資料</li></ol> <pre><code>CREATE PROCEDURE List_orders_4 @fromdate datetime = NULL AS
-IF @fromdate IS NULL
-SELECT @fromdate = '19900101'
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-</code></pre> <ol start="10"><li>新版 SSMS 執行計劃流程會直接標示預測及實際筆數，但 Popup 視窗仍有 Number of Executions 跟 Estimated Number of Execution 等重要資訊可參考</li> <li>每次重建執行計劃很耗效能，對動轍一分鐘起跳的 OLAP 複雜查詢無所謂且有個別最佳化效果；但在 OLTP 會把 SP 執行計劃存入 Cache 重複以提升效率，直到以下狀況才清除： <ol><li>Buffer Cache 空間滿了(執行計劃與資料表資料共用)，SQL 會清掉很久沒使用的</li> <li>執行 ALTER PROCEDURE</li> <li>執行 sp_recompile</li> <li>執行 <code>DBCC FREEPROCCACHE</code> 清空所有執行計劃快取</li> <li>SQL 重啟</li> <li><code>sp_configure</code> 修改某些 SQL 伺服器參數</li></ol> </li> <li>清除快取後，下回執行 SP 會重做 Parameter Sniffing 產生執行計劃 (執行計劃可能與之前不同)</li> <li>有些事件會導致 SP 的部分指令重新編譯 <ol><li>相關資料表結構異動</li> <li>索引異動(ALTER INDEX/DBCC DBREINDEX)</li> <li>更新統計(SQL自動或CREATE STATISTICS/&nbsp;UPDATE STATISTICS) (不一定觸發重新編譯)</li> <li>對相關資料表執行 sp_recompile</li></ol> </li> <li>建立何種執行計劃由第一次執行的 Parameter Sniffing 決定，故很有可能該執行計劃不適合後續的其他查詢，這是實務上出問題的常見原因。</li> <li>這點很重要：SQL 會為不同 Attribute 或選項組合建立一份專屬執行計劃，以下例子中，不同 DATEFORMAT 各有一份執行計劃：</li></ol> <pre><code>CREATE PROCEDURE List_orders_6 AS
-SELECT *
-FROM   Orders
-WHERE  OrderDate &gt; '12/01/1998'
-go
-SET DATEFORMAT dmy
-go
-EXEC List_orders_6
-go
-SET DATEFORMAT mdy
-go
-EXEC List_orders_6
-go
--- 用以下指令可觀察到兩個不同版本執行計劃
-SELECT qs.plan_handle, a.attrlist
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY (SELECT epa.attribute + '=' + convert(nvarchar(127), epa.value) + '   '
-FROM   sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  epa.is_cache_key = 1
-ORDER  BY epa.attribute
-FOR    XML PATH('')) AS a(attrlist)
-WHERE  est.objectid = object_id ('dbo.List_orders_6')
-AND  est.dbid     = db_id('Northwind')
-/*
-plan_handle                     attrlist
-------------------------------- -------------------------------------------------
-0x0500070064EFCA5DB8A0A90500... compat_level=150   date_first=7   date_format=1
-set_options=4347   user_id=1
-0x0500070064EFCA5DB8A0A80500... compat_level=150   date_first=7   date_format=2
-set_options=4347   user_id=1
-*/
-</code></pre> <ol start="16"><li>以下選項組合可想成 Cache Key：ANSI_PADDING, Parallel Plan,&nbsp;CONCAT_NUL_YIELDS_NULL,&nbsp;ANSI_WARNINGS,&nbsp;ANSI_NULLS,&nbsp;QUOTED_IDENTIFIER,&nbsp;ANSI_NULL_DFLT_ON 及 ARITHABORT，任一個值不同，Cache Key 不同，對映一份專屬執行計劃</li> <li>.NET 跟 SSMS 的預設選項只差在 ARITHABORT，這就是為什麼二者會因使用不同執行計劃，並出現截然不同的查詢速度，而在 SSMS 關閉 ARITHABORT 或加上 <code>SET ARITHABORT OFF</code> 可讓 SSMS 重現 .NET 程式的查詢速度： <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png"></li> <li>在 .NET 跑查詢時也補上 <code>SET ARITHABORT ON</code> 可以避開應用程式跟 SSMS 跑相同查詢效能天差地別的狀況，但並無法解決因執行計劃不佳造成查詢爆慢問題。</li></ol> <p>至於要怎麼解決執行計劃不適合造成效能問題，要從了解 Parameter Sniffing 下手，這又是另一個值得深入的大議題，留待下一篇討論。</p> <p data-slug="sql-slow-in-ap-fast-in-ssms" data-title-en="SQL performance slow in applciation but fast in SSMS" data-catg=".NET" data-fbimg="https://i.imgur.com/aUm0htZ.jpg#1280#720">Introduction to the execution plan cache issue on perfermance difference between application and SSMS.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>一個常見問題：SQL 上某個 Stored Procedure (以下簡稱 SP)，從網站應用程式執行超慢，甚至等到逾時報錯；將同樣的 SP 及呼叫參數拿到 SSMS (SQL Server Management Studio) 執行卻瞬間完成；或是 SP 慢到無法忍受，將其中語法邏輯 Copy 出來單獨執行卻沒半點問題。</p> <p>我最近遇到的案例是 SP 在查詢某類別資料時超過 30 秒，所有其他類別都是一秒完成；將 SP 查詢移到 SSMS 測試，不管任何類別都是一秒完成。問題關鍵很神奇也很簡單，差在一個旗標設定 <a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-arithabort-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">SET ARITHABORT ON</a>，原因是旗標不同導致 ASP.NET 與 SSMS 使用不同的執行計劃，而 ASP.NET 採用的執行計劃遇上問題類別明顯有問題，清除並重新產生執行計劃通常就能解決。<br> 印象中看過 Rico 這篇 <a href="https://medium.com/ricos-note/ssms%E5%9F%B7%E8%A1%8Csp%E5%B0%B1%E6%98%AF%E6%AF%94-net-%E5%BF%AB%E5%BE%88%E5%A4%9A-b6de95068af6">SSMS執行SP就是比.NET 快很多? - RiCosNote</a>，停用 SSMS <code>SET ARITHABORT ON</code> 成功重現查詢超過 30 秒才快速破案，特此感謝。</p> <p>問題雖解，但對我來說具體發生原因仍然是謎，如何防範心中也沒譜，便再花了點時深入研究，略有心得，在此分享。</p> <p>推薦這篇 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，SQL Server MVP Erland Sommarskog 一篇 2011 年的老文章(網頁風格充滿年代感)，但作者到今年都還有更新，範圍甚至涵蓋 SQL 2022，故不用擔心資訊過時。</p> <p>文章詳細解釋 SP 如何編譯、何謂 Parameter Sniffing、SQL 的執行計劃快取行為，讀完可完全理解「SP 在 SSMS 跑得比較快」這件事是怎麼發生的。</p> <p>文章宇宙無敵長，內容即深且廣，不寫筆記很難吸收，以下是我摘要的重點。</p> <ol><li>查詢 Plan Cache 需要 <a href="https://learn.microsoft.com/zh-tw/sql/t-sql/statements/grant-server-permissions-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#remarks">VIEW SERVER STATE</a> 權限 (SQL 2022 則是 VIEW SERVER PERFORMANCE STATE)</li> <li>SP、Scalar UDF (SQL 2019+)、Multi-Step Table Value Function、Trigger 擁有自己專屬的執行計劃</li> <li>在 SP 呼叫另一個 SP，二者的執行計劃是獨立的，在 SP 動態組裝 SQL 用 sp_executesql 執行，則不會包含在 SP 的執行計劃裡</li> <li>SP 直到第一次執才會建立執行計劃，每次執行 SQL 依資料分佈統計預測最佳執行方式(這個程序稱為 Optimisation)</li> <li>List_orders_3 的執行計劃會跟前兩者不同，不會查索引，而是使用 Clustered Index Scan (相當於 Table Scan)，原因其預測 Estimated Number of Rows Per Execution 是 249 (前二個是 1)，筆數多 Table Scan 比 Index Seek + Key Lookup 有效率。(北風資料庫 Orders 資料表只有 830 筆)</li></ol> <pre><code>CREATE PROCEDURE List_orders_1 AS
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-CREATE PROCEDURE List_orders_2 @fromdate datetime AS
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-go
-CREATE PROCEDURE List_orders_3 @fromdate datetime AS
-DECLARE @fromdate_copy datetime
-SELECT @fromdate_copy = @fromdate
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate_copy
-go
-</code></pre> <ol start="6"><li>List_orders_1 日期寫成常數，SQL 分析資料分佈都介於 1968-1998，理論上沒有半筆，但基於參考來源是統計數據非實際資料，不確定一定沒資料，Estimated Number of Rows Per Execution 取 1</li> <li>List_orders_2 日期為參數，但 Optimisation 過程會用 20000101 分析，預測筆數也是 1。這個過程稱為 Parameter Sniffing (參數嗅探)</li> <li>List_orders_3 執行時，SQL 不會分析流程邏輯，不知區域變數 @fromdate_copy 來自 @fromdate，假設日期未知，猜 30%，830 * 0.3 = 249</li> <li>List_orders_4 與跟 List_orders_1、List_orders_2 執行計劃相同，理由是編譯時 @formdate 是用 NULL 預估無符合值，預測筆數取 1，但實際會傳回所有資料</li></ol> <pre><code>CREATE PROCEDURE List_orders_4 @fromdate datetime = NULL AS
-IF @fromdate IS NULL
-SELECT @fromdate = '19900101'
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-</code></pre> <ol start="10"><li>新版 SSMS 執行計劃流程會直接標示預測及實際筆數，但 Popup 視窗仍有 Number of Executions 跟 Estimated Number of Execution 等重要資訊可參考</li> <li>每次重建執行計劃很耗效能，對動轍一分鐘起跳的 OLAP 複雜查詢無所謂且有個別最佳化效果；但在 OLTP 會把 SP 執行計劃存入 Cache 重複以提升效率，直到以下狀況才清除： <ol><li>Buffer Cache 空間滿了(執行計劃與資料表資料共用)，SQL 會清掉很久沒使用的</li> <li>執行 ALTER PROCEDURE</li> <li>執行 sp_recompile</li> <li>執行 <code>DBCC FREEPROCCACHE</code> 清空所有執行計劃快取</li> <li>SQL 重啟</li> <li><code>sp_configure</code> 修改某些 SQL 伺服器參數</li></ol> </li> <li>清除快取後，下回執行 SP 會重做 Parameter Sniffing 產生執行計劃 (執行計劃可能與之前不同)</li> <li>有些事件會導致 SP 的部分指令重新編譯 <ol><li>相關資料表結構異動</li> <li>索引異動(ALTER INDEX/DBCC DBREINDEX)</li> <li>更新統計(SQL自動或CREATE STATISTICS/&nbsp;UPDATE STATISTICS) (不一定觸發重新編譯)</li> <li>對相關資料表執行 sp_recompile</li></ol> </li> <li>建立何種執行計劃由第一次執行的 Parameter Sniffing 決定，故很有可能該執行計劃不適合後續的其他查詢，這是實務上出問題的常見原因。</li> <li>這點很重要：SQL 會為不同 Attribute 或選項組合建立一份專屬執行計劃，以下例子中，不同 DATEFORMAT 各有一份執行計劃：</li></ol> <pre><code>CREATE PROCEDURE List_orders_6 AS
-SELECT *
-FROM   Orders
-WHERE  OrderDate &gt; '12/01/1998'
-go
-SET DATEFORMAT dmy
-go
-EXEC List_orders_6
-go
-SET DATEFORMAT mdy
-go
-EXEC List_orders_6
-go
--- 用以下指令可觀察到兩個不同版本執行計劃
-SELECT qs.plan_handle, a.attrlist
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY (SELECT epa.attribute + '=' + convert(nvarchar(127), epa.value) + '   '
-FROM   sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  epa.is_cache_key = 1
-ORDER  BY epa.attribute
-FOR    XML PATH('')) AS a(attrlist)
-WHERE  est.objectid = object_id ('dbo.List_orders_6')
-AND  est.dbid     = db_id('Northwind')
-/*
-plan_handle                     attrlist
-------------------------------- -------------------------------------------------
-0x0500070064EFCA5DB8A0A90500... compat_level=150   date_first=7   date_format=1
-set_options=4347   user_id=1
-0x0500070064EFCA5DB8A0A80500... compat_level=150   date_first=7   date_format=2
-set_options=4347   user_id=1
-*/
-</code></pre> <ol start="16"><li>以下選項組合可想成 Cache Key：ANSI_PADDING, Parallel Plan,&nbsp;CONCAT_NUL_YIELDS_NULL,&nbsp;ANSI_WARNINGS,&nbsp;ANSI_NULLS,&nbsp;QUOTED_IDENTIFIER,&nbsp;ANSI_NULL_DFLT_ON 及 ARITHABORT，任一個值不同，Cache Key 不同，對映一份專屬執行計劃</li> <li>.NET 跟 SSMS 的預設選項只差在 ARITHABORT，這就是為什麼二者會因使用不同執行計劃，並出現截然不同的查詢速度，而在 SSMS 關閉 ARITHABORT 或加上 <code>SET ARITHABORT OFF</code> 可讓 SSMS 重現 .NET 程式的查詢速度： <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png"></li> <li>在 .NET 跑查詢時也補上 <code>SET ARITHABORT ON</code> 可以避開應用程式跟 SSMS 跑相同查詢效能天差地別的狀況，但並無法解決因執行計劃不佳造成查詢爆慢問題。</li></ol> <p>至於要怎麼解決執行計劃不適合造成效能問題，要從了解 Parameter Sniffing 下手，這又是另一個值得深入的大議題，留待下一篇討論。</p> <p data-slug="sql-slow-in-ap-fast-in-ssms" data-title-en="SQL performance slow in applciation but fast in SSMS" data-catg=".NET" data-fbimg="https://i.imgur.com/aUm0htZ.jpg#1280#720">Introduction to the execution plan cache issue on perfermance difference between application and SSMS.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>一個常見問題：SQL 上某個 Stored Procedure (以下簡稱 SP)，從網站應用程式執行超慢，甚至等到逾時報錯；將同樣的 SP 及呼叫參數拿到 SSMS (SQL Server Management Studio) 執行卻瞬間完成；或是 SP 慢到無法忍受，將其中語法邏輯 Copy 出來單獨執行卻沒半點問題。</p> <p>我最近遇到的案例是 SP 在查詢某類別資料時超過 30 秒，所有其他類別都是一秒完成；將 SP 查詢移到 SSMS 測試，不管任何類別都是一秒完成。問題關鍵很神奇也很簡單，差在一個旗標設定 <a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-arithabort-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">SET ARITHABORT ON</a>，原因是旗標不同導致 ASP.NET 與 SSMS 使用不同的執行計劃，而 ASP.NET 採用的執行計劃遇上問題類別明顯有問題，清除並重新產生執行計劃通常就能解決。<br> 印象中看過 Rico 這篇 <a href="https://medium.com/ricos-note/ssms%E5%9F%B7%E8%A1%8Csp%E5%B0%B1%E6%98%AF%E6%AF%94-net-%E5%BF%AB%E5%BE%88%E5%A4%9A-b6de95068af6">SSMS執行SP就是比.NET 快很多? - RiCosNote</a>，停用 SSMS <code>SET ARITHABORT ON</code> 成功重現查詢超過 30 秒才快速破案，特此感謝。</p> <p>問題雖解，但對我來說具體發生原因仍然是謎，如何防範心中也沒譜，便再花了點時深入研究，略有心得，在此分享。</p> <p>推薦這篇 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，SQL Server MVP Erland Sommarskog 一篇 2011 年的老文章(網頁風格充滿年代感)，但作者到今年都還有更新，範圍甚至涵蓋 SQL 2022，故不用擔心資訊過時。</p> <p>文章詳細解釋 SP 如何編譯、何謂 Parameter Sniffing、SQL 的執行計劃快取行為，讀完可完全理解「SP 在 SSMS 跑得比較快」這件事是怎麼發生的。</p> <p>文章宇宙無敵長，內容即深且廣，不寫筆記很難吸收，以下是我摘要的重點。</p> <ol><li>查詢 Plan Cache 需要 <a href="https://learn.microsoft.com/zh-tw/sql/t-sql/statements/grant-server-permissions-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#remarks">VIEW SERVER STATE</a> 權限 (SQL 2022 則是 VIEW SERVER PERFORMANCE STATE)</li> <li>SP、Scalar UDF (SQL 2019+)、Multi-Step Table Value Function、Trigger 擁有自己專屬的執行計劃</li> <li>在 SP 呼叫另一個 SP，二者的執行計劃是獨立的，在 SP 動態組裝 SQL 用 sp_executesql 執行，則不會包含在 SP 的執行計劃裡</li> <li>SP 直到第一次執才會建立執行計劃，每次執行 SQL 依資料分佈統計預測最佳執行方式(這個程序稱為 Optimisation)</li> <li>List_orders_3 的執行計劃會跟前兩者不同，不會查索引，而是使用 Clustered Index Scan (相當於 Table Scan)，原因其預測 Estimated Number of Rows Per Execution 是 249 (前二個是 1)，筆數多 Table Scan 比 Index Seek + Key Lookup 有效率。(北風資料庫 Orders 資料表只有 830 筆)</li></ol> <pre><code>CREATE PROCEDURE List_orders_1 AS
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-CREATE PROCEDURE List_orders_2 @fromdate datetime AS
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-go
-CREATE PROCEDURE List_orders_3 @fromdate datetime AS
-DECLARE @fromdate_copy datetime
-SELECT @fromdate_copy = @fromdate
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate_copy
-go
-</code></pre> <ol start="6"><li>List_orders_1 日期寫成常數，SQL 分析資料分佈都介於 1968-1998，理論上沒有半筆，但基於參考來源是統計數據非實際資料，不確定一定沒資料，Estimated Number of Rows Per Execution 取 1</li> <li>List_orders_2 日期為參數，但 Optimisation 過程會用 20000101 分析，預測筆數也是 1。這個過程稱為 Parameter Sniffing (參數嗅探)</li> <li>List_orders_3 執行時，SQL 不會分析流程邏輯，不知區域變數 @fromdate_copy 來自 @fromdate，假設日期未知，猜 30%，830 * 0.3 = 249</li> <li>List_orders_4 與跟 List_orders_1、List_orders_2 執行計劃相同，理由是編譯時 @formdate 是用 NULL 預估無符合值，預測筆數取 1，但實際會傳回所有資料</li></ol> <pre><code>CREATE PROCEDURE List_orders_4 @fromdate datetime = NULL AS
-IF @fromdate IS NULL
-SELECT @fromdate = '19900101'
-SELECT * FROM Orders WHERE OrderDate &gt; @fromdate
-</code></pre> <ol start="10"><li>新版 SSMS 執行計劃流程會直接標示預測及實際筆數，但 Popup 視窗仍有 Number of Executions 跟 Estimated Number of Execution 等重要資訊可參考</li> <li>每次重建執行計劃很耗效能，對動轍一分鐘起跳的 OLAP 複雜查詢無所謂且有個別最佳化效果；但在 OLTP 會把 SP 執行計劃存入 Cache 重複以提升效率，直到以下狀況才清除： <ol><li>Buffer Cache 空間滿了(執行計劃與資料表資料共用)，SQL 會清掉很久沒使用的</li> <li>執行 ALTER PROCEDURE</li> <li>執行 sp_recompile</li> <li>執行 <code>DBCC FREEPROCCACHE</code> 清空所有執行計劃快取</li> <li>SQL 重啟</li> <li><code>sp_configure</code> 修改某些 SQL 伺服器參數</li></ol> </li> <li>清除快取後，下回執行 SP 會重做 Parameter Sniffing 產生執行計劃 (執行計劃可能與之前不同)</li> <li>有些事件會導致 SP 的部分指令重新編譯 <ol><li>相關資料表結構異動</li> <li>索引異動(ALTER INDEX/DBCC DBREINDEX)</li> <li>更新統計(SQL自動或CREATE STATISTICS/&nbsp;UPDATE STATISTICS) (不一定觸發重新編譯)</li> <li>對相關資料表執行 sp_recompile</li></ol> </li> <li>建立何種執行計劃由第一次執行的 Parameter Sniffing 決定，故很有可能該執行計劃不適合後續的其他查詢，這是實務上出問題的常見原因。</li> <li>這點很重要：SQL 會為不同 Attribute 或選項組合建立一份專屬執行計劃，以下例子中，不同 DATEFORMAT 各有一份執行計劃：</li></ol> <pre><code>CREATE PROCEDURE List_orders_6 AS
-SELECT *
-FROM   Orders
-WHERE  OrderDate &gt; '12/01/1998'
-go
-SET DATEFORMAT dmy
-go
-EXEC List_orders_6
-go
-SET DATEFORMAT mdy
-go
-EXEC List_orders_6
-go
--- 用以下指令可觀察到兩個不同版本執行計劃
-SELECT qs.plan_handle, a.attrlist
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY (SELECT epa.attribute + '=' + convert(nvarchar(127), epa.value) + '   '
-FROM   sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  epa.is_cache_key = 1
-ORDER  BY epa.attribute
-FOR    XML PATH('')) AS a(attrlist)
-WHERE  est.objectid = object_id ('dbo.List_orders_6')
-AND  est.dbid     = db_id('Northwind')
-/*
-plan_handle                     attrlist
-------------------------------- -------------------------------------------------
-0x0500070064EFCA5DB8A0A90500... compat_level=150   date_first=7   date_format=1
-set_options=4347   user_id=1
-0x0500070064EFCA5DB8A0A80500... compat_level=150   date_first=7   date_format=2
-set_options=4347   user_id=1
-*/
-</code></pre> <ol start="16"><li>以下選項組合可想成 Cache Key：ANSI_PADDING, Parallel Plan,&nbsp;CONCAT_NUL_YIELDS_NULL,&nbsp;ANSI_WARNINGS,&nbsp;ANSI_NULLS,&nbsp;QUOTED_IDENTIFIER,&nbsp;ANSI_NULL_DFLT_ON 及 ARITHABORT，任一個值不同，Cache Key 不同，對映一份專屬執行計劃</li> <li>.NET 跟 SSMS 的預設選項只差在 ARITHABORT，這就是為什麼二者會因使用不同執行計劃，並出現截然不同的查詢速度，而在 SSMS 關閉 ARITHABORT 或加上 <code>SET ARITHABORT OFF</code> 可讓 SSMS 重現 .NET 程式的查詢速度： <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png"></li> <li>在 .NET 跑查詢時也補上 <code>SET ARITHABORT ON</code> 可以避開應用程式跟 SSMS 跑相同查詢效能天差地別的狀況，但並無法解決因執行計劃不佳造成查詢爆慢問題。</li></ol> <p>至於要怎麼解決執行計劃不適合造成效能問題，要從了解 Parameter Sniffing 下手，這又是另一個值得深入的大議題，留待下一篇討論。</p> <p data-slug="sql-slow-in-ap-fast-in-ssms" data-title-en="SQL performance slow in applciation but fast in SSMS" data-catg=".NET" data-fbimg="https://i.imgur.com/aUm0htZ.jpg#1280#720">Introduction to the execution plan cache issue on perfermance difference between application and SSMS.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638350569095724823.png" medium="image"/>
-    <pubDate>Wed, 08 Nov 2023 15:53:56 GMT</pubDate>
   </item></channel>
 </rss>
