@@ -68,6 +68,10 @@ module.exports = async function (feedURL, options = {}) {
           item.content = item['dc:content']
         }
       }
+
+      if (!item.content && item.summary) {
+        item.content = item.summary.trim()
+      }
       // console.log(item.content)
       return item
     })

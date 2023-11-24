@@ -31,6 +31,7 @@ const ItemFilterFuntop = require('./sites/ItemFilterFuntop.js')
 const ItemFilterKeyChtouch = require('./sites/ItemFilterKeyChtouch.js')
 const ItemFilterTenlong = require('./sites/ItemFilterTenlong.js')
 const ItemFilterLinuxCNWeeklyNews = require('./sites/ItemFilterLinuxCNWeeklyNews.js')
+const ItemFilterPTSNews = require('./sites/ItemFilterPTSNews.js')
 
 
 let ItemFilters = {
@@ -69,6 +70,7 @@ let ItemFilters = {
     ItemFilterKeyChtouch,
     ItemFilterTenlong,
     ItemFilterLinuxCNWeeklyNews,
+    ItemFilterPTSNews,
   } 
 }
 

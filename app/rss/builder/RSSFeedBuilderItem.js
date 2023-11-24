@@ -54,6 +54,12 @@ let main = async function (options, output) {
 
       let titles = item.title
       let contents = item.content
+
+      if (!contents) {
+        console.error('Error: Contents is empty.')
+        console.log(item)
+        continue
+      }
       // let description = item.description
       
 
