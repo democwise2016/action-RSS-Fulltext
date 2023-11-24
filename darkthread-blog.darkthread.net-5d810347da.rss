@@ -30,6 +30,474 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[HttpClient 多執行緒執行出錯案例]]></title>
+    <link>https://blog.darkthread.net/blog/httclient-thread-safe-issue/</link>
+    <itunes:title><![CDATA[HttpClient 多執行緒執行出錯案例]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
+using System.Collections.Concurrent;
+var results = new ConcurrentQueue&lt;string&gt;();
+var httpClient = new HttpClient(new HttpClientHandler()
+{
+UseDefaultCredentials = true
+});
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+Console.WriteLine(string.Join("
+", results.ToArray()));
+</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
+at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
+--- End of stack trace from previous location ---
+at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
+--- End of stack trace from previous location ---
+at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
+at Program.&lt;Main&gt;(String[] args)
+</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
+{
+Debug.Assert(value is string || value is HeaderStoreItemInfo);
+(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
+}
+</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
+{
+object? store = _headerStore;
+if (store is HeaderEntry[] entries)
+{
+for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
+{
+if (key.Equals(entries[i].Key))
+{
+return ref entries[i].Value!;
+}
+}
+int count = _count;
+_count++;
+if ((uint)count &lt; (uint)entries.Length)
+{
+entries[count].Key = key;
+return ref entries[count].Value!;
+}
+return ref GrowEntriesAndAddDefault(key);
+}
+else if (store is null)
+{
+_count++;
+entries = new HeaderEntry[InitialCapacity];
+_headerStore = entries;
+ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
+firstEntry.Key = key;
+return ref firstEntry.Value!;
+}
+else
+{
+return ref DictionaryGetValueRefOrAddDefault(key);
+}
+ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+if (entries.Length == ArrayThreshold)
+{
+return ref ConvertToDictionaryAndAddDefault(key);
+}
+else
+{
+Array.Resize(ref entries, entries.Length &lt;&lt; 1);
+_headerStore = entries;
+ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
+firstNewEntry.Key = key;
+return ref firstNewEntry.Value!;
+}
+}
+ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
+_headerStore = dictionary;
+foreach (HeaderEntry entry in entries)
+{
+dictionary.Add(entry.Key, entry.Value);
+}
+Debug.Assert(dictionary.Count == _count - 1);
+return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+}
+ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
+{
+var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
+ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+if (value is null)
+{
+_count++;
+}
+return ref value;
+}
+}
+</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
+using System.Collections.Concurrent;
+var results = new ConcurrentQueue&lt;string&gt;();
+var httpClient = new HttpClient(new HttpClientHandler()
+{
+UseDefaultCredentials = true
+});
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+Console.WriteLine(string.Join("
+", results.ToArray()));
+</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
+at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
+--- End of stack trace from previous location ---
+at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
+--- End of stack trace from previous location ---
+at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
+at Program.&lt;Main&gt;(String[] args)
+</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
+{
+Debug.Assert(value is string || value is HeaderStoreItemInfo);
+(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
+}
+</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
+{
+object? store = _headerStore;
+if (store is HeaderEntry[] entries)
+{
+for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
+{
+if (key.Equals(entries[i].Key))
+{
+return ref entries[i].Value!;
+}
+}
+int count = _count;
+_count++;
+if ((uint)count &lt; (uint)entries.Length)
+{
+entries[count].Key = key;
+return ref entries[count].Value!;
+}
+return ref GrowEntriesAndAddDefault(key);
+}
+else if (store is null)
+{
+_count++;
+entries = new HeaderEntry[InitialCapacity];
+_headerStore = entries;
+ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
+firstEntry.Key = key;
+return ref firstEntry.Value!;
+}
+else
+{
+return ref DictionaryGetValueRefOrAddDefault(key);
+}
+ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+if (entries.Length == ArrayThreshold)
+{
+return ref ConvertToDictionaryAndAddDefault(key);
+}
+else
+{
+Array.Resize(ref entries, entries.Length &lt;&lt; 1);
+_headerStore = entries;
+ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
+firstNewEntry.Key = key;
+return ref firstNewEntry.Value!;
+}
+}
+ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
+_headerStore = dictionary;
+foreach (HeaderEntry entry in entries)
+{
+dictionary.Add(entry.Key, entry.Value);
+}
+Debug.Assert(dictionary.Count == _count - 1);
+return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+}
+ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
+{
+var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
+ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+if (value is null)
+{
+_count++;
+}
+return ref value;
+}
+}
+</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
+using System.Collections.Concurrent;
+var results = new ConcurrentQueue&lt;string&gt;();
+var httpClient = new HttpClient(new HttpClientHandler()
+{
+UseDefaultCredentials = true
+});
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+Console.WriteLine(string.Join("
+", results.ToArray()));
+</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
+at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
+--- End of stack trace from previous location ---
+at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
+--- End of stack trace from previous location ---
+at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
+at Program.&lt;Main&gt;(String[] args)
+</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
+at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
+at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
+at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
+{
+Debug.Assert(value is string || value is HeaderStoreItemInfo);
+(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
+}
+</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
+{
+object? store = _headerStore;
+if (store is HeaderEntry[] entries)
+{
+for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
+{
+if (key.Equals(entries[i].Key))
+{
+return ref entries[i].Value!;
+}
+}
+int count = _count;
+_count++;
+if ((uint)count &lt; (uint)entries.Length)
+{
+entries[count].Key = key;
+return ref entries[count].Value!;
+}
+return ref GrowEntriesAndAddDefault(key);
+}
+else if (store is null)
+{
+_count++;
+entries = new HeaderEntry[InitialCapacity];
+_headerStore = entries;
+ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
+firstEntry.Key = key;
+return ref firstEntry.Value!;
+}
+else
+{
+return ref DictionaryGetValueRefOrAddDefault(key);
+}
+ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+if (entries.Length == ArrayThreshold)
+{
+return ref ConvertToDictionaryAndAddDefault(key);
+}
+else
+{
+Array.Resize(ref entries, entries.Length &lt;&lt; 1);
+_headerStore = entries;
+ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
+firstNewEntry.Key = key;
+return ref firstNewEntry.Value!;
+}
+}
+ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
+{
+var entries = (HeaderEntry[])_headerStore!;
+var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
+_headerStore = dictionary;
+foreach (HeaderEntry entry in entries)
+{
+dictionary.Add(entry.Key, entry.Value);
+}
+Debug.Assert(dictionary.Count == _count - 1);
+return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+}
+ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
+{
+var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
+ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
+if (value is null)
+{
+_count++;
+}
+return ref value;
+}
+}
+</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
+await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
+{
+var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
+{
+["key"] = "1234"
+});
+var sw = new Stopwatch();
+sw.Start();
+var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
+var res = "OK";
+try
+{
+resp.EnsureSuccessStatusCode();
+}
+catch (Exception ex)
+{
+res = "ERR:" + ex.Message;
+}
+sw.Stop();
+results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
+});
+</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png" medium="image"/>
+    <pubDate>Thu, 23 Nov 2023 08:59:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[再談 js/css 快取控制：Cache-Control vs 版本化網址(雜湊指紋參數)]]></title>
     <link>https://blog.darkthread.net/blog/versioned-url-vs-http-control/</link>
     <itunes:title><![CDATA[再談 js/css 快取控制：Cache-Control vs 版本化網址(雜湊指紋參數)]]></itunes:title>
@@ -1406,47 +1874,5 @@ EXEC sp_control_plan_guide N'DROP', N'MyGuide'
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png" medium="image"/>
     <pubDate>Fri, 10 Nov 2023 14:37:44 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></title>
-    <link>https://blog.darkthread.net/blog/aspnethostingpermission-securityexception/</link>
-    <itunes:title><![CDATA[【茶包射手日記】ASP.NET WebForm 出現 System.Web.AspNetHostingPermission 安全錯誤]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
-Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
-Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
-Stacktrace:
-[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
-System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
-System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
-System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
-System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
-</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
-Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
-Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
-Stacktrace:
-[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
-System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
-System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
-System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
-System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
-</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>接獲報案，ASP.NET WebForm 站台更新 DLL 元件後出現安全錯誤，訊息如下：</p> <pre><code>Security Exception
-Description: The application attempted to perform an operation not allowed by the security policy. To grant this application the required permission please contact your system administrator or change the application's trust level in the configuration file.
-Exception Details: System.Security.SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.
-Stacktrace:
-[SecurityException: Request for the permission of type 'System.Web.AspNetHostingPermission, System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' failed.]
-System.Reflection.Assembly._GetType(String name, Boolean throwOnError, Boolean ignoreCase) +0
-System.Web.UI.Util.GetTypeFromAssemblies(ICollection assemblies, String typeName, Boolean ignoreCase) +201
-System.Web.Compilation.BuildManager.GetType(String typeName, Boolean throwOnError, Boolean ignoreCase) +302
-System.Web.Configuration.ConfigUtil.GetType(String typeName, String propertyName, ConfigurationElement configElement, XmlNode node, Boolean checkAptcaBit, Boolean ignoreCase) +64
-</code></pre> <p>由訊息判斷與存取權限有關，爬文查到當見問題及解法有：</p> <ul><li>AppPool 進階設定的 Load User Profile/載入使用者設定檔 未設成 True<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"></li> <li>網頁檔案實體放在遠端主機，以 <code>\\my-server\my-project</code> UNC 方式存取，AppPoolIdentity 設定身分不正確 <a href="https://stackoverflow.com/a/21252240/288936">參考</a>，或未使用 caspol 設成 FullTrust <a href="https://blog.miniasp.com/post/2010/02/28/Setup-aspnet-website-on-remote-UNC-Path">參考</a></li></ul> <p>而我遇到的問題是另一種，DLL 來自網路磁碟機或網站下載，即使包 ZIP 解開後仍會被標記檔案來自遠端電腦，存取使用上有額外限制(術語為 <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8?WT.mc_id=DOP-MVP-37580">Zone Identifier</a>，詳情可參考這篇：<a href="/blog/zone-identifier/">網路下載程式持續被防毒軟體攔檢</a>)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638351429658904734.png"></p> <p>除了從檔案總管屬性介面解除封鎖，使用 PowerShell <code>Get-ChildItem * -Recurse | Unblock-File</code> 可批次解封整個資料夾。另外，我發現用 7-Zip 解壓縮好像不會將封鎖傳染下去，似乎也是種解法。</p> <p data-slug="aspnethostingpermission-securityexception" data-title-en="System.Web.AspNetHostingPermission SecurityException issue" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/04/12/15/02/padlock-322494_960_720.jpg#960#720">System.Web.AspNetHostingPermission SecurityException caused by dll downloaded from remote computer.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638351429656982609.png" medium="image"/>
-    <pubDate>Thu, 09 Nov 2023 15:59:17 GMT</pubDate>
   </item></channel>
 </rss>
