@@ -13,6 +13,21 @@ let main = async function (item, options) {
 
   $('nav').remove()
 
+  let collection = $('iframe[src]')
+  for (let i = 0; i < collection.length; i++) {
+    
+    let item = collection.eq(i)
+    let src = item.attr('src')
+
+    if (src.startsWith('https://www.yo' + 'utu' + 'be.com/') === false) {
+      continue
+    }
+
+    let id = src.slice(src.lastIndexOf('/') + 1)
+    let imgURL = `https://img.you` + `tu` + `be.com/vi/${id}/maxresdefault.jpg`
+    collection.eq(i).before(`<img src="${imgURL}" /><br />`)
+  }
+
   item.content = $('body').html()
 
   
