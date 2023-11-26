@@ -30,6 +30,324 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Markdown 文件寫作實務 - 數學公式、流程圖]]></title>
+    <link>https://blog.darkthread.net/blog/markdown-latex-mermaid/</link>
+    <itunes:title><![CDATA[Markdown 文件寫作實務 - 數學公式、流程圖]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>學會 Markdown 後愈來愈不愛開 Word，習慣 CLI 後愈來愈不想滑滑鼠，是我這些年的寫照。</p> <p>我除了 Blog 用 Markdown 寫，技術相關文件也試著改用 Markdown 寫，VSCode 配合相關套件，基本上的功能已能滿足，畢竟技術文件的核心在於文字、圖例本體，使用 VSCode 配合擴充套件，已能滿足基本需求。文件清晰易讀，看起來舒服就好，工程師風格講求質樸務實，不追求排版精美或花裡胡哨的字型配色，把時間花在更有意義的事上。(難怪 <a href="https://blog.darkthread.net/blog/unboxing-debian/">Debian 對我有莫名的吸引力</a> 😄)</p> <p>如果對這種適合理工直男的寫作方式有興趣，可參考 <a href="/blog/category/markdown">Markdown 系列文</a>，裡面有介紹用 VSCode 撰寫 .md 文件、內嵌圖檔、自動產生章節目錄、轉 PDF... 等相關技巧。</p> <p>今天這篇再補充幾則實用技巧。</p> <h3>數學公式</h3> <p>解說原理時有時會需要使用數學公式，Word 有方程式編譯器可以輕鬆解決這個問題，甚至可以<a href="https://support.microsoft.com/zh-tw/office/%E6%92%B0%E5%AF%AB%E6%96%B9%E7%A8%8B%E5%BC%8F%E6%88%96%E5%85%AC%E5%BC%8F-1d01cabc-ceb1-458d-bc70-7f9737722702?WT.mc_id=DOP-MVP-37580">手寫公式直接輸入</a>，算是友善度破表的無敵解決方案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png"></p> <p>但早在滑鼠成為電腦 UI 標配前，1978 年美國電腦科學家唐納德·克努特發明了數學、科學、工程和其他學術文章用的排版系統，透過特殊語法可以確保在所有電腦和印表機上輸出一致的專業排版品質。1984 年便有電腦科學萊斯利·蘭伯特追求跟 Markdown 一致的「呈現與內容分離、專注內容寫作」精神，發明了 <a href="https://zh.wikipedia.org/zh-tw/LaTeX">LaTex 語言</a>，LaTeX 比 Markdown 更嚴謹完整，可透過章（Chapter）、節（Section）、表（Table）、圖（Figure）等簡單概念指定文件邏輯結構，讓作者可以專心文件內容寫，而不需要過度關心排版細節。由於其強大的功能和靈活性，LaTeX 成為學術界廣泛使用的排版系統。</p> <p>LaTeX 語法範例如下，概念有點像 HTML/XML，有 begin/end 開始結束符號，控制指令偏複雜，控制指令與內容文字交雜程度較深。</p> <pre><code>\documentclass[12pt]{article}
+\usepackage[cm-default]{fontspec}
+\usepackage{xunicode}
+\usepackage{amsmath}
+\title{\LaTeX}
+\author{}
+\date{}
+\begin{document}
+\maketitle
+\LaTeX{} is a document preparation system
+for the \TeX{}   typesetting program. It offers
+programmable desktop publishing features and
+extensive facilities for automating most aspects
+of typesetting and desktop publishing, including
+numbering and cross-referencing, tables and figures,
+page layout, bibliographies,   and much more.
+\LaTeX{} was originally written in 1984 by Leslie
+Lamport and has become the dominant method for
+using \TeX; few people write in plain \TeX{} anymore.
+The current version is  \LaTeXe.
+\setmainfont[BoldFont=Adobe Heiti Std]{SimSun}
+这是一个测试。                             \\
+\textbf{测试环境}：XeTeX TeXLive2008      \\
+\begin{align}
+E &amp;= mc^2                              \\
+m &amp;= \frac{m_0}{\sqrt{1-\frac{v^2}{c^2}}}
+\end{align}
+\end{document}
+</code></pre> <p>與 LaTeX 相比，Markdown 語法簡潔易寫許多，大眾接受度較高，故得以成為當今主流。但 Markdown 功能遠不如 LaTeX 完整，像 Markdown 語法便不支援數學公式。嗯，結局如大家所想，摻在一起做瀨尿牛丸就好了。在 Markdown 用 <code>$LaTeX語法$</code> 可以 <code>&lt;span&gt;</code> 方式嵌入 LaTex 寫的公式，<code>$$LaTeX語法$$</code> 則會以 <code>&lt;div&gt;</code> 方式插入區塊文字置中。</p> <p>實測一下：</p> <pre><code>函式、根號
+$f(x) = \sqrt[3]{2x} + \sqrt{x-2}$
+極限
+$\lim_{x \to 0^+} \dfrac{1}{x} = \infty$
+無窮級數
+$\mathrm{e} = \sum_{n=0}^{\infty} \dfrac{1}{n!}$
+微分
+$\frac{d}{dx} x^2 = 2x$
+積分
+$\int_a^b y \: \mathrm{d}x$
+矩陣
+$
+M =
+\begin{bmatrix}
+\frac{1}{2} &amp; 0 \\
+0 &amp; -1
+\end{bmatrix}
+\begin{bmatrix}
+1 &amp; 0 \\
+0 &amp; 1
+\end{bmatrix}
+$
+矩陣(...)
+$
+A_{m,n} =
+\begin{pmatrix}
+a_{1,1} &amp; a_{1,2} &amp; \cdots &amp; a_{1,n} \\
+a_{2,1} &amp; a_{2,2} &amp; \cdots &amp; a_{2,n} \\
+\vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+a_{m,1} &amp; a_{m,2} &amp; \cdots &amp; a_{m,n}
+\end{pmatrix}
+$
+</code></pre> <p>很酷吧？LaTeX 語法得花點時間學習，但我覺得值得，推薦 <a href="https://ashki23.github.io/markdown-latex.html">LaTex 範例</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638365666600471846.png"></p> <h3>流程圖</h3> <p>講到流程圖，專門的軟體很多，大家耳熟能詳的莫過於 Microsoft Visio，但為了零星的簡單流程圖需求採購軟體，有點殺雞用牛刀(而且牛刀還不便宜)，若能直接在 Markdown 裡寫幾行就生出流程圖，豈不美滋滋？(呃，我好像維修廝的影片看太多了)</p> <p><a href="https://github.com/mermaid-js/mermaid">Mermaid</a> 是許多人在用的 Markdown 繪圖解決方案，它支援流程圖、循序圖(Sequence Diagram)、甘特圖、類別圖、狀態圖、圓餅圖、長條圖、C4 圖的繪製。直接來個示範：(參考 <a href="https://mermaid.js.org/syntax/flowchart.html">完整範例</a>)</p> <pre><code>狀態圖
+```mermaid
+stateDiagram
+trouble: 有問題嗎?
+resolve: 能解決嗎?
+noWorry: 那有什麼好擔心的？
+trouble --&gt; 有
+trouble --&gt; 沒有
+有 --&gt; resolve
+resolve --&gt; 能
+resolve --&gt; 不能
+沒有 --&gt; noWorry
+能 --&gt; noWorry
+不能 --&gt; noWorry
+```
+流程圖
+```mermaid
+graph LR
+A[有問題嗎?] -- 有 --&gt; B[能解決嗎？]
+A -- 沒有 --&gt; C[那有什麼好擔心的？]
+B -- 能 --&gt; C
+B -- 不能 --&gt; C
+```
+循序圖
+```mermaid
+sequenceDiagram
+Alice-&gt;&gt;+Bob: Hello Bob, how are you?
+Bob--&gt;&gt;-Alice: Great!
+Alice-)Bob: See you later!
+```
+XY 圖
+```mermaid
+xychart-beta
+title "Sales Revenue"
+x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
+y-axis "Revenue (in $)" 4000 --&gt; 11000
+bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+```
+</code></pre> <p>呈現結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638365666602416980.png"></p> <p>最後的 XY 線圖需要特定套件才能正確呈現(例如：<a href="https://shd101wyy.github.io/markdown-preview-enhanced/#/zh-tw/">Markdown Preview Enhanced</a>)，應用時需留意。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638365666604296451.png"></p> <h3>轉 PDF 問題</h3> <p>LaTeX 與 Mermaid 都不是 Markdown 標準語法，預覽、產生 HTML、轉 PDF 時有些眉角。像是轉 PDF 功能，我就花了點時間才搞定。</p> <p>轉 PDF 我試過較好用的 VSCode 套件是 <a href="/blog/markdown-to-pdf/">Markdown PDF</a>，可自訂樣式，列印頁碼，挺簡單方便。但預設設定無法正確輸出 LaTeX 及 Mermaid 流程，例如：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638365666606452205.png"></p> <p>輸出結果會像這樣：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638365666608301529.png"></p> <p>解決方式是修改輸出範本及調整設定。</p> <p>LaTeX 的話要修改 <code>/Users/&lt;username&gt;/.vscode/extensions/yzane.markdown-pdf-1.x.x/template/template.html</code> 在最後面加入：(感謝 <a href="https://oxygentw.net/blog/computer/vscode-markdown-pdf-latex/">oxygen: vscode-markdown-pdf 匯出含有 latex 的文件</a> 分享)</p> <pre><code>&lt;script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"&gt;&lt;/script&gt;
+&lt;script type="text/x-mathjax-config"&gt; MathJax.Hub.Config({ tex2jax: {inlineMath: [['$', '$']]}, messageStyle: "none" });&lt;/script&gt;
+</code></pre> <p>至於 Mermaid 問題出在目前 Markdown PDF 版本與最新版 mermaid.js 不相容，Workaround 是先<a href="https://github.com/yzane/vscode-markdown-pdf/issues/337#issuecomment-1730125606">改用 9.X 版</a>，但舊版 mermaid.js 不支援某些圖表種類(例如：graph LR 橫向流程圖)。</p> <p>將 Markdown-pdf: Mermaid Server 設成 <code>https://unpkg.com/mermaid@9.4.3/dist/mermaid.min.js</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638365666610149351.png"></p> <p>最終結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638365666612129516.png"></p> <p>大致上還行，特殊圖表可能要從網頁預覽轉存圖檔處理，有必要的話應可寫個輔助小工具半自動化，問題不大。</p> <p>就醬，Markdown 寫文件的技能 +1。</p> <p data-slug="markdown-latex-mermaid" data-fbimg="https://cdn.pixabay.com/photo/2015/07/28/22/05/child-865116_1280.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>學會 Markdown 後愈來愈不愛開 Word，習慣 CLI 後愈來愈不想滑滑鼠，是我這些年的寫照。</p> <p>我除了 Blog 用 Markdown 寫，技術相關文件也試著改用 Markdown 寫，VSCode 配合相關套件，基本上的功能已能滿足，畢竟技術文件的核心在於文字、圖例本體，使用 VSCode 配合擴充套件，已能滿足基本需求。文件清晰易讀，看起來舒服就好，工程師風格講求質樸務實，不追求排版精美或花裡胡哨的字型配色，把時間花在更有意義的事上。(難怪 <a href="https://blog.darkthread.net/blog/unboxing-debian/">Debian 對我有莫名的吸引力</a> 😄)</p> <p>如果對這種適合理工直男的寫作方式有興趣，可參考 <a href="/blog/category/markdown">Markdown 系列文</a>，裡面有介紹用 VSCode 撰寫 .md 文件、內嵌圖檔、自動產生章節目錄、轉 PDF... 等相關技巧。</p> <p>今天這篇再補充幾則實用技巧。</p> <h3>數學公式</h3> <p>解說原理時有時會需要使用數學公式，Word 有方程式編譯器可以輕鬆解決這個問題，甚至可以<a href="https://support.microsoft.com/zh-tw/office/%E6%92%B0%E5%AF%AB%E6%96%B9%E7%A8%8B%E5%BC%8F%E6%88%96%E5%85%AC%E5%BC%8F-1d01cabc-ceb1-458d-bc70-7f9737722702?WT.mc_id=DOP-MVP-37580">手寫公式直接輸入</a>，算是友善度破表的無敵解決方案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png"></p> <p>但早在滑鼠成為電腦 UI 標配前，1978 年美國電腦科學家唐納德·克努特發明了數學、科學、工程和其他學術文章用的排版系統，透過特殊語法可以確保在所有電腦和印表機上輸出一致的專業排版品質。1984 年便有電腦科學萊斯利·蘭伯特追求跟 Markdown 一致的「呈現與內容分離、專注內容寫作」精神，發明了 <a href="https://zh.wikipedia.org/zh-tw/LaTeX">LaTex 語言</a>，LaTeX 比 Markdown 更嚴謹完整，可透過章（Chapter）、節（Section）、表（Table）、圖（Figure）等簡單概念指定文件邏輯結構，讓作者可以專心文件內容寫，而不需要過度關心排版細節。由於其強大的功能和靈活性，LaTeX 成為學術界廣泛使用的排版系統。</p> <p>LaTeX 語法範例如下，概念有點像 HTML/XML，有 begin/end 開始結束符號，控制指令偏複雜，控制指令與內容文字交雜程度較深。</p> <pre><code>\documentclass[12pt]{article}
+\usepackage[cm-default]{fontspec}
+\usepackage{xunicode}
+\usepackage{amsmath}
+\title{\LaTeX}
+\author{}
+\date{}
+\begin{document}
+\maketitle
+\LaTeX{} is a document preparation system
+for the \TeX{}   typesetting program. It offers
+programmable desktop publishing features and
+extensive facilities for automating most aspects
+of typesetting and desktop publishing, including
+numbering and cross-referencing, tables and figures,
+page layout, bibliographies,   and much more.
+\LaTeX{} was originally written in 1984 by Leslie
+Lamport and has become the dominant method for
+using \TeX; few people write in plain \TeX{} anymore.
+The current version is  \LaTeXe.
+\setmainfont[BoldFont=Adobe Heiti Std]{SimSun}
+这是一个测试。                             \\
+\textbf{测试环境}：XeTeX TeXLive2008      \\
+\begin{align}
+E &amp;= mc^2                              \\
+m &amp;= \frac{m_0}{\sqrt{1-\frac{v^2}{c^2}}}
+\end{align}
+\end{document}
+</code></pre> <p>與 LaTeX 相比，Markdown 語法簡潔易寫許多，大眾接受度較高，故得以成為當今主流。但 Markdown 功能遠不如 LaTeX 完整，像 Markdown 語法便不支援數學公式。嗯，結局如大家所想，摻在一起做瀨尿牛丸就好了。在 Markdown 用 <code>$LaTeX語法$</code> 可以 <code>&lt;span&gt;</code> 方式嵌入 LaTex 寫的公式，<code>$$LaTeX語法$$</code> 則會以 <code>&lt;div&gt;</code> 方式插入區塊文字置中。</p> <p>實測一下：</p> <pre><code>函式、根號
+$f(x) = \sqrt[3]{2x} + \sqrt{x-2}$
+極限
+$\lim_{x \to 0^+} \dfrac{1}{x} = \infty$
+無窮級數
+$\mathrm{e} = \sum_{n=0}^{\infty} \dfrac{1}{n!}$
+微分
+$\frac{d}{dx} x^2 = 2x$
+積分
+$\int_a^b y \: \mathrm{d}x$
+矩陣
+$
+M =
+\begin{bmatrix}
+\frac{1}{2} &amp; 0 \\
+0 &amp; -1
+\end{bmatrix}
+\begin{bmatrix}
+1 &amp; 0 \\
+0 &amp; 1
+\end{bmatrix}
+$
+矩陣(...)
+$
+A_{m,n} =
+\begin{pmatrix}
+a_{1,1} &amp; a_{1,2} &amp; \cdots &amp; a_{1,n} \\
+a_{2,1} &amp; a_{2,2} &amp; \cdots &amp; a_{2,n} \\
+\vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+a_{m,1} &amp; a_{m,2} &amp; \cdots &amp; a_{m,n}
+\end{pmatrix}
+$
+</code></pre> <p>很酷吧？LaTeX 語法得花點時間學習，但我覺得值得，推薦 <a href="https://ashki23.github.io/markdown-latex.html">LaTex 範例</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638365666600471846.png"></p> <h3>流程圖</h3> <p>講到流程圖，專門的軟體很多，大家耳熟能詳的莫過於 Microsoft Visio，但為了零星的簡單流程圖需求採購軟體，有點殺雞用牛刀(而且牛刀還不便宜)，若能直接在 Markdown 裡寫幾行就生出流程圖，豈不美滋滋？(呃，我好像維修廝的影片看太多了)</p> <p><a href="https://github.com/mermaid-js/mermaid">Mermaid</a> 是許多人在用的 Markdown 繪圖解決方案，它支援流程圖、循序圖(Sequence Diagram)、甘特圖、類別圖、狀態圖、圓餅圖、長條圖、C4 圖的繪製。直接來個示範：(參考 <a href="https://mermaid.js.org/syntax/flowchart.html">完整範例</a>)</p> <pre><code>狀態圖
+```mermaid
+stateDiagram
+trouble: 有問題嗎?
+resolve: 能解決嗎?
+noWorry: 那有什麼好擔心的？
+trouble --&gt; 有
+trouble --&gt; 沒有
+有 --&gt; resolve
+resolve --&gt; 能
+resolve --&gt; 不能
+沒有 --&gt; noWorry
+能 --&gt; noWorry
+不能 --&gt; noWorry
+```
+流程圖
+```mermaid
+graph LR
+A[有問題嗎?] -- 有 --&gt; B[能解決嗎？]
+A -- 沒有 --&gt; C[那有什麼好擔心的？]
+B -- 能 --&gt; C
+B -- 不能 --&gt; C
+```
+循序圖
+```mermaid
+sequenceDiagram
+Alice-&gt;&gt;+Bob: Hello Bob, how are you?
+Bob--&gt;&gt;-Alice: Great!
+Alice-)Bob: See you later!
+```
+XY 圖
+```mermaid
+xychart-beta
+title "Sales Revenue"
+x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
+y-axis "Revenue (in $)" 4000 --&gt; 11000
+bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+```
+</code></pre> <p>呈現結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638365666602416980.png"></p> <p>最後的 XY 線圖需要特定套件才能正確呈現(例如：<a href="https://shd101wyy.github.io/markdown-preview-enhanced/#/zh-tw/">Markdown Preview Enhanced</a>)，應用時需留意。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638365666604296451.png"></p> <h3>轉 PDF 問題</h3> <p>LaTeX 與 Mermaid 都不是 Markdown 標準語法，預覽、產生 HTML、轉 PDF 時有些眉角。像是轉 PDF 功能，我就花了點時間才搞定。</p> <p>轉 PDF 我試過較好用的 VSCode 套件是 <a href="/blog/markdown-to-pdf/">Markdown PDF</a>，可自訂樣式，列印頁碼，挺簡單方便。但預設設定無法正確輸出 LaTeX 及 Mermaid 流程，例如：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638365666606452205.png"></p> <p>輸出結果會像這樣：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638365666608301529.png"></p> <p>解決方式是修改輸出範本及調整設定。</p> <p>LaTeX 的話要修改 <code>/Users/&lt;username&gt;/.vscode/extensions/yzane.markdown-pdf-1.x.x/template/template.html</code> 在最後面加入：(感謝 <a href="https://oxygentw.net/blog/computer/vscode-markdown-pdf-latex/">oxygen: vscode-markdown-pdf 匯出含有 latex 的文件</a> 分享)</p> <pre><code>&lt;script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"&gt;&lt;/script&gt;
+&lt;script type="text/x-mathjax-config"&gt; MathJax.Hub.Config({ tex2jax: {inlineMath: [['$', '$']]}, messageStyle: "none" });&lt;/script&gt;
+</code></pre> <p>至於 Mermaid 問題出在目前 Markdown PDF 版本與最新版 mermaid.js 不相容，Workaround 是先<a href="https://github.com/yzane/vscode-markdown-pdf/issues/337#issuecomment-1730125606">改用 9.X 版</a>，但舊版 mermaid.js 不支援某些圖表種類(例如：graph LR 橫向流程圖)。</p> <p>將 Markdown-pdf: Mermaid Server 設成 <code>https://unpkg.com/mermaid@9.4.3/dist/mermaid.min.js</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638365666610149351.png"></p> <p>最終結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638365666612129516.png"></p> <p>大致上還行，特殊圖表可能要從網頁預覽轉存圖檔處理，有必要的話應可寫個輔助小工具半自動化，問題不大。</p> <p>就醬，Markdown 寫文件的技能 +1。</p> <p data-slug="markdown-latex-mermaid" data-fbimg="https://cdn.pixabay.com/photo/2015/07/28/22/05/child-865116_1280.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>學會 Markdown 後愈來愈不愛開 Word，習慣 CLI 後愈來愈不想滑滑鼠，是我這些年的寫照。</p> <p>我除了 Blog 用 Markdown 寫，技術相關文件也試著改用 Markdown 寫，VSCode 配合相關套件，基本上的功能已能滿足，畢竟技術文件的核心在於文字、圖例本體，使用 VSCode 配合擴充套件，已能滿足基本需求。文件清晰易讀，看起來舒服就好，工程師風格講求質樸務實，不追求排版精美或花裡胡哨的字型配色，把時間花在更有意義的事上。(難怪 <a href="https://blog.darkthread.net/blog/unboxing-debian/">Debian 對我有莫名的吸引力</a> 😄)</p> <p>如果對這種適合理工直男的寫作方式有興趣，可參考 <a href="/blog/category/markdown">Markdown 系列文</a>，裡面有介紹用 VSCode 撰寫 .md 文件、內嵌圖檔、自動產生章節目錄、轉 PDF... 等相關技巧。</p> <p>今天這篇再補充幾則實用技巧。</p> <h3>數學公式</h3> <p>解說原理時有時會需要使用數學公式，Word 有方程式編譯器可以輕鬆解決這個問題，甚至可以<a href="https://support.microsoft.com/zh-tw/office/%E6%92%B0%E5%AF%AB%E6%96%B9%E7%A8%8B%E5%BC%8F%E6%88%96%E5%85%AC%E5%BC%8F-1d01cabc-ceb1-458d-bc70-7f9737722702?WT.mc_id=DOP-MVP-37580">手寫公式直接輸入</a>，算是友善度破表的無敵解決方案。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png"></p> <p>但早在滑鼠成為電腦 UI 標配前，1978 年美國電腦科學家唐納德·克努特發明了數學、科學、工程和其他學術文章用的排版系統，透過特殊語法可以確保在所有電腦和印表機上輸出一致的專業排版品質。1984 年便有電腦科學萊斯利·蘭伯特追求跟 Markdown 一致的「呈現與內容分離、專注內容寫作」精神，發明了 <a href="https://zh.wikipedia.org/zh-tw/LaTeX">LaTex 語言</a>，LaTeX 比 Markdown 更嚴謹完整，可透過章（Chapter）、節（Section）、表（Table）、圖（Figure）等簡單概念指定文件邏輯結構，讓作者可以專心文件內容寫，而不需要過度關心排版細節。由於其強大的功能和靈活性，LaTeX 成為學術界廣泛使用的排版系統。</p> <p>LaTeX 語法範例如下，概念有點像 HTML/XML，有 begin/end 開始結束符號，控制指令偏複雜，控制指令與內容文字交雜程度較深。</p> <pre><code>\documentclass[12pt]{article}
+\usepackage[cm-default]{fontspec}
+\usepackage{xunicode}
+\usepackage{amsmath}
+\title{\LaTeX}
+\author{}
+\date{}
+\begin{document}
+\maketitle
+\LaTeX{} is a document preparation system
+for the \TeX{}   typesetting program. It offers
+programmable desktop publishing features and
+extensive facilities for automating most aspects
+of typesetting and desktop publishing, including
+numbering and cross-referencing, tables and figures,
+page layout, bibliographies,   and much more.
+\LaTeX{} was originally written in 1984 by Leslie
+Lamport and has become the dominant method for
+using \TeX; few people write in plain \TeX{} anymore.
+The current version is  \LaTeXe.
+\setmainfont[BoldFont=Adobe Heiti Std]{SimSun}
+这是一个测试。                             \\
+\textbf{测试环境}：XeTeX TeXLive2008      \\
+\begin{align}
+E &amp;= mc^2                              \\
+m &amp;= \frac{m_0}{\sqrt{1-\frac{v^2}{c^2}}}
+\end{align}
+\end{document}
+</code></pre> <p>與 LaTeX 相比，Markdown 語法簡潔易寫許多，大眾接受度較高，故得以成為當今主流。但 Markdown 功能遠不如 LaTeX 完整，像 Markdown 語法便不支援數學公式。嗯，結局如大家所想，摻在一起做瀨尿牛丸就好了。在 Markdown 用 <code>$LaTeX語法$</code> 可以 <code>&lt;span&gt;</code> 方式嵌入 LaTex 寫的公式，<code>$$LaTeX語法$$</code> 則會以 <code>&lt;div&gt;</code> 方式插入區塊文字置中。</p> <p>實測一下：</p> <pre><code>函式、根號
+$f(x) = \sqrt[3]{2x} + \sqrt{x-2}$
+極限
+$\lim_{x \to 0^+} \dfrac{1}{x} = \infty$
+無窮級數
+$\mathrm{e} = \sum_{n=0}^{\infty} \dfrac{1}{n!}$
+微分
+$\frac{d}{dx} x^2 = 2x$
+積分
+$\int_a^b y \: \mathrm{d}x$
+矩陣
+$
+M =
+\begin{bmatrix}
+\frac{1}{2} &amp; 0 \\
+0 &amp; -1
+\end{bmatrix}
+\begin{bmatrix}
+1 &amp; 0 \\
+0 &amp; 1
+\end{bmatrix}
+$
+矩陣(...)
+$
+A_{m,n} =
+\begin{pmatrix}
+a_{1,1} &amp; a_{1,2} &amp; \cdots &amp; a_{1,n} \\
+a_{2,1} &amp; a_{2,2} &amp; \cdots &amp; a_{2,n} \\
+\vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+a_{m,1} &amp; a_{m,2} &amp; \cdots &amp; a_{m,n}
+\end{pmatrix}
+$
+</code></pre> <p>很酷吧？LaTeX 語法得花點時間學習，但我覺得值得，推薦 <a href="https://ashki23.github.io/markdown-latex.html">LaTex 範例</a>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638365666600471846.png"></p> <h3>流程圖</h3> <p>講到流程圖，專門的軟體很多，大家耳熟能詳的莫過於 Microsoft Visio，但為了零星的簡單流程圖需求採購軟體，有點殺雞用牛刀(而且牛刀還不便宜)，若能直接在 Markdown 裡寫幾行就生出流程圖，豈不美滋滋？(呃，我好像維修廝的影片看太多了)</p> <p><a href="https://github.com/mermaid-js/mermaid">Mermaid</a> 是許多人在用的 Markdown 繪圖解決方案，它支援流程圖、循序圖(Sequence Diagram)、甘特圖、類別圖、狀態圖、圓餅圖、長條圖、C4 圖的繪製。直接來個示範：(參考 <a href="https://mermaid.js.org/syntax/flowchart.html">完整範例</a>)</p> <pre><code>狀態圖
+```mermaid
+stateDiagram
+trouble: 有問題嗎?
+resolve: 能解決嗎?
+noWorry: 那有什麼好擔心的？
+trouble --&gt; 有
+trouble --&gt; 沒有
+有 --&gt; resolve
+resolve --&gt; 能
+resolve --&gt; 不能
+沒有 --&gt; noWorry
+能 --&gt; noWorry
+不能 --&gt; noWorry
+```
+流程圖
+```mermaid
+graph LR
+A[有問題嗎?] -- 有 --&gt; B[能解決嗎？]
+A -- 沒有 --&gt; C[那有什麼好擔心的？]
+B -- 能 --&gt; C
+B -- 不能 --&gt; C
+```
+循序圖
+```mermaid
+sequenceDiagram
+Alice-&gt;&gt;+Bob: Hello Bob, how are you?
+Bob--&gt;&gt;-Alice: Great!
+Alice-)Bob: See you later!
+```
+XY 圖
+```mermaid
+xychart-beta
+title "Sales Revenue"
+x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
+y-axis "Revenue (in $)" 4000 --&gt; 11000
+bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+```
+</code></pre> <p>呈現結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638365666602416980.png"></p> <p>最後的 XY 線圖需要特定套件才能正確呈現(例如：<a href="https://shd101wyy.github.io/markdown-preview-enhanced/#/zh-tw/">Markdown Preview Enhanced</a>)，應用時需留意。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638365666604296451.png"></p> <h3>轉 PDF 問題</h3> <p>LaTeX 與 Mermaid 都不是 Markdown 標準語法，預覽、產生 HTML、轉 PDF 時有些眉角。像是轉 PDF 功能，我就花了點時間才搞定。</p> <p>轉 PDF 我試過較好用的 VSCode 套件是 <a href="/blog/markdown-to-pdf/">Markdown PDF</a>，可自訂樣式，列印頁碼，挺簡單方便。但預設設定無法正確輸出 LaTeX 及 Mermaid 流程，例如：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638365666606452205.png"></p> <p>輸出結果會像這樣：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638365666608301529.png"></p> <p>解決方式是修改輸出範本及調整設定。</p> <p>LaTeX 的話要修改 <code>/Users/&lt;username&gt;/.vscode/extensions/yzane.markdown-pdf-1.x.x/template/template.html</code> 在最後面加入：(感謝 <a href="https://oxygentw.net/blog/computer/vscode-markdown-pdf-latex/">oxygen: vscode-markdown-pdf 匯出含有 latex 的文件</a> 分享)</p> <pre><code>&lt;script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"&gt;&lt;/script&gt;
+&lt;script type="text/x-mathjax-config"&gt; MathJax.Hub.Config({ tex2jax: {inlineMath: [['$', '$']]}, messageStyle: "none" });&lt;/script&gt;
+</code></pre> <p>至於 Mermaid 問題出在目前 Markdown PDF 版本與最新版 mermaid.js 不相容，Workaround 是先<a href="https://github.com/yzane/vscode-markdown-pdf/issues/337#issuecomment-1730125606">改用 9.X 版</a>，但舊版 mermaid.js 不支援某些圖表種類(例如：graph LR 橫向流程圖)。</p> <p>將 Markdown-pdf: Mermaid Server 設成 <code>https://unpkg.com/mermaid@9.4.3/dist/mermaid.min.js</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638365666610149351.png"></p> <p>最終結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638365666612129516.png"></p> <p>大致上還行，特殊圖表可能要從網頁預覽轉存圖檔處理，有必要的話應可寫個輔助小工具半自動化，問題不大。</p> <p>就醬，Markdown 寫文件的技能 +1。</p> <p data-slug="markdown-latex-mermaid" data-fbimg="https://cdn.pixabay.com/photo/2015/07/28/22/05/child-865116_1280.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png" medium="image"/>
+    <pubDate>Sun, 26 Nov 2023 03:46:05 GMT</pubDate>
+  </item><item>
     <title><![CDATA[HttpClient 多執行緒執行出錯案例]]></title>
     <link>https://blog.darkthread.net/blog/httclient-thread-safe-issue/</link>
     <itunes:title><![CDATA[HttpClient 多執行緒執行出錯案例]]></itunes:title>
@@ -1439,440 +1757,5 @@ base.WriteError(ex.MakeErrorRecord(null));
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638353896954918646.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638353896954918646.png" medium="image"/>
     <pubDate>Sun, 12 Nov 2023 12:41:10 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[深入 SQL Parameter Sniffing 與執行計劃效能問題]]></title>
-    <link>https://blog.darkthread.net/blog/inside-param-sniffing-n-exec-plan/</link>
-    <itunes:title><![CDATA[深入 SQL Parameter Sniffing 與執行計劃效能問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
-go
-EXEC that_very_sp 4711, 123, 1
-go
-SET ARITHABORT OFF
-go
-EXEC that_very_sp 4711, 123, 1
-</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
-@procname  nvarchar(256)
-SELECT @dbname = 'Northwind', -- DB 名稱
-@procname = 'dbo.List_orders_2' -- SP 名稱
-; WITH basedata AS (
-SELECT qs.statement_start_offset/2 AS stmt_start,
-qs.statement_end_offset/2 AS stmt_end,
-est.encrypted AS isencrypted, est.text AS sqltext,
-epa.value AS set_options, qp.query_plan,
-charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
-AS paramstart,
-charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
-qs.statement_start_offset,
-qs.statement_end_offset) qp
-CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  est.objectid  = object_id (@procname)
-AND  est.dbid      = db_id(@dbname)
-AND  epa.attribute = 'set_options'
-), next_level AS (
-SELECT stmt_start, set_options, query_plan,
-CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
-WHEN stmt_start &gt;= 0
-THEN substring(sqltext, stmt_start + 1,
-CASE stmt_end
-WHEN 0 THEN datalength(sqltext)
-ELSE stmt_end - stmt_start + 1
-END)
-END AS Statement,
-CASE WHEN paramend &gt; paramstart
-THEN CAST (substring(query_plan, paramstart,
-paramend - paramstart) AS xml)
-END AS params
-FROM   basedata
-)
-SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
-CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
-CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
-CAST (query_plan AS xml) AS [Query plan]
-FROM   next_level n
-CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
-ORDER  BY n.set_options, n.stmt_start, Parameter
-</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, i.index_id, i.name, i.type_desc,
-substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
-substring(inc.cols, 3, len(inc.cols)) AS included_cols,
-stats_date(o.object_id, i.index_id) AS stats_date,
-i.filter_definition
-FROM   sys.objects o
-JOIN   sys.indexes i ON i.object_id = o.object_id
-OUTER  APPLY (SELECT ', ' + c.name +
-CASE ic.is_descending_key
-WHEN 1 THEN ' DESC'
-ELSE ''
-END
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 0
-ORDER  BY ic.key_ordinal
-FOR XML PATH('')) AS ikey(cols)
-OUTER  APPLY (SELECT ', ' + c.name
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 1
-ORDER  BY ic.index_column_id
-FOR XML PATH('')) AS inc(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, i.index_id
-</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
-substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
-stats_date(o.object_id, s.stats_id) AS stats_date,
-s.filter_definition
-FROM   sys.objects o
-JOIN   sys.stats s ON s.object_id = o.object_id
-CROSS  APPLY (SELECT ', ' + c.name
-FROM   sys.stats_columns sc
-JOIN   sys.columns c ON sc.object_id = c.object_id
-AND sc.column_id = c.column_id
-WHERE  sc.object_id = s.object_id
-AND  sc.stats_id  = s.stats_id
-ORDER  BY sc.stats_column_id
-FOR XML PATH('')) AS scols(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, s.stats_id
-</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
-cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
---會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
-/*
-exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
-N'@c nvarchar(5)',@c=N'ALFKI'
-*/
---字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
---若要避免請指定長度
-cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
-</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
-DBCC FREEPROCCACHE
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
-go
-</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-WHERE  est.text LIKE '%some significant SQL text here%'
-</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19960101'
-go
-EXEC sp_create_plan_guide
-@name = N'MyGuide',
-@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-@type = N'SQL',
-@module_or_batch = NULL,
-@params = N'@orderdate datetime',
-@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19980101'
-go
-EXEC sp_control_plan_guide N'DROP', N'MyGuide'
-</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
-go
-EXEC that_very_sp 4711, 123, 1
-go
-SET ARITHABORT OFF
-go
-EXEC that_very_sp 4711, 123, 1
-</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
-@procname  nvarchar(256)
-SELECT @dbname = 'Northwind', -- DB 名稱
-@procname = 'dbo.List_orders_2' -- SP 名稱
-; WITH basedata AS (
-SELECT qs.statement_start_offset/2 AS stmt_start,
-qs.statement_end_offset/2 AS stmt_end,
-est.encrypted AS isencrypted, est.text AS sqltext,
-epa.value AS set_options, qp.query_plan,
-charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
-AS paramstart,
-charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
-qs.statement_start_offset,
-qs.statement_end_offset) qp
-CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  est.objectid  = object_id (@procname)
-AND  est.dbid      = db_id(@dbname)
-AND  epa.attribute = 'set_options'
-), next_level AS (
-SELECT stmt_start, set_options, query_plan,
-CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
-WHEN stmt_start &gt;= 0
-THEN substring(sqltext, stmt_start + 1,
-CASE stmt_end
-WHEN 0 THEN datalength(sqltext)
-ELSE stmt_end - stmt_start + 1
-END)
-END AS Statement,
-CASE WHEN paramend &gt; paramstart
-THEN CAST (substring(query_plan, paramstart,
-paramend - paramstart) AS xml)
-END AS params
-FROM   basedata
-)
-SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
-CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
-CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
-CAST (query_plan AS xml) AS [Query plan]
-FROM   next_level n
-CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
-ORDER  BY n.set_options, n.stmt_start, Parameter
-</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, i.index_id, i.name, i.type_desc,
-substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
-substring(inc.cols, 3, len(inc.cols)) AS included_cols,
-stats_date(o.object_id, i.index_id) AS stats_date,
-i.filter_definition
-FROM   sys.objects o
-JOIN   sys.indexes i ON i.object_id = o.object_id
-OUTER  APPLY (SELECT ', ' + c.name +
-CASE ic.is_descending_key
-WHEN 1 THEN ' DESC'
-ELSE ''
-END
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 0
-ORDER  BY ic.key_ordinal
-FOR XML PATH('')) AS ikey(cols)
-OUTER  APPLY (SELECT ', ' + c.name
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 1
-ORDER  BY ic.index_column_id
-FOR XML PATH('')) AS inc(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, i.index_id
-</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
-substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
-stats_date(o.object_id, s.stats_id) AS stats_date,
-s.filter_definition
-FROM   sys.objects o
-JOIN   sys.stats s ON s.object_id = o.object_id
-CROSS  APPLY (SELECT ', ' + c.name
-FROM   sys.stats_columns sc
-JOIN   sys.columns c ON sc.object_id = c.object_id
-AND sc.column_id = c.column_id
-WHERE  sc.object_id = s.object_id
-AND  sc.stats_id  = s.stats_id
-ORDER  BY sc.stats_column_id
-FOR XML PATH('')) AS scols(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, s.stats_id
-</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
-cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
---會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
-/*
-exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
-N'@c nvarchar(5)',@c=N'ALFKI'
-*/
---字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
---若要避免請指定長度
-cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
-</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
-DBCC FREEPROCCACHE
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
-go
-</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-WHERE  est.text LIKE '%some significant SQL text here%'
-</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19960101'
-go
-EXEC sp_create_plan_guide
-@name = N'MyGuide',
-@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-@type = N'SQL',
-@module_or_batch = NULL,
-@params = N'@orderdate datetime',
-@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19980101'
-go
-EXEC sp_control_plan_guide N'DROP', N'MyGuide'
-</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>【前言】關於 SQL 執行計劃如何影響查詢效能議題很久之前研究過了(<a href="/blog/index-scan-vs-seek">SQL筆記：Index Scan vs Index Seek</a>、<a href="/blog/literal-var-param-and-exec-plan/">SQL筆記：Literal, Variable與Parameter</a>)，昨天研究 <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>找到 SQL Server MVP Erland Sommarskog 解釋 Parameter Sniffing 議題的經典文章 - <a href="https://www.sommarskog.se/query-plan-mysteries.html">Slow in the Application, Fast in SSMS? (sommarskog.se)</a>，在 Parameter Sniffing 議題上有深入剖析，並附有完整範例、檢測工具，不讀完對不起自己，完食整理筆記如下。<br> (以下假設大家已知道執行計劃、Parameter Sniffing、執行計劃快取、清除快取重新建立時機... 等概念，提到這些名詞時不再多做解釋)</p> <p>開始前先釐清一個觀念， <a href="/blog/sql-slow-in-ap-fast-in-ssms/">網站執行 Stored Procedure 爆慢，在 SSMS 秒回問題</a>一文提到 SSMS 因 SET ARITHABORT ON 查詢比網站快，不是因為 ARITHABORT 改變查詢行為，純粹是因參數 ARITHABORT ON/OFF 差異導致 SSMS 使用了跟網站不同的執行計劃，而這個執行計劃比網站在用的執行計劃更適合當時的傳入參數，所以查詢效能良好。 換言之，問題的核心在於 SQL 會進行 Parameter Sniffing 依據參數決定最適合執行計劃，當不同參數產生的執行計劃差異很大時，就可能發生用參數用 A 值推算的執行計劃，查詢 A 只要一秒，用來查詢 B 卻要一分鐘。因此，問題出執行計劃對不同參數的執行效能差異過大，ARITHABORT 差異有影響源自改用另一個較沒問題的查詢計劃避開，與 ARITHABORT 本身沒有關係 (引述 Erland <a href="https://learn.microsoft.com/en-us/answers/questions/128817/what-is-arithabort-setting?WT.mc_id=DOP-MVP-37580">說法</a>：Under normal circumstances there is absolutely no difference between ARITHABORT ON and OFF)，真正要解決的是「依參數值 A 產生執行計劃，用來查 B 效能會悲劇」這個問題。而要解決這類問題，必須了解 Parameter Sniffing 與執行計劃的關係，而 Erland 的文章是絕佳敲門磚。</p> <ol><li>當遇到 SP 因為快取的執行計劃不利於特定參數查詢而異常緩慢，最簡單粗暴的解法：<code>EXEC sp_recompile problem_sp</code>，如此可強制清掉快取，於下次查詢時重新產生執行計劃，若問題不再發生，結案。</li> <li>如果不幸問題持續發生，代表你需要找出有問題的執行計劃，分析什麼參數值造成執行計劃不佳並設法改善。</li> <li>偵查 Parameter Sniffing 問題前應先掌握以下情資： <ul><li>是哪個指令慢？</li> <li>快的跟慢的執行計劃分別長什麼樣子？</li> <li>SQL 依據哪些參數決定執行計劃？</li> <li>資料表與索引結構如何？</li> <li>資料分佈統計如何？是否有更新？</li></ul> </li> <li>若狀況為 SSMS 快網站慢，同時取得快、慢執行計劃的方法是分別設 ARITHABORT ON 及 OFF 各跑一次： <pre><code>SET ARITHABORT ON
-go
-EXEC that_very_sp 4711, 123, 1
-go
-SET ARITHABORT OFF
-go
-EXEC that_very_sp 4711, 123, 1
-</code></pre> </li> <li>執行計劃最右邊的 SELECT/INSERT... 按右鍵選 Property 找 ParameterList / Parameter Compiled Value 即嗅探值(Sniffed Value)，多半就是 Parameter Sniffing 問題的來源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"></li> <li>執行計劃圖還有幾個地方可以留意，Cost [1] 數字愈高愈是瓶頸所在(但要注意它是預測值，有可能失真)，相對的箭頭會愈粗[2]，另外，實際筆數與預測筆數落差[3]也很具參考價值。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638352239197801887.png"></li> <li>在無法使用 SSMS 的場合，以下這段 SQL 可取得執行計劃：(註：需 GRANT VIEW SERVER PERFORMANCE STATE) <pre><code>DECLARE @dbname    nvarchar(256),
-@procname  nvarchar(256)
-SELECT @dbname = 'Northwind', -- DB 名稱
-@procname = 'dbo.List_orders_2' -- SP 名稱
-; WITH basedata AS (
-SELECT qs.statement_start_offset/2 AS stmt_start,
-qs.statement_end_offset/2 AS stmt_end,
-est.encrypted AS isencrypted, est.text AS sqltext,
-epa.value AS set_options, qp.query_plan,
-charindex('&lt;ParameterList&gt;', qp.query_plan) + len('&lt;ParameterList&gt;')
-AS paramstart,
-charindex('&lt;/ParameterList&gt;', qp.query_plan) AS paramend
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-CROSS  APPLY sys.dm_exec_text_query_plan(qs.plan_handle,
-qs.statement_start_offset,
-qs.statement_end_offset) qp
-CROSS  APPLY sys.dm_exec_plan_attributes(qs.plan_handle) epa
-WHERE  est.objectid  = object_id (@procname)
-AND  est.dbid      = db_id(@dbname)
-AND  epa.attribute = 'set_options'
-), next_level AS (
-SELECT stmt_start, set_options, query_plan,
-CASE WHEN isencrypted = 1 THEN '-- ENCRYPTED'
-WHEN stmt_start &gt;= 0
-THEN substring(sqltext, stmt_start + 1,
-CASE stmt_end
-WHEN 0 THEN datalength(sqltext)
-ELSE stmt_end - stmt_start + 1
-END)
-END AS Statement,
-CASE WHEN paramend &gt; paramstart
-THEN CAST (substring(query_plan, paramstart,
-paramend - paramstart) AS xml)
-END AS params
-FROM   basedata
-)
-SELECT set_options AS [SET], n.stmt_start AS Pos, n.Statement,
-CR.c.value('@Column', 'nvarchar(128)') AS Parameter,
-CR.c.value('@ParameterCompiledValue', 'nvarchar(128)') AS [Sniffed Value],
-CAST (query_plan AS xml) AS [Query plan]
-FROM   next_level n
-CROSS  APPLY   n.params.nodes('ColumnReference') AS CR(c)
-ORDER  BY n.set_options, n.stmt_start, Parameter
-</code></pre> 上述查詢可取得該 SP 的執行計劃(Query Plan 的 XML 用 SSMS 開啟即為執行計劃流程圖)及其對映嗅探值，非常方便：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638352239199824875.png"><br> (SET - ARITHABORT 等選項值組合、POS - 查詢指令在 SP 的起始位置(第幾個字元))</li> <li>以下指令可用來清查資料表及索引： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, i.index_id, i.name, i.type_desc,
-substring(ikey.cols, 3, len(ikey.cols)) AS key_cols,
-substring(inc.cols, 3, len(inc.cols)) AS included_cols,
-stats_date(o.object_id, i.index_id) AS stats_date,
-i.filter_definition
-FROM   sys.objects o
-JOIN   sys.indexes i ON i.object_id = o.object_id
-OUTER  APPLY (SELECT ', ' + c.name +
-CASE ic.is_descending_key
-WHEN 1 THEN ' DESC'
-ELSE ''
-END
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 0
-ORDER  BY ic.key_ordinal
-FOR XML PATH('')) AS ikey(cols)
-OUTER  APPLY (SELECT ', ' + c.name
-FROM   sys.index_columns ic
-JOIN   sys.columns c ON ic.object_id = c.object_id
-AND ic.column_id = c.column_id
-WHERE  ic.object_id = i.object_id
-AND  ic.index_id  = i.index_id
-AND  ic.is_included_column = 1
-ORDER  BY ic.index_column_id
-FOR XML PATH('')) AS inc(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, i.index_id
-</code></pre> 資料表的欄位、索引資訊一目了然：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638352239201922600.png"></li> <li>最後是統計資料狀態： <pre><code>DECLARE @tbl nvarchar(265)
-SELECT @tbl = 'Orders'
-SELECT o.name, s.stats_id, s.name, s.auto_created, s.user_created,
-substring(scols.cols, 3, len(scols.cols)) AS stat_cols,
-stats_date(o.object_id, s.stats_id) AS stats_date,
-s.filter_definition
-FROM   sys.objects o
-JOIN   sys.stats s ON s.object_id = o.object_id
-CROSS  APPLY (SELECT ', ' + c.name
-FROM   sys.stats_columns sc
-JOIN   sys.columns c ON sc.object_id = c.object_id
-AND sc.column_id = c.column_id
-WHERE  sc.object_id = s.object_id
-AND  sc.stats_id  = s.stats_id
-ORDER  BY sc.stats_column_id
-FOR XML PATH('')) AS scols(cols)
-WHERE  o.name = @tbl
-ORDER  BY o.name, s.stats_id
-</code></pre> stats_date 為最後更新時間，若年代久遠，則有可能是造成 Parameter Sniffing 問題的根源：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638352239203911205.png"><br> 若確認統計資料過期，可用 <code>UPDATE STATISTICS tblName</code> 更新，它會以取樣方式更新，一般都能精準反映現況。若取樣更新結果不理想，再嘗試 <code>UPDATE STATISTICS tblName WITH FULL SCAN, INDEX</code> (加 INDEX 只更新索引統計，可縮執行時間)，若只更新特定索引，則可 <code>UPDATE STATISTICS tblName indexName WITH FULLSCAN</code>。更新統計會觸發重新編譯及 Parameter Sniffing，一般可馬上看到成效。</li> <li>有一些情況會導致 Parameter Sniffing 相關效能問題反覆發生，例如： <ol><li>查詢寫法不適合使用 Parameter Sniffing，依據 A 參數值產生的執行計劃用在 B 參數很慘，反之亦然</li> <li>有少數參數對映的執行計劃與其他大部分參數完全不同，若先用它跑 Parameter Sniffing，則後面的查詢只剩一個慘字</li> <li>查詢條件沒有完美的索引可用，但有好幾個可用索引供挑選，挑到不同索引執行計劃效能差異很大 實際狀況很多種，沒有一體適用的解法，需依個案分析解決。</li></ol> </li> <li>因此，在程式加上 <code>SET ARITHABORT ON</code> 並不是真的解決問題，它類似 <code>sp_recompile</code> 會強迫用現在的參數重新產生執行計劃，若 Parameter Sniffing 導致不良執行計劃的狀況仍在，遲早會再發生。</li> <li>案例：查指定客戶特定日期區間的訂單，客戶有很多訂單用 OrderDate Index Seek，若只有一筆用 CustomerId Index Seek：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638352239205934277.png"></li> <li>大絕：在 SP 加上 <code>OPTION (RECOMPILE)</code> 強迫每次重新編譯，犧牲一點效能避開快取執行計劃不適用特定參數值的嚴重問題。但若呼叫頻率很高或 SP 複雜編譯耗時，要小心副作用反撲。</li> <li>常見問題：動態搜尋條件通常不利於 Parameter Sniffing，如 <code>WHERE (CustomerID = @custid OR @custid IS NULL) AND (OrderDate = @orderdate OR @orderdate IS NULL)...</code>，可考慮 <code>OPTION (RECOMPILE)</code>。</li> <li>查索引值分佈可用 <a href="https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-show-statistics-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">DBCC SHOW_STATISTICS</a><br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638352239207900029.png"><br> 以 1996-07-19 為例，RANGE_ROWS = 8 表有 8 筆資料介於 07/08 與 07/19 間(不含)，EQ_ROWS = 2 表有兩筆等於 7/19，DISTINCT_RANGE_ROWS = 8 表是 RANGE_ROWS 有 8 筆不同值，AVG_RANGE_ROWS = RANGE_ROWS / DISTINCT_RANGE_ROWS。</li> <li>案例：索引放在 Col3，Col3 資料分佈不均勻，有些類別只有 17 筆，有些有 421,121 筆 (可用)，理論上不適合用於 Index Seek，但因為第一筆查詢參數是個不存在的分類，其預測值取 1，SQL 認定其是適合的索引，造成悲劇。<br> 幾種解法： <ol><li>OPTION (RECOMPILE)</li> <li>新增完全吻合該查詢條件的專用索引(注意佔用空間及增加資料更新負擔)</li> <li>調整或刪除 Col3 索引(用 <code>sys.dm_db_index_usage_stats</code> 佐證它很廢)</li> <li>加上索引提示，如 <code>JOIN Table_A a WITH (INDEX = Combo_ix) ON a.Col4 = b.Col1</code></li> <li>加上 OPTIMIZE FOR <code>OPTION (OPTIMIZE FOR (@p3 = 'KIWI'))</code></li> <li>將 Col3 比對參數轉成區域變數(避開 Sniffing)</li> <li>調整程式行為(例如：避免先用不存在的分類查詢)</li></ol> </li> <li>SSMS 觀察執行計劃一般要等到執行完，若查詢很耗時，可使用 Live Query Plan 搶先看。(版本需求：SQL2014+/SSMS2016+)<br> 選項位於 Query/Include Live Query Statistics<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig8_638352239209836862.png"><br> 另外一個做法是從 Active Monitor / Active Expensive Queries 找到正在執行中查詢，由右鍵選單開啟：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig9_638352239211846663.png"><br> 除此外 SQL 2016+ 新增了一個 View <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-statistics-xml-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_statistics_xml</code></a> 也可用來取得執行中查詢的執行計劃</li> <li>SQL2019 新加 <code>ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON</code> 方式可保存最近的執行計劃。參考：<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/system-dynamic-management-views/sys-dm-exec-query-plan-stats-transact-sql?view=azuresqldb-current&amp;WT.mc_id=DOP-MVP-37580"><code>sys.dm_exec_query_plan_stats</code></a></li> <li>用 Profiler 追蹤也可以取得執行計劃，但對效能影響較大，很少會這麼做</li> <li>.NET <code>SqlCommand.Commtext = "SELECT * FROM dbo.Orders WHERE CustomerID = @c"</code> 寫法也會產生執行計劃快取，快取 Key 由查詢語法文字雜湊產生。所以 <code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code>、<code>SELECT * FROM dbo.Orders WHERE CustomerID = @c</code> (結尾多一個空白)、<code>SELECT * FROM Orders WHERE CustomerID = @c</code> (拿掉dbo.)、<code>select * from dbo.Orders where CustomerID = @c</code> (大小寫不同)會產生四份執行計劃快取。</li> <li>注意：.NET SqlParameter 未指定長度可能導致多份執行計劃 <pre><code>cmd.CommandText = "SELECT * FROM dbo.Orders WHERE CustomerID = @c";
-cmd.Parameters.Add("@c", SqlDbType.NVarChar).Value = TextBox.Value;
---會轉成如下指令，由 TextBox.Value 決定 nvarchar(n)
-/*
-exec sp_executesql N'SELECT * FROM Orders WHERE CustomerID = @c',
-N'@c nvarchar(5)',@c=N'ALFKI'
-*/
---字串長度不同，產生的 SQL 語法 nvarchar(n) 的 n 不同，會產生多份執行計劃
---若要避免請指定長度
-cmd.Parameters.Add("@c", SqlDbType.NVarChar, 5).Value = TextBox.Value;
-</code></pre> </li> <li>不同 DEFAULT_SCHEMA 的使用者不共用執行計劃快取，下圖為 DEFAULT_SCHEMA 為 dbo 或 Schema2 使用者查詢 <code>SELECT * FROM Orders WHERE ...</code> 留下的快取，user_id = 1 for dbo、user_id = 5 for Schema2。若指定 Schema <code>SELECT * FROM dbo.Orders WHERE ...</code>，則 user_id = -2 多使用者可共用執行計劃快取，這是表格、View、UDF 名稱一律加上 Schema 的好處(例：dbo.TableName，但 SP 例外，理由是 SP 會以自己所屬 Schema 為準，不隨使用者改變)，如果你的 DB 有區分 Schema，而非共用 dbo 的話。<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig10_638352239214049580.png"></li> <li>Auto-Parameterisation - SQL 將常數自動轉成參數的行為，有兩種模式，Simple、Forced，由資料庫設定決定，預設為 Simple，並只有在 SQL 語句複雜度很低時才啟用(只會產生一種執行計劃)，故不會因 Parameter Sniffing 出問題。Forced 模式則會將所有常數參數化，例如： <pre><code>ALTER DATABASE Northwind SET PARAMETERIZATION FORCED
-DBCC FREEPROCCACHE
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '20000101'
-go
-SELECT * FROM Orders WHERE OrderDate &gt; '19970101'
-go
-</code></pre> 在查詢計劃 SQL 語法會轉成 <code>select * from Orders where OrderDate &gt; @0</code>，兩次共用同一個查詢計劃；若設為 Simple 模式，SQL 發現有兩種執行計劃(前者適合 Index Seek + Key Lookup，後者適合 Clusterd Index Scan)，則會停用自動參數化。</li> <li>在 SSMS 模擬應用程式執行 SQL 動作，SET ARITHABORT OFF 之外的小技巧： <ol><li><code>EXECUTE AS USER = 'appuser'</code> 以應用程式使用的帳號執行，結束時 <code>REVERT</code> 復原</li> <li>用以下指令查應用程式送出的 SQL 指令</li></ol> <pre><code>SELECT '&lt;' + est.text + '&gt;'
-FROM   sys.dm_exec_query_stats qs
-CROSS  APPLY sys.dm_exec_sql_text(qs.sql_handle) est
-WHERE  est.text LIKE '%some significant SQL text here%'
-</code></pre> <ol start="3"><li>Retain CR/LF on copy or save &lt;-- 存檔保留原始換行符號</li> <li>若沒有 Server 管理權限，<code>ALTER TRACE</code> 可授權追蹤、<code>VIEW SERVER (PERFORMANCE) STATE</code> 可查詢 <code>sys.dm_exec_query_stats</code> 及 <code>sys.dm_exec_sql_text</code></li></ol> </li> <li>進階技巧，導引產生想到的執行計劃(Plan Guide)，以下例子指定對 OrderDate Index Seek： <pre><code>DBCC FREEPROCCACHE
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19960101'
-go
-EXEC sp_create_plan_guide
-@name = N'MyGuide',
-@stmt = N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-@type = N'SQL',
-@module_or_batch = NULL,
-@params = N'@orderdate datetime',
-@hints =  N'OPTION (TABLE HINT (dbo.Orders , INDEX (OrderDate)))'
-go
-EXEC sp_executesql N'SELECT * FROM dbo.Orders WHERE OrderDate &gt; @orderdate',
-N'@orderdate datetime', @orderdate = '19980101'
-go
-EXEC sp_control_plan_guide N'DROP', N'MyGuide'
-</code></pre> </li> <li>進階技巧，若 Parameter Sniffing 會產生好的或壞的執行計劃，先用特定參數執行產生好的執行計劃，用 <code>sp_create_plan_guide_from_handle</code> 將其標註為建議使用的版本。</li> <li>SQL 2016+，可啟用 Query Store 長期保存執行計劃及其統計資訊，以利事後分析應用。 <img src="https://blog.darkthread.net/Posts/files/2023/Fig11_638352239216183853.png"></li></ol> <p>不得不說，Erland 的文章滿滿乾貨，但也乾到不配溫開水難以吞服，最後附上我的精簡版精華結束這回合：</p> <ol><li>遇到網站跑 SP/SQL 很慢，移到 SSMS 飛快情況，起因為 Parameter Sniffing 會產生多個版本的執行計劃，有些執行計劃遇到特定參數值效能奇差。</li> <li>SSMS 因預設 ARITHABORT ON，會另外產生執行計劃，避開不良的執行計劃，感覺解決了問題。 ARITHABORT 本身對查詢並無作用響，將應用程式也設成 ARITHABORT ON 並不能解決問題。</li> <li><code>sp_recompile &lt;sp_name&gt;</code> 會強制清空執行計劃快取，有機會解決問題</li> <li>使用 SSMS、<code>dm_exec_text_query_plan</code> 等方式取得好、壞兩種執行計劃對照分析，透過一些技巧避免產生效率低落的執行計劃</li> <li>可用技巧：OPTION (RECOMPILE)、增刪索引、加上索引提示、加上 OPTIMIZE 提示、將外界傳入參數轉成區域變數再使用可避免 Parameter Sniffing</li></ol> <p data-slug="inside-param-sniffing-n-exec-plan" data-title-en="Inside SQL parameter sniffing and execution plan" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/09/22/19/05/cats-4496744_1280.jpg#1280#720">This article summarizes some tips of trouble-shooting SQL parameter sniffing related issues.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638352239195576657.png" medium="image"/>
-    <pubDate>Fri, 10 Nov 2023 14:37:44 GMT</pubDate>
   </item></channel>
 </rss>
