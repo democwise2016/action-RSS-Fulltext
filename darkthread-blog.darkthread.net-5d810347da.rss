@@ -30,6 +30,48 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[按鈕版 Gnuk 實體金鑰燒錄筆記]]></title>
+    <link>https://blog.darkthread.net/blog/flash-gnuk-notes/</link>
+    <itunes:title><![CDATA[按鈕版 Gnuk 實體金鑰燒錄筆記]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前陣子買到一批便宜的 ST-LINK 偵錯器(55 元有找，比珍奶還便宜)，又燒錄了兩支<a href="/blog/low-cost-diy-usb-security-key/">土砲版 USB 實體金鑰</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371296051021957.jpg" alt="thumbnail"></p> <p>過程有個小插曲。這批外型看似與先前買的一致，但腳位居然不同! 上一批按鈕焊接的 CLK 跟 5V 接點在電路板兩端，滑鼠拆下來的歐姆龍微動開關焊上去尺寸剛剛好。而這次買的版本 5V 跟 CLK 腳位間隔減半，不適用歐姆龍微動開關。山不轉路轉，我找到另一款廢棄滑鼠的方型微動開關，小紅點版本問市!</p> <p>之前沒將燒錄細節寫成文章，這回搞了好久才恢復記憶，這篇補上筆記以備未來所需。</p> <ol><li>Gnuk 專案加入按鈕支援<br> Gnuk 專案原始碼在 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk">salsa.debian.org</a>，但 master 分支我編譯不過也缺少現成的按鈕版改法，故要用 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk/-/tree/STABLE-BRANCH-1-2?ref_type=heads">STABLE-BRANCH-1-2</a> 分支，再套用網友提供的 <code>0001-add-pa5-as-switch-pin-for-st-dongle.patch</code>(使用 CLK PIN 腳當按鈕輸入) 編譯出 gnuk-btn.bin。<br> 編譯程序有點複雜，我是參考這兩篇： <ul><li><a href="https://kgame.tw/gnupg/stm32-gnuk/">ST-LINK V2 刷 Gnuk</a></li> <li><a href="https://techie-s.work/posts/2021/05/homemade-gnuk-with-stdongle/">Homemade GnuK with ST-Dongle</a></li></ul> </li> <li>openocd 設定修改<br> 我買的偵錯器採用 Geehy APM32 晶片，參考<a href="https://bbs.21ic.com/icview-3262442-1-1.html">极海国产芯|VScode开发APM32F1过程分享</a>建立 <code>\share\openocd\scripts\target\apm32f1x.cfg</code>，並修改 openocd.cfg 如下： <pre><code> telnet_port 4444
+source [find interface/stlink-v2.cfg]
+source [find target/apm32f1x.cfg]
+set WORKAREASIZE 0x10000
+</code></pre> </li> <li>接線<br> ST-LINK 偵錯器的 3.3V、GND、SWDIO、SWCLK 接到燒錄對象的 3V3、GND、D0、CLK：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638256120794559518.jpg"></li> <li>執行 openocd<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371296053252224.png"></li> <li>telnet localhost 4444<br> 先下指令 <code>stm32f1x unlock 0</code>、<code>reset halt</code>、<code>exit</code>，拔出 USB 斷電重啟以完成解除寫入保護：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>再次 telnet localhost 4444，寫入 Gnuk <pre><code> stm32f1x unlock 0
+reset halt
+flash write_bank 0 gnuk-btn.bin 0
+stm32f1x lock 0
+reset halt
+</code></pre> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>後續操作接回 <a href="/blog/gpg-keytocard/">GPG 整合實體金鑰筆記</a></li></ol> <p data-slug="flash-gnuk-notes" data-fbimg="/Posts/files/2023/Fig5_638256120794559518.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前陣子買到一批便宜的 ST-LINK 偵錯器(55 元有找，比珍奶還便宜)，又燒錄了兩支<a href="/blog/low-cost-diy-usb-security-key/">土砲版 USB 實體金鑰</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371296051021957.jpg" alt="thumbnail"></p> <p>過程有個小插曲。這批外型看似與先前買的一致，但腳位居然不同! 上一批按鈕焊接的 CLK 跟 5V 接點在電路板兩端，滑鼠拆下來的歐姆龍微動開關焊上去尺寸剛剛好。而這次買的版本 5V 跟 CLK 腳位間隔減半，不適用歐姆龍微動開關。山不轉路轉，我找到另一款廢棄滑鼠的方型微動開關，小紅點版本問市!</p> <p>之前沒將燒錄細節寫成文章，這回搞了好久才恢復記憶，這篇補上筆記以備未來所需。</p> <ol><li>Gnuk 專案加入按鈕支援<br> Gnuk 專案原始碼在 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk">salsa.debian.org</a>，但 master 分支我編譯不過也缺少現成的按鈕版改法，故要用 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk/-/tree/STABLE-BRANCH-1-2?ref_type=heads">STABLE-BRANCH-1-2</a> 分支，再套用網友提供的 <code>0001-add-pa5-as-switch-pin-for-st-dongle.patch</code>(使用 CLK PIN 腳當按鈕輸入) 編譯出 gnuk-btn.bin。<br> 編譯程序有點複雜，我是參考這兩篇： <ul><li><a href="https://kgame.tw/gnupg/stm32-gnuk/">ST-LINK V2 刷 Gnuk</a></li> <li><a href="https://techie-s.work/posts/2021/05/homemade-gnuk-with-stdongle/">Homemade GnuK with ST-Dongle</a></li></ul> </li> <li>openocd 設定修改<br> 我買的偵錯器採用 Geehy APM32 晶片，參考<a href="https://bbs.21ic.com/icview-3262442-1-1.html">极海国产芯|VScode开发APM32F1过程分享</a>建立 <code>\share\openocd\scripts\target\apm32f1x.cfg</code>，並修改 openocd.cfg 如下： <pre><code> telnet_port 4444
+source [find interface/stlink-v2.cfg]
+source [find target/apm32f1x.cfg]
+set WORKAREASIZE 0x10000
+</code></pre> </li> <li>接線<br> ST-LINK 偵錯器的 3.3V、GND、SWDIO、SWCLK 接到燒錄對象的 3V3、GND、D0、CLK：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638256120794559518.jpg"></li> <li>執行 openocd<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371296053252224.png"></li> <li>telnet localhost 4444<br> 先下指令 <code>stm32f1x unlock 0</code>、<code>reset halt</code>、<code>exit</code>，拔出 USB 斷電重啟以完成解除寫入保護：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>再次 telnet localhost 4444，寫入 Gnuk <pre><code> stm32f1x unlock 0
+reset halt
+flash write_bank 0 gnuk-btn.bin 0
+stm32f1x lock 0
+reset halt
+</code></pre> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>後續操作接回 <a href="/blog/gpg-keytocard/">GPG 整合實體金鑰筆記</a></li></ol> <p data-slug="flash-gnuk-notes" data-fbimg="/Posts/files/2023/Fig5_638256120794559518.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前陣子買到一批便宜的 ST-LINK 偵錯器(55 元有找，比珍奶還便宜)，又燒錄了兩支<a href="/blog/low-cost-diy-usb-security-key/">土砲版 USB 實體金鑰</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371296051021957.jpg" alt="thumbnail"></p> <p>過程有個小插曲。這批外型看似與先前買的一致，但腳位居然不同! 上一批按鈕焊接的 CLK 跟 5V 接點在電路板兩端，滑鼠拆下來的歐姆龍微動開關焊上去尺寸剛剛好。而這次買的版本 5V 跟 CLK 腳位間隔減半，不適用歐姆龍微動開關。山不轉路轉，我找到另一款廢棄滑鼠的方型微動開關，小紅點版本問市!</p> <p>之前沒將燒錄細節寫成文章，這回搞了好久才恢復記憶，這篇補上筆記以備未來所需。</p> <ol><li>Gnuk 專案加入按鈕支援<br> Gnuk 專案原始碼在 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk">salsa.debian.org</a>，但 master 分支我編譯不過也缺少現成的按鈕版改法，故要用 <a href="https://salsa.debian.org/gnuk-team/gnuk/gnuk/-/tree/STABLE-BRANCH-1-2?ref_type=heads">STABLE-BRANCH-1-2</a> 分支，再套用網友提供的 <code>0001-add-pa5-as-switch-pin-for-st-dongle.patch</code>(使用 CLK PIN 腳當按鈕輸入) 編譯出 gnuk-btn.bin。<br> 編譯程序有點複雜，我是參考這兩篇： <ul><li><a href="https://kgame.tw/gnupg/stm32-gnuk/">ST-LINK V2 刷 Gnuk</a></li> <li><a href="https://techie-s.work/posts/2021/05/homemade-gnuk-with-stdongle/">Homemade GnuK with ST-Dongle</a></li></ul> </li> <li>openocd 設定修改<br> 我買的偵錯器採用 Geehy APM32 晶片，參考<a href="https://bbs.21ic.com/icview-3262442-1-1.html">极海国产芯|VScode开发APM32F1过程分享</a>建立 <code>\share\openocd\scripts\target\apm32f1x.cfg</code>，並修改 openocd.cfg 如下： <pre><code> telnet_port 4444
+source [find interface/stlink-v2.cfg]
+source [find target/apm32f1x.cfg]
+set WORKAREASIZE 0x10000
+</code></pre> </li> <li>接線<br> ST-LINK 偵錯器的 3.3V、GND、SWDIO、SWCLK 接到燒錄對象的 3V3、GND、D0、CLK：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638256120794559518.jpg"></li> <li>執行 openocd<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371296053252224.png"></li> <li>telnet localhost 4444<br> 先下指令 <code>stm32f1x unlock 0</code>、<code>reset halt</code>、<code>exit</code>，拔出 USB 斷電重啟以完成解除寫入保護：<br> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>再次 telnet localhost 4444，寫入 Gnuk <pre><code> stm32f1x unlock 0
+reset halt
+flash write_bank 0 gnuk-btn.bin 0
+stm32f1x lock 0
+reset halt
+</code></pre> <img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371296055124346.png"></li> <li>後續操作接回 <a href="/blog/gpg-keytocard/">GPG 整合實體金鑰筆記</a></li></ol> <p data-slug="flash-gnuk-notes" data-fbimg="/Posts/files/2023/Fig5_638256120794559518.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638371296051021957.jpg"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638371296051021957.jpg" medium="image"/>
+    <pubDate>Sat, 02 Dec 2023 15:57:55 GMT</pubDate>
+  </item><item>
     <title><![CDATA[只有左轉箭頭的車道，圓形綠燈可以直行？]]></title>
     <link>https://blog.darkthread.net/blog/left-turn-lane/</link>
     <itunes:title><![CDATA[只有左轉箭頭的車道，圓形綠燈可以直行？]]></itunes:title>
@@ -1504,230 +1546,5 @@ Write-Host
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png" medium="image"/>
     <pubDate>Thu, 16 Nov 2023 15:26:55 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></title>
-    <link>https://blog.darkthread.net/blog/pwd-crack-time/</link>
-    <itunes:title><![CDATA[Coding4Fun - 計算不同密碼長度與複雜度所需暴力破解時間]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
-$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$complexity = [ordered]@{
-'純數字'       = '0';
-'全大寫/全小寫'   = 'A';
-'大小寫混合'     = 'Aa';
-'大小寫+數字'    = 'Aa0';
-'大小寫+數字+符號' = 'Aa0!';
-}
-$html = @"
-&lt;style&gt;
-table { border-collapse: collapse; text-align: center; font-size: 9pt; }
-td, th { border: 1px solid #888; padding: 0.5em; }
-thead th { background-color: #ccc; }
-tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
-tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
-.hps { margin-left: 2em; color: blue; }
-&lt;/style&gt;
-&lt;h3&gt;
-$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
-&lt;/h3&gt;
-&lt;table&gt;&lt;thead&gt;
-&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
-$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;&lt;tbody&gt;
-"@
-$units = @('', '萬', '億')
-For ($len = 6; $len -lt 25; $len++) {
-$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
-$complexity.Keys | ForEach-Object {
-$pattern = $complexity.$_
-$charCount = 0;
-if ($pattern -match '[0-9]') { $charCount += 10; }
-if ($pattern -cmatch '[a-z]') { $charCount += 26; }
-if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
-if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
-#Write-Host $_ $charCount
-[bigint]$count = [bigint]::Pow($charCount, $len)
-$secs = [bigint]::Divide($count, $hitsPerSec)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$years = [bigint]::Divide($secs, 86400 * 365)
-$unitIdx = 0
-$unit = $units[$unitIdx]
-while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
-$years = [bigint]::Divide($years, 10000)
-$unit = $units[++$unitIdx]
-}
-if ($years -gt 100000000) {
-$years = $years.ToString('e')
-$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
-$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
-}
-else {
-$years = $years.ToString('n0')
-}
-$time = $years + ' ' + $unit + '年'
-}
-$html += "&lt;td&gt;$time&lt;/td&gt;"
-}
-$html += "&lt;/tr&gt;"
-}
-$html += "&lt;/tbody&gt;&lt;/table&gt;"
-$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
-$html | Out-File $tempFilePath -Encoding UTF8
-Start-Process $tempFilePath
-</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
-$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$complexity = [ordered]@{
-'純數字'       = '0';
-'全大寫/全小寫'   = 'A';
-'大小寫混合'     = 'Aa';
-'大小寫+數字'    = 'Aa0';
-'大小寫+數字+符號' = 'Aa0!';
-}
-$html = @"
-&lt;style&gt;
-table { border-collapse: collapse; text-align: center; font-size: 9pt; }
-td, th { border: 1px solid #888; padding: 0.5em; }
-thead th { background-color: #ccc; }
-tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
-tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
-.hps { margin-left: 2em; color: blue; }
-&lt;/style&gt;
-&lt;h3&gt;
-$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
-&lt;/h3&gt;
-&lt;table&gt;&lt;thead&gt;
-&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
-$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;&lt;tbody&gt;
-"@
-$units = @('', '萬', '億')
-For ($len = 6; $len -lt 25; $len++) {
-$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
-$complexity.Keys | ForEach-Object {
-$pattern = $complexity.$_
-$charCount = 0;
-if ($pattern -match '[0-9]') { $charCount += 10; }
-if ($pattern -cmatch '[a-z]') { $charCount += 26; }
-if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
-if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
-#Write-Host $_ $charCount
-[bigint]$count = [bigint]::Pow($charCount, $len)
-$secs = [bigint]::Divide($count, $hitsPerSec)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$years = [bigint]::Divide($secs, 86400 * 365)
-$unitIdx = 0
-$unit = $units[$unitIdx]
-while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
-$years = [bigint]::Divide($years, 10000)
-$unit = $units[++$unitIdx]
-}
-if ($years -gt 100000000) {
-$years = $years.ToString('e')
-$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
-$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
-}
-else {
-$years = $years.ToString('n0')
-}
-$time = $years + ' ' + $unit + '年'
-}
-$html += "&lt;td&gt;$time&lt;/td&gt;"
-}
-$html += "&lt;/tr&gt;"
-}
-$html += "&lt;/tbody&gt;&lt;/table&gt;"
-$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
-$html | Out-File $tempFilePath -Encoding UTF8
-Start-Process $tempFilePath
-</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>前陣子參加一個 SHA1 暴力破解挑戰，寫了 .NET 程式用上 Parallel.ForEach 平行處理，幾經調校將嘗試次數推上每秒 300 萬次， 64 顆 CPU 齊上 85% 真是壯觀，是次有趣體驗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"></p> <p>這類大量破解運算用 CPU 跑吃力不討好。但決定入手<a href="/blog/deskmini-i5/">迷你電腦</a>當工作機的那一刻，便註定跟高階顯卡無緣，當時覺得自己用不到圖形顯示不必浪費錢浪費電浪費空間，這一年來發現機器學習、密碼學領域有好多地方 CUDA 平行運算可以派上用場，好像錯過了一些好玩的東西。</p> <p>我的不專業暴力 SHA1 破解程式配 64 核 CPU 每秒可以算 300 萬筆 SHA1，如果換成目前常見入門獨顯 RTX 4070、甚至消費市場封頂的 RTX 4090，可以跑出什麼樣的成績。最專業的密碼<del>破解</del>還原軟體莫過於 <a href="https://hashcat.net/hashcat/">Hashcat</a>，其支援 CUDA，網路上可以找到不少效能測試數字，隨便查了一下得到答案： <a href="https://hashcat.net/forum/thread-11394.html">4070 參考</a>、<a href="https://hashcat.net/forum/thread-11277.html">4090 參考</a></p> <table><thead><tr><th>顯卡</th><th>MD5</th><th>SHA1</th><th>SHA2-256</th></tr></thead><tbody><tr><td>NVIDIA RTX 4070</td><td>56165.1 MH/s</td><td>18456.5 MH/s</td><td>7933.2 MH/s</td></tr><tr><td>NVIDIA RTX 4090</td><td>155.9 GH/s</td><td>50894.8 MH/s</td><td>21791.7 MH/s</td></tr></tbody></table> <p>嘿，不多不多，是我 CPU 版程式的 17,000 倍而已 (RTX 有 16394 CUDA 核心) XD</p> <p>每秒嘗試次數已知，由組成字元複雜度可推算可能組合(例如：12 碼純數字是 10<sup>12，8 碼大小寫混合是 52</sup>8)，若不考慮使用已知密碼表及字典攻擊，嘗試所有可能組合做暴力攻擊，二者相除就可以算出所需秒數，可以生出一張不同密碼複雜度與長度所需暴力破解時間，感覺挺有趣的。於是乎我就用 PowerShell 寫了一個，之前可以計算無限位整數的 <a href="/blog/biginteger/">BigInteger</a> 派上用場，程式範例如下：</p> <pre><code>$title = 'NVIDIA RTX 4090 / SHA256'
-$hitsPerSec = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$complexity = [ordered]@{
-'純數字'       = '0';
-'全大寫/全小寫'   = 'A';
-'大小寫混合'     = 'Aa';
-'大小寫+數字'    = 'Aa0';
-'大小寫+數字+符號' = 'Aa0!';
-}
-$html = @"
-&lt;style&gt;
-table { border-collapse: collapse; text-align: center; font-size: 9pt; }
-td, th { border: 1px solid #888; padding: 0.5em; }
-thead th { background-color: #ccc; }
-tbody td { text-align: right; width: 8em; padding: 0.5em 1em; }
-tbody td:first-child { text-align: center; width: 3em; background-color: #ccc; }
-.hps { margin-left: 2em; color: blue; }
-&lt;/style&gt;
-&lt;h3&gt;
-$title &lt;span class=hps&gt;$($hitsPerSec.ToString('n0')) 次/秒&lt;/span&gt;
-&lt;/h3&gt;
-&lt;table&gt;&lt;thead&gt;
-&lt;tr&gt;&lt;th&gt;長度&lt;/th&gt;
-$($complexity.Keys | ForEach-Object { "&lt;th&gt;$_&lt;/th&gt;" })&lt;/tr&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;&lt;tbody&gt;
-"@
-$units = @('', '萬', '億')
-For ($len = 6; $len -lt 25; $len++) {
-$html += "&lt;tr&gt;&lt;td&gt;$len&lt;/td&gt;"
-$complexity.Keys | ForEach-Object {
-$pattern = $complexity.$_
-$charCount = 0;
-if ($pattern -match '[0-9]') { $charCount += 10; }
-if ($pattern -cmatch '[a-z]') { $charCount += 26; }
-if ($pattern -cmatch '[A-Z]') { $charCount += 26; }
-if ($pattern -match '[^0-9a-zA-Z]') { $charCount += 32; }
-#Write-Host $_ $charCount
-[bigint]$count = [bigint]::Pow($charCount, $len)
-$secs = [bigint]::Divide($count, $hitsPerSec)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$years = [bigint]::Divide($secs, 86400 * 365)
-$unitIdx = 0
-$unit = $units[$unitIdx]
-while ($years -gt 10000 -and $unitIdx -lt $units.Length - 1) {
-$years = [bigint]::Divide($years, 10000)
-$unit = $units[++$unitIdx]
-}
-if ($years -gt 100000000) {
-$years = $years.ToString('e')
-$m = [regex]::Match($years, '(?&lt;n&gt;\d.\d+)e\+(?&lt;t&gt;\d+)')
-$years = [float]::Parse($m.Groups['n'].Value).ToString('n2') + ' x 10&lt;sup&gt;' + [int]::Parse($m.Groups['t'].Value) + '&lt;/sup&gt;'
-}
-else {
-$years = $years.ToString('n0')
-}
-$time = $years + ' ' + $unit + '年'
-}
-$html += "&lt;td&gt;$time&lt;/td&gt;"
-}
-$html += "&lt;/tr&gt;"
-}
-$html += "&lt;/tbody&gt;&lt;/table&gt;"
-$tempFilePath = [System.IO.Path]::GetTempFileName() + ".html"
-$html | Out-File $tempFilePath -Encoding UTF8
-Start-Process $tempFilePath
-</code></pre> <p>如此，我們就能得到一張「以家用電腦暴力破解不同長度與複雜度密碼 SHA256 所需時間表」：(希望沒計算錯誤 XD)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638356571420211127.png"></p> <p>以當今的硬體算力，八個字元以下的密碼幾乎都像豆腐毫無防禦力；純數字密碼除非加長到 20 碼，不然也像砲灰；當今有一派主張密碼不要強迫混用特殊符號，用多個容易記憶的短單字或縮寫拼裝，讓密碼拉長到 12 到 14 碼，即使只用大小寫無數字，也有 568 年到 153 萬年的強度，混入數字則可再拉高至 4694 年到 1804 萬年；反觀用上大小寫數字加符號的最高複雜度，若只有短短 8 碼，用 4090 跑三天便能破防。短一寸、險一寸，這年頭密碼要安全，愈長愈保險。</p> <p data-slug="pwd-crack-time" data-title-en="Using PowerShell to calculate time required to crack password hash" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A simple PowerShell example to calculate to time required to brute-force crack password hash.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638356571416462406.png" medium="image"/>
-    <pubDate>Wed, 15 Nov 2023 14:55:42 GMT</pubDate>
   </item></channel>
 </rss>
