@@ -30,6 +30,90 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></title>
+    <link>https://blog.darkthread.net/blog/dev-tty/</link>
+    <itunes:title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "gpg.exe"
+$p.StartInfo.Arguments = "--full-gen-key"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.WaitForExit()
+</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main() {
+printf("This is a message to stdout
+");
+fprintf(stderr, "This is a message to stderr
+");
+// FILE* fout = fopen("/dev/tty", "w"); for Linux
+FILE* fout = fopen("con:", "w");
+fprintf(fout, "This is a message to /dev/tty
+");
+fclose(fout);
+return EXIT_SUCCESS;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "gpg.exe"
+$p.StartInfo.Arguments = "--full-gen-key"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.WaitForExit()
+</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main() {
+printf("This is a message to stdout
+");
+fprintf(stderr, "This is a message to stderr
+");
+// FILE* fout = fopen("/dev/tty", "w"); for Linux
+FILE* fout = fopen("con:", "w");
+fprintf(fout, "This is a message to /dev/tty
+");
+fclose(fout);
+return EXIT_SUCCESS;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
+$p.StartInfo.FileName = "gpg.exe"
+$p.StartInfo.Arguments = "--full-gen-key"
+$p.StartInfo.UseShellExecute = $false
+$p.StartInfo.RedirectStandardOutput = $true
+$p.StartInfo.RedirectStandardInput = $true
+$p.StartInfo.RedirectStandardError = $true
+$p.Start() | Out-Null
+$p.WaitForExit()
+</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main() {
+printf("This is a message to stdout
+");
+fprintf(stderr, "This is a message to stderr
+");
+// FILE* fout = fopen("/dev/tty", "w"); for Linux
+FILE* fout = fopen("con:", "w");
+fprintf(fout, "This is a message to /dev/tty
+");
+fclose(fout);
+return EXIT_SUCCESS;
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png" medium="image"/>
+    <pubDate>Sun, 03 Dec 2023 02:13:15 GMT</pubDate>
+  </item><item>
     <title><![CDATA[按鈕版 Gnuk 實體金鑰燒錄筆記]]></title>
     <link>https://blog.darkthread.net/blog/flash-gnuk-notes/</link>
     <itunes:title><![CDATA[按鈕版 Gnuk 實體金鑰燒錄筆記]]></itunes:title>
@@ -1390,161 +1474,5 @@ C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runt
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" medium="image"/>
     <pubDate>Sat, 18 Nov 2023 09:11:30 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[小工具：快速檢測密碼是否外洩或被列入已知清單]]></title>
-    <link>https://blog.darkthread.net/blog/pwd-hibp-check/</link>
-    <itunes:title><![CDATA[小工具：快速檢測密碼是否外洩或被列入已知清單]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
-while ($true) {
-$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
-if ($secString.Length -eq 0) {
-Write-Host "Bye~"
-break
-}
-# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
-$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
-$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
-[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
-$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
-$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
-$prefix = $hash.Substring(0, 5)
-$remaining = $hash.Substring(5)
-Write-Host "$prefix - $remaining" -ForegroundColor Cyan
-$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
-if ($found) {
-$p = $found -split ':'
-Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
-Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
-Write-Host " 次，不建議使用" -ForegroundColor Red
-Write-Host $found -ForegroundColor Cyan
-}
-else {
-Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
-$charPool = 0
-$setNames = @();
-if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
-if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
-if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
-if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
-$length = $passwd.Length
-[bigint]$count = [bigint]::Pow($charPool, $length)
-$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$secs = [bigint]::Divide($count, $rtx4090Power)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
-}
-Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
-}
-Write-Host
-}
-</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
-while ($true) {
-$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
-if ($secString.Length -eq 0) {
-Write-Host "Bye~"
-break
-}
-# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
-$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
-$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
-[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
-$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
-$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
-$prefix = $hash.Substring(0, 5)
-$remaining = $hash.Substring(5)
-Write-Host "$prefix - $remaining" -ForegroundColor Cyan
-$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
-if ($found) {
-$p = $found -split ':'
-Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
-Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
-Write-Host " 次，不建議使用" -ForegroundColor Red
-Write-Host $found -ForegroundColor Cyan
-}
-else {
-Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
-$charPool = 0
-$setNames = @();
-if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
-if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
-if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
-if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
-$length = $passwd.Length
-[bigint]$count = [bigint]::Pow($charPool, $length)
-$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$secs = [bigint]::Divide($count, $rtx4090Power)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
-}
-Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
-}
-Write-Host
-}
-</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://haveibeenpwned.com/">Have I Been Pwned (HIBP)</a> 是澳洲安全專家 Troy Hunt 在 2013 年建立的外洩密碼查詢平臺，連美國 FBI 跟英國 NCA (國家犯罪調查局）都會將蒐集到的外洩密碼貢獻給 HIBP 收藏 (參考：<a href="https://www.ithome.com.tw/news/148479">繼美國之後，英國也加入提供外洩密碼予Have I Been Pwned的行列 by iThome</a>)，說 HIBP 是全世界最權威的外洩密碼資料庫絕不為過。</p> <p>HIBP 有個介面可輸入 Email 查詢，檢查該 Email 是否在外洩事件出現過，但這只對已發生過的外洩事件有效。從另個角度想，這批外洩密碼會是駭客猜密碼的首選，先把已知密碼試過一輪再跑吃力不討好的暴力破解。換言之，若你使用的密碼已在 HIBP 資料庫出現過，以昨<a href="/blog/pwd-crack-time/">提到的 NVIDIA RTX 4070 算力</a>預估，每秒 218 億次 SHA256、509 億次 SHA1，現有六億多筆已知密碼試過一次只要 0.03s，就算密碼長達 20 位，照樣會被秒殺。(註：駭客未必能拿到外洩密碼明文，非連續性資料的每秒計算次數照理要低一些，但料敵從寬，就當一秒吧)</p> <p>要避免自己的密碼在駭客暖身階段被猜中，最好的做法是先確認它沒有出現在 HIBP 資料庫。HIBP 有密碼資料檔可下載，但資料量龐大還要自己寫程式處理。透過 HIBP 提供的 API 查詢是較便捷的做法。</p> <p>等等，在網站上輸入密碼檢查有沒有外洩聽起來超蠢，原本沒外流的密碼在輸入過程外流怎麼辦？這根本是在送頭吧？ (我想起「誘使失主開保險箱檢查東西還在不在，小偷在旁觀察伺機下手」的橋段，以及「上網查自己有沒有在教召名單就收到教召令」的都市傳說)</p> <p>HIBP 身為資安相關網站，提供 API 時自然不會犯下這類低級錯誤，它想了一個巧妙做法：要使用者自己先算好密碼的 SHA1 雜湊，用雜湊前五碼當查詢條件，API 傳回所有前五碼相符的密碼雜湊，以及該筆密碼在資料庫出現次數。查詢者取回清單自行比對後 35 碼，若找到就代表該筆密碼已被收錄，次數愈高代表愈多人用，認證為菜市場密碼無誤。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"></p> <p>如此，使用者可確認密碼是否在資料庫中，而 HIBP 站方只知前五碼，無從得知使用者想查的密碼雜湊是哪一筆，兼顧方便與安全，好個聰明做法。</p> <p>發現這麼用好的服務，我馬上想寫個小工具呼叫 API 快速比對密碼雜湊，讓 SHA1 計算、資料下載、比對全在自家完成，將密碼外流風險降到最低。為證明檢查程式光明磊落，不會搞出假查詢真偷看的勾當，坦蕩蕩不怕你看，又通吃 Windows/MacOS/Linux 的 PowerShell，是本次開發語言首選。</p> <pre><code>$ProgressPreference = 'SilentlyContinue'
-while ($true) {
-$secString = Read-Host "請輸入要檢查的密碼" -AsSecureString
-if ($secString.Length -eq 0) {
-Write-Host "Bye~"
-break
-}
-# https://github.com/PowerShell/PowerShell/issues/13494#issuecomment-678150857
-$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secString)
-$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
-[System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($ptr)
-$pwdBytes = [System.Text.Encoding]::UTF8.GetBytes($passwd)
-$hash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA1]::Create().ComputeHash($pwdBytes)).Replace('-', '')
-$prefix = $hash.Substring(0, 5)
-$remaining = $hash.Substring(5)
-Write-Host "$prefix - $remaining" -ForegroundColor Cyan
-$found = (Invoke-WebRequest "https://api.pwnedpasswords.com/range/$prefix").Content.Split("`n") | Select-String -Pattern $remaining -CaseSensitive
-if ($found) {
-$p = $found -split ':'
-Write-Host "警告!此密碼在 HIBP 資料庫出現 " -ForegroundColor Red -NoNewline
-Write-Host (+$p[1]).ToString('n0') -ForegroundColor Yellow -NoNewline
-Write-Host " 次，不建議使用" -ForegroundColor Red
-Write-Host $found -ForegroundColor Cyan
-}
-else {
-Write-Host "呼~ HIBP 資料庫未收錄此密碼" -ForegroundColor Green
-$charPool = 0
-$setNames = @();
-if ($passwd -match '[0-9]') { $charPool += 10; $setNames += '數字' }
-if ($passwd -match '[a-z]') { $charPool += 26; $setNames += '小寫' }
-if ($passwd -match '[A-Z]') { $charPool += 26; $setNames += '大寫' }
-if ($passwd -match '[^0-9a-zA-Z]') { $charPool += 32; $setNames += '符號' }
-$length = $passwd.Length
-[bigint]$count = [bigint]::Pow($charPool, $length)
-$rtx4090Power = 21791700000; #SHA2-256 21791.7 MH/s https://hashcat.net/forum/thread-11277.html
-$secs = [bigint]::Divide($count, $rtx4090Power)
-if ($secs -lt 60) { $time = "$secs 秒" }
-elseif ($secs -lt 3600) { $time = "$([bigint]::Divide($secs, 60)) 分鐘" }
-elseif ($secs -lt 86400) { $time = "$([bigint]::Divide($secs,3600)) 小時" }
-elseif ($secs -lt 86400 * 365) { $time = "$([bigint]::Divide($secs,86400)) 天" }
-else {
-$time = "$([bigint]::Divide($secs,86400 * 365).ToString('n0')) 年"
-}
-Write-Host "長度 $length ($($setNames -join '、')) 預估暴力破解時間約：$time (NVIDIA RTX-4090 / SHA256)" -ForegroundColor Magenta
-}
-Write-Host
-}
-</code></pre> <p>將上述內容存成 Check-PasswdCollision.ps1：(編碼記得選 UTF8 with BOM)</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638357457700846056.png"></p> <p>之後從 CMD 呼叫或從檔案總管選「以 PowerShell 執行」，便可快速查詢密碼是否出現在資料庫中：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638357457704612435.png"></p> <p>我寫了迴圈方便反覆輸入密碼查詢，若沒出現在 HIBP 資料庫，則程式會用長度，字元組合複雜度(數字、大小寫、有無符號)簡單推算，如果密碼用 SHA256 保存，駭客買張 NVIDIA RTX 4090 顯卡，要花多久時間可以破解你的密碼。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638357457706641648.png"></p> <p>實測後你會發現，ABCD1234、qwerasdf 這類簡單拼湊密碼幾乎全部都被人用過了，甚至像「我的密碼」注音符號輸入 - ji32k7au4a83 看似難猜，但它出現 249 次。ABCDEabcde1234 長達 14 碼的簡單組合照樣有人用過。14 碼隨機純數字，就算沒人用過，暴力破解只需一小時。但含大小寫短文字拼接 - TueFriTueSun 的表現挺不錯，用四位數字轉星期，只需 12 碼，好記又難破。(但這招既然說破了，已不再安全 XD)</p> <p>查詢完成，密碼輸入直接按 Enter 即可結束程式。</p> <p>最後來驗證 PowerShell 的跨平台特性，在 Linux / MacOS 實測一下。</p> <p>Linux OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638357457708723412.png"></p> <p>MacOS OK!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638357457710669944.png"></p> <p>工具箱再添實用小工具一枚。</p> <p data-slug="pwd-hibp-check" data-title-en="PowerShell to check password with HIBP API safely" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">A handy PowerShell tool to call HIBP API to check if password exists in breach password database.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638357457698896864.png" medium="image"/>
-    <pubDate>Thu, 16 Nov 2023 15:26:55 GMT</pubDate>
   </item></channel>
 </rss>
