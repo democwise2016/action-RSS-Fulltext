@@ -30,6 +30,246 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></title>
+    <link>https://blog.darkthread.net/blog/enable-mvc-on-minapi/</link>
+    <itunes:title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Hello World!");
+</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Home&lt;/title&gt;
+&lt;style&gt;
+iframe {
+height: 40px;
+width: 300px;
+margin-top: 5px;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action="/sha1" method="post" target="result"&gt;
+&lt;input name="data" value="Hello, World!" /&gt;
+&lt;button&gt;Calculate SHA1&lt;/button&gt;
+&lt;/form&gt;
+&lt;iframe name="result"&gt;&lt;/iframe&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+// 指定 index.html 為 wwwroot 預設文件
+app.UseDefaultFiles();
+// 啟用 wwwroot 靜態檔資料夾
+app.UseFileServer();
+app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
+.Replace("-", string.Empty);
+ctx.Response.ContentType = "text/html";
+await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
+});
+app.Run();
+</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
+namespace min_api_add_mvc.Controllers
+{
+public class CryptoController : Controller
+{
+[HttpPost]
+public IActionResult Sha1(string data)
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(data.ToString())))
+.Replace("-", string.Empty);
+return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
+}
+}
+}
+</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+// 啟用 Controller
+builder.Services.AddControllers();
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+// 指定 Controller 路由
+app.MapControllers();
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
+</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
+&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
+&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
+&lt;/ItemGroup&gt;
+</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
+&lt;pre&gt;@Model&lt;/pre&gt;
+</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Hello World!");
+</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Home&lt;/title&gt;
+&lt;style&gt;
+iframe {
+height: 40px;
+width: 300px;
+margin-top: 5px;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action="/sha1" method="post" target="result"&gt;
+&lt;input name="data" value="Hello, World!" /&gt;
+&lt;button&gt;Calculate SHA1&lt;/button&gt;
+&lt;/form&gt;
+&lt;iframe name="result"&gt;&lt;/iframe&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+// 指定 index.html 為 wwwroot 預設文件
+app.UseDefaultFiles();
+// 啟用 wwwroot 靜態檔資料夾
+app.UseFileServer();
+app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
+.Replace("-", string.Empty);
+ctx.Response.ContentType = "text/html";
+await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
+});
+app.Run();
+</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
+namespace min_api_add_mvc.Controllers
+{
+public class CryptoController : Controller
+{
+[HttpPost]
+public IActionResult Sha1(string data)
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(data.ToString())))
+.Replace("-", string.Empty);
+return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
+}
+}
+}
+</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+// 啟用 Controller
+builder.Services.AddControllers();
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+// 指定 Controller 路由
+app.MapControllers();
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
+</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
+&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
+&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
+&lt;/ItemGroup&gt;
+</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
+&lt;pre&gt;@Model&lt;/pre&gt;
+</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.MapGet("/", () =&gt; "Hello World!");
+</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Home&lt;/title&gt;
+&lt;style&gt;
+iframe {
+height: 40px;
+width: 300px;
+margin-top: 5px;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action="/sha1" method="post" target="result"&gt;
+&lt;input name="data" value="Hello, World!" /&gt;
+&lt;button&gt;Calculate SHA1&lt;/button&gt;
+&lt;/form&gt;
+&lt;iframe name="result"&gt;&lt;/iframe&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+// 指定 index.html 為 wwwroot 預設文件
+app.UseDefaultFiles();
+// 啟用 wwwroot 靜態檔資料夾
+app.UseFileServer();
+app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
+.Replace("-", string.Empty);
+ctx.Response.ContentType = "text/html";
+await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
+});
+app.Run();
+</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
+namespace min_api_add_mvc.Controllers
+{
+public class CryptoController : Controller
+{
+[HttpPost]
+public IActionResult Sha1(string data)
+{
+var hash = BitConverter.ToString(
+SHA1.Create().ComputeHash(
+Encoding.UTF8.GetBytes(data.ToString())))
+.Replace("-", string.Empty);
+return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
+}
+}
+}
+</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+// 啟用 Controller
+builder.Services.AddControllers();
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+// 指定 Controller 路由
+app.MapControllers();
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
+</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
+&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
+&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
+&lt;/ItemGroup&gt;
+</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
+&lt;pre&gt;@Model&lt;/pre&gt;
+</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png" medium="image"/>
+    <pubDate>Mon, 04 Dec 2023 12:57:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></title>
     <link>https://blog.darkthread.net/blog/dev-tty/</link>
     <itunes:title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></itunes:title>
@@ -1459,20 +1699,5 @@ C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runt
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png" medium="image"/>
     <pubDate>Sat, 18 Nov 2023 14:05:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[五分鐘排除雷射印表機印出黑點雜線問題]]></title>
-    <link>https://blog.darkthread.net/blog/clean-laser-printer-drum/</link>
-    <itunes:title><![CDATA[五分鐘排除雷射印表機印出黑點雜線問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>小閃光報案，家裡雷射印表機列印時紙上會出現固定規律的雜點，如下圖，每隔固定距離出現平行的兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" alt="thumbnail"></p> <p>我對雷射印表機的研究僅限於換碳粉匣跟處理卡紙，第一次遇到這種狀況還以為是核心組件出了問題，只能送修或買新機。</p> <p>爬文後再長知識：入門等級印表機的感光鼓(或稱感光滾筒)跟碳粉匣都裝在那個可抽出的組件上，碳粉出口緊臨感光鼓。紙上出現黑點雜線，多半是感光鼓上沾了碳粉塊，每轉一圈蓋一個章，在紙張上形成固定距離出現的黑點。而感光鼓也屬於耗材，價格沒想像中貴，所謂「環保感光鼓」(不太確定「環保」的定義，猜是回收再製)一千元有找。然而，印出來髒髒通常清潔一下感光鼓就能搞定，不到要更換感光鼓的地步。而「清潔」感光鼓就如它字面上的意思，把髒東西擦乾淨就對了。</p> <p>感光鼓清潔不難，有很多<a href="https://www.youtube.com/watch?v=6WEwvoXK0VY">網上教學</a>，拆下碳粉匣，果然在感光鼓上看到一大一小兩個黑點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638358955118874268.jpg" alt="thumbnail"></p> <p>用棉花棒乾擦清不掉，噴了點酒精再擦(避免使用腐蝕性溶劑，動作請溫柔以免刮傷表面)，反覆輕擦一陣清掉髒點，再列印黑點跟雜線就消失囉。</p> <p>第一次處理缺知識沒經驗，研究了半小時，實際清理五分鐘，問題排除。</p> <p data-slug="clean-laser-printer-drum" data-fbimg="https://i.imgur.com/iwzxtoi.jpg#1280#640"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638358955112986311.jpg" medium="image"/>
-    <pubDate>Sat, 18 Nov 2023 09:11:30 GMT</pubDate>
   </item></channel>
 </rss>
