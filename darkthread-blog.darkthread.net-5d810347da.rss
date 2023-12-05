@@ -30,6 +30,291 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></title>
+    <link>https://blog.darkthread.net/blog/print-tsv-as-table/</link>
+    <itunes:title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
+var tsv = new string[] {
+"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
+"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
+"參與\tMay\tUser\t直接設定",
+"讀取\tCatherine\tMgr\t直接設定\t32,767",
+};
+Action&lt;string&gt; printTitle = (title) =&gt; {
+Console.WriteLine();
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(title);
+Console.ResetColor();
+};
+printTitle("原始格式");
+Console.WriteLine(string.Join("
+", tsv));
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+printTitle("表格顯示");
+Console.WriteLine(string.Join("
+", PrintTsvAsTable(tsv)));
+printTitle("表格顯示(自訂標題)");
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
+printTitle("表格顯示(第一列為標題)");
+tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, true)));
+/// &lt;summary&gt;
+/// 以表格方式列印 TSV
+/// &lt;/summary&gt;
+/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
+/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
+/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
+{
+if (firstRowAsHeader)
+{
+headers = tsv.First().Split('\t');
+tsv = tsv.Skip(1);
+}
+var maxLens = new List&lt;int&gt;();
+var numFlags = new List&lt;bool&gt;();
+var data = new List&lt;string[]&gt;();
+// 用 Big5 簡易換算，非英數字元寬度算 2
+// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
+Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
+Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
+Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
+foreach (var line in tsv)
+{
+var cells = line.Split('\t');
+for (int i = 0; i &lt; cells.Length; i++)
+{
+if (maxLens.Count &lt;= i) {
+maxLens.Add(0);
+numFlags.Add(true);
+}
+var val = cells[i];
+if (!float.TryParse(val.Replace(",", string.Empty), out _))
+{
+numFlags[i] = false;
+}
+maxLens[i] = Math.Max(maxLens[i], calcLen(val));
+}
+data.Add(cells);
+}
+var output = new List&lt;string&gt;();
+Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
+if (headers != null)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
+}
+foreach (var cells in data)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, cells.Length)
+.Select(i =&gt; numFlags[i] ?
+padLeft(cells[i], getMaxLen(i)) :
+padRight(cells[i], getMaxLen(i))).ToArray()));
+}
+return output.ToArray();
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
+var tsv = new string[] {
+"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
+"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
+"參與\tMay\tUser\t直接設定",
+"讀取\tCatherine\tMgr\t直接設定\t32,767",
+};
+Action&lt;string&gt; printTitle = (title) =&gt; {
+Console.WriteLine();
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(title);
+Console.ResetColor();
+};
+printTitle("原始格式");
+Console.WriteLine(string.Join("
+", tsv));
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+printTitle("表格顯示");
+Console.WriteLine(string.Join("
+", PrintTsvAsTable(tsv)));
+printTitle("表格顯示(自訂標題)");
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
+printTitle("表格顯示(第一列為標題)");
+tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, true)));
+/// &lt;summary&gt;
+/// 以表格方式列印 TSV
+/// &lt;/summary&gt;
+/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
+/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
+/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
+{
+if (firstRowAsHeader)
+{
+headers = tsv.First().Split('\t');
+tsv = tsv.Skip(1);
+}
+var maxLens = new List&lt;int&gt;();
+var numFlags = new List&lt;bool&gt;();
+var data = new List&lt;string[]&gt;();
+// 用 Big5 簡易換算，非英數字元寬度算 2
+// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
+Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
+Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
+Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
+foreach (var line in tsv)
+{
+var cells = line.Split('\t');
+for (int i = 0; i &lt; cells.Length; i++)
+{
+if (maxLens.Count &lt;= i) {
+maxLens.Add(0);
+numFlags.Add(true);
+}
+var val = cells[i];
+if (!float.TryParse(val.Replace(",", string.Empty), out _))
+{
+numFlags[i] = false;
+}
+maxLens[i] = Math.Max(maxLens[i], calcLen(val));
+}
+data.Add(cells);
+}
+var output = new List&lt;string&gt;();
+Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
+if (headers != null)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
+}
+foreach (var cells in data)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, cells.Length)
+.Select(i =&gt; numFlags[i] ?
+padLeft(cells[i], getMaxLen(i)) :
+padRight(cells[i], getMaxLen(i))).ToArray()));
+}
+return output.ToArray();
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
+var tsv = new string[] {
+"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
+"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
+"參與\tMay\tUser\t直接設定",
+"讀取\tCatherine\tMgr\t直接設定\t32,767",
+};
+Action&lt;string&gt; printTitle = (title) =&gt; {
+Console.WriteLine();
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(title);
+Console.ResetColor();
+};
+printTitle("原始格式");
+Console.WriteLine(string.Join("
+", tsv));
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+printTitle("表格顯示");
+Console.WriteLine(string.Join("
+", PrintTsvAsTable(tsv)));
+printTitle("表格顯示(自訂標題)");
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
+printTitle("表格顯示(第一列為標題)");
+tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
+Console.WriteLine(string.Join("
+",
+PrintTsvAsTable(tsv, true)));
+/// &lt;summary&gt;
+/// 以表格方式列印 TSV
+/// &lt;/summary&gt;
+/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
+/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
+/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
+{
+if (firstRowAsHeader)
+{
+headers = tsv.First().Split('\t');
+tsv = tsv.Skip(1);
+}
+var maxLens = new List&lt;int&gt;();
+var numFlags = new List&lt;bool&gt;();
+var data = new List&lt;string[]&gt;();
+// 用 Big5 簡易換算，非英數字元寬度算 2
+// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
+Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
+Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
+Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
+foreach (var line in tsv)
+{
+var cells = line.Split('\t');
+for (int i = 0; i &lt; cells.Length; i++)
+{
+if (maxLens.Count &lt;= i) {
+maxLens.Add(0);
+numFlags.Add(true);
+}
+var val = cells[i];
+if (!float.TryParse(val.Replace(",", string.Empty), out _))
+{
+numFlags[i] = false;
+}
+maxLens[i] = Math.Max(maxLens[i], calcLen(val));
+}
+data.Add(cells);
+}
+var output = new List&lt;string&gt;();
+Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
+if (headers != null)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
+output.Add(string.Join(' ',
+Enumerable.Range(0, headers.Length)
+.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
+}
+foreach (var cells in data)
+{
+output.Add(string.Join(' ',
+Enumerable.Range(0, cells.Length)
+.Select(i =&gt; numFlags[i] ?
+padLeft(cells[i], getMaxLen(i)) :
+padRight(cells[i], getMaxLen(i))).ToArray()));
+}
+return output.ToArray();
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png" medium="image"/>
+    <pubDate>Tue, 05 Dec 2023 12:34:40 GMT</pubDate>
+  </item><item>
     <title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></title>
     <link>https://blog.darkthread.net/blog/enable-mvc-on-minapi/</link>
     <itunes:title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></itunes:title>
@@ -1672,32 +1957,5 @@ document.querySelector('pre').innerHTML = text;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png" medium="image"/>
     <pubDate>Mon, 20 Nov 2023 14:37:35 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></title>
-    <link>https://blog.darkthread.net/blog/run-procmon-long-time/</link>
-    <itunes:title><![CDATA[馬拉松式射茶包 - Process Monitor 長期監控小技巧]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
-FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
-C:\Batch\ProcMon.exe /Terminate
-C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
-</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
-FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
-C:\Batch\ProcMon.exe /Terminate
-C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
-</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon?WT.mc_id=DOP-MVP-37580">Process Monitor</a> 是調查刁鑽問題的神兵利器，透過觀察程式存取檔案、Registry 行為，往往能在案情膠著之際找出關鍵線索，在我的茶包射手生涯中立功無數，堪稱茶包一哥。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/977/">Process Monitor基本操作教學</a></li> <li><a href="/blog/process-monitor-2-0/">Process Monitor 2.0</a></li> <li><a href="/blog/959/">ProcMon五分鐘內破案的經典案例</a></li> <li><a href="/blog/procmon-regsvr32-failure/">ProcMon經典案例2: RegSvr32失敗</a></li> <li><a href="/blog/cant-open-aspnet-11-project/">無法開啟的ASP.NET 1.1專案</a></li> <li><a href="/blog/failed-open-sps-doclib-in-file-explorer/">SharePoint 文件庫無法「在檔案總管中開啟」</a></li> <li><a href="/blog/chromesetup/">無疾而終的ChromeSetup</a></li> <li>... 以下省略數十篇 ...</li></ul> <p>如果遇到不定期發生的難纏茶包，想用 Process Monitor 側錄檔案及 Registry 找線索，該如何進行長達數小時甚至數天的監控？</p> <p>Process Monitor 長期執行最大的問題在於資料量，幾分鐘就可能累積數百 MB，跑個幾小時大小會很驚人，若要鎖定目標很明確，可以設好 Filter，</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"></p> <p>並指定丟棄不符篩選條件的項目(Drop Filtered Events)，大幅降低資料量，如此就能長時間監控而不塞爆記憶體。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638359135704970462.png"></p> <p>Process Monitor 預設會把資料保存在虛擬記憶體，如果預期資料量很大怕超過記憶體上限，可改存成檔案。File 選單有個 Backing Files：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638359135706839677.png"></p> <p>指定檔名路徑，只要磁碟空間夠大，不用擔心資料放不下。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638359135708646148.png"></p> <p>我最近遇到的案例是好幾小時才出現一次，間隔不定的鬼問題，且無法確定跟什麼檔案、目錄或 Registry 有關，必須完整側錄事後再分析，五分鐘資料量近 200MB，就算磁碟機放得下，數 GB 的大檔分析起來也很沒效率。</p> <p>我想到的解法是以五分鐘為單位拆一個記錄檔，到時再挑事件發生期間的檔案來看。切換不同資料檔期間可能會漏掉一部分活動，但只要賭事件不是發生在切換期，就不致有問題。</p> <p>ProcMon 支援從批次作業呼叫，並有提供參數協助我們達成目標：<code>/Backingfile &lt;filePath&gt;</code> 指定將錄製結果存至特定路徑、<code>/Minimized</code> 啟動後視窗最小化、<code>/Quiet</code> 跳過起始時篩選器確認(直接沿用上次設定)、<code>/Runtime &lt;secs&gt;</code> 執行多少秒後自動結束、<code>/Terminate</code> 若目前有 ProcMon 在執行中，將其強制結束：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638359135710519653.png"></p> <p>我寫了以下 run-procmon.bat 批次檔，順便練了 PowerShell 產生日期時間字串轉存環境變數的小技巧(參考：<a href="https://blog.miniasp.com/post/2010/09/24/How-to-parse-text-from-file-or-command-using-Batch">如何利用批次檔(Batch)讀取指令執行的結果或文字檔案內容 by 保哥</a>)。</p> <pre><code>@echo off
-FOR /F "USEBACKQ" %%F IN (`powershell -Command "Get-Date -Format 'yyyyMMddHHmm'"`) DO SET DateTime=%%F
-C:\Batch\ProcMon.exe /Terminate
-C:\Batch\procmon.exe /Backingfile D:\Logs\%DateTime%.pml /Minimized /Quiet /Runtime 300
-</code></pre> <p>再來，設定五分鐘一次的排程呼叫 run-procmon.bat：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig7_638359135712347297.png"></p> <p>如此我們就能得到五分鐘一包的 ProcMon 記錄檔，硬碟夠大，甚至記上十天半個月都不成問題。當然實務上應會每幾小時，至少每天查看，茶包沒出現就刪掉沒錄到記錄檔。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638359135714231808.png"></p> <p>祝有類似需求的朋友們，早日在樹下抓到兔子。</p> <p data-slug="run-procmon-long-time" data-fbimg="https://ichef.bbci.co.uk/images/ic/640x360/p028vvt9.jpg#640#360"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638359135703111357.png" medium="image"/>
-    <pubDate>Sat, 18 Nov 2023 14:05:08 GMT</pubDate>
   </item></channel>
 </rss>
