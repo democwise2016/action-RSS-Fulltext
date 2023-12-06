@@ -30,6 +30,507 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[冷知識 - base64url 編碼]]></title>
+    <link>https://blog.darkthread.net/blog/base64url/</link>
+    <itunes:title><![CDATA[冷知識 - base64url 編碼]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
+{
+public PublicKeyCredentialDescriptor(byte[] id)
+: this(PublicKeyCredentialType.PublicKey, id, null) { }
+[JsonConstructor]
+public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
+{
+ArgumentNullException.ThrowIfNull(id);
+Type = type;
+Id = id;
+Transports = transports;
+}
+/// &lt;summary&gt;
+/// This member contains the credential ID of the public key credential the caller is referring to.
+/// &lt;/summary&gt;
+[JsonConverter(typeof(Base64UrlConverter))]
+[JsonPropertyName("id")]
+public byte[] Id { get; }
+//... 略 ...
+};
+/// &lt;summary&gt;
+/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
+/// &lt;/summary&gt;
+public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
+{
+public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+{
+if (!reader.HasValueSequence)
+{
+return Base64Url.DecodeUtf8(reader.ValueSpan);
+}
+else
+{
+return Base64Url.Decode(reader.GetString());
+}
+}
+public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+{
+writer.WriteStringValue(Base64Url.Encode(value));
+}
+}
+/// &lt;summary&gt;
+/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
+/// &lt;/summary&gt;
+public static class Base64Url
+{
+/// &lt;summary&gt;
+/// Converts arg data to a Base64Url encoded string.
+/// &lt;/summary&gt;
+public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
+{
+int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
+char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
+Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
+Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
+for (int i = 0; i &lt; base64Url.Length; i++)
+{
+ref char c = ref base64Url[i];
+switch (c)
+{
+case '+':
+c = '-';
+break;
+case '/':
+c = '_';
+break;
+}
+}
+int equalIndex = base64Url.IndexOf('=');
+if (equalIndex &gt; -1) // remove trailing equal characters
+{
+base64Url = base64Url.Slice(0, equalIndex);
+}
+var result = new string(base64Url);
+ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref char c = ref buffer[i];
+switch (c)
+{
+case '-':
+c = '+';
+break;
+case '_':
+c = '/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = '=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = '=';
+buffer[encodedLength - 2] = '=';
+}
+var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
+ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref byte c = ref buffer[i];
+switch ((char)c)
+{
+case '-':
+c = (byte)'+';
+break;
+case '_':
+c = (byte)'/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = (byte)'=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = (byte)'=';
+buffer[encodedLength - 2] = (byte)'=';
+}
+if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
+{
+throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
+}
+var result = buffer.AsSpan(0, decodedLength).ToArray();
+ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
+return result;
+}
+}
+</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
+{
+public PublicKeyCredentialDescriptor(byte[] id)
+: this(PublicKeyCredentialType.PublicKey, id, null) { }
+[JsonConstructor]
+public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
+{
+ArgumentNullException.ThrowIfNull(id);
+Type = type;
+Id = id;
+Transports = transports;
+}
+/// &lt;summary&gt;
+/// This member contains the credential ID of the public key credential the caller is referring to.
+/// &lt;/summary&gt;
+[JsonConverter(typeof(Base64UrlConverter))]
+[JsonPropertyName("id")]
+public byte[] Id { get; }
+//... 略 ...
+};
+/// &lt;summary&gt;
+/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
+/// &lt;/summary&gt;
+public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
+{
+public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+{
+if (!reader.HasValueSequence)
+{
+return Base64Url.DecodeUtf8(reader.ValueSpan);
+}
+else
+{
+return Base64Url.Decode(reader.GetString());
+}
+}
+public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+{
+writer.WriteStringValue(Base64Url.Encode(value));
+}
+}
+/// &lt;summary&gt;
+/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
+/// &lt;/summary&gt;
+public static class Base64Url
+{
+/// &lt;summary&gt;
+/// Converts arg data to a Base64Url encoded string.
+/// &lt;/summary&gt;
+public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
+{
+int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
+char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
+Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
+Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
+for (int i = 0; i &lt; base64Url.Length; i++)
+{
+ref char c = ref base64Url[i];
+switch (c)
+{
+case '+':
+c = '-';
+break;
+case '/':
+c = '_';
+break;
+}
+}
+int equalIndex = base64Url.IndexOf('=');
+if (equalIndex &gt; -1) // remove trailing equal characters
+{
+base64Url = base64Url.Slice(0, equalIndex);
+}
+var result = new string(base64Url);
+ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref char c = ref buffer[i];
+switch (c)
+{
+case '-':
+c = '+';
+break;
+case '_':
+c = '/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = '=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = '=';
+buffer[encodedLength - 2] = '=';
+}
+var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
+ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref byte c = ref buffer[i];
+switch ((char)c)
+{
+case '-':
+c = (byte)'+';
+break;
+case '_':
+c = (byte)'/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = (byte)'=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = (byte)'=';
+buffer[encodedLength - 2] = (byte)'=';
+}
+if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
+{
+throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
+}
+var result = buffer.AsSpan(0, decodedLength).ToArray();
+ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
+return result;
+}
+}
+</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
+{
+public PublicKeyCredentialDescriptor(byte[] id)
+: this(PublicKeyCredentialType.PublicKey, id, null) { }
+[JsonConstructor]
+public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
+{
+ArgumentNullException.ThrowIfNull(id);
+Type = type;
+Id = id;
+Transports = transports;
+}
+/// &lt;summary&gt;
+/// This member contains the credential ID of the public key credential the caller is referring to.
+/// &lt;/summary&gt;
+[JsonConverter(typeof(Base64UrlConverter))]
+[JsonPropertyName("id")]
+public byte[] Id { get; }
+//... 略 ...
+};
+/// &lt;summary&gt;
+/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
+/// &lt;/summary&gt;
+public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
+{
+public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+{
+if (!reader.HasValueSequence)
+{
+return Base64Url.DecodeUtf8(reader.ValueSpan);
+}
+else
+{
+return Base64Url.Decode(reader.GetString());
+}
+}
+public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+{
+writer.WriteStringValue(Base64Url.Encode(value));
+}
+}
+/// &lt;summary&gt;
+/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
+/// &lt;/summary&gt;
+public static class Base64Url
+{
+/// &lt;summary&gt;
+/// Converts arg data to a Base64Url encoded string.
+/// &lt;/summary&gt;
+public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
+{
+int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
+char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
+Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
+Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
+for (int i = 0; i &lt; base64Url.Length; i++)
+{
+ref char c = ref base64Url[i];
+switch (c)
+{
+case '+':
+c = '-';
+break;
+case '/':
+c = '_';
+break;
+}
+}
+int equalIndex = base64Url.IndexOf('=');
+if (equalIndex &gt; -1) // remove trailing equal characters
+{
+base64Url = base64Url.Slice(0, equalIndex);
+}
+var result = new string(base64Url);
+ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref char c = ref buffer[i];
+switch (c)
+{
+case '-':
+c = '+';
+break;
+case '_':
+c = '/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = '=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = '=';
+buffer[encodedLength - 2] = '=';
+}
+var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
+ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
+return result;
+}
+/// &lt;summary&gt;
+/// Decodes a Base64Url encoded string to its raw bytes.
+/// &lt;/summary&gt;
+public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
+{
+int padCharCount = (text.Length % 4) switch
+{
+2 =&gt; 2,
+3 =&gt; 1,
+_ =&gt; 0
+};
+int encodedLength = text.Length + padCharCount;
+byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
+text.CopyTo(buffer);
+for (int i = 0; i &lt; text.Length; i++)
+{
+ref byte c = ref buffer[i];
+switch ((char)c)
+{
+case '-':
+c = (byte)'+';
+break;
+case '_':
+c = (byte)'/';
+break;
+}
+}
+if (padCharCount == 1)
+{
+buffer[encodedLength - 1] = (byte)'=';
+}
+else if (padCharCount == 2)
+{
+buffer[encodedLength - 1] = (byte)'=';
+buffer[encodedLength - 2] = (byte)'=';
+}
+if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
+{
+throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
+}
+var result = buffer.AsSpan(0, decodedLength).ToArray();
+ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
+return result;
+}
+}
+</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png" medium="image"/>
+    <pubDate>Wed, 06 Dec 2023 12:26:00 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></title>
     <link>https://blog.darkthread.net/blog/print-tsv-as-table/</link>
     <itunes:title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></itunes:title>
@@ -1693,269 +2194,5 @@ results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig3_638361770440238088.png" medium="image"/>
     <pubDate>Tue, 21 Nov 2023 15:21:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></title>
-    <link>https://blog.darkthread.net/blog/asp-append-version-for-webform/</link>
-    <itunes:title><![CDATA[為 js/css 加上自動版本參數防止 Cache 惹禍 - WebForm 版]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Web;
-using System.Web.Hosting;
-using System.Web.UI;
-using System.Web.UI.WebControls;
-namespace FrontEndPack
-{
-public class IncludeResWithVersion : WebControl
-{
-public string Src
-{
-get { return (string)ViewState["src"]; }
-set { ViewState["src"] = value; }
-}
-public string GetFileHash(string src)
-{
-var cache = HttpContext.Current.Cache;
-var path = HttpContext.Current.Server.MapPath(src);
-if (!File.Exists(path)) return string.Empty;
-string cacheKey = "_res_hash__" + path;
-if (cache[cacheKey] != null) return cache[cacheKey] as string;
-using (SHA256 sha256 = SHA256.Create())
-{
-var hash = HttpServerUtility.UrlTokenEncode(
-sha256.ComputeHash(File.ReadAllBytes(path)));
-cache.Add(cacheKey, hash,
-// 指定快取依賴，檔案異動時自動更新快取
-new System.Web.Caching.CacheDependency(path),
-DateTime.MaxValue, TimeSpan.FromMinutes(10),
-System.Web.Caching.CacheItemPriority.Normal, null);
-return hash;
-}
-}
-protected override void Render(HtmlTextWriter writer)
-{
-var src = Src.Split('?').First();
-var hash = GetFileHash(src);
-var ext = Path.GetExtension(src);
-writer.Write("
-");
-switch (ext) {
-case ".js":
-writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
-break;
-case ".css":
-writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
-break;
-default:
-throw new Exception("File type " + ext + " not supported.");
-}
-writer.Write("
-");
-}
-}
-}
-</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
-&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
-&lt;/head&gt;
-&lt;body style="width: 400px;"&gt;
-&lt;span&gt;&lt;/span&gt;
-&lt;pre style="background: #ccc; padding: 6px;"&gt;
-&lt;/pre&gt;
-&lt;script&gt;
-let src = document.head.querySelector('script').src;
-document.querySelector('span').innerHTML = src;
-this.fetch(src)
-.then(response =&gt; response.text())
-.then(text =&gt; {
-document.querySelector('pre').innerHTML = text;
-});
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Web;
-using System.Web.Hosting;
-using System.Web.UI;
-using System.Web.UI.WebControls;
-namespace FrontEndPack
-{
-public class IncludeResWithVersion : WebControl
-{
-public string Src
-{
-get { return (string)ViewState["src"]; }
-set { ViewState["src"] = value; }
-}
-public string GetFileHash(string src)
-{
-var cache = HttpContext.Current.Cache;
-var path = HttpContext.Current.Server.MapPath(src);
-if (!File.Exists(path)) return string.Empty;
-string cacheKey = "_res_hash__" + path;
-if (cache[cacheKey] != null) return cache[cacheKey] as string;
-using (SHA256 sha256 = SHA256.Create())
-{
-var hash = HttpServerUtility.UrlTokenEncode(
-sha256.ComputeHash(File.ReadAllBytes(path)));
-cache.Add(cacheKey, hash,
-// 指定快取依賴，檔案異動時自動更新快取
-new System.Web.Caching.CacheDependency(path),
-DateTime.MaxValue, TimeSpan.FromMinutes(10),
-System.Web.Caching.CacheItemPriority.Normal, null);
-return hash;
-}
-}
-protected override void Render(HtmlTextWriter writer)
-{
-var src = Src.Split('?').First();
-var hash = GetFileHash(src);
-var ext = Path.GetExtension(src);
-writer.Write("
-");
-switch (ext) {
-case ".js":
-writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
-break;
-case ".css":
-writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
-break;
-default:
-throw new Exception("File type " + ext + " not supported.");
-}
-writer.Write("
-");
-}
-}
-}
-</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
-&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
-&lt;/head&gt;
-&lt;body style="width: 400px;"&gt;
-&lt;span&gt;&lt;/span&gt;
-&lt;pre style="background: #ccc; padding: 6px;"&gt;
-&lt;/pre&gt;
-&lt;script&gt;
-let src = document.head.querySelector('script').src;
-document.querySelector('span').innerHTML = src;
-this.fetch(src)
-.then(response =&gt; response.text())
-.then(text =&gt; {
-document.querySelector('pre').innerHTML = text;
-});
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>.js/.css 換版後，想防止網頁讀取 Cache 強迫改用新版，最無敵的做法是在網址加個 ?v=XXX 參數，每次換版一併更新，URL 參數不同讓原 Cache 失效，即可確保萬無一失。</p> <p>但手工維護 ?v=... 參數意味著每次換版必須叫出所有引用該 .js/.css 的網頁，一一修改 URL ?v= 參數，算不上什麼高明的主意。有個巧妙解法是由系統讀取 .js/.css 內容產生雜湊當成 v 參數，如此只要檔案內容異動，v 參數便自動更新，永遠不必擔心換版後還讀到 Cache 這種鳥事。</p> <p>要實現自動版本參數，ASP.NET Core 有內建 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/mvc/views/tag-helpers/built-in/image-tag-helper?view=aspnetcore-7.0&amp;WT.mc_id=DOP-MVP-37580#asp-append-version">asp-append-version Tag</a>，針對 ASP.NET MVC 我也寫過類似機制：</p> <ul><li><a href="/blog/asp-append-version/">ASP.NET Core 小技巧 - 防止 js/css/圖檔舊版 Cache 搗亂</a></li> <li><a href="/blog/js-versioning-htmlhelper/">ASP.NET MVC5 - 自製 js/css 自動版本參數防止 Cache 舊版惹禍</a></li></ul> <p>最近維護古蹟踩到相同問題，卻發現軍火庫沒有兵器可用，少了 WebForm 版的自動版本參數機制。老系統說不定還得再戰十年，還是花點時間解決吧!</p> <p>於是我寫了一顆 WebControl 來解決問題，網站還是 ASP.NET 3.5 無 MemoryCache 可用，改用 System.Web.Cache。為提升效率，以檔案絕對路徑當 Key 快取內容雜湊值，避免重複運算。System.Web.Cache 老歸老，還是有 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.web.caching.cachedependency.-ctor?view=netframework-4.8.1&amp;WT.mc_id=DOP-MVP-37580#system-web-caching-cachedependency-ctor(system-string)">CacheDependency(string filename)</a> 可針對檔案建立依賴，能自動偵測檔案修改觸發快取更新，十分方便。</p> <pre><code>using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Web;
-using System.Web.Hosting;
-using System.Web.UI;
-using System.Web.UI.WebControls;
-namespace FrontEndPack
-{
-public class IncludeResWithVersion : WebControl
-{
-public string Src
-{
-get { return (string)ViewState["src"]; }
-set { ViewState["src"] = value; }
-}
-public string GetFileHash(string src)
-{
-var cache = HttpContext.Current.Cache;
-var path = HttpContext.Current.Server.MapPath(src);
-if (!File.Exists(path)) return string.Empty;
-string cacheKey = "_res_hash__" + path;
-if (cache[cacheKey] != null) return cache[cacheKey] as string;
-using (SHA256 sha256 = SHA256.Create())
-{
-var hash = HttpServerUtility.UrlTokenEncode(
-sha256.ComputeHash(File.ReadAllBytes(path)));
-cache.Add(cacheKey, hash,
-// 指定快取依賴，檔案異動時自動更新快取
-new System.Web.Caching.CacheDependency(path),
-DateTime.MaxValue, TimeSpan.FromMinutes(10),
-System.Web.Caching.CacheItemPriority.Normal, null);
-return hash;
-}
-}
-protected override void Render(HtmlTextWriter writer)
-{
-var src = Src.Split('?').First();
-var hash = GetFileHash(src);
-var ext = Path.GetExtension(src);
-writer.Write("
-");
-switch (ext) {
-case ".js":
-writer.Write(string.Format(@"&lt;script src=""{0}?v={1}""&gt;&lt;/script&gt;", src, hash));
-break;
-case ".css":
-writer.Write(string.Format(@"&lt;link href=""{0}?v={1}"" rel=""stylesheet"" /&gt;", src, hash));
-break;
-default:
-throw new Exception("File type " + ext + " not supported.");
-}
-writer.Write("
-");
-}
-}
-}
-</code></pre> <p>將 IncludeResWithVersion.cs 放進 App_Code 目錄，要使用的網頁先加上 <code>&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;</code> 註冊，接著將原本的 <code>&lt;script src="test.js"&gt;&lt;/script&gt;</code> 改成 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 即可。</p> <p>寫個簡單網頁驗證。用 <code>&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;</code> 載入 .js，寫一小段 JavaScript 顯示其產生的 URL 及 test.js 內容：</p> <pre><code>&lt;%@Page Language="C#" %&gt;
-&lt;%@Register Namespace="FrontEndPack" TagPrefix="fep" %&gt;
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;fep:IncludeResWithVersion runat="server" Src="./test.js" /&gt;
-&lt;/head&gt;
-&lt;body style="width: 400px;"&gt;
-&lt;span&gt;&lt;/span&gt;
-&lt;pre style="background: #ccc; padding: 6px;"&gt;
-&lt;/pre&gt;
-&lt;script&gt;
-let src = document.head.querySelector('script').src;
-document.querySelector('span').innerHTML = src;
-this.fetch(src)
-.then(response =&gt; response.text())
-.then(text =&gt; {
-document.querySelector('pre').innerHTML = text;
-});
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>將 test.js 第一行註解 Ver 1.0 改成 Ver 1.1，重新整理 ?v= 自動修改，成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"></p> <p data-slug="asp-append-version-for-webform" data-title-en="Writing a custom WebControl to generate hash parameter for .js/.css" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/221027/pexels-photo-221027.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Adding ?v= parameter is a good way to prevent cache, this article provide an example to generate the hash parameter based on file content.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638360878982166590.png" medium="image"/>
-    <pubDate>Mon, 20 Nov 2023 14:37:35 GMT</pubDate>
   </item></channel>
 </rss>
