@@ -30,6 +30,417 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[解析 WebAPI HTTP 500 回應附帶的 JSON 內容]]></title>
+    <link>https://blog.darkthread.net/blog/read-http500-json/</link>
+    <itunes:title><![CDATA[解析 WebAPI HTTP 500 回應附帶的 JSON 內容]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前陣子專頁有篇貼文談到 <a href="https://www.facebook.com/darkthread.net/posts/pfbid0uwbgvgaexvWXHxwEGbw4C6BCVHeUP6Jkk4uh3ZunGhVoEpkf2x9rGBZ4XZGMk4Ael">WebAPI 出錯時，是否必須必須透過 HTTP Status 反映執行結果，例如：找不到時吐 404、系統出錯時回應 500？</a>，得到不少回響，我也獲了新體悟。</p> <p>我一直認為 WebAPI 是種 Contract，服務端與客戶端約定好，雙方都覺得 OK 就好。即便執行結果出錯，統一用 HTTP 200 回傳執行失敗狀態及錯誤訊息沒什麼不對(註：錯誤訊息讓使用者理解狀況或當成回報客服附加資訊即可，應避免揭露系統內部資訊)，呼叫端可用一致邏輯處理成功及失敗呼叫結果，挺好的。</p> <p>之所以會覺得統一傳 200 省事，多少源於 .NET Framework WebClient 元件處理 HTTP 500 的行為。以 WebClient 為例，HTTP 40x/50x 會觸發例外，需要透過 catch 從 WebException.Exception.Response 讀取詳細回應內容，例如：(以下使用 PowerShell 為例，背後是 .NET WebClient 元件)</p> <pre><code>try {
+Invoke-WebRequest -Uri http://localhost:5203/Http500wJson -Method Post
+}
+catch [System.Net.WebException] {
+$resp = $_.Exception.Response
+[int]$resp.StatusCode
+$resp.StatusDescription
+$sr = [IO.StreamReader]::new($resp.GetResponseStream())
+$sr.ReadToEnd()
+}
+</code></pre> <p>基於這點，我習慣不管成功失敗統一回傳 <a href="/blog/is-restful-required/">ApiResult 物件</a>，如該文所說，如此呼叫端可省下另寫 try / catch 處理 HTTP 500 的工夫。</p> <blockquote> <p>至於使用 HTTP Status Code 302/401/404/500 傳遞狀態，以 .NET WebClient.UploadData() 呼叫時將被視為 Exception，需要 try ... catch 攔截，會增加些許困援。</p> </blockquote> <p>不過，時代在改變，WebClient 的接任者 - HttpClient，接收 HTTP 40X/500 時不再拋出例外，而是針對需要確認 HTTP 200 的情境提供 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.issuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">IsSuccessStatusCode</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.ensuresuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">EnsureSuccessStatus()</a>，由此可知，非 HTTP 200 回應附帶文字訊息為 JSON 已屬常態，HttpClient 才會做出如此調整。而要讀取 HTTP 500 附帶的 JSON，用 HttpClient 寫起來自然多了：</p> <pre><code>async Task Test()
+{
+var http = new System.Net.Http.HttpClient();
+var resp = await http.PostAsync("http://localhost:5203/http500wjson",
+new StringContent(string.Empty, Encoding.UTF8, "application/json"));
+Console.WriteLine(resp.IsSuccessStatusCode);
+Console.WriteLine((int)resp.StatusCode);
+Console.WriteLine(resp.Content.Headers.ContentType.MediaType);
+Console.WriteLine(await resp.Content.ReadAsStringAsync());
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png"></p> <p>換言之，在新時代，統一傳回 HTTP 200 的優勢不復存在，傳 500 並不會比較麻煩。好，二者回到平等線，那傳 500 又有什麼優點？</p> <p>在 FB 貼文討論裡，讀者 Kehao Chen、LienFa Huang 不約而同給了該傳 500 的超級好理由(感謝!)。DevOps 時代講究 Observability (可觀測性)，會使用 <a href="https://prometheus.io/">Prometheus</a> 之類的統一監控平台蒐集系統營運數據，統整到 Grafana 儀錶板方便即時監看，必要時還能主動發送告警通知 SRE，這已成當今系統管理主流。若 WebAPI 錯誤是種警訊需要被觀注，那麼回傳 200 與 500 意義大不相同。回傳 500 可反應在統一監控平台的數據上，還能觸發告警通知人員處理；回傳 200 的話，系統必須自己負起錯誤統計及通報的責任。</p> <p>從以上角度，回傳 500 的好處不言而喻，這個主張我完全買單。未來設計 WebAPI，我應會選擇在錯誤時改傳 HTTP 500。</p> <p>最後，用 JavaScript 讀取 HTTP 500 回應 JSON 內容的小練習結束這回合。</p> <p>寫個簡單 ASP.NET Minimal API，MapPost("/throw") 模擬未處理例外回應、MapPost("/http500wJson") 回傳含 JSON 內容的 HTTP 500 回應；MapPost("/http200") 則是正常回應做為對照：</p> <pre><code>using System.Text.Json;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+app.MapPost("/throw", () =&gt;
+{
+throw new Exception("Exception from /throw");
+});
+app.MapPost("/http500wJson", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 500;
+resp.ContentType = "application/json";
+var result = new {
+errCode = 9527,
+message = "Exception from /http500wJson"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.MapPost("/http200", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 200;
+resp.ContentType = "application/json";
+var result = new {
+succ = false,
+errCode = 9527,
+message = "Return error via HTTP 200"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.Run();
+</code></pre> <p>寫個簡單網頁，分別測試用 jQuery.ajax()、XHR、Fetch 呼叫 /throw、/http200 及 /http500wJson。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;WebAPI 錯誤回傳&lt;/title&gt;
+&lt;script src="https://code.jquery.com/jquery-3.3.1.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/throw" checked&gt; throw
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http200"&gt; HTTP 200
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http500wJson"&gt; HTTP 500 with JSON
+&lt;/label&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;button onclick="testJQuery()"&gt;jQuery&lt;/button&gt;
+&lt;button onclick="testXhr()"&gt;XHR&lt;/button&gt;
+&lt;button onclick="testFetch()"&gt;Fetch&lt;/button&gt;
+&lt;/div&gt;
+&lt;dl&gt;
+&lt;dt&gt;Status Code&lt;/dt&gt;
+&lt;dd id="statusCode"&gt;&lt;/dd&gt;
+&lt;dt&gt;Status Text&lt;/dt&gt;
+&lt;dd id="statusText"&gt;&lt;/dd&gt;
+&lt;dt&gt;Response Body&lt;/dt&gt;
+&lt;dd id="response"&gt;&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;script&gt;
+function getUrl() {
+display('', 'Sending...', '')
+return document.querySelector('input[name="url"]:checked').value;
+}
+function display(statusCode, statusText, response) {
+document.getElementById('statusCode').innerText = statusCode;
+document.getElementById('statusText').innerText = statusText;
+document.getElementById('response').innerText = response;
+}
+function testJQuery() {
+$.ajax({
+url: getUrl(),
+method: 'POST',
+success: function (data) {
+display('200', 'OK', JSON.stringify(data));
+},
+error: function (jqXHR, textStatus, errorThrown) {
+display(jqXHR.status, jqXHR.statusText, jqXHR.responseText);
+}
+});
+}
+function testXhr() {
+var url = getUrl();
+var xhr = new XMLHttpRequest();
+xhr.open('POST', url);
+xhr.onload = function () {
+display(xhr.status, xhr.statusText, xhr.responseText);
+};
+xhr.send();
+}
+function testFetch() {
+fetch(getUrl(), { method: 'POST' })
+.then(async (response) =&gt; {
+if (response.ok) {
+display(response.status, response.statusText, JSON.stringify(await response.json()));
+}
+else
+throw response;
+})
+.catch(async (response) =&gt; {
+display(response.status, response.statusText, await response.text());
+});
+}
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>實測 OK。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638376756486142422.gif"></p> <p>最近常常發現，有些用了很久的老觀念，此刻卻與主流相悖。發現苗頭不對，便該檢視當初考量的前題是否改變，用了十幾年驗證過千百回的老觀念，也會有該拋棄的一天。</p> <p data-slug="read-http500-json" data-title-en="Reading JSON from HTTP response" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/02/13/14/12/fruit-3150842_960_720.jpg#960#720">Talks about why we should use HTTP 500 instaed of HTTP 200 when WebApi error and how to read JSON data from HTTP 500 response body in .NET and JavaScript.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前陣子專頁有篇貼文談到 <a href="https://www.facebook.com/darkthread.net/posts/pfbid0uwbgvgaexvWXHxwEGbw4C6BCVHeUP6Jkk4uh3ZunGhVoEpkf2x9rGBZ4XZGMk4Ael">WebAPI 出錯時，是否必須必須透過 HTTP Status 反映執行結果，例如：找不到時吐 404、系統出錯時回應 500？</a>，得到不少回響，我也獲了新體悟。</p> <p>我一直認為 WebAPI 是種 Contract，服務端與客戶端約定好，雙方都覺得 OK 就好。即便執行結果出錯，統一用 HTTP 200 回傳執行失敗狀態及錯誤訊息沒什麼不對(註：錯誤訊息讓使用者理解狀況或當成回報客服附加資訊即可，應避免揭露系統內部資訊)，呼叫端可用一致邏輯處理成功及失敗呼叫結果，挺好的。</p> <p>之所以會覺得統一傳 200 省事，多少源於 .NET Framework WebClient 元件處理 HTTP 500 的行為。以 WebClient 為例，HTTP 40x/50x 會觸發例外，需要透過 catch 從 WebException.Exception.Response 讀取詳細回應內容，例如：(以下使用 PowerShell 為例，背後是 .NET WebClient 元件)</p> <pre><code>try {
+Invoke-WebRequest -Uri http://localhost:5203/Http500wJson -Method Post
+}
+catch [System.Net.WebException] {
+$resp = $_.Exception.Response
+[int]$resp.StatusCode
+$resp.StatusDescription
+$sr = [IO.StreamReader]::new($resp.GetResponseStream())
+$sr.ReadToEnd()
+}
+</code></pre> <p>基於這點，我習慣不管成功失敗統一回傳 <a href="/blog/is-restful-required/">ApiResult 物件</a>，如該文所說，如此呼叫端可省下另寫 try / catch 處理 HTTP 500 的工夫。</p> <blockquote> <p>至於使用 HTTP Status Code 302/401/404/500 傳遞狀態，以 .NET WebClient.UploadData() 呼叫時將被視為 Exception，需要 try ... catch 攔截，會增加些許困援。</p> </blockquote> <p>不過，時代在改變，WebClient 的接任者 - HttpClient，接收 HTTP 40X/500 時不再拋出例外，而是針對需要確認 HTTP 200 的情境提供 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.issuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">IsSuccessStatusCode</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.ensuresuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">EnsureSuccessStatus()</a>，由此可知，非 HTTP 200 回應附帶文字訊息為 JSON 已屬常態，HttpClient 才會做出如此調整。而要讀取 HTTP 500 附帶的 JSON，用 HttpClient 寫起來自然多了：</p> <pre><code>async Task Test()
+{
+var http = new System.Net.Http.HttpClient();
+var resp = await http.PostAsync("http://localhost:5203/http500wjson",
+new StringContent(string.Empty, Encoding.UTF8, "application/json"));
+Console.WriteLine(resp.IsSuccessStatusCode);
+Console.WriteLine((int)resp.StatusCode);
+Console.WriteLine(resp.Content.Headers.ContentType.MediaType);
+Console.WriteLine(await resp.Content.ReadAsStringAsync());
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png"></p> <p>換言之，在新時代，統一傳回 HTTP 200 的優勢不復存在，傳 500 並不會比較麻煩。好，二者回到平等線，那傳 500 又有什麼優點？</p> <p>在 FB 貼文討論裡，讀者 Kehao Chen、LienFa Huang 不約而同給了該傳 500 的超級好理由(感謝!)。DevOps 時代講究 Observability (可觀測性)，會使用 <a href="https://prometheus.io/">Prometheus</a> 之類的統一監控平台蒐集系統營運數據，統整到 Grafana 儀錶板方便即時監看，必要時還能主動發送告警通知 SRE，這已成當今系統管理主流。若 WebAPI 錯誤是種警訊需要被觀注，那麼回傳 200 與 500 意義大不相同。回傳 500 可反應在統一監控平台的數據上，還能觸發告警通知人員處理；回傳 200 的話，系統必須自己負起錯誤統計及通報的責任。</p> <p>從以上角度，回傳 500 的好處不言而喻，這個主張我完全買單。未來設計 WebAPI，我應會選擇在錯誤時改傳 HTTP 500。</p> <p>最後，用 JavaScript 讀取 HTTP 500 回應 JSON 內容的小練習結束這回合。</p> <p>寫個簡單 ASP.NET Minimal API，MapPost("/throw") 模擬未處理例外回應、MapPost("/http500wJson") 回傳含 JSON 內容的 HTTP 500 回應；MapPost("/http200") 則是正常回應做為對照：</p> <pre><code>using System.Text.Json;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+app.MapPost("/throw", () =&gt;
+{
+throw new Exception("Exception from /throw");
+});
+app.MapPost("/http500wJson", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 500;
+resp.ContentType = "application/json";
+var result = new {
+errCode = 9527,
+message = "Exception from /http500wJson"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.MapPost("/http200", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 200;
+resp.ContentType = "application/json";
+var result = new {
+succ = false,
+errCode = 9527,
+message = "Return error via HTTP 200"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.Run();
+</code></pre> <p>寫個簡單網頁，分別測試用 jQuery.ajax()、XHR、Fetch 呼叫 /throw、/http200 及 /http500wJson。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;WebAPI 錯誤回傳&lt;/title&gt;
+&lt;script src="https://code.jquery.com/jquery-3.3.1.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/throw" checked&gt; throw
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http200"&gt; HTTP 200
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http500wJson"&gt; HTTP 500 with JSON
+&lt;/label&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;button onclick="testJQuery()"&gt;jQuery&lt;/button&gt;
+&lt;button onclick="testXhr()"&gt;XHR&lt;/button&gt;
+&lt;button onclick="testFetch()"&gt;Fetch&lt;/button&gt;
+&lt;/div&gt;
+&lt;dl&gt;
+&lt;dt&gt;Status Code&lt;/dt&gt;
+&lt;dd id="statusCode"&gt;&lt;/dd&gt;
+&lt;dt&gt;Status Text&lt;/dt&gt;
+&lt;dd id="statusText"&gt;&lt;/dd&gt;
+&lt;dt&gt;Response Body&lt;/dt&gt;
+&lt;dd id="response"&gt;&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;script&gt;
+function getUrl() {
+display('', 'Sending...', '')
+return document.querySelector('input[name="url"]:checked').value;
+}
+function display(statusCode, statusText, response) {
+document.getElementById('statusCode').innerText = statusCode;
+document.getElementById('statusText').innerText = statusText;
+document.getElementById('response').innerText = response;
+}
+function testJQuery() {
+$.ajax({
+url: getUrl(),
+method: 'POST',
+success: function (data) {
+display('200', 'OK', JSON.stringify(data));
+},
+error: function (jqXHR, textStatus, errorThrown) {
+display(jqXHR.status, jqXHR.statusText, jqXHR.responseText);
+}
+});
+}
+function testXhr() {
+var url = getUrl();
+var xhr = new XMLHttpRequest();
+xhr.open('POST', url);
+xhr.onload = function () {
+display(xhr.status, xhr.statusText, xhr.responseText);
+};
+xhr.send();
+}
+function testFetch() {
+fetch(getUrl(), { method: 'POST' })
+.then(async (response) =&gt; {
+if (response.ok) {
+display(response.status, response.statusText, JSON.stringify(await response.json()));
+}
+else
+throw response;
+})
+.catch(async (response) =&gt; {
+display(response.status, response.statusText, await response.text());
+});
+}
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>實測 OK。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638376756486142422.gif"></p> <p>最近常常發現，有些用了很久的老觀念，此刻卻與主流相悖。發現苗頭不對，便該檢視當初考量的前題是否改變，用了十幾年驗證過千百回的老觀念，也會有該拋棄的一天。</p> <p data-slug="read-http500-json" data-title-en="Reading JSON from HTTP response" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/02/13/14/12/fruit-3150842_960_720.jpg#960#720">Talks about why we should use HTTP 500 instaed of HTTP 200 when WebApi error and how to read JSON data from HTTP 500 response body in .NET and JavaScript.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前陣子專頁有篇貼文談到 <a href="https://www.facebook.com/darkthread.net/posts/pfbid0uwbgvgaexvWXHxwEGbw4C6BCVHeUP6Jkk4uh3ZunGhVoEpkf2x9rGBZ4XZGMk4Ael">WebAPI 出錯時，是否必須必須透過 HTTP Status 反映執行結果，例如：找不到時吐 404、系統出錯時回應 500？</a>，得到不少回響，我也獲了新體悟。</p> <p>我一直認為 WebAPI 是種 Contract，服務端與客戶端約定好，雙方都覺得 OK 就好。即便執行結果出錯，統一用 HTTP 200 回傳執行失敗狀態及錯誤訊息沒什麼不對(註：錯誤訊息讓使用者理解狀況或當成回報客服附加資訊即可，應避免揭露系統內部資訊)，呼叫端可用一致邏輯處理成功及失敗呼叫結果，挺好的。</p> <p>之所以會覺得統一傳 200 省事，多少源於 .NET Framework WebClient 元件處理 HTTP 500 的行為。以 WebClient 為例，HTTP 40x/50x 會觸發例外，需要透過 catch 從 WebException.Exception.Response 讀取詳細回應內容，例如：(以下使用 PowerShell 為例，背後是 .NET WebClient 元件)</p> <pre><code>try {
+Invoke-WebRequest -Uri http://localhost:5203/Http500wJson -Method Post
+}
+catch [System.Net.WebException] {
+$resp = $_.Exception.Response
+[int]$resp.StatusCode
+$resp.StatusDescription
+$sr = [IO.StreamReader]::new($resp.GetResponseStream())
+$sr.ReadToEnd()
+}
+</code></pre> <p>基於這點，我習慣不管成功失敗統一回傳 <a href="/blog/is-restful-required/">ApiResult 物件</a>，如該文所說，如此呼叫端可省下另寫 try / catch 處理 HTTP 500 的工夫。</p> <blockquote> <p>至於使用 HTTP Status Code 302/401/404/500 傳遞狀態，以 .NET WebClient.UploadData() 呼叫時將被視為 Exception，需要 try ... catch 攔截，會增加些許困援。</p> </blockquote> <p>不過，時代在改變，WebClient 的接任者 - HttpClient，接收 HTTP 40X/500 時不再拋出例外，而是針對需要確認 HTTP 200 的情境提供 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.issuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">IsSuccessStatusCode</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.net.http.httpresponsemessage.ensuresuccessstatuscode?view=net-7.0&amp;WT.mc_id=DOP-MVP-37580">EnsureSuccessStatus()</a>，由此可知，非 HTTP 200 回應附帶文字訊息為 JSON 已屬常態，HttpClient 才會做出如此調整。而要讀取 HTTP 500 附帶的 JSON，用 HttpClient 寫起來自然多了：</p> <pre><code>async Task Test()
+{
+var http = new System.Net.Http.HttpClient();
+var resp = await http.PostAsync("http://localhost:5203/http500wjson",
+new StringContent(string.Empty, Encoding.UTF8, "application/json"));
+Console.WriteLine(resp.IsSuccessStatusCode);
+Console.WriteLine((int)resp.StatusCode);
+Console.WriteLine(resp.Content.Headers.ContentType.MediaType);
+Console.WriteLine(await resp.Content.ReadAsStringAsync());
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png"></p> <p>換言之，在新時代，統一傳回 HTTP 200 的優勢不復存在，傳 500 並不會比較麻煩。好，二者回到平等線，那傳 500 又有什麼優點？</p> <p>在 FB 貼文討論裡，讀者 Kehao Chen、LienFa Huang 不約而同給了該傳 500 的超級好理由(感謝!)。DevOps 時代講究 Observability (可觀測性)，會使用 <a href="https://prometheus.io/">Prometheus</a> 之類的統一監控平台蒐集系統營運數據，統整到 Grafana 儀錶板方便即時監看，必要時還能主動發送告警通知 SRE，這已成當今系統管理主流。若 WebAPI 錯誤是種警訊需要被觀注，那麼回傳 200 與 500 意義大不相同。回傳 500 可反應在統一監控平台的數據上，還能觸發告警通知人員處理；回傳 200 的話，系統必須自己負起錯誤統計及通報的責任。</p> <p>從以上角度，回傳 500 的好處不言而喻，這個主張我完全買單。未來設計 WebAPI，我應會選擇在錯誤時改傳 HTTP 500。</p> <p>最後，用 JavaScript 讀取 HTTP 500 回應 JSON 內容的小練習結束這回合。</p> <p>寫個簡單 ASP.NET Minimal API，MapPost("/throw") 模擬未處理例外回應、MapPost("/http500wJson") 回傳含 JSON 內容的 HTTP 500 回應；MapPost("/http200") 則是正常回應做為對照：</p> <pre><code>using System.Text.Json;
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.UseDefaultFiles();
+app.UseFileServer();
+app.MapPost("/throw", () =&gt;
+{
+throw new Exception("Exception from /throw");
+});
+app.MapPost("/http500wJson", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 500;
+resp.ContentType = "application/json";
+var result = new {
+errCode = 9527,
+message = "Exception from /http500wJson"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.MapPost("/http200", (HttpContext context) =&gt;
+{
+var resp = context.Response;
+resp.StatusCode = 200;
+resp.ContentType = "application/json";
+var result = new {
+succ = false,
+errCode = 9527,
+message = "Return error via HTTP 200"
+};
+return resp.WriteAsync(JsonSerializer.Serialize(result));
+});
+app.Run();
+</code></pre> <p>寫個簡單網頁，分別測試用 jQuery.ajax()、XHR、Fetch 呼叫 /throw、/http200 及 /http500wJson。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;WebAPI 錯誤回傳&lt;/title&gt;
+&lt;script src="https://code.jquery.com/jquery-3.3.1.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/throw" checked&gt; throw
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http200"&gt; HTTP 200
+&lt;/label&gt;
+&lt;label&gt;
+&lt;input type="radio" name="url" value="/http500wJson"&gt; HTTP 500 with JSON
+&lt;/label&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;button onclick="testJQuery()"&gt;jQuery&lt;/button&gt;
+&lt;button onclick="testXhr()"&gt;XHR&lt;/button&gt;
+&lt;button onclick="testFetch()"&gt;Fetch&lt;/button&gt;
+&lt;/div&gt;
+&lt;dl&gt;
+&lt;dt&gt;Status Code&lt;/dt&gt;
+&lt;dd id="statusCode"&gt;&lt;/dd&gt;
+&lt;dt&gt;Status Text&lt;/dt&gt;
+&lt;dd id="statusText"&gt;&lt;/dd&gt;
+&lt;dt&gt;Response Body&lt;/dt&gt;
+&lt;dd id="response"&gt;&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;script&gt;
+function getUrl() {
+display('', 'Sending...', '')
+return document.querySelector('input[name="url"]:checked').value;
+}
+function display(statusCode, statusText, response) {
+document.getElementById('statusCode').innerText = statusCode;
+document.getElementById('statusText').innerText = statusText;
+document.getElementById('response').innerText = response;
+}
+function testJQuery() {
+$.ajax({
+url: getUrl(),
+method: 'POST',
+success: function (data) {
+display('200', 'OK', JSON.stringify(data));
+},
+error: function (jqXHR, textStatus, errorThrown) {
+display(jqXHR.status, jqXHR.statusText, jqXHR.responseText);
+}
+});
+}
+function testXhr() {
+var url = getUrl();
+var xhr = new XMLHttpRequest();
+xhr.open('POST', url);
+xhr.onload = function () {
+display(xhr.status, xhr.statusText, xhr.responseText);
+};
+xhr.send();
+}
+function testFetch() {
+fetch(getUrl(), { method: 'POST' })
+.then(async (response) =&gt; {
+if (response.ok) {
+display(response.status, response.statusText, JSON.stringify(await response.json()));
+}
+else
+throw response;
+})
+.catch(async (response) =&gt; {
+display(response.status, response.statusText, await response.text());
+});
+}
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>實測 OK。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638376756486142422.gif"></p> <p>最近常常發現，有些用了很久的老觀念，此刻卻與主流相悖。發現苗頭不對，便該檢視當初考量的前題是否改變，用了十幾年驗證過千百回的老觀念，也會有該拋棄的一天。</p> <p data-slug="read-http500-json" data-title-en="Reading JSON from HTTP response" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/02/13/14/12/fruit-3150842_960_720.jpg#960#720">Talks about why we should use HTTP 500 instaed of HTTP 200 when WebApi error and how to read JSON data from HTTP 500 response body in .NET and JavaScript.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png" medium="image"/>
+    <pubDate>Fri, 08 Dec 2023 23:38:25 GMT</pubDate>
+  </item><item>
     <title><![CDATA[SharePoint CSOM 錯誤：Cannot add a role assignment with empty role definition binding collection]]></title>
     <link>https://blog.darkthread.net/blog/csom-error-empty-role-definition-binding-collection/</link>
     <itunes:title><![CDATA[SharePoint CSOM 錯誤：Cannot add a role assignment with empty role definition binding collection]]></itunes:title>
@@ -1785,473 +2196,5 @@ line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig8_638365677205955620.png" medium="image"/>
     <pubDate>Sun, 26 Nov 2023 03:46:05 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[HttpClient 多執行緒執行出錯案例]]></title>
-    <link>https://blog.darkthread.net/blog/httclient-thread-safe-issue/</link>
-    <itunes:title><![CDATA[HttpClient 多執行緒執行出錯案例]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
-using System.Collections.Concurrent;
-var results = new ConcurrentQueue&lt;string&gt;();
-var httpClient = new HttpClient(new HttpClientHandler()
-{
-UseDefaultCredentials = true
-});
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-Console.WriteLine(string.Join("
-", results.ToArray()));
-</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
-at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
-at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
-at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
-at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
---- End of stack trace from previous location ---
-at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
---- End of stack trace from previous location ---
-at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
-at Program.&lt;Main&gt;(String[] args)
-</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
-{
-Debug.Assert(value is string || value is HeaderStoreItemInfo);
-(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
-}
-</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
-{
-object? store = _headerStore;
-if (store is HeaderEntry[] entries)
-{
-for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
-{
-if (key.Equals(entries[i].Key))
-{
-return ref entries[i].Value!;
-}
-}
-int count = _count;
-_count++;
-if ((uint)count &lt; (uint)entries.Length)
-{
-entries[count].Key = key;
-return ref entries[count].Value!;
-}
-return ref GrowEntriesAndAddDefault(key);
-}
-else if (store is null)
-{
-_count++;
-entries = new HeaderEntry[InitialCapacity];
-_headerStore = entries;
-ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
-firstEntry.Key = key;
-return ref firstEntry.Value!;
-}
-else
-{
-return ref DictionaryGetValueRefOrAddDefault(key);
-}
-ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-if (entries.Length == ArrayThreshold)
-{
-return ref ConvertToDictionaryAndAddDefault(key);
-}
-else
-{
-Array.Resize(ref entries, entries.Length &lt;&lt; 1);
-_headerStore = entries;
-ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
-firstNewEntry.Key = key;
-return ref firstNewEntry.Value!;
-}
-}
-ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
-_headerStore = dictionary;
-foreach (HeaderEntry entry in entries)
-{
-dictionary.Add(entry.Key, entry.Value);
-}
-Debug.Assert(dictionary.Count == _count - 1);
-return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-}
-ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
-{
-var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
-ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-if (value is null)
-{
-_count++;
-}
-return ref value;
-}
-}
-</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
-using System.Collections.Concurrent;
-var results = new ConcurrentQueue&lt;string&gt;();
-var httpClient = new HttpClient(new HttpClientHandler()
-{
-UseDefaultCredentials = true
-});
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-Console.WriteLine(string.Join("
-", results.ToArray()));
-</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
-at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
-at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
-at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
-at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
---- End of stack trace from previous location ---
-at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
---- End of stack trace from previous location ---
-at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
-at Program.&lt;Main&gt;(String[] args)
-</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
-{
-Debug.Assert(value is string || value is HeaderStoreItemInfo);
-(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
-}
-</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
-{
-object? store = _headerStore;
-if (store is HeaderEntry[] entries)
-{
-for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
-{
-if (key.Equals(entries[i].Key))
-{
-return ref entries[i].Value!;
-}
-}
-int count = _count;
-_count++;
-if ((uint)count &lt; (uint)entries.Length)
-{
-entries[count].Key = key;
-return ref entries[count].Value!;
-}
-return ref GrowEntriesAndAddDefault(key);
-}
-else if (store is null)
-{
-_count++;
-entries = new HeaderEntry[InitialCapacity];
-_headerStore = entries;
-ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
-firstEntry.Key = key;
-return ref firstEntry.Value!;
-}
-else
-{
-return ref DictionaryGetValueRefOrAddDefault(key);
-}
-ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-if (entries.Length == ArrayThreshold)
-{
-return ref ConvertToDictionaryAndAddDefault(key);
-}
-else
-{
-Array.Resize(ref entries, entries.Length &lt;&lt; 1);
-_headerStore = entries;
-ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
-firstNewEntry.Key = key;
-return ref firstNewEntry.Value!;
-}
-}
-ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
-_headerStore = dictionary;
-foreach (HeaderEntry entry in entries)
-{
-dictionary.Add(entry.Key, entry.Value);
-}
-Debug.Assert(dictionary.Count == _count - 1);
-return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-}
-ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
-{
-var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
-ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-if (value is null)
-{
-_count++;
-}
-return ref value;
-}
-}
-</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>依<a href="/blog/httpclient-sigleton/">先前所學</a>，System.Net.HttpClient 的 GetAsync()/PostAsync()/SendAsync() 等方法為 Thread-Safe，建議做法是只建立一份 HttpClient，以 static 方式共用。</p> <p>今天踩到雷，以下為重現問題的程式範例。網頁使用 Windows 登入，故傳入 HttpClientHandler 指定 UseDefaultCredentials = true，準備 FormUrlEncodedContent 後，以 Parallel.ForEachAsync() 同步呼叫 HttpClient.PostAsync()：</p> <pre><code>using System.Diagnostics;
-using System.Collections.Concurrent;
-var results = new ConcurrentQueue&lt;string&gt;();
-var httpClient = new HttpClient(new HttpClientHandler()
-{
-UseDefaultCredentials = true
-});
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-Console.WriteLine(string.Join("
-", results.ToArray()));
-</code></pre> <p>反覆多執行幾次，有時會彈出以下錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"></p> <pre><code>Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: System.Net.Http.Headers.HeaderDescriptor
-at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
-at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
-at System.Net.Http.Headers.HttpHeaders.GetOrCreateHeaderInfo(HeaderDescriptor descriptor, Boolean parseRawValues)
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpMessageInvoker.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-at System.Net.Http.HttpClient.&lt;SendAsync&gt;g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
-at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;&lt;Main&gt;$&gt;b__0&gt;d.MoveNext() in X:\Lab\http-client-thread-safe\Program.cs:line 22
---- End of stack trace from previous location ---
-at System.Threading.Tasks.Parallel.&lt;&gt;c__50`1.&lt;&lt;ForEachAsync&gt;b__50_0&gt;d.MoveNext()
---- End of stack trace from previous location ---
-at Program.&lt;Main&gt;$(String[] args) in X:\Lab\http-client-thread-safe\Program.cs:line 16
-at Program.&lt;Main&gt;(String[] args)
-</code></pre> <p>有時是另一種訊息：</p> <pre><code>Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Collections.Generic.List1[System.Object]' to type 'System.Int64'.
-at System.Net.Http.Headers.HttpContentHeaders.get_ContentLength()
-at System.Net.Http.SocketsHttpHandler.ValidateAndNormalizeRequest(HttpRequestMessage request)
-at System.Net.Http.SocketsHttpHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-</code></pre> <p>依老兵征戰沙場多年<a href="/blog/dictionary-thread-safe/">經驗</a>，An item with the same key has already been added 配上偶爾出現，是平行處理沒處理好 Thread-Safe 的典型特徵。但 HttpClient 不是 Thread Safe 嗎？</p> <p>Google 爬到 Github .NET Runtime 有篇 <a href="https://github.com/dotnet/runtime/issues/1500">Issue</a> 多執行緒設定 HttpClient.DefaultRequestHeaders.Authorization 導致 HttpHeaders.GetOrCreateHeaderInfo 爆出相同錯誤的案例。但該案例是多執行緒同時修改 DefaultRequestHeaders，較容易解釋。我的案例感覺就有點離奇了，但問題來自 HttpClientHandler.SendAsync()，不排除是多執行緒共用同一個 HttpClientHandler 造成問題。</p> <p>有趣的是，將 .NET 版本由 .NET 6.0 改為 7.0，問題會消失。基於好奇，開了 <a href="https://www.jetbrains.com/decompiler/">dotPeek</a> 追原始碼找到差異。(註：.NET 反組譯工具原本還有 <a href="https://www.telerik.com/products/decompiler.aspx">JustDecompile</a>、<a href="https://github.com/dnSpy/dnSpy">dnSpy</a> 等選項，但二者 都已多年未更新，已不適用 .NET 6+)</p> <p>.NET 6.0 的出錯路徑是 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddHeaderToStore()，其中有段 <code>new Dictionary&lt;HeaderDescriptor, object&gt;().Add()</code> 非 Thread-Safe：</p> <pre><code>private void AddHeaderToStore(HeaderDescriptor descriptor, object value)
-{
-Debug.Assert(value is string || value is HeaderStoreItemInfo);
-(_headerStore ??= new Dictionary&lt;HeaderDescriptor, object&gt;()).Add(descriptor, value);
-}
-</code></pre> <p>.NET 7.0 版做了大幅改版，變成 GetOrCreateHeaderInfo() -&gt; CreateAndAddHeaderToStore() -&gt; AddEntryToStore() -&gt; GetValueRefOrAddDefault()，邏輯大幅改寫，_headerStore 為 HeaderEntry[] 時查詢或新增至最後；為 null 時新建 HeaderEntry[] 並指定第一筆；_headerStore 為 <code>Dictionary&lt;HeaderDescriptor, object&gt;</code> 時用 CollectionsMarshal.GetValueRefOrAddDefault() 設定，再追進去，<a href="https://github.com/dotnet/runtime/blob/8473eeb913cf688e7d3dbdf09a6a1f434498ada3/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs#L695">GetValueRefOrAddDefault</a> 等同 TryInsert()，理論上容錯性較高，也或許其他處有修改寫法。總之，改用 .NET 7 後試了多次都不再能重現問題。</p> <pre><code>private ref object? GetValueRefOrAddDefault(HeaderDescriptor key)
-{
-object? store = _headerStore;
-if (store is HeaderEntry[] entries)
-{
-for (int i = 0; i &lt; _count &amp;&amp; i &lt; entries.Length; i++)
-{
-if (key.Equals(entries[i].Key))
-{
-return ref entries[i].Value!;
-}
-}
-int count = _count;
-_count++;
-if ((uint)count &lt; (uint)entries.Length)
-{
-entries[count].Key = key;
-return ref entries[count].Value!;
-}
-return ref GrowEntriesAndAddDefault(key);
-}
-else if (store is null)
-{
-_count++;
-entries = new HeaderEntry[InitialCapacity];
-_headerStore = entries;
-ref HeaderEntry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
-firstEntry.Key = key;
-return ref firstEntry.Value!;
-}
-else
-{
-return ref DictionaryGetValueRefOrAddDefault(key);
-}
-ref object? GrowEntriesAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-if (entries.Length == ArrayThreshold)
-{
-return ref ConvertToDictionaryAndAddDefault(key);
-}
-else
-{
-Array.Resize(ref entries, entries.Length &lt;&lt; 1);
-_headerStore = entries;
-ref HeaderEntry firstNewEntry = ref entries[entries.Length &gt;&gt; 1];
-firstNewEntry.Key = key;
-return ref firstNewEntry.Value!;
-}
-}
-ref object? ConvertToDictionaryAndAddDefault(HeaderDescriptor key)
-{
-var entries = (HeaderEntry[])_headerStore!;
-var dictionary = new Dictionary&lt;HeaderDescriptor, object&gt;(ArrayThreshold);
-_headerStore = dictionary;
-foreach (HeaderEntry entry in entries)
-{
-dictionary.Add(entry.Key, entry.Value);
-}
-Debug.Assert(dictionary.Count == _count - 1);
-return ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-}
-ref object? DictionaryGetValueRefOrAddDefault(HeaderDescriptor key)
-{
-var dictionary = (Dictionary&lt;HeaderDescriptor, object&gt;)_headerStore!;
-ref object? value = ref CollectionsMarshal.GetValueRefOrAddDefault(dictionary, key, out s_dictionaryGetValueRefOrAddDefaultExistsDummy);
-if (value is null)
-{
-_count++;
-}
-return ref value;
-}
-}
-</code></pre> <p>總之，實測升級 .NET 7 可避開問題，另外還發現如果修改一下程式，將 FormUrlEncodedContent 移入迴圈內建立不共用，反覆測試多次沒再出錯。又花了點時間追 Code 但沒找到共用 HttpContent 會釀禍的證據。</p> <pre><code>var paramData = "1,2,3,4,5,6,7,8,9".Split(',');
-await Parallel.ForEachAsync(paramData, async (p, cancelToken) =&gt;
-{
-var postContent = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt;()
-{
-["key"] = "1234"
-});
-var sw = new Stopwatch();
-sw.Start();
-var resp = await httpClient.PostAsync($"http://localhost/aspnet/auth/", postContent);
-var res = "OK";
-try
-{
-resp.EnsureSuccessStatusCode();
-}
-catch (Exception ex)
-{
-res = "ERR:" + ex.Message;
-}
-sw.Stop();
-results.Enqueue($"{p} {sw.ElapsedMilliseconds:n0}ms {res}");
-});
-</code></pre> <p>最後，終於文找到 .NET 6 HttpHeaders 非 Thread-Safe 的 <a href="https://github.com/dotnet/runtime/issues/61798">Issue 回報</a> 以及 .NET 7 做了修正 的<a href="https://github.com/dotnet/runtime/pull/68115">證據</a>。</p> <p>結論：HttpClient 原則上是 Thread-Safe 的，但在 .NET 6 若涉及 HttpHeaders 操作在多執行緒環境可能出錯，此問題於 .NET 7 修復。</p> <p data-slug="httclient-thread-safe-issue" data-title-en="HttpClient is not thread-safe" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Investigating a thread-safe issue in .NET HttpClient associated with HttpHeaders.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638364300074214901.png" medium="image"/>
-    <pubDate>Thu, 23 Nov 2023 08:59:47 GMT</pubDate>
   </item></channel>
 </rss>
