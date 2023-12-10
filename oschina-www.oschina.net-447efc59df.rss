@@ -30,6 +30,1368 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[每日一博 | 从浏览器原理出发聊聊 Chrome 插件]]></title>
+    <link>https://my.oschina.net/yunqi/blog/10319584</link>
+    <itunes:title><![CDATA[每日一博 | 从浏览器原理出发聊聊 Chrome 插件]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h3>浏览器架构演进</h3>
+<p><strong>单进程浏览器时代</strong></p>
+<p>单进程浏览器是指浏览器的所有功能模块都是运行在同一个进程里，这些模块包含了网络、插件、JavaScript 运行环境、渲染引擎和页面等。在 2007 年之前，市面上浏览器都是单进程的。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-a2a5d1ba2d.webp"></p>
+<p>单进程浏览器的架构</p>
+<p>很多功能模块运行在一个进程里，是导致单进程浏览器不稳定、不流畅和不安全的一个主要因素。</p>
+<ul>
+<li><strong>不稳定：</strong>早期浏览器需要借助于插件来实现诸如 Web 视频、Web 游戏等各种强大的功能，但是插件是最容易出问题的模块，并且还运行在浏览器进程之中，所以一个插件的意外崩溃会引起整个浏览器的崩溃。除了插件之外，渲染引擎模块也是不稳定的，通常一些复杂的 JavaScript 代码就有可能引起渲染引擎模块的崩溃。和插件一样，渲染引擎的崩溃也会导致整个浏览器的崩溃。</li>
+<li><strong>不流畅：</strong>所有页面的渲染模块、JavaScript 执行环境以及插件都是运行在同一个线程中的，这就意味着同一时刻只能有一个模块可以执行。如果一个脚本非常耗时，它就会独占整个线程，这样导致其他运行在该线程中的页面没有机会去执行任务，导致整个浏览器失去响应，变卡顿。</li>
+<li><strong>不安全：</strong>当你在页面运行一个插件时，插件可以操作系统资源，如果是个恶意插件，那么它就可以释放病毒、窃取你的账号密码，引发安全性问题。</li>
+</ul>
+<h4><strong>多进程浏览器时代</strong></h4>
+<p><strong>早期架构</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-bc85eeb577.webp"></p>
+<p>2008 年 Chrome 发布时的进程架构</p>
+<p>从图中可以看出，早期的架构已经对浏览器的能力进行了拆分，主要拆分为三类：<strong>浏览器进程、插件进程和渲染进程。</strong>每个页面是运行在单独的渲染进程中的，同时页面里的插件也是运行在单独的插件进程之中，进程之间是通过 IPC 机制进行通信。这就解决了单进程时代浏览器的各种问题：</p>
+<ul>
+<li><strong>解决不稳定：</strong>由于进程是相互隔离的，所以当一个页面或者插件崩溃时，影响到的仅仅是当前的页面进程或者插件进程，并不会影响到浏览器和其他页面。</li>
+<li><strong>解决不流畅：</strong>JavaScript运行在渲染进程中，所以即使JavaScript阻塞了渲染进程，也只会影响当前的渲染页面，并不会影响浏览器和其他页面，因为其他页面的脚本运行在它们自己的渲染进程中。</li>
+<li><strong>解决不安全：</strong>Chrome把插件进程和渲染进程锁在沙箱里面，沙箱里面的程序可以运行，但是不能在硬盘上写入任何数据，也不能在敏感位置读取任何数据，这样即使在渲染进程或者插件进程里面执行了恶意程序，恶意程序也无法突破沙箱去获取系统权限。</li>
+</ul>
+<p><strong>近期架构</strong></p>
+<p>相较之前，近期的架构又有了很多新的变化。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-354e1c8e77.webp"></p>
+<p>近期Chrome进程架构</p>
+<p>从图中可以看出，最新的 Chrome 浏览器包括：<strong>1 个浏览器主进程、1 个 GPU 进程、1 个网络进程、多个渲染进程和多个插件进程。</strong></p>
+<ul>
+<li><strong>浏览器进程：</strong>主要负责界面显示、用户交互、子进程管理，同时提供存储等功能。可以理解浏览器进程是一个统一的"<strong>调度大师</strong>"去调度其他进程，比如我们在地址栏输入url时，浏览器进程首先会调用网络进程。</li>
+<li><strong>渲染进程：</strong>核心任务是将HTML、CSS和JavaScript转换为用户可以交互的网页，排版引擎Blink和JavaScript引擎V8都是运行在该进程中，默认情况下，Chrome会为每个 Tab 标签创建一个渲染进程。出于安全考虑，渲染进程都是运行在沙箱模式下。</li>
+<li><strong>GPU进程：</strong>其实，Chrome 刚开始发布的时候是没有 GPU 进程的。而 GPU 的使用初衷是为了实现 3D CSS 的效果，只是随后网页、Chrome 的 UI 界面都选择采用 GPU 来绘制，这使得 GPU 成为浏览器普遍的需求。最后，Chrome 在其多进程架构上也引入了 GPU 进程。</li>
+<li><strong>网络进程：</strong>主要负责页面的网络资源加载，之前是作为一个模块运行在浏览器进程里面的，直至最近才独立出来，成为一个单独的进程。</li>
+<li><strong>插件进程：</strong>主要是负责插件的运行，因插件易崩溃，所以需要通过插件进程来隔离，以保证插件进程崩溃不会对浏览器和页面造成影响。</li>
+</ul>
+<p><strong>当前架构</strong></p>
+<p>目前Chrome浏览器的架构正在发生一些改变，称为<strong>面向服务的架构(SOA)</strong>，目的是将和浏览器本身（Chrome）相关的部分拆分为一个个不同的服务，服务化之后，这些功能既可以放在不同的进程里面运行也可以合并为一个单独的进程运行。这样做的主要原因是让Chrome在不同性能的硬件上有不同的表现。当Chrome运行在一些性能比较好的硬件时，浏览器进程相关的服务会被放在不同的进程运行以提高系统的稳定性。相反如果硬件性能不好，这些服务就会被放在同一个进程里面执行来减少内存的占用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-721bc1c004.webp"></p>
+<p>面向服务的架构</p>
+<h3>插件运行机制</h3>
+<p>在运行机制前，我们先来回顾一下打开页面会发生什么：</p>
+<h4><strong>打开页面发生了什么</strong></h4>
+<ul>
+<li>用户新增一个tab，此时系统浏览器进程、渲染进程、GPU 进程、网络进程会被创建好；</li>
+<li>用户输入url，浏览器进程检查url，组装协议，构成完整的url；</li>
+<li>浏览器进程通过进程间通信（IPC）把url请求发送给网络进程；</li>
+<li>网络进程接收到url请求后检查本地缓存是否缓存了该请求资源，如果有则将该资源返回给浏览器进程；</li>
+<li>如果没有，网络进程向web服务器发起http请求（网络请求）；</li>
+<li>网络进程解析响应流程；
+<ul>
+<li>检查状态码，非200执行状态码对应的处理逻辑；</li>
+<li>200响应处理：检查响应类型Content-Type，如果是字节流类型，则将该请求提交给下载管理器，不再进行后续的渲染，如果是html则通知浏览器进程准备渲染进程进行渲染；</li>
+</ul> </li>
+<li>准备渲染进程
+<ul>
+<li>浏览器进程检查当前url是否和之前打开的渲染进程根域名是否相同，如果相同，则复用原来的进程，如果不同，则开启新的渲染进程；</li>
+</ul> </li>
+<li>传输数据、更新状态
+<ul>
+<li>渲染进程准备好后，浏览器向渲染进程发起“提交文档”的消息，渲染进程接收到消息和网络进程建立传输数据的“管道”；</li>
+<li>渲染进程接收完数据后，向浏览器发送确认消息；</li>
+<li>浏览器进程接收到确认消息后更新浏览器界面状态：安全、地址栏url、前进后退的历史状态、更新web页面；</li>
+</ul> </li>
+</ul>
+<h4><strong>打开插件发生了什么</strong></h4>
+<p>插件的运行相较于页面会有简化</p>
+<p>1.我们打开浏览器，新增一个空白tab页</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-8c99492eca.webp"></p>
+<p>2.tab栏空白处右键，选择任务管理器，打开任务管理器面板</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-e8f3c6bd2f.webp"></p>
+<p>3.可以看到运行了6个进程，分别是浏览器进程、GPU进程、网络进程、存储进程、渲染进程和扩展进程。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-7ac5d18172.webp"></p>
+<ul>
+<li>扩展进程中运行Extension Page，主要包括backgrount.html和popup.html；
+<ul>
+<li>backgrount.html中没有任何内容，是通过background.js创建生成，当浏览器打开时，会自动加载插件的background.js文件，它独立于网页并且一直运行在后台，它主要通过调用浏览器提供的API和浏览器进行交互；</li>
+<li>popup.html有内容的，跟我们普通的web页面一样，由html、css、Javascript组成，它是按需加载的，需要用户去点击地址栏的按钮去触发，才能弹出页面；</li>
+</ul> </li>
+<li>渲染进程主要运行Web Page,当打开页面时，会将content_script.js加载并注入到该网页的环境中，它和网页中引入的Javascript一样，可以操作该网页的DOM Tree，改变页面的展示效果；</li>
+<li>GPU进程主要为插件界面的渲染提供硬件能力支持；</li>
+<li>网络进程主要处理插件中的外部资源请求，比如nexydy插件依赖到一些外部js；</li>
+<li>存储进程为插件提供本地存储能力，比如使用chrome.storage.local进行持久化存储；</li>
+<li>浏览器进程在这里更多起到桥梁作用，作为中转可以实现Extension Page和content_script.js之间的消息通信。</li>
+</ul>
+<h3>插件基本介绍</h3>
+<h4><strong>版本发展</strong></h4>
+<p>chrome插件存在三个版本，分别是<strong>Manifest V1、Manifest V2和Manifest V3</strong>。其中MV1版本已经被废弃了，目前市面上存在MV2和MV3版本，以MV2为主流，在被MV3慢慢取代。时间线：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d1ad1708eb.webp"></p>
+<p><strong>Manifest V2新特性</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2FmanifestVersion%2F%253Fspm%253Da2c6h.13046898.publish-article.26.c7c96ffa7eZ9TZ%2523manifest-v1-changes" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifestVersion/#manifest-v1-changes</a></p>
+<ul>
+<li>设置了默认的内容安全策略`script-src 'self'; object-src 'self';`。有关内容安全策略的详细配置，可以参考MDN文档；</li>
+<li>默认情况下，插件包内的资源不再可供外部网站使用。需要通过清单web_accessible_resources属性将其显式列入白名单；</li>
+<li>browser action API更改；</li>
+<li>page action API更改；</li>
+<li>chrome.extension 代替 chrome.self 来指向插件本身；</li>
+<li>chrome.extension.getTabContentses和chrome.extension.getExtensionTabs废弃，使用extension.getViews替代；</li>
+<li>Port.tab废弃，使用runtime.Port替代；</li>
+</ul>
+<p><strong>Manifest V3新特性</strong></p>
+<ul>
+<li>Service worker替换Background Page；</li>
+<li>网络请求修改废弃webRequest API使用新的 declarativentrequest API 来处理；</li>
+<li>不再允许执行远程托管的代码，只能执行扩展包内包含的JS；</li>
+<li>Promises 已经被添加到许多方法中，但仍支持回调作为替代方法；</li>
+<li>Browser Action API 和 Page Action API被统一为单独的Action API；</li>
+<li>Web可访问的资源，可以只对指定的站点和扩展可用；</li>
+<li>内容安全策略(CSP)，现在可以为单个对象中的不同执行上下文指定单独的CSP；</li>
+<li>executeScript的变化，不能再执行任意字符串，只能执行脚本文件和函数；</li>
+</ul>
+<p><strong>切换MV3会带来的问题</strong></p>
+<ul>
+<li>由于background不再支持page页面配置background.html，因此也无法调用window对象上的XMLHttpRequest来构建ajax请求，也就是说我们不能像V2版本一样，在background.html中使用XMLHttpRequest来发送请求了，而是需要使用fetch来获取接口数据；</li>
+<li>由于service workers是短暂的，在不使用时会终止，这意味着它们在整个插件运行期间会不断的启动、运行和终止，也就是不稳定的；因此我们可能需要对V2中background.js的代码逻辑进行一些改造，以往我们会习惯将一些数据直接存储到全局变量，比如像下面这样：</li>
+</ul>
+<pre><code>// V2 background.js
+let saveUserName = "";
+// 其他页面，比如content-script或者popup中存储数据
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+saveUserName = name;
+}
+});
+// 点击popup时展示数据
+chrome.action.onClicked.addListener((tab) =&gt; {
+// 这里saveUserName可能为空字符串
+console.log(saveUserName, "saveUserName");
+});</code></pre>
+<ul>
+<li>因此在V3中，需要对这种全局变量数据进行改造，改造的方式也很简单，就是将数据持久化保存到storage中，需要用到的地方随用随取：</li>
+</ul>
+<pre><code>// V3 service worker
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+chrome.storage.local.set({ name });
+}
+});
+chrome.action.onClicked.addListener(async (tab) =&gt; {
+const { name } = await chrome.storage.local.get(["name"]);
+chrome.tabs.sendMessage(tab.id, { name });
+});</code></pre>
+<ul>
+<li>由<strong>webRequest API</strong>切换至<strong>declarativentrequest API</strong>，很多代码逻辑需要重构；</li>
+</ul>
+<p><strong>为什么切换MV3？</strong></p>
+<p>从Manifest V1到Manifest V2，可以看到Chrome想提高插件的隐私和安全，同时也优化了不少API。而Manifest V3除了安全性更完善外，还在性能上下了功夫。Manifest V3 的核心非常明确，就是限制扩展对系统资源的使用。一直以来高资源占用都是 Chrome 为人诟病的痛点，而且扩展由于在后台运行，如果出现问题，更是难以定位和管理。虽然增加了诸多限制，但Manifest V3还是有优点的：</p>
+<ul>
+<li>Service Worker 使扩展不再能常驻后台，让扩展所占用的资源可以被回收，降低了浏览器整体的开销；</li>
+<li>限制规则的数量，相当于控制了单一扩展在规则计算方面的资源使用上限；</li>
+</ul>
+<p>这些变化可以让 Chrome 变得更加流畅，对于用户来说是好事。</p>
+<h4><strong>展示形式</strong></h4>
+<p>Chrome插件有以下常见的8中展现形式：</p>
+<p><strong>browserAction(浏览器右上角)</strong></p>
+<p>在浏览器右上角扩展程序一栏显示，包含一个图标、名称和popup</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-8027a9dd93.webp"></p>
+<p>山海关插件popup</p>
+<p><strong>pageAction(地址栏右侧)</strong></p>
+<p>pageAction指的是在当某些特定页面打开才显示的图标。在早些版本的Chrome是将pageAction放在地址栏的最右边，左键单击弹出popup，右键单击则弹出相关默认的选项菜单。而新版的Chrome更改了这一策略，pageAction和普通的browserAction一样也是放在浏览器右上角，只不过没有点亮时是灰色的，点亮了才是彩色的，灰色时无论左键还是右键单击都是弹出选项。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-cf4b0a52c1.webp"></p>
+<p><strong>右键菜单</strong></p>
+<p>通过开发Chrome插件可以自定义浏览器的右键菜单，主要是通过chrome.contextMenus API实现，右键菜单可以出现在不同的上下文，比如普通页面、选中的文字、图片、链接，等等。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-ec140bca58.webp"></p>
+<p>掘金插件右键菜单</p>
+<p><strong>override(覆盖特定页面)</strong></p>
+<p>使用override可以将Chrome默认的一些特定页面替换掉，改为使用扩展提供的页面。扩展可以替代如下页面：</p>
+<ul>
+<li>历史记录：从工具菜单上点击历史记录时访问的页面，或者从地址栏直接输入 chrome://history</li>
+<li>新标签页：当创建新标签的时候访问的页面，或者从地址栏直接输入 chrome://newtab</li>
+<li>书签：浏览器的书签，或者直接输入 chrome://bookmarks</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-45cac3d02d.webp"></p>
+<p>掘金插件替换了新标签页</p>
+<p><strong>devtools(开发者工具)</strong></p>
+<p>Chrome允许插件在开发者工具(devtools)上开发，主要表现在：</p>
+<ul>
+<li>自定义一个和多个和Elements、Console、Sources等同级别的面板；</li>
+<li>自定义侧边栏(sidebar)，目前只能自定义Elements面板的侧边栏；</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-c1ce9fa5a8.webp"></p>
+<p>React Developer Tools</p>
+<p><strong>option(选项页)</strong></p>
+<p>插件的设置页面，可以在右上角入口右键，有一个选项标签</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-97eafe8307.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-3fffc9cc8d.webp">
+</div>
+<p><strong>omnibox</strong></p>
+<p>omnibox是向用户提供搜索建议的一种方式，可以在搜索栏输入特定的标识然后按Tab进入搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d9c2fbc0a9.webp"></p>
+<p>JSON Viewer插件</p>
+<p><strong>桌面通知</strong></p>
+<p>Chrome提供了一个chrome.notificationsAPI以便插件推送桌面通知，暂未找到chrome.notifications和HTML5自带的Notification的显著区别及优势。在后台JS中，无论是使用chrome.notifications还是Notification都不需要申请权限（HTML5方式需要申请权限），直接使用即可。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-353c2e09ca.webp"></p>
+<h4><strong>核心介绍</strong></h4>
+<p><strong>manifest.json</strong></p>
+<p>这是一个Chrome插件最重要也是必不可少的文件，用来配置所有和插件相关的配置，必须放在根目录。其中，manifest_version、name、version3个是必不可少的。</p>
+<p><strong>Manifest V2</strong></p>
+<pre><code>{
+// 清单文件的版本，这里先使用2演示
+"manifest_version": 2,
+// 插件的名称
+"name": "...",
+// 插件的版本
+"version": "1.0.0",
+// 插件描述
+"description": "...",
+// 图标，一般偷懒全部用一个尺寸的也没问题
+"icons": {
+"16": "img/icon.png",
+"48": "img/icon.png",
+"128": "img/icon.png"
+},
+// 会一直常驻的后台JS或后台页面
+"background": {
+"scripts": ["js/background.js"]
+},
+// 浏览器右上角图标设置，browser_action、page_action、app必须三选一
+"browser_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 当某些特定页面打开才显示的图标
+"page_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 需要直接注入页面的JS
+"content_scripts": [{
+"matches": ["&lt;all_urls&gt;"],
+"js": ["js/content-script.js"],
+"css": ["css/custom.css"],
+// 代码注入的时机，document_start, document_end, document_idle，默认document_idle
+"run_at": "document_start"
+},
+],
+// 权限申请
+"permissions": [
+"contextMenus", // 右键菜单
+"tabs", // 标签
+"notifications", // 通知
+"webRequest", // web请求
+"webRequestBlocking",
+"storage", // 插件本地存储
+"https://*/*" // 可以通过executeScript或者insertCSS访问的网站
+],
+// 普通页面能够直接访问的插件资源列表，如果不设置是无法直接访问的
+"web_accessible_resources": ["js/inject.js"],
+"homepage_url": "...", // 插件主页
+"chrome_url_overrides": { // 覆盖浏览器默认页面
+"newtab": "newtab.html"
+},
+"options_ui": { // 插件选项页
+"page": "options.html",
+"chrome_style": true
+},
+"omnibox": { "keyword" : "..." }, // 向地址栏注册一个关键字以提供搜索建议，只能设置一个关键字
+"default_locale": "zh_CN", // 默认语言
+"devtools_page": "devtools.html", // devtools页面入口，注意只能指向一个HTML文件，不能是JS文件
+"content_security_policy": "...", // 安全策略
+"web_accessible_resources": [ // 可以加载的资源
+RESOURCE_PATHS
+]
+}</code></pre>
+<p><strong>Manifest V3（仅展示与V2版本的不同点）</strong></p>
+<pre><code>{
+"manifest_version": 3,
+"background": {
+"service_worker": js/background.js"
+},
+"action": { //browser_action 和 page_action，统一为 Action
+"default_icon": "img/icon.png",
+"default_title": "这是一个示例Chrome插件",
+"default_popup": "popup.html"
+}
+"content_security_policy": {
+"extension_pages": "...",
+"sandbox": "..."
+},
+"web_accessible_resources": [{
+"resources": [RESOURCE_PATHS]
+}]
+}</code></pre>
+<p><strong>content-scripts</strong></p>
+<p>是Chrome插件中向页面注入脚本的一种形式（虽然名为script，其实还可以包括css的），借助content-scripts我们可以实现通过配置的方式轻松向指定页面注入JS和CSS。content-scripts和原始页面共享DOM，但不共享JS。如要访问页面JS（例如某个JS变量），只能通过injected js来实现。content-scripts不能访问绝大部分chrome API，除了下面这4种：</p>
+<ul>
+<li>chrome.extension</li>
+<li>chrome.i18n</li>
+<li>chrome.runtime</li>
+<li>chrome.storage</li>
+</ul>
+<p>这些API绝大部分时候都够用了，有需要调用其它API的话，可以通过通信让background或service worker来帮忙调用</p>
+<p><strong>background</strong></p>
+<p>后台是一个常驻的页面，它的生命周期是插件中所有类型页面中最长的，它随着浏览器的打开而打开，随着浏览器的关闭而关闭，所以通常把需要一直运行的、启动就运行的、全局的代码放在background里面。background的权限非常高，几乎可以调用所有的Chrome扩展API（除了devtools），而且它可以无限制跨域，可以跨域访问任何网站而无需要求对方设置CORS。background的概念在MV3版本中变为了service worker，区别在于生命周期变短了，service worker是短暂的基于事件的脚本，所以不适合用来保存全局变量。</p>
+<p><strong>popup</strong></p>
+<p>popup是点击右上角图标时打开的一个小窗口网页，焦点离开网页就立即关闭，一般用来做一些临时性的交互。权限级别和background差不多，就是生命周期比较短。</p>
+<p><strong>injected-script</strong></p>
+<p>chrome插件中其实没有injected-script这一概念，这是开发者们在开发过程中衍生出来的一种概念，指的是通过DOM操作的方式向页面注入的一种JS。因为content-script无法访问页面中的JS，虽然可以操作DOM，但是DOM却不能调用它，也就是无法在DOM中通过绑定事件的方式调用content-script中的代码。但是在网页中增加一个按钮来调用插件的能力是一个比较常见的需求，所以诞生了injected-script。</p>
+<h4><strong>插件通信机制</strong></h4>
+<p>讲通信机制之前，先回顾一下插件中存在的脚本类型。Chrome插件的JS主要可以分为这5类：injected script、content-script、popup js、background js和devtools js。</p>
+<p><strong>权限对比</strong></p>
+<table>
+<tbody>
+<tr>
+<td>JS种类</td>
+<td>可访问的API</td>
+<td>DOM访问情况</td>
+<td>JS访问情况</td>
+<td>直接跨域</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>和普通JS无任何差别，不能访问任何扩展API</td>
+<td>可以访问</td>
+<td>可以访问</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>content</td>
+<td>只能访问 extension、runtime等部分API</td>
+<td>可以访问</td>
+<td>不可以</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>background</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>只能访问 devtools、extension、runtime等部分API</td>
+<td>可以</td>
+<td>可以</td>
+<td>不可以</td>
+</tr>
+</tbody>
+</table>
+<p>通过权限对比可以看到，每一种脚本在权限上都不相同，所以各种脚本间的相互通信就非常重要，这也是插件能够实现众多功能的基础。</p>
+<p><strong>通信概览</strong></p>
+<table>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>injected</td>
+<td>content</td>
+<td>popup</td>
+<td>background</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>-</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>content</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>-</td>
+<td>chrome.extension. getBackgroundPage</td>
+</tr>
+<tr>
+<td>background</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>chrome.extension.getViews</td>
+<td>-</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>chrome.devtools. inspectedWindow.eval</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage</td>
+<td>chrome.runtime.sendMessage</td>
+</tr>
+</tbody>
+</table>
+<h3>一些常见插件的实现思路</h3>
+<h4><strong>埋点日志检测</strong></h4>
+<p>一般业务中都会进行一些埋点上报，埋点的本质就是发送一些带特定参数的请求，前端本地调试的时候想实时查看埋点信息通常需要去查看上报接口的入参，或者去对应的埋点平台查看，这样非常不方便。基于这个，我们可以使用插件来帮助我们快速的可视化查看埋点信息：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-1495706228.webp"></p>
+<h4><strong>页面注入小工具</strong></h4>
+<p>插件的另一个常见用法就是往页面注入一些工具代码，比如去除页面广告工具。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-197b518ba8.webp"></p>
+<h3>总结</h3>
+<ul>
+<li>随着浏览器不断的发展，Chrome逐渐把一些基础服务独立出来，类似于一个跨平台的线上操作系统。</li>
+<li>Chrome插件提供的能力很丰富，比如代码注入、跨域请求、持久化方案、各种通信机制等，开发者可以发挥想象，组装不同能力以适应不同场景的需求，基本可以实现现代web所能支持的所有功能。</li>
+<li>Chrome插件MV2版本将在24年1月全面废弃，需要尽快迁移至MV3版本。</li>
+</ul>
+<h3><strong>参考资料：</strong></h3>
+<p>《浏览器工作原理与实践》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Ftime.geekbang.org%2Fcolumn%2Fintro%2F100033601%253Fspm%253Da2c6h.13046898.publish-article.27.c7c96ffa7eZ9TZ%2526tab%253Dcatalog" target="_blank">https://time.geekbang.org/column/intro/100033601?tab=catalog</a></p>
+<p>《Inside look at modern web browser》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fblog%2Finside-browser-part1%2F%253Fspm%253Da2c6h.13046898.publish-article.28.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/blog/inside-browser-part1/</a></p>
+<p>《图解浏览器的基本工作原理》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F47407398%3Fspm%3Da2c6h.13046898.publish-article.29.c7c96ffa7eZ9TZ" target="_blank">https://zhuanlan.zhihu.com/p/47407398</a></p>
+<p>《Welcome to Manifest V3》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv3%2Fintro%2F%253Fspm%253Da2c6h.13046898.publish-article.30.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv3/intro/</a></p>
+<p>MDN文档：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.mozilla.org%2Fzh-CN%2Fdocs%2FWeb%2FHTTP%2FCSP%253Fspm%253Da2c6h.13046898.publish-article.31.c7c96ffa7eZ9TZ" target="_blank">https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP</a>web_accessible_resources：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2Fmanifest%2Fweb_accessible_resources%2F%253Fspm%253Da2c6h.13046898.publish-article.32.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifest/web_accessible_resources/</a></p>
+<p>作者｜闵子</p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1381666%3Futm_content%3Dg_1000385322" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h3>浏览器架构演进</h3>
+<p><strong>单进程浏览器时代</strong></p>
+<p>单进程浏览器是指浏览器的所有功能模块都是运行在同一个进程里，这些模块包含了网络、插件、JavaScript 运行环境、渲染引擎和页面等。在 2007 年之前，市面上浏览器都是单进程的。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-a2a5d1ba2d.webp"></p>
+<p>单进程浏览器的架构</p>
+<p>很多功能模块运行在一个进程里，是导致单进程浏览器不稳定、不流畅和不安全的一个主要因素。</p>
+<ul>
+<li><strong>不稳定：</strong>早期浏览器需要借助于插件来实现诸如 Web 视频、Web 游戏等各种强大的功能，但是插件是最容易出问题的模块，并且还运行在浏览器进程之中，所以一个插件的意外崩溃会引起整个浏览器的崩溃。除了插件之外，渲染引擎模块也是不稳定的，通常一些复杂的 JavaScript 代码就有可能引起渲染引擎模块的崩溃。和插件一样，渲染引擎的崩溃也会导致整个浏览器的崩溃。</li>
+<li><strong>不流畅：</strong>所有页面的渲染模块、JavaScript 执行环境以及插件都是运行在同一个线程中的，这就意味着同一时刻只能有一个模块可以执行。如果一个脚本非常耗时，它就会独占整个线程，这样导致其他运行在该线程中的页面没有机会去执行任务，导致整个浏览器失去响应，变卡顿。</li>
+<li><strong>不安全：</strong>当你在页面运行一个插件时，插件可以操作系统资源，如果是个恶意插件，那么它就可以释放病毒、窃取你的账号密码，引发安全性问题。</li>
+</ul>
+<h4><strong>多进程浏览器时代</strong></h4>
+<p><strong>早期架构</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-bc85eeb577.webp"></p>
+<p>2008 年 Chrome 发布时的进程架构</p>
+<p>从图中可以看出，早期的架构已经对浏览器的能力进行了拆分，主要拆分为三类：<strong>浏览器进程、插件进程和渲染进程。</strong>每个页面是运行在单独的渲染进程中的，同时页面里的插件也是运行在单独的插件进程之中，进程之间是通过 IPC 机制进行通信。这就解决了单进程时代浏览器的各种问题：</p>
+<ul>
+<li><strong>解决不稳定：</strong>由于进程是相互隔离的，所以当一个页面或者插件崩溃时，影响到的仅仅是当前的页面进程或者插件进程，并不会影响到浏览器和其他页面。</li>
+<li><strong>解决不流畅：</strong>JavaScript运行在渲染进程中，所以即使JavaScript阻塞了渲染进程，也只会影响当前的渲染页面，并不会影响浏览器和其他页面，因为其他页面的脚本运行在它们自己的渲染进程中。</li>
+<li><strong>解决不安全：</strong>Chrome把插件进程和渲染进程锁在沙箱里面，沙箱里面的程序可以运行，但是不能在硬盘上写入任何数据，也不能在敏感位置读取任何数据，这样即使在渲染进程或者插件进程里面执行了恶意程序，恶意程序也无法突破沙箱去获取系统权限。</li>
+</ul>
+<p><strong>近期架构</strong></p>
+<p>相较之前，近期的架构又有了很多新的变化。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-354e1c8e77.webp"></p>
+<p>近期Chrome进程架构</p>
+<p>从图中可以看出，最新的 Chrome 浏览器包括：<strong>1 个浏览器主进程、1 个 GPU 进程、1 个网络进程、多个渲染进程和多个插件进程。</strong></p>
+<ul>
+<li><strong>浏览器进程：</strong>主要负责界面显示、用户交互、子进程管理，同时提供存储等功能。可以理解浏览器进程是一个统一的"<strong>调度大师</strong>"去调度其他进程，比如我们在地址栏输入url时，浏览器进程首先会调用网络进程。</li>
+<li><strong>渲染进程：</strong>核心任务是将HTML、CSS和JavaScript转换为用户可以交互的网页，排版引擎Blink和JavaScript引擎V8都是运行在该进程中，默认情况下，Chrome会为每个 Tab 标签创建一个渲染进程。出于安全考虑，渲染进程都是运行在沙箱模式下。</li>
+<li><strong>GPU进程：</strong>其实，Chrome 刚开始发布的时候是没有 GPU 进程的。而 GPU 的使用初衷是为了实现 3D CSS 的效果，只是随后网页、Chrome 的 UI 界面都选择采用 GPU 来绘制，这使得 GPU 成为浏览器普遍的需求。最后，Chrome 在其多进程架构上也引入了 GPU 进程。</li>
+<li><strong>网络进程：</strong>主要负责页面的网络资源加载，之前是作为一个模块运行在浏览器进程里面的，直至最近才独立出来，成为一个单独的进程。</li>
+<li><strong>插件进程：</strong>主要是负责插件的运行，因插件易崩溃，所以需要通过插件进程来隔离，以保证插件进程崩溃不会对浏览器和页面造成影响。</li>
+</ul>
+<p><strong>当前架构</strong></p>
+<p>目前Chrome浏览器的架构正在发生一些改变，称为<strong>面向服务的架构(SOA)</strong>，目的是将和浏览器本身（Chrome）相关的部分拆分为一个个不同的服务，服务化之后，这些功能既可以放在不同的进程里面运行也可以合并为一个单独的进程运行。这样做的主要原因是让Chrome在不同性能的硬件上有不同的表现。当Chrome运行在一些性能比较好的硬件时，浏览器进程相关的服务会被放在不同的进程运行以提高系统的稳定性。相反如果硬件性能不好，这些服务就会被放在同一个进程里面执行来减少内存的占用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-721bc1c004.webp"></p>
+<p>面向服务的架构</p>
+<h3>插件运行机制</h3>
+<p>在运行机制前，我们先来回顾一下打开页面会发生什么：</p>
+<h4><strong>打开页面发生了什么</strong></h4>
+<ul>
+<li>用户新增一个tab，此时系统浏览器进程、渲染进程、GPU 进程、网络进程会被创建好；</li>
+<li>用户输入url，浏览器进程检查url，组装协议，构成完整的url；</li>
+<li>浏览器进程通过进程间通信（IPC）把url请求发送给网络进程；</li>
+<li>网络进程接收到url请求后检查本地缓存是否缓存了该请求资源，如果有则将该资源返回给浏览器进程；</li>
+<li>如果没有，网络进程向web服务器发起http请求（网络请求）；</li>
+<li>网络进程解析响应流程；
+<ul>
+<li>检查状态码，非200执行状态码对应的处理逻辑；</li>
+<li>200响应处理：检查响应类型Content-Type，如果是字节流类型，则将该请求提交给下载管理器，不再进行后续的渲染，如果是html则通知浏览器进程准备渲染进程进行渲染；</li>
+</ul> </li>
+<li>准备渲染进程
+<ul>
+<li>浏览器进程检查当前url是否和之前打开的渲染进程根域名是否相同，如果相同，则复用原来的进程，如果不同，则开启新的渲染进程；</li>
+</ul> </li>
+<li>传输数据、更新状态
+<ul>
+<li>渲染进程准备好后，浏览器向渲染进程发起“提交文档”的消息，渲染进程接收到消息和网络进程建立传输数据的“管道”；</li>
+<li>渲染进程接收完数据后，向浏览器发送确认消息；</li>
+<li>浏览器进程接收到确认消息后更新浏览器界面状态：安全、地址栏url、前进后退的历史状态、更新web页面；</li>
+</ul> </li>
+</ul>
+<h4><strong>打开插件发生了什么</strong></h4>
+<p>插件的运行相较于页面会有简化</p>
+<p>1.我们打开浏览器，新增一个空白tab页</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-8c99492eca.webp"></p>
+<p>2.tab栏空白处右键，选择任务管理器，打开任务管理器面板</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-e8f3c6bd2f.webp"></p>
+<p>3.可以看到运行了6个进程，分别是浏览器进程、GPU进程、网络进程、存储进程、渲染进程和扩展进程。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-7ac5d18172.webp"></p>
+<ul>
+<li>扩展进程中运行Extension Page，主要包括backgrount.html和popup.html；
+<ul>
+<li>backgrount.html中没有任何内容，是通过background.js创建生成，当浏览器打开时，会自动加载插件的background.js文件，它独立于网页并且一直运行在后台，它主要通过调用浏览器提供的API和浏览器进行交互；</li>
+<li>popup.html有内容的，跟我们普通的web页面一样，由html、css、Javascript组成，它是按需加载的，需要用户去点击地址栏的按钮去触发，才能弹出页面；</li>
+</ul> </li>
+<li>渲染进程主要运行Web Page,当打开页面时，会将content_script.js加载并注入到该网页的环境中，它和网页中引入的Javascript一样，可以操作该网页的DOM Tree，改变页面的展示效果；</li>
+<li>GPU进程主要为插件界面的渲染提供硬件能力支持；</li>
+<li>网络进程主要处理插件中的外部资源请求，比如nexydy插件依赖到一些外部js；</li>
+<li>存储进程为插件提供本地存储能力，比如使用chrome.storage.local进行持久化存储；</li>
+<li>浏览器进程在这里更多起到桥梁作用，作为中转可以实现Extension Page和content_script.js之间的消息通信。</li>
+</ul>
+<h3>插件基本介绍</h3>
+<h4><strong>版本发展</strong></h4>
+<p>chrome插件存在三个版本，分别是<strong>Manifest V1、Manifest V2和Manifest V3</strong>。其中MV1版本已经被废弃了，目前市面上存在MV2和MV3版本，以MV2为主流，在被MV3慢慢取代。时间线：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d1ad1708eb.webp"></p>
+<p><strong>Manifest V2新特性</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2FmanifestVersion%2F%253Fspm%253Da2c6h.13046898.publish-article.26.c7c96ffa7eZ9TZ%2523manifest-v1-changes" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifestVersion/#manifest-v1-changes</a></p>
+<ul>
+<li>设置了默认的内容安全策略`script-src 'self'; object-src 'self';`。有关内容安全策略的详细配置，可以参考MDN文档；</li>
+<li>默认情况下，插件包内的资源不再可供外部网站使用。需要通过清单web_accessible_resources属性将其显式列入白名单；</li>
+<li>browser action API更改；</li>
+<li>page action API更改；</li>
+<li>chrome.extension 代替 chrome.self 来指向插件本身；</li>
+<li>chrome.extension.getTabContentses和chrome.extension.getExtensionTabs废弃，使用extension.getViews替代；</li>
+<li>Port.tab废弃，使用runtime.Port替代；</li>
+</ul>
+<p><strong>Manifest V3新特性</strong></p>
+<ul>
+<li>Service worker替换Background Page；</li>
+<li>网络请求修改废弃webRequest API使用新的 declarativentrequest API 来处理；</li>
+<li>不再允许执行远程托管的代码，只能执行扩展包内包含的JS；</li>
+<li>Promises 已经被添加到许多方法中，但仍支持回调作为替代方法；</li>
+<li>Browser Action API 和 Page Action API被统一为单独的Action API；</li>
+<li>Web可访问的资源，可以只对指定的站点和扩展可用；</li>
+<li>内容安全策略(CSP)，现在可以为单个对象中的不同执行上下文指定单独的CSP；</li>
+<li>executeScript的变化，不能再执行任意字符串，只能执行脚本文件和函数；</li>
+</ul>
+<p><strong>切换MV3会带来的问题</strong></p>
+<ul>
+<li>由于background不再支持page页面配置background.html，因此也无法调用window对象上的XMLHttpRequest来构建ajax请求，也就是说我们不能像V2版本一样，在background.html中使用XMLHttpRequest来发送请求了，而是需要使用fetch来获取接口数据；</li>
+<li>由于service workers是短暂的，在不使用时会终止，这意味着它们在整个插件运行期间会不断的启动、运行和终止，也就是不稳定的；因此我们可能需要对V2中background.js的代码逻辑进行一些改造，以往我们会习惯将一些数据直接存储到全局变量，比如像下面这样：</li>
+</ul>
+<pre><code>// V2 background.js
+let saveUserName = "";
+// 其他页面，比如content-script或者popup中存储数据
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+saveUserName = name;
+}
+});
+// 点击popup时展示数据
+chrome.action.onClicked.addListener((tab) =&gt; {
+// 这里saveUserName可能为空字符串
+console.log(saveUserName, "saveUserName");
+});</code></pre>
+<ul>
+<li>因此在V3中，需要对这种全局变量数据进行改造，改造的方式也很简单，就是将数据持久化保存到storage中，需要用到的地方随用随取：</li>
+</ul>
+<pre><code>// V3 service worker
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+chrome.storage.local.set({ name });
+}
+});
+chrome.action.onClicked.addListener(async (tab) =&gt; {
+const { name } = await chrome.storage.local.get(["name"]);
+chrome.tabs.sendMessage(tab.id, { name });
+});</code></pre>
+<ul>
+<li>由<strong>webRequest API</strong>切换至<strong>declarativentrequest API</strong>，很多代码逻辑需要重构；</li>
+</ul>
+<p><strong>为什么切换MV3？</strong></p>
+<p>从Manifest V1到Manifest V2，可以看到Chrome想提高插件的隐私和安全，同时也优化了不少API。而Manifest V3除了安全性更完善外，还在性能上下了功夫。Manifest V3 的核心非常明确，就是限制扩展对系统资源的使用。一直以来高资源占用都是 Chrome 为人诟病的痛点，而且扩展由于在后台运行，如果出现问题，更是难以定位和管理。虽然增加了诸多限制，但Manifest V3还是有优点的：</p>
+<ul>
+<li>Service Worker 使扩展不再能常驻后台，让扩展所占用的资源可以被回收，降低了浏览器整体的开销；</li>
+<li>限制规则的数量，相当于控制了单一扩展在规则计算方面的资源使用上限；</li>
+</ul>
+<p>这些变化可以让 Chrome 变得更加流畅，对于用户来说是好事。</p>
+<h4><strong>展示形式</strong></h4>
+<p>Chrome插件有以下常见的8中展现形式：</p>
+<p><strong>browserAction(浏览器右上角)</strong></p>
+<p>在浏览器右上角扩展程序一栏显示，包含一个图标、名称和popup</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-8027a9dd93.webp"></p>
+<p>山海关插件popup</p>
+<p><strong>pageAction(地址栏右侧)</strong></p>
+<p>pageAction指的是在当某些特定页面打开才显示的图标。在早些版本的Chrome是将pageAction放在地址栏的最右边，左键单击弹出popup，右键单击则弹出相关默认的选项菜单。而新版的Chrome更改了这一策略，pageAction和普通的browserAction一样也是放在浏览器右上角，只不过没有点亮时是灰色的，点亮了才是彩色的，灰色时无论左键还是右键单击都是弹出选项。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-cf4b0a52c1.webp"></p>
+<p><strong>右键菜单</strong></p>
+<p>通过开发Chrome插件可以自定义浏览器的右键菜单，主要是通过chrome.contextMenus API实现，右键菜单可以出现在不同的上下文，比如普通页面、选中的文字、图片、链接，等等。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-ec140bca58.webp"></p>
+<p>掘金插件右键菜单</p>
+<p><strong>override(覆盖特定页面)</strong></p>
+<p>使用override可以将Chrome默认的一些特定页面替换掉，改为使用扩展提供的页面。扩展可以替代如下页面：</p>
+<ul>
+<li>历史记录：从工具菜单上点击历史记录时访问的页面，或者从地址栏直接输入 chrome://history</li>
+<li>新标签页：当创建新标签的时候访问的页面，或者从地址栏直接输入 chrome://newtab</li>
+<li>书签：浏览器的书签，或者直接输入 chrome://bookmarks</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-45cac3d02d.webp"></p>
+<p>掘金插件替换了新标签页</p>
+<p><strong>devtools(开发者工具)</strong></p>
+<p>Chrome允许插件在开发者工具(devtools)上开发，主要表现在：</p>
+<ul>
+<li>自定义一个和多个和Elements、Console、Sources等同级别的面板；</li>
+<li>自定义侧边栏(sidebar)，目前只能自定义Elements面板的侧边栏；</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-c1ce9fa5a8.webp"></p>
+<p>React Developer Tools</p>
+<p><strong>option(选项页)</strong></p>
+<p>插件的设置页面，可以在右上角入口右键，有一个选项标签</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-97eafe8307.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-3fffc9cc8d.webp">
+</div>
+<p><strong>omnibox</strong></p>
+<p>omnibox是向用户提供搜索建议的一种方式，可以在搜索栏输入特定的标识然后按Tab进入搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d9c2fbc0a9.webp"></p>
+<p>JSON Viewer插件</p>
+<p><strong>桌面通知</strong></p>
+<p>Chrome提供了一个chrome.notificationsAPI以便插件推送桌面通知，暂未找到chrome.notifications和HTML5自带的Notification的显著区别及优势。在后台JS中，无论是使用chrome.notifications还是Notification都不需要申请权限（HTML5方式需要申请权限），直接使用即可。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-353c2e09ca.webp"></p>
+<h4><strong>核心介绍</strong></h4>
+<p><strong>manifest.json</strong></p>
+<p>这是一个Chrome插件最重要也是必不可少的文件，用来配置所有和插件相关的配置，必须放在根目录。其中，manifest_version、name、version3个是必不可少的。</p>
+<p><strong>Manifest V2</strong></p>
+<pre><code>{
+// 清单文件的版本，这里先使用2演示
+"manifest_version": 2,
+// 插件的名称
+"name": "...",
+// 插件的版本
+"version": "1.0.0",
+// 插件描述
+"description": "...",
+// 图标，一般偷懒全部用一个尺寸的也没问题
+"icons": {
+"16": "img/icon.png",
+"48": "img/icon.png",
+"128": "img/icon.png"
+},
+// 会一直常驻的后台JS或后台页面
+"background": {
+"scripts": ["js/background.js"]
+},
+// 浏览器右上角图标设置，browser_action、page_action、app必须三选一
+"browser_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 当某些特定页面打开才显示的图标
+"page_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 需要直接注入页面的JS
+"content_scripts": [{
+"matches": ["&lt;all_urls&gt;"],
+"js": ["js/content-script.js"],
+"css": ["css/custom.css"],
+// 代码注入的时机，document_start, document_end, document_idle，默认document_idle
+"run_at": "document_start"
+},
+],
+// 权限申请
+"permissions": [
+"contextMenus", // 右键菜单
+"tabs", // 标签
+"notifications", // 通知
+"webRequest", // web请求
+"webRequestBlocking",
+"storage", // 插件本地存储
+"https://*/*" // 可以通过executeScript或者insertCSS访问的网站
+],
+// 普通页面能够直接访问的插件资源列表，如果不设置是无法直接访问的
+"web_accessible_resources": ["js/inject.js"],
+"homepage_url": "...", // 插件主页
+"chrome_url_overrides": { // 覆盖浏览器默认页面
+"newtab": "newtab.html"
+},
+"options_ui": { // 插件选项页
+"page": "options.html",
+"chrome_style": true
+},
+"omnibox": { "keyword" : "..." }, // 向地址栏注册一个关键字以提供搜索建议，只能设置一个关键字
+"default_locale": "zh_CN", // 默认语言
+"devtools_page": "devtools.html", // devtools页面入口，注意只能指向一个HTML文件，不能是JS文件
+"content_security_policy": "...", // 安全策略
+"web_accessible_resources": [ // 可以加载的资源
+RESOURCE_PATHS
+]
+}</code></pre>
+<p><strong>Manifest V3（仅展示与V2版本的不同点）</strong></p>
+<pre><code>{
+"manifest_version": 3,
+"background": {
+"service_worker": js/background.js"
+},
+"action": { //browser_action 和 page_action，统一为 Action
+"default_icon": "img/icon.png",
+"default_title": "这是一个示例Chrome插件",
+"default_popup": "popup.html"
+}
+"content_security_policy": {
+"extension_pages": "...",
+"sandbox": "..."
+},
+"web_accessible_resources": [{
+"resources": [RESOURCE_PATHS]
+}]
+}</code></pre>
+<p><strong>content-scripts</strong></p>
+<p>是Chrome插件中向页面注入脚本的一种形式（虽然名为script，其实还可以包括css的），借助content-scripts我们可以实现通过配置的方式轻松向指定页面注入JS和CSS。content-scripts和原始页面共享DOM，但不共享JS。如要访问页面JS（例如某个JS变量），只能通过injected js来实现。content-scripts不能访问绝大部分chrome API，除了下面这4种：</p>
+<ul>
+<li>chrome.extension</li>
+<li>chrome.i18n</li>
+<li>chrome.runtime</li>
+<li>chrome.storage</li>
+</ul>
+<p>这些API绝大部分时候都够用了，有需要调用其它API的话，可以通过通信让background或service worker来帮忙调用</p>
+<p><strong>background</strong></p>
+<p>后台是一个常驻的页面，它的生命周期是插件中所有类型页面中最长的，它随着浏览器的打开而打开，随着浏览器的关闭而关闭，所以通常把需要一直运行的、启动就运行的、全局的代码放在background里面。background的权限非常高，几乎可以调用所有的Chrome扩展API（除了devtools），而且它可以无限制跨域，可以跨域访问任何网站而无需要求对方设置CORS。background的概念在MV3版本中变为了service worker，区别在于生命周期变短了，service worker是短暂的基于事件的脚本，所以不适合用来保存全局变量。</p>
+<p><strong>popup</strong></p>
+<p>popup是点击右上角图标时打开的一个小窗口网页，焦点离开网页就立即关闭，一般用来做一些临时性的交互。权限级别和background差不多，就是生命周期比较短。</p>
+<p><strong>injected-script</strong></p>
+<p>chrome插件中其实没有injected-script这一概念，这是开发者们在开发过程中衍生出来的一种概念，指的是通过DOM操作的方式向页面注入的一种JS。因为content-script无法访问页面中的JS，虽然可以操作DOM，但是DOM却不能调用它，也就是无法在DOM中通过绑定事件的方式调用content-script中的代码。但是在网页中增加一个按钮来调用插件的能力是一个比较常见的需求，所以诞生了injected-script。</p>
+<h4><strong>插件通信机制</strong></h4>
+<p>讲通信机制之前，先回顾一下插件中存在的脚本类型。Chrome插件的JS主要可以分为这5类：injected script、content-script、popup js、background js和devtools js。</p>
+<p><strong>权限对比</strong></p>
+<table>
+<tbody>
+<tr>
+<td>JS种类</td>
+<td>可访问的API</td>
+<td>DOM访问情况</td>
+<td>JS访问情况</td>
+<td>直接跨域</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>和普通JS无任何差别，不能访问任何扩展API</td>
+<td>可以访问</td>
+<td>可以访问</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>content</td>
+<td>只能访问 extension、runtime等部分API</td>
+<td>可以访问</td>
+<td>不可以</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>background</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>只能访问 devtools、extension、runtime等部分API</td>
+<td>可以</td>
+<td>可以</td>
+<td>不可以</td>
+</tr>
+</tbody>
+</table>
+<p>通过权限对比可以看到，每一种脚本在权限上都不相同，所以各种脚本间的相互通信就非常重要，这也是插件能够实现众多功能的基础。</p>
+<p><strong>通信概览</strong></p>
+<table>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>injected</td>
+<td>content</td>
+<td>popup</td>
+<td>background</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>-</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>content</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>-</td>
+<td>chrome.extension. getBackgroundPage</td>
+</tr>
+<tr>
+<td>background</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>chrome.extension.getViews</td>
+<td>-</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>chrome.devtools. inspectedWindow.eval</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage</td>
+<td>chrome.runtime.sendMessage</td>
+</tr>
+</tbody>
+</table>
+<h3>一些常见插件的实现思路</h3>
+<h4><strong>埋点日志检测</strong></h4>
+<p>一般业务中都会进行一些埋点上报，埋点的本质就是发送一些带特定参数的请求，前端本地调试的时候想实时查看埋点信息通常需要去查看上报接口的入参，或者去对应的埋点平台查看，这样非常不方便。基于这个，我们可以使用插件来帮助我们快速的可视化查看埋点信息：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-1495706228.webp"></p>
+<h4><strong>页面注入小工具</strong></h4>
+<p>插件的另一个常见用法就是往页面注入一些工具代码，比如去除页面广告工具。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-197b518ba8.webp"></p>
+<h3>总结</h3>
+<ul>
+<li>随着浏览器不断的发展，Chrome逐渐把一些基础服务独立出来，类似于一个跨平台的线上操作系统。</li>
+<li>Chrome插件提供的能力很丰富，比如代码注入、跨域请求、持久化方案、各种通信机制等，开发者可以发挥想象，组装不同能力以适应不同场景的需求，基本可以实现现代web所能支持的所有功能。</li>
+<li>Chrome插件MV2版本将在24年1月全面废弃，需要尽快迁移至MV3版本。</li>
+</ul>
+<h3><strong>参考资料：</strong></h3>
+<p>《浏览器工作原理与实践》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Ftime.geekbang.org%2Fcolumn%2Fintro%2F100033601%253Fspm%253Da2c6h.13046898.publish-article.27.c7c96ffa7eZ9TZ%2526tab%253Dcatalog" target="_blank">https://time.geekbang.org/column/intro/100033601?tab=catalog</a></p>
+<p>《Inside look at modern web browser》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fblog%2Finside-browser-part1%2F%253Fspm%253Da2c6h.13046898.publish-article.28.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/blog/inside-browser-part1/</a></p>
+<p>《图解浏览器的基本工作原理》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F47407398%3Fspm%3Da2c6h.13046898.publish-article.29.c7c96ffa7eZ9TZ" target="_blank">https://zhuanlan.zhihu.com/p/47407398</a></p>
+<p>《Welcome to Manifest V3》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv3%2Fintro%2F%253Fspm%253Da2c6h.13046898.publish-article.30.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv3/intro/</a></p>
+<p>MDN文档：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.mozilla.org%2Fzh-CN%2Fdocs%2FWeb%2FHTTP%2FCSP%253Fspm%253Da2c6h.13046898.publish-article.31.c7c96ffa7eZ9TZ" target="_blank">https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP</a>web_accessible_resources：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2Fmanifest%2Fweb_accessible_resources%2F%253Fspm%253Da2c6h.13046898.publish-article.32.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifest/web_accessible_resources/</a></p>
+<p>作者｜闵子</p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1381666%3Futm_content%3Dg_1000385322" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]>
+    </description>
+    <content:encoded><![CDATA[<h3>浏览器架构演进</h3>
+<p><strong>单进程浏览器时代</strong></p>
+<p>单进程浏览器是指浏览器的所有功能模块都是运行在同一个进程里，这些模块包含了网络、插件、JavaScript 运行环境、渲染引擎和页面等。在 2007 年之前，市面上浏览器都是单进程的。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-a2a5d1ba2d.webp"></p>
+<p>单进程浏览器的架构</p>
+<p>很多功能模块运行在一个进程里，是导致单进程浏览器不稳定、不流畅和不安全的一个主要因素。</p>
+<ul>
+<li><strong>不稳定：</strong>早期浏览器需要借助于插件来实现诸如 Web 视频、Web 游戏等各种强大的功能，但是插件是最容易出问题的模块，并且还运行在浏览器进程之中，所以一个插件的意外崩溃会引起整个浏览器的崩溃。除了插件之外，渲染引擎模块也是不稳定的，通常一些复杂的 JavaScript 代码就有可能引起渲染引擎模块的崩溃。和插件一样，渲染引擎的崩溃也会导致整个浏览器的崩溃。</li>
+<li><strong>不流畅：</strong>所有页面的渲染模块、JavaScript 执行环境以及插件都是运行在同一个线程中的，这就意味着同一时刻只能有一个模块可以执行。如果一个脚本非常耗时，它就会独占整个线程，这样导致其他运行在该线程中的页面没有机会去执行任务，导致整个浏览器失去响应，变卡顿。</li>
+<li><strong>不安全：</strong>当你在页面运行一个插件时，插件可以操作系统资源，如果是个恶意插件，那么它就可以释放病毒、窃取你的账号密码，引发安全性问题。</li>
+</ul>
+<h4><strong>多进程浏览器时代</strong></h4>
+<p><strong>早期架构</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-bc85eeb577.webp"></p>
+<p>2008 年 Chrome 发布时的进程架构</p>
+<p>从图中可以看出，早期的架构已经对浏览器的能力进行了拆分，主要拆分为三类：<strong>浏览器进程、插件进程和渲染进程。</strong>每个页面是运行在单独的渲染进程中的，同时页面里的插件也是运行在单独的插件进程之中，进程之间是通过 IPC 机制进行通信。这就解决了单进程时代浏览器的各种问题：</p>
+<ul>
+<li><strong>解决不稳定：</strong>由于进程是相互隔离的，所以当一个页面或者插件崩溃时，影响到的仅仅是当前的页面进程或者插件进程，并不会影响到浏览器和其他页面。</li>
+<li><strong>解决不流畅：</strong>JavaScript运行在渲染进程中，所以即使JavaScript阻塞了渲染进程，也只会影响当前的渲染页面，并不会影响浏览器和其他页面，因为其他页面的脚本运行在它们自己的渲染进程中。</li>
+<li><strong>解决不安全：</strong>Chrome把插件进程和渲染进程锁在沙箱里面，沙箱里面的程序可以运行，但是不能在硬盘上写入任何数据，也不能在敏感位置读取任何数据，这样即使在渲染进程或者插件进程里面执行了恶意程序，恶意程序也无法突破沙箱去获取系统权限。</li>
+</ul>
+<p><strong>近期架构</strong></p>
+<p>相较之前，近期的架构又有了很多新的变化。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-354e1c8e77.webp"></p>
+<p>近期Chrome进程架构</p>
+<p>从图中可以看出，最新的 Chrome 浏览器包括：<strong>1 个浏览器主进程、1 个 GPU 进程、1 个网络进程、多个渲染进程和多个插件进程。</strong></p>
+<ul>
+<li><strong>浏览器进程：</strong>主要负责界面显示、用户交互、子进程管理，同时提供存储等功能。可以理解浏览器进程是一个统一的"<strong>调度大师</strong>"去调度其他进程，比如我们在地址栏输入url时，浏览器进程首先会调用网络进程。</li>
+<li><strong>渲染进程：</strong>核心任务是将HTML、CSS和JavaScript转换为用户可以交互的网页，排版引擎Blink和JavaScript引擎V8都是运行在该进程中，默认情况下，Chrome会为每个 Tab 标签创建一个渲染进程。出于安全考虑，渲染进程都是运行在沙箱模式下。</li>
+<li><strong>GPU进程：</strong>其实，Chrome 刚开始发布的时候是没有 GPU 进程的。而 GPU 的使用初衷是为了实现 3D CSS 的效果，只是随后网页、Chrome 的 UI 界面都选择采用 GPU 来绘制，这使得 GPU 成为浏览器普遍的需求。最后，Chrome 在其多进程架构上也引入了 GPU 进程。</li>
+<li><strong>网络进程：</strong>主要负责页面的网络资源加载，之前是作为一个模块运行在浏览器进程里面的，直至最近才独立出来，成为一个单独的进程。</li>
+<li><strong>插件进程：</strong>主要是负责插件的运行，因插件易崩溃，所以需要通过插件进程来隔离，以保证插件进程崩溃不会对浏览器和页面造成影响。</li>
+</ul>
+<p><strong>当前架构</strong></p>
+<p>目前Chrome浏览器的架构正在发生一些改变，称为<strong>面向服务的架构(SOA)</strong>，目的是将和浏览器本身（Chrome）相关的部分拆分为一个个不同的服务，服务化之后，这些功能既可以放在不同的进程里面运行也可以合并为一个单独的进程运行。这样做的主要原因是让Chrome在不同性能的硬件上有不同的表现。当Chrome运行在一些性能比较好的硬件时，浏览器进程相关的服务会被放在不同的进程运行以提高系统的稳定性。相反如果硬件性能不好，这些服务就会被放在同一个进程里面执行来减少内存的占用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-721bc1c004.webp"></p>
+<p>面向服务的架构</p>
+<h3>插件运行机制</h3>
+<p>在运行机制前，我们先来回顾一下打开页面会发生什么：</p>
+<h4><strong>打开页面发生了什么</strong></h4>
+<ul>
+<li>用户新增一个tab，此时系统浏览器进程、渲染进程、GPU 进程、网络进程会被创建好；</li>
+<li>用户输入url，浏览器进程检查url，组装协议，构成完整的url；</li>
+<li>浏览器进程通过进程间通信（IPC）把url请求发送给网络进程；</li>
+<li>网络进程接收到url请求后检查本地缓存是否缓存了该请求资源，如果有则将该资源返回给浏览器进程；</li>
+<li>如果没有，网络进程向web服务器发起http请求（网络请求）；</li>
+<li>网络进程解析响应流程；
+<ul>
+<li>检查状态码，非200执行状态码对应的处理逻辑；</li>
+<li>200响应处理：检查响应类型Content-Type，如果是字节流类型，则将该请求提交给下载管理器，不再进行后续的渲染，如果是html则通知浏览器进程准备渲染进程进行渲染；</li>
+</ul> </li>
+<li>准备渲染进程
+<ul>
+<li>浏览器进程检查当前url是否和之前打开的渲染进程根域名是否相同，如果相同，则复用原来的进程，如果不同，则开启新的渲染进程；</li>
+</ul> </li>
+<li>传输数据、更新状态
+<ul>
+<li>渲染进程准备好后，浏览器向渲染进程发起“提交文档”的消息，渲染进程接收到消息和网络进程建立传输数据的“管道”；</li>
+<li>渲染进程接收完数据后，向浏览器发送确认消息；</li>
+<li>浏览器进程接收到确认消息后更新浏览器界面状态：安全、地址栏url、前进后退的历史状态、更新web页面；</li>
+</ul> </li>
+</ul>
+<h4><strong>打开插件发生了什么</strong></h4>
+<p>插件的运行相较于页面会有简化</p>
+<p>1.我们打开浏览器，新增一个空白tab页</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-8c99492eca.webp"></p>
+<p>2.tab栏空白处右键，选择任务管理器，打开任务管理器面板</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-e8f3c6bd2f.webp"></p>
+<p>3.可以看到运行了6个进程，分别是浏览器进程、GPU进程、网络进程、存储进程、渲染进程和扩展进程。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-7ac5d18172.webp"></p>
+<ul>
+<li>扩展进程中运行Extension Page，主要包括backgrount.html和popup.html；
+<ul>
+<li>backgrount.html中没有任何内容，是通过background.js创建生成，当浏览器打开时，会自动加载插件的background.js文件，它独立于网页并且一直运行在后台，它主要通过调用浏览器提供的API和浏览器进行交互；</li>
+<li>popup.html有内容的，跟我们普通的web页面一样，由html、css、Javascript组成，它是按需加载的，需要用户去点击地址栏的按钮去触发，才能弹出页面；</li>
+</ul> </li>
+<li>渲染进程主要运行Web Page,当打开页面时，会将content_script.js加载并注入到该网页的环境中，它和网页中引入的Javascript一样，可以操作该网页的DOM Tree，改变页面的展示效果；</li>
+<li>GPU进程主要为插件界面的渲染提供硬件能力支持；</li>
+<li>网络进程主要处理插件中的外部资源请求，比如nexydy插件依赖到一些外部js；</li>
+<li>存储进程为插件提供本地存储能力，比如使用chrome.storage.local进行持久化存储；</li>
+<li>浏览器进程在这里更多起到桥梁作用，作为中转可以实现Extension Page和content_script.js之间的消息通信。</li>
+</ul>
+<h3>插件基本介绍</h3>
+<h4><strong>版本发展</strong></h4>
+<p>chrome插件存在三个版本，分别是<strong>Manifest V1、Manifest V2和Manifest V3</strong>。其中MV1版本已经被废弃了，目前市面上存在MV2和MV3版本，以MV2为主流，在被MV3慢慢取代。时间线：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d1ad1708eb.webp"></p>
+<p><strong>Manifest V2新特性</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2FmanifestVersion%2F%253Fspm%253Da2c6h.13046898.publish-article.26.c7c96ffa7eZ9TZ%2523manifest-v1-changes" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifestVersion/#manifest-v1-changes</a></p>
+<ul>
+<li>设置了默认的内容安全策略`script-src 'self'; object-src 'self';`。有关内容安全策略的详细配置，可以参考MDN文档；</li>
+<li>默认情况下，插件包内的资源不再可供外部网站使用。需要通过清单web_accessible_resources属性将其显式列入白名单；</li>
+<li>browser action API更改；</li>
+<li>page action API更改；</li>
+<li>chrome.extension 代替 chrome.self 来指向插件本身；</li>
+<li>chrome.extension.getTabContentses和chrome.extension.getExtensionTabs废弃，使用extension.getViews替代；</li>
+<li>Port.tab废弃，使用runtime.Port替代；</li>
+</ul>
+<p><strong>Manifest V3新特性</strong></p>
+<ul>
+<li>Service worker替换Background Page；</li>
+<li>网络请求修改废弃webRequest API使用新的 declarativentrequest API 来处理；</li>
+<li>不再允许执行远程托管的代码，只能执行扩展包内包含的JS；</li>
+<li>Promises 已经被添加到许多方法中，但仍支持回调作为替代方法；</li>
+<li>Browser Action API 和 Page Action API被统一为单独的Action API；</li>
+<li>Web可访问的资源，可以只对指定的站点和扩展可用；</li>
+<li>内容安全策略(CSP)，现在可以为单个对象中的不同执行上下文指定单独的CSP；</li>
+<li>executeScript的变化，不能再执行任意字符串，只能执行脚本文件和函数；</li>
+</ul>
+<p><strong>切换MV3会带来的问题</strong></p>
+<ul>
+<li>由于background不再支持page页面配置background.html，因此也无法调用window对象上的XMLHttpRequest来构建ajax请求，也就是说我们不能像V2版本一样，在background.html中使用XMLHttpRequest来发送请求了，而是需要使用fetch来获取接口数据；</li>
+<li>由于service workers是短暂的，在不使用时会终止，这意味着它们在整个插件运行期间会不断的启动、运行和终止，也就是不稳定的；因此我们可能需要对V2中background.js的代码逻辑进行一些改造，以往我们会习惯将一些数据直接存储到全局变量，比如像下面这样：</li>
+</ul>
+<pre><code>// V2 background.js
+let saveUserName = "";
+// 其他页面，比如content-script或者popup中存储数据
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+saveUserName = name;
+}
+});
+// 点击popup时展示数据
+chrome.action.onClicked.addListener((tab) =&gt; {
+// 这里saveUserName可能为空字符串
+console.log(saveUserName, "saveUserName");
+});</code></pre>
+<ul>
+<li>因此在V3中，需要对这种全局变量数据进行改造，改造的方式也很简单，就是将数据持久化保存到storage中，需要用到的地方随用随取：</li>
+</ul>
+<pre><code>// V3 service worker
+chrome.runtime.onMessage.addListener(({ type, name }) =&gt; {
+if (type === "set-name") {
+chrome.storage.local.set({ name });
+}
+});
+chrome.action.onClicked.addListener(async (tab) =&gt; {
+const { name } = await chrome.storage.local.get(["name"]);
+chrome.tabs.sendMessage(tab.id, { name });
+});</code></pre>
+<ul>
+<li>由<strong>webRequest API</strong>切换至<strong>declarativentrequest API</strong>，很多代码逻辑需要重构；</li>
+</ul>
+<p><strong>为什么切换MV3？</strong></p>
+<p>从Manifest V1到Manifest V2，可以看到Chrome想提高插件的隐私和安全，同时也优化了不少API。而Manifest V3除了安全性更完善外，还在性能上下了功夫。Manifest V3 的核心非常明确，就是限制扩展对系统资源的使用。一直以来高资源占用都是 Chrome 为人诟病的痛点，而且扩展由于在后台运行，如果出现问题，更是难以定位和管理。虽然增加了诸多限制，但Manifest V3还是有优点的：</p>
+<ul>
+<li>Service Worker 使扩展不再能常驻后台，让扩展所占用的资源可以被回收，降低了浏览器整体的开销；</li>
+<li>限制规则的数量，相当于控制了单一扩展在规则计算方面的资源使用上限；</li>
+</ul>
+<p>这些变化可以让 Chrome 变得更加流畅，对于用户来说是好事。</p>
+<h4><strong>展示形式</strong></h4>
+<p>Chrome插件有以下常见的8中展现形式：</p>
+<p><strong>browserAction(浏览器右上角)</strong></p>
+<p>在浏览器右上角扩展程序一栏显示，包含一个图标、名称和popup</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-8027a9dd93.webp"></p>
+<p>山海关插件popup</p>
+<p><strong>pageAction(地址栏右侧)</strong></p>
+<p>pageAction指的是在当某些特定页面打开才显示的图标。在早些版本的Chrome是将pageAction放在地址栏的最右边，左键单击弹出popup，右键单击则弹出相关默认的选项菜单。而新版的Chrome更改了这一策略，pageAction和普通的browserAction一样也是放在浏览器右上角，只不过没有点亮时是灰色的，点亮了才是彩色的，灰色时无论左键还是右键单击都是弹出选项。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-cf4b0a52c1.webp"></p>
+<p><strong>右键菜单</strong></p>
+<p>通过开发Chrome插件可以自定义浏览器的右键菜单，主要是通过chrome.contextMenus API实现，右键菜单可以出现在不同的上下文，比如普通页面、选中的文字、图片、链接，等等。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-ec140bca58.webp"></p>
+<p>掘金插件右键菜单</p>
+<p><strong>override(覆盖特定页面)</strong></p>
+<p>使用override可以将Chrome默认的一些特定页面替换掉，改为使用扩展提供的页面。扩展可以替代如下页面：</p>
+<ul>
+<li>历史记录：从工具菜单上点击历史记录时访问的页面，或者从地址栏直接输入 chrome://history</li>
+<li>新标签页：当创建新标签的时候访问的页面，或者从地址栏直接输入 chrome://newtab</li>
+<li>书签：浏览器的书签，或者直接输入 chrome://bookmarks</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-45cac3d02d.webp"></p>
+<p>掘金插件替换了新标签页</p>
+<p><strong>devtools(开发者工具)</strong></p>
+<p>Chrome允许插件在开发者工具(devtools)上开发，主要表现在：</p>
+<ul>
+<li>自定义一个和多个和Elements、Console、Sources等同级别的面板；</li>
+<li>自定义侧边栏(sidebar)，目前只能自定义Elements面板的侧边栏；</li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-c1ce9fa5a8.webp"></p>
+<p>React Developer Tools</p>
+<p><strong>option(选项页)</strong></p>
+<p>插件的设置页面，可以在右上角入口右键，有一个选项标签</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-97eafe8307.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic1.zhimg.com-3fffc9cc8d.webp">
+</div>
+<p><strong>omnibox</strong></p>
+<p>omnibox是向用户提供搜索建议的一种方式，可以在搜索栏输入特定的标识然后按Tab进入搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-d9c2fbc0a9.webp"></p>
+<p>JSON Viewer插件</p>
+<p><strong>桌面通知</strong></p>
+<p>Chrome提供了一个chrome.notificationsAPI以便插件推送桌面通知，暂未找到chrome.notifications和HTML5自带的Notification的显著区别及优势。在后台JS中，无论是使用chrome.notifications还是Notification都不需要申请权限（HTML5方式需要申请权限），直接使用即可。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-353c2e09ca.webp"></p>
+<h4><strong>核心介绍</strong></h4>
+<p><strong>manifest.json</strong></p>
+<p>这是一个Chrome插件最重要也是必不可少的文件，用来配置所有和插件相关的配置，必须放在根目录。其中，manifest_version、name、version3个是必不可少的。</p>
+<p><strong>Manifest V2</strong></p>
+<pre><code>{
+// 清单文件的版本，这里先使用2演示
+"manifest_version": 2,
+// 插件的名称
+"name": "...",
+// 插件的版本
+"version": "1.0.0",
+// 插件描述
+"description": "...",
+// 图标，一般偷懒全部用一个尺寸的也没问题
+"icons": {
+"16": "img/icon.png",
+"48": "img/icon.png",
+"128": "img/icon.png"
+},
+// 会一直常驻的后台JS或后台页面
+"background": {
+"scripts": ["js/background.js"]
+},
+// 浏览器右上角图标设置，browser_action、page_action、app必须三选一
+"browser_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 当某些特定页面打开才显示的图标
+"page_action": {
+"default_icon": "img/icon.png",
+"default_title": "...",
+"default_popup": "popup.html"
+},
+// 需要直接注入页面的JS
+"content_scripts": [{
+"matches": ["&lt;all_urls&gt;"],
+"js": ["js/content-script.js"],
+"css": ["css/custom.css"],
+// 代码注入的时机，document_start, document_end, document_idle，默认document_idle
+"run_at": "document_start"
+},
+],
+// 权限申请
+"permissions": [
+"contextMenus", // 右键菜单
+"tabs", // 标签
+"notifications", // 通知
+"webRequest", // web请求
+"webRequestBlocking",
+"storage", // 插件本地存储
+"https://*/*" // 可以通过executeScript或者insertCSS访问的网站
+],
+// 普通页面能够直接访问的插件资源列表，如果不设置是无法直接访问的
+"web_accessible_resources": ["js/inject.js"],
+"homepage_url": "...", // 插件主页
+"chrome_url_overrides": { // 覆盖浏览器默认页面
+"newtab": "newtab.html"
+},
+"options_ui": { // 插件选项页
+"page": "options.html",
+"chrome_style": true
+},
+"omnibox": { "keyword" : "..." }, // 向地址栏注册一个关键字以提供搜索建议，只能设置一个关键字
+"default_locale": "zh_CN", // 默认语言
+"devtools_page": "devtools.html", // devtools页面入口，注意只能指向一个HTML文件，不能是JS文件
+"content_security_policy": "...", // 安全策略
+"web_accessible_resources": [ // 可以加载的资源
+RESOURCE_PATHS
+]
+}</code></pre>
+<p><strong>Manifest V3（仅展示与V2版本的不同点）</strong></p>
+<pre><code>{
+"manifest_version": 3,
+"background": {
+"service_worker": js/background.js"
+},
+"action": { //browser_action 和 page_action，统一为 Action
+"default_icon": "img/icon.png",
+"default_title": "这是一个示例Chrome插件",
+"default_popup": "popup.html"
+}
+"content_security_policy": {
+"extension_pages": "...",
+"sandbox": "..."
+},
+"web_accessible_resources": [{
+"resources": [RESOURCE_PATHS]
+}]
+}</code></pre>
+<p><strong>content-scripts</strong></p>
+<p>是Chrome插件中向页面注入脚本的一种形式（虽然名为script，其实还可以包括css的），借助content-scripts我们可以实现通过配置的方式轻松向指定页面注入JS和CSS。content-scripts和原始页面共享DOM，但不共享JS。如要访问页面JS（例如某个JS变量），只能通过injected js来实现。content-scripts不能访问绝大部分chrome API，除了下面这4种：</p>
+<ul>
+<li>chrome.extension</li>
+<li>chrome.i18n</li>
+<li>chrome.runtime</li>
+<li>chrome.storage</li>
+</ul>
+<p>这些API绝大部分时候都够用了，有需要调用其它API的话，可以通过通信让background或service worker来帮忙调用</p>
+<p><strong>background</strong></p>
+<p>后台是一个常驻的页面，它的生命周期是插件中所有类型页面中最长的，它随着浏览器的打开而打开，随着浏览器的关闭而关闭，所以通常把需要一直运行的、启动就运行的、全局的代码放在background里面。background的权限非常高，几乎可以调用所有的Chrome扩展API（除了devtools），而且它可以无限制跨域，可以跨域访问任何网站而无需要求对方设置CORS。background的概念在MV3版本中变为了service worker，区别在于生命周期变短了，service worker是短暂的基于事件的脚本，所以不适合用来保存全局变量。</p>
+<p><strong>popup</strong></p>
+<p>popup是点击右上角图标时打开的一个小窗口网页，焦点离开网页就立即关闭，一般用来做一些临时性的交互。权限级别和background差不多，就是生命周期比较短。</p>
+<p><strong>injected-script</strong></p>
+<p>chrome插件中其实没有injected-script这一概念，这是开发者们在开发过程中衍生出来的一种概念，指的是通过DOM操作的方式向页面注入的一种JS。因为content-script无法访问页面中的JS，虽然可以操作DOM，但是DOM却不能调用它，也就是无法在DOM中通过绑定事件的方式调用content-script中的代码。但是在网页中增加一个按钮来调用插件的能力是一个比较常见的需求，所以诞生了injected-script。</p>
+<h4><strong>插件通信机制</strong></h4>
+<p>讲通信机制之前，先回顾一下插件中存在的脚本类型。Chrome插件的JS主要可以分为这5类：injected script、content-script、popup js、background js和devtools js。</p>
+<p><strong>权限对比</strong></p>
+<table>
+<tbody>
+<tr>
+<td>JS种类</td>
+<td>可访问的API</td>
+<td>DOM访问情况</td>
+<td>JS访问情况</td>
+<td>直接跨域</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>和普通JS无任何差别，不能访问任何扩展API</td>
+<td>可以访问</td>
+<td>可以访问</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>content</td>
+<td>只能访问 extension、runtime等部分API</td>
+<td>可以访问</td>
+<td>不可以</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>background</td>
+<td>可访问绝大部分API，除了devtools系列</td>
+<td>不可直接访问</td>
+<td>不可以</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>只能访问 devtools、extension、runtime等部分API</td>
+<td>可以</td>
+<td>可以</td>
+<td>不可以</td>
+</tr>
+</tbody>
+</table>
+<p>通过权限对比可以看到，每一种脚本在权限上都不相同，所以各种脚本间的相互通信就非常重要，这也是插件能够实现众多功能的基础。</p>
+<p><strong>通信概览</strong></p>
+<table>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>injected</td>
+<td>content</td>
+<td>popup</td>
+<td>background</td>
+</tr>
+<tr>
+<td>injected</td>
+<td>-</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>content</td>
+<td>window.postMessage</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+<td>chrome.runtime.sendMessage chrome.runtime.connect</td>
+</tr>
+<tr>
+<td>popup</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>-</td>
+<td>chrome.extension. getBackgroundPage</td>
+</tr>
+<tr>
+<td>background</td>
+<td>-</td>
+<td>chrome.tabs.sendMessage chrome.tabs.connect</td>
+<td>chrome.extension.getViews</td>
+<td>-</td>
+</tr>
+<tr>
+<td>devtools</td>
+<td>chrome.devtools. inspectedWindow.eval</td>
+<td>-</td>
+<td>chrome.runtime.sendMessage</td>
+<td>chrome.runtime.sendMessage</td>
+</tr>
+</tbody>
+</table>
+<h3>一些常见插件的实现思路</h3>
+<h4><strong>埋点日志检测</strong></h4>
+<p>一般业务中都会进行一些埋点上报，埋点的本质就是发送一些带特定参数的请求，前端本地调试的时候想实时查看埋点信息通常需要去查看上报接口的入参，或者去对应的埋点平台查看，这样非常不方便。基于这个，我们可以使用插件来帮助我们快速的可视化查看埋点信息：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-1495706228.webp"></p>
+<h4><strong>页面注入小工具</strong></h4>
+<p>插件的另一个常见用法就是往页面注入一些工具代码，比如去除页面广告工具。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-197b518ba8.webp"></p>
+<h3>总结</h3>
+<ul>
+<li>随着浏览器不断的发展，Chrome逐渐把一些基础服务独立出来，类似于一个跨平台的线上操作系统。</li>
+<li>Chrome插件提供的能力很丰富，比如代码注入、跨域请求、持久化方案、各种通信机制等，开发者可以发挥想象，组装不同能力以适应不同场景的需求，基本可以实现现代web所能支持的所有功能。</li>
+<li>Chrome插件MV2版本将在24年1月全面废弃，需要尽快迁移至MV3版本。</li>
+</ul>
+<h3><strong>参考资料：</strong></h3>
+<p>《浏览器工作原理与实践》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Ftime.geekbang.org%2Fcolumn%2Fintro%2F100033601%253Fspm%253Da2c6h.13046898.publish-article.27.c7c96ffa7eZ9TZ%2526tab%253Dcatalog" target="_blank">https://time.geekbang.org/column/intro/100033601?tab=catalog</a></p>
+<p>《Inside look at modern web browser》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fblog%2Finside-browser-part1%2F%253Fspm%253Da2c6h.13046898.publish-article.28.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/blog/inside-browser-part1/</a></p>
+<p>《图解浏览器的基本工作原理》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F47407398%3Fspm%3Da2c6h.13046898.publish-article.29.c7c96ffa7eZ9TZ" target="_blank">https://zhuanlan.zhihu.com/p/47407398</a></p>
+<p>《Welcome to Manifest V3》：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv3%2Fintro%2F%253Fspm%253Da2c6h.13046898.publish-article.30.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv3/intro/</a></p>
+<p>MDN文档：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.mozilla.org%2Fzh-CN%2Fdocs%2FWeb%2FHTTP%2FCSP%253Fspm%253Da2c6h.13046898.publish-article.31.c7c96ffa7eZ9TZ" target="_blank">https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP</a>web_accessible_resources：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fdeveloper.chrome.com%2Fdocs%2Fextensions%2Fmv2%2Fmanifest%2Fweb_accessible_resources%2F%253Fspm%253Da2c6h.13046898.publish-article.32.c7c96ffa7eZ9TZ" target="_blank">https://developer.chrome.com/docs/extensions/mv2/manifest/web_accessible_resources/</a></p>
+<p>作者｜闵子</p>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1381666%3Futm_content%3Dg_1000385322" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-a2a5d1ba2d.webp"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-a2a5d1ba2d.webp" medium="image"/>
+    <pubDate>Sun, 10 Dec 2023 12:44:45 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[余承东：华为明年将推出颠覆性产品，改写行业历史]]></title>
+    <link>https://www.oschina.net/news/270290</link>
+    <itunes:title><![CDATA[余承东：华为明年将推出颠覆性产品，改写行业历史]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>12月9日，2023华为花粉年会在松山湖基地举行。华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东在年会上表示，<strong>明年会推出非常有引领性、创新性、颠覆性的产品。</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-682e34d815.png"></p>
+<p><strong><strong>余承东直言：“到时候你可以看到我们怎么样能够</strong>改写这个行业的历史</strong>。希望能够不断地带来超越大家的期待，做别人想不到的事情或者想到但做不到的事，甚至是他们不敢想的事情。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-786f822b3e.png"></p>
+<p>余承东还预告，华为明年将会推出鸿蒙原生应用与原生体验的产品，“<strong>那将会是整个中国终端类操作系统里真正的王者</strong>”。</p>
+<p>此前，有消息称华为可能明年推出不兼容Android的鸿蒙版本。11月20日，据澎湃新闻报道，一华为相关人士表示，推出时间还不确定，未来iOS、鸿蒙、Android将为三个各自独立的系统。</p>
+<p>稍早前据证券时报报道，有业内人士亦表示：“华为内部确实有这计划，就是明年推出不兼容Android的鸿蒙版本，但目前内部还没有下发相关通知，所以具体何时推出暂不明确。”</p>
+<p>在9月25日举行的华为秋季全场景新品发布会上，华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东宣布，鸿蒙原生应用全面启动，HarmonyOS NEXT开发者预览版将在2024年第一季度面向开发者开放。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-583759ee6c.png"></p>
+<p>会上，华为与近40家合作伙伴举办鸿蒙生态合作签约仪式，包括：小红书、招商银行、携程旅行、美图、58同城、360浏览器、网易有道词典、石墨文档、classln应用、洪恩识字、汉王科技、作业帮、亿图脑图MindMaster 应用、会见会议、2345好压、宝宝巴士、喜马拉雅、讯飞听见、浩辰CAD、掌上生活、邮储银行、钛媒体、驾考宝典、书生电子、交通银行、中信银行、兴业证券、央广网、搜狐新闻、蜻蜓FM、京东健康、动卡空间、东方财富、天天基金、大智慧、深圳CA签章、中软国际、中国音像与数字出版协会等应用与服务商。</p>
+<p>10月26日，包含支付宝、小红书、哔哩哔哩、滴滴出行、同程旅行、哈啰等十余家知名互联网企业，参加了华为在上海举行的鸿蒙生态伙伴联合创新会，了解HarmonyOS NEXT的能力与特性，现场达成10+创新场景合作意向。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>12月9日，2023华为花粉年会在松山湖基地举行。华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东在年会上表示，<strong>明年会推出非常有引领性、创新性、颠覆性的产品。</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-682e34d815.png"></p>
+<p><strong><strong>余承东直言：“到时候你可以看到我们怎么样能够</strong>改写这个行业的历史</strong>。希望能够不断地带来超越大家的期待，做别人想不到的事情或者想到但做不到的事，甚至是他们不敢想的事情。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-786f822b3e.png"></p>
+<p>余承东还预告，华为明年将会推出鸿蒙原生应用与原生体验的产品，“<strong>那将会是整个中国终端类操作系统里真正的王者</strong>”。</p>
+<p>此前，有消息称华为可能明年推出不兼容Android的鸿蒙版本。11月20日，据澎湃新闻报道，一华为相关人士表示，推出时间还不确定，未来iOS、鸿蒙、Android将为三个各自独立的系统。</p>
+<p>稍早前据证券时报报道，有业内人士亦表示：“华为内部确实有这计划，就是明年推出不兼容Android的鸿蒙版本，但目前内部还没有下发相关通知，所以具体何时推出暂不明确。”</p>
+<p>在9月25日举行的华为秋季全场景新品发布会上，华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东宣布，鸿蒙原生应用全面启动，HarmonyOS NEXT开发者预览版将在2024年第一季度面向开发者开放。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-583759ee6c.png"></p>
+<p>会上，华为与近40家合作伙伴举办鸿蒙生态合作签约仪式，包括：小红书、招商银行、携程旅行、美图、58同城、360浏览器、网易有道词典、石墨文档、classln应用、洪恩识字、汉王科技、作业帮、亿图脑图MindMaster 应用、会见会议、2345好压、宝宝巴士、喜马拉雅、讯飞听见、浩辰CAD、掌上生活、邮储银行、钛媒体、驾考宝典、书生电子、交通银行、中信银行、兴业证券、央广网、搜狐新闻、蜻蜓FM、京东健康、动卡空间、东方财富、天天基金、大智慧、深圳CA签章、中软国际、中国音像与数字出版协会等应用与服务商。</p>
+<p>10月26日，包含支付宝、小红书、哔哩哔哩、滴滴出行、同程旅行、哈啰等十余家知名互联网企业，参加了华为在上海举行的鸿蒙生态伙伴联合创新会，了解HarmonyOS NEXT的能力与特性，现场达成10+创新场景合作意向。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>12月9日，2023华为花粉年会在松山湖基地举行。华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东在年会上表示，<strong>明年会推出非常有引领性、创新性、颠覆性的产品。</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-682e34d815.png"></p>
+<p><strong><strong>余承东直言：“到时候你可以看到我们怎么样能够</strong>改写这个行业的历史</strong>。希望能够不断地带来超越大家的期待，做别人想不到的事情或者想到但做不到的事，甚至是他们不敢想的事情。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-786f822b3e.png"></p>
+<p>余承东还预告，华为明年将会推出鸿蒙原生应用与原生体验的产品，“<strong>那将会是整个中国终端类操作系统里真正的王者</strong>”。</p>
+<p>此前，有消息称华为可能明年推出不兼容Android的鸿蒙版本。11月20日，据澎湃新闻报道，一华为相关人士表示，推出时间还不确定，未来iOS、鸿蒙、Android将为三个各自独立的系统。</p>
+<p>稍早前据证券时报报道，有业内人士亦表示：“华为内部确实有这计划，就是明年推出不兼容Android的鸿蒙版本，但目前内部还没有下发相关通知，所以具体何时推出暂不明确。”</p>
+<p>在9月25日举行的华为秋季全场景新品发布会上，华为常务董事、终端BG CEO、智能汽车解决方案BU董事长余承东宣布，鸿蒙原生应用全面启动，HarmonyOS NEXT开发者预览版将在2024年第一季度面向开发者开放。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-583759ee6c.png"></p>
+<p>会上，华为与近40家合作伙伴举办鸿蒙生态合作签约仪式，包括：小红书、招商银行、携程旅行、美图、58同城、360浏览器、网易有道词典、石墨文档、classln应用、洪恩识字、汉王科技、作业帮、亿图脑图MindMaster 应用、会见会议、2345好压、宝宝巴士、喜马拉雅、讯飞听见、浩辰CAD、掌上生活、邮储银行、钛媒体、驾考宝典、书生电子、交通银行、中信银行、兴业证券、央广网、搜狐新闻、蜻蜓FM、京东健康、动卡空间、东方财富、天天基金、大智慧、深圳CA签章、中软国际、中国音像与数字出版协会等应用与服务商。</p>
+<p>10月26日，包含支付宝、小红书、哔哩哔哩、滴滴出行、同程旅行、哈啰等十余家知名互联网企业，参加了华为在上海举行的鸿蒙生态伙伴联合创新会，了解HarmonyOS NEXT的能力与特性，现场达成10+创新场景合作意向。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-682e34d815.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-682e34d815.png" medium="image"/>
+    <pubDate>Sun, 10 Dec 2023 11:15:26 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[黑客攻击招聘 APP 短信验证码接口用于“撞库”]]></title>
+    <link>https://www.oschina.net/news/270288</link>
+    <itunes:title><![CDATA[黑客攻击招聘 APP 短信验证码接口用于“撞库”]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>央视新闻报道了招聘 APP 遭黑客攻击导致 300 万条数据泄露的案件。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b657db3bc7.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.weibo.com%2F2656274875%2FNwrWnni5v%3Fpagetype%3Dprofilefeed" target="_blank">https://www.weibo.com/2656274875/NwrWnni5v?pagetype=profilefeed</a></u></em></p>
+</blockquote>
+<p>根据报道，前段时间北京警方接到辖区内一家互联网公司报案，称该公司求职招聘类 App 的短信验证码接口遭受 1300 余万次攻击，且成功匹配注册账号 30 余万个。北京警方迅速研判，<strong>确定这是一起黑客利用网站漏洞非法获取账号信息并用于违法活动的案件</strong>。</p>
+<p>据了解，犯罪嫌疑人喻某交代称，自己于 2022 年 10 月 18 日在该招聘平台注册账号，并数次尝试验证接口。<strong>他发现该网站的签名算法相对单一，便利用该弱点编写指令，制作黑客软件对网站进行“撞库”攻击</strong>。</p>
+<p>同时，他还利用类似方式对其他各大网站进行渗透，并伺机查询网站漏洞，<strong>以此为诱饵向他人兜售自己编写的恶意程序、黑客工具，从中牟利</strong>。经过民警不懈努力，专案组成功在四川成都将另一名嫌疑人焦某抓获，<strong>现场起获各类公司、人员数据 330 余万条</strong>。</p>
+<p>犯罪嫌疑人喻某、焦某因破坏计算机信息系统罪被依法刑事拘留，案件正进一步办理中。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>央视新闻报道了招聘 APP 遭黑客攻击导致 300 万条数据泄露的案件。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b657db3bc7.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.weibo.com%2F2656274875%2FNwrWnni5v%3Fpagetype%3Dprofilefeed" target="_blank">https://www.weibo.com/2656274875/NwrWnni5v?pagetype=profilefeed</a></u></em></p>
+</blockquote>
+<p>根据报道，前段时间北京警方接到辖区内一家互联网公司报案，称该公司求职招聘类 App 的短信验证码接口遭受 1300 余万次攻击，且成功匹配注册账号 30 余万个。北京警方迅速研判，<strong>确定这是一起黑客利用网站漏洞非法获取账号信息并用于违法活动的案件</strong>。</p>
+<p>据了解，犯罪嫌疑人喻某交代称，自己于 2022 年 10 月 18 日在该招聘平台注册账号，并数次尝试验证接口。<strong>他发现该网站的签名算法相对单一，便利用该弱点编写指令，制作黑客软件对网站进行“撞库”攻击</strong>。</p>
+<p>同时，他还利用类似方式对其他各大网站进行渗透，并伺机查询网站漏洞，<strong>以此为诱饵向他人兜售自己编写的恶意程序、黑客工具，从中牟利</strong>。经过民警不懈努力，专案组成功在四川成都将另一名嫌疑人焦某抓获，<strong>现场起获各类公司、人员数据 330 余万条</strong>。</p>
+<p>犯罪嫌疑人喻某、焦某因破坏计算机信息系统罪被依法刑事拘留，案件正进一步办理中。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>央视新闻报道了招聘 APP 遭黑客攻击导致 300 万条数据泄露的案件。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b657db3bc7.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.weibo.com%2F2656274875%2FNwrWnni5v%3Fpagetype%3Dprofilefeed" target="_blank">https://www.weibo.com/2656274875/NwrWnni5v?pagetype=profilefeed</a></u></em></p>
+</blockquote>
+<p>根据报道，前段时间北京警方接到辖区内一家互联网公司报案，称该公司求职招聘类 App 的短信验证码接口遭受 1300 余万次攻击，且成功匹配注册账号 30 余万个。北京警方迅速研判，<strong>确定这是一起黑客利用网站漏洞非法获取账号信息并用于违法活动的案件</strong>。</p>
+<p>据了解，犯罪嫌疑人喻某交代称，自己于 2022 年 10 月 18 日在该招聘平台注册账号，并数次尝试验证接口。<strong>他发现该网站的签名算法相对单一，便利用该弱点编写指令，制作黑客软件对网站进行“撞库”攻击</strong>。</p>
+<p>同时，他还利用类似方式对其他各大网站进行渗透，并伺机查询网站漏洞，<strong>以此为诱饵向他人兜售自己编写的恶意程序、黑客工具，从中牟利</strong>。经过民警不懈努力，专案组成功在四川成都将另一名嫌疑人焦某抓获，<strong>现场起获各类公司、人员数据 330 余万条</strong>。</p>
+<p>犯罪嫌疑人喻某、焦某因破坏计算机信息系统罪被依法刑事拘留，案件正进一步办理中。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b657db3bc7.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b657db3bc7.png" medium="image"/>
+    <pubDate>Sun, 10 Dec 2023 10:50:17 +0800</pubDate>
+  </item><item>
     <title><![CDATA[Eclipse 4.30 正式发布]]></title>
     <link>https://www.oschina.net/news/270231/eclipse-4-30-ga</link>
     <itunes:title><![CDATA[Eclipse 4.30 正式发布]]></itunes:title>
@@ -6310,197 +7672,5 @@ return restTemplate.getForEntity("http://127.0.0.1:8000"， Object.class);
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c7c20323d1.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c7c20323d1.png" medium="image"/>
     <pubDate>Wed, 06 Dec 2023 11:28:37 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[IBM、Meta、AMD 等成立人工智能联盟]]></title>
-    <link>https://www.oschina.net/news/269723/ibm-meta-amd-ai-alliance</link>
-    <itunes:title><![CDATA[IBM、Meta、AMD 等成立人工智能联盟]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>IBM <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">宣布</a>和 Meta、AMD 以及全球 50 多家公司/机构携手成立人工智能联盟（AI Alliance）。</span></p>
-<p><span>联盟成员包括 IBM、Meta、AMD、Anyscale、CERN、Cerebras、克利夫兰诊所、康奈尔大学、达特茅斯学院、戴尔科技、EPFL、ETH、Hugging Face、伦敦帝国理工学院、英特尔、INSAIT、Linux 基金会、MLCommons、波士顿大学和哈佛大学运营的 MOC 联盟、NASA、NSF、Oracle、Partnership on AI、红帽、Roadzen、ServiceNow、索尼集团、Stability AI、加州大学伯克利分校、伊利诺伊大学、大学圣母大学、东京大学、耶鲁大学等。其中并没有&nbsp;OpenAI，也没有谷歌。</span></p>
-<p><span>“人工智能联盟以行动为导向，具有明显的国际性，旨在通过各种机构在各地创造机会，这些机构可以更好地反映我们社会的需求和复杂性，从而塑造人工智能的发展。”</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4bdbbd3190.png"></span></p>
-<p><span>人工智能联盟计划启动或加强符合以下目标的项目：</span></p>
-<ul>
-<li><span>开发和部署基准和评估标准、工具和其他资源，以便在全球范围内负责任地开发和使用人工智能系统，包括创建经过审查的安全、安保和信任工具目录。与开发者社区一起支持这些工具的倡导和启用，以进行模型和应用程序开发。</span></li>
-<li><span>负责任地推进具有多种模式的开放基础模型生态系统，包括功能强大的多语言、多模式和科学模型，有助于解决气候、教育等方面的全社会挑战。</span></li>
-<li><span>通过促进关键支持软件技术的贡献和采用，培育充满活力的人工智能硬件加速器生态系统。</span></li>
-<li><span>支持全球人工智能技能建设和探索性研究。让学术界参与进来，支持研究人员和学生学习并为重要的人工智能模型和工具研究项目做出贡献。</span></li>
-<li><span>开发教育内容和资源，让公众讨论和政策制定者了解人工智能的好处、风险、解决方案和精准监管。</span></li>
-<li><span>发起倡议，鼓励以安全和有益的方式开放人工智能发展，并举办活动来探索人工智能用例，并展示联盟成员如何负责任地、永久地使用人工智能领域的开放技术。</span></li>
-</ul>
-<p><span>该联盟将首先在所有重点领域组建由成员驱动的工作组。还将建立一个理事会和技术监督委员会，致力于推进特定重点领域的项目，同时与政府、非营利组织和私营部门组织的现有举措合作。</span></p>
-<p><span>半导体研究和咨询公司 Semianalysis 首席分析师 Dylan Patel <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3711468%2Fai-alliance-led-by-ibm-and-meta-to-promote-open-standards-and-take-on-aws-microsoft-and-nvidia.html" target="_blank">表示</a>：“Meta 和 IBM 都拥抱开源并为其做出了巨大贡献，而谷歌、亚马逊和微软对开源的贡献却没有那么多。AMD 和其他公司的这一联盟，为从软件到硬件的开源社区迈出了坚实的一步”。</span></p>
-<p><span>并指出，“AMD 是一个很大的受益者，因为开放软件生态系统给他们带来的好处比英伟达更大，而英伟达的大部分堆栈都是封闭的。”</span></p>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">查看官方公告</a>。</p>
-<p><strong>相关阅读：</strong></p>
-<ul>
-<li><a href="https://www.oschina.net/news/263552/frontier-model-forum-ai-safety" target="_blank">OpenAI、谷歌微软等设立 1000 万美元 AI 安全基金</a></li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>IBM <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">宣布</a>和 Meta、AMD 以及全球 50 多家公司/机构携手成立人工智能联盟（AI Alliance）。</span></p>
-<p><span>联盟成员包括 IBM、Meta、AMD、Anyscale、CERN、Cerebras、克利夫兰诊所、康奈尔大学、达特茅斯学院、戴尔科技、EPFL、ETH、Hugging Face、伦敦帝国理工学院、英特尔、INSAIT、Linux 基金会、MLCommons、波士顿大学和哈佛大学运营的 MOC 联盟、NASA、NSF、Oracle、Partnership on AI、红帽、Roadzen、ServiceNow、索尼集团、Stability AI、加州大学伯克利分校、伊利诺伊大学、大学圣母大学、东京大学、耶鲁大学等。其中并没有&nbsp;OpenAI，也没有谷歌。</span></p>
-<p><span>“人工智能联盟以行动为导向，具有明显的国际性，旨在通过各种机构在各地创造机会，这些机构可以更好地反映我们社会的需求和复杂性，从而塑造人工智能的发展。”</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4bdbbd3190.png"></span></p>
-<p><span>人工智能联盟计划启动或加强符合以下目标的项目：</span></p>
-<ul>
-<li><span>开发和部署基准和评估标准、工具和其他资源，以便在全球范围内负责任地开发和使用人工智能系统，包括创建经过审查的安全、安保和信任工具目录。与开发者社区一起支持这些工具的倡导和启用，以进行模型和应用程序开发。</span></li>
-<li><span>负责任地推进具有多种模式的开放基础模型生态系统，包括功能强大的多语言、多模式和科学模型，有助于解决气候、教育等方面的全社会挑战。</span></li>
-<li><span>通过促进关键支持软件技术的贡献和采用，培育充满活力的人工智能硬件加速器生态系统。</span></li>
-<li><span>支持全球人工智能技能建设和探索性研究。让学术界参与进来，支持研究人员和学生学习并为重要的人工智能模型和工具研究项目做出贡献。</span></li>
-<li><span>开发教育内容和资源，让公众讨论和政策制定者了解人工智能的好处、风险、解决方案和精准监管。</span></li>
-<li><span>发起倡议，鼓励以安全和有益的方式开放人工智能发展，并举办活动来探索人工智能用例，并展示联盟成员如何负责任地、永久地使用人工智能领域的开放技术。</span></li>
-</ul>
-<p><span>该联盟将首先在所有重点领域组建由成员驱动的工作组。还将建立一个理事会和技术监督委员会，致力于推进特定重点领域的项目，同时与政府、非营利组织和私营部门组织的现有举措合作。</span></p>
-<p><span>半导体研究和咨询公司 Semianalysis 首席分析师 Dylan Patel <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3711468%2Fai-alliance-led-by-ibm-and-meta-to-promote-open-standards-and-take-on-aws-microsoft-and-nvidia.html" target="_blank">表示</a>：“Meta 和 IBM 都拥抱开源并为其做出了巨大贡献，而谷歌、亚马逊和微软对开源的贡献却没有那么多。AMD 和其他公司的这一联盟，为从软件到硬件的开源社区迈出了坚实的一步”。</span></p>
-<p><span>并指出，“AMD 是一个很大的受益者，因为开放软件生态系统给他们带来的好处比英伟达更大，而英伟达的大部分堆栈都是封闭的。”</span></p>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">查看官方公告</a>。</p>
-<p><strong>相关阅读：</strong></p>
-<ul>
-<li><a href="https://www.oschina.net/news/263552/frontier-model-forum-ai-safety" target="_blank">OpenAI、谷歌微软等设立 1000 万美元 AI 安全基金</a></li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>IBM <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">宣布</a>和 Meta、AMD 以及全球 50 多家公司/机构携手成立人工智能联盟（AI Alliance）。</span></p>
-<p><span>联盟成员包括 IBM、Meta、AMD、Anyscale、CERN、Cerebras、克利夫兰诊所、康奈尔大学、达特茅斯学院、戴尔科技、EPFL、ETH、Hugging Face、伦敦帝国理工学院、英特尔、INSAIT、Linux 基金会、MLCommons、波士顿大学和哈佛大学运营的 MOC 联盟、NASA、NSF、Oracle、Partnership on AI、红帽、Roadzen、ServiceNow、索尼集团、Stability AI、加州大学伯克利分校、伊利诺伊大学、大学圣母大学、东京大学、耶鲁大学等。其中并没有&nbsp;OpenAI，也没有谷歌。</span></p>
-<p><span>“人工智能联盟以行动为导向，具有明显的国际性，旨在通过各种机构在各地创造机会，这些机构可以更好地反映我们社会的需求和复杂性，从而塑造人工智能的发展。”</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4bdbbd3190.png"></span></p>
-<p><span>人工智能联盟计划启动或加强符合以下目标的项目：</span></p>
-<ul>
-<li><span>开发和部署基准和评估标准、工具和其他资源，以便在全球范围内负责任地开发和使用人工智能系统，包括创建经过审查的安全、安保和信任工具目录。与开发者社区一起支持这些工具的倡导和启用，以进行模型和应用程序开发。</span></li>
-<li><span>负责任地推进具有多种模式的开放基础模型生态系统，包括功能强大的多语言、多模式和科学模型，有助于解决气候、教育等方面的全社会挑战。</span></li>
-<li><span>通过促进关键支持软件技术的贡献和采用，培育充满活力的人工智能硬件加速器生态系统。</span></li>
-<li><span>支持全球人工智能技能建设和探索性研究。让学术界参与进来，支持研究人员和学生学习并为重要的人工智能模型和工具研究项目做出贡献。</span></li>
-<li><span>开发教育内容和资源，让公众讨论和政策制定者了解人工智能的好处、风险、解决方案和精准监管。</span></li>
-<li><span>发起倡议，鼓励以安全和有益的方式开放人工智能发展，并举办活动来探索人工智能用例，并展示联盟成员如何负责任地、永久地使用人工智能领域的开放技术。</span></li>
-</ul>
-<p><span>该联盟将首先在所有重点领域组建由成员驱动的工作组。还将建立一个理事会和技术监督委员会，致力于推进特定重点领域的项目，同时与政府、非营利组织和私营部门组织的现有举措合作。</span></p>
-<p><span>半导体研究和咨询公司 Semianalysis 首席分析师 Dylan Patel <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3711468%2Fai-alliance-led-by-ibm-and-meta-to-promote-open-standards-and-take-on-aws-microsoft-and-nvidia.html" target="_blank">表示</a>：“Meta 和 IBM 都拥抱开源并为其做出了巨大贡献，而谷歌、亚马逊和微软对开源的贡献却没有那么多。AMD 和其他公司的这一联盟，为从软件到硬件的开源社区迈出了坚实的一步”。</span></p>
-<p><span>并指出，“AMD 是一个很大的受益者，因为开放软件生态系统给他们带来的好处比英伟达更大，而英伟达的大部分堆栈都是封闭的。”</span></p>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fnewsroom.ibm.com%2FAI-Alliance-Launches-as-an-International-Community-of-Leading-Technology-Developers%2C-Researchers%2C-and-Adopters-Collaborating-Together-to-Advance-Open%2C-Safe%2C-Responsible-AI" target="_blank">查看官方公告</a>。</p>
-<p><strong>相关阅读：</strong></p>
-<ul>
-<li><a href="https://www.oschina.net/news/263552/frontier-model-forum-ai-safety" target="_blank">OpenAI、谷歌微软等设立 1000 万美元 AI 安全基金</a></li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4bdbbd3190.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4bdbbd3190.png" medium="image"/>
-    <pubDate>Wed, 06 Dec 2023 11:17:26 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[Android 开发团队宣布：将 AVF 虚拟机作为 Android 原语]]></title>
-    <link>https://www.oschina.net/news/269719/virtual-machines-as-core-android-primitive</link>
-    <itunes:title><![CDATA[Android 开发团队宣布：将 AVF 虚拟机作为 Android 原语]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>Android 虚拟化框架 (Android Virtualization Framework, AVF) 是 Android 操作系统的核心构建块之一，它提供安全且私密的执行环境来执行代码。</p>
-<p>谷歌 Android 开发团队<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">宣布</a></u>：他们计划<strong>将 AVF 虚拟机作为 Android 原语</strong>—— 成为 Android 系统的核心构造。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4e2f82043e.png"></p>
-</blockquote>
-<p>AVF 首次在搭载 Android 13 的 Pixel 设备引入，为处理<strong>特权应用程序</strong>的平台开发者提供了新功能。通过 AVF，开发者可以更广泛地支持 Android 虚拟化。虚拟化已被广泛使用和部署，将工作负载和操作系统相互隔离。它可以有效地扩展基础设施、测试环境、遗留软件兼容性、创建虚拟桌面等等。</p>
-<p>随着 AVF 虚拟机成为 Android 操作系统的核心构造，<strong>类似于 Android 利用 Linux 进程的方式</strong>。<strong>开发者可以灵活地选择虚拟机的隔离级别</strong>：</p>
-<ul>
-<li> <p><strong>单向隔离 (One-way isolation)</strong>：Android（主机）可以控制和检查 VM 的内容。它们最常用于沙箱和分离，使多个操作系统能够在同一台机器/设备上运行，并由一个操作系统主机 (Android) 控制和监视所有其他操作系统主机。</p> </li>
-<li> <p><strong>双向隔离&nbsp;(Isolated VM)</strong>：Android（主机）和虚拟机（客机）彼此完全隔离。处理或存储敏感数据的开发者可能会受益于隔离的虚拟机。隔离的虚拟机具有双向屏障，主机 (Android) 和虚拟机都无法相互访问，除非通过明确商定的通信通道。它有 2 个主要属性：</p>
-<ul>
-<li>主机 (Android) 无法访问（机密）VM 内的工作负载和数据。</li>
-<li>即使 Android 一直受到损害，直至（并包括）主机内核，隔离的虚拟机仍然不会受到损害。</li>
-</ul> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f0ab18911.png"></p>
-<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">详情</a>。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>Android 虚拟化框架 (Android Virtualization Framework, AVF) 是 Android 操作系统的核心构建块之一，它提供安全且私密的执行环境来执行代码。</p>
-<p>谷歌 Android 开发团队<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">宣布</a></u>：他们计划<strong>将 AVF 虚拟机作为 Android 原语</strong>—— 成为 Android 系统的核心构造。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4e2f82043e.png"></p>
-</blockquote>
-<p>AVF 首次在搭载 Android 13 的 Pixel 设备引入，为处理<strong>特权应用程序</strong>的平台开发者提供了新功能。通过 AVF，开发者可以更广泛地支持 Android 虚拟化。虚拟化已被广泛使用和部署，将工作负载和操作系统相互隔离。它可以有效地扩展基础设施、测试环境、遗留软件兼容性、创建虚拟桌面等等。</p>
-<p>随着 AVF 虚拟机成为 Android 操作系统的核心构造，<strong>类似于 Android 利用 Linux 进程的方式</strong>。<strong>开发者可以灵活地选择虚拟机的隔离级别</strong>：</p>
-<ul>
-<li> <p><strong>单向隔离 (One-way isolation)</strong>：Android（主机）可以控制和检查 VM 的内容。它们最常用于沙箱和分离，使多个操作系统能够在同一台机器/设备上运行，并由一个操作系统主机 (Android) 控制和监视所有其他操作系统主机。</p> </li>
-<li> <p><strong>双向隔离&nbsp;(Isolated VM)</strong>：Android（主机）和虚拟机（客机）彼此完全隔离。处理或存储敏感数据的开发者可能会受益于隔离的虚拟机。隔离的虚拟机具有双向屏障，主机 (Android) 和虚拟机都无法相互访问，除非通过明确商定的通信通道。它有 2 个主要属性：</p>
-<ul>
-<li>主机 (Android) 无法访问（机密）VM 内的工作负载和数据。</li>
-<li>即使 Android 一直受到损害，直至（并包括）主机内核，隔离的虚拟机仍然不会受到损害。</li>
-</ul> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f0ab18911.png"></p>
-<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">详情</a>。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>Android 虚拟化框架 (Android Virtualization Framework, AVF) 是 Android 操作系统的核心构建块之一，它提供安全且私密的执行环境来执行代码。</p>
-<p>谷歌 Android 开发团队<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">宣布</a></u>：他们计划<strong>将 AVF 虚拟机作为 Android 原语</strong>—— 成为 Android 系统的核心构造。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4e2f82043e.png"></p>
-</blockquote>
-<p>AVF 首次在搭载 Android 13 的 Pixel 设备引入，为处理<strong>特权应用程序</strong>的平台开发者提供了新功能。通过 AVF，开发者可以更广泛地支持 Android 虚拟化。虚拟化已被广泛使用和部署，将工作负载和操作系统相互隔离。它可以有效地扩展基础设施、测试环境、遗留软件兼容性、创建虚拟桌面等等。</p>
-<p>随着 AVF 虚拟机成为 Android 操作系统的核心构造，<strong>类似于 Android 利用 Linux 进程的方式</strong>。<strong>开发者可以灵活地选择虚拟机的隔离级别</strong>：</p>
-<ul>
-<li> <p><strong>单向隔离 (One-way isolation)</strong>：Android（主机）可以控制和检查 VM 的内容。它们最常用于沙箱和分离，使多个操作系统能够在同一台机器/设备上运行，并由一个操作系统主机 (Android) 控制和监视所有其他操作系统主机。</p> </li>
-<li> <p><strong>双向隔离&nbsp;(Isolated VM)</strong>：Android（主机）和虚拟机（客机）彼此完全隔离。处理或存储敏感数据的开发者可能会受益于隔离的虚拟机。隔离的虚拟机具有双向屏障，主机 (Android) 和虚拟机都无法相互访问，除非通过明确商定的通信通道。它有 2 个主要属性：</p>
-<ul>
-<li>主机 (Android) 无法访问（机密）VM 内的工作负载和数据。</li>
-<li>即使 Android 一直受到损害，直至（并包括）主机内核，隔离的虚拟机仍然不会受到损害。</li>
-</ul> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f0ab18911.png"></p>
-<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fandroid-developers.googleblog.com%2F2023%2F12%2Fvirtual-machines-as-core-android-primitive.html" target="_blank">详情</a>。</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4e2f82043e.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4e2f82043e.png" medium="image"/>
-    <pubDate>Wed, 06 Dec 2023 10:57:15 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[YOLOv8 采用 AGPL 开源协议，所以用了模型就必须开源？]]></title>
-    <link>https://www.oschina.net/news/269703</link>
-    <itunes:title><![CDATA[YOLOv8 采用 AGPL 开源协议，所以用了模型就必须开源？]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>利好国产AI框架,</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0e786910a5.png"></p>
-<p>来源：<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F6789" target="_blank">AGPL-3.0 license : Third party framework inference, ONNX model, whether protocol compliance is required · Issue #6789 · ultralytics/ultralytics (github.com)</a></em></p>
-</blockquote>
-<p>yolov5,yolov8,用了模型就必须开源,</p>
-<p>采用AGPL-3.0 开源协议,</p>
-<p>调用了pt模型 或者 转换后的onnx模型,</p>
-<p>项目都必须要开源,</p>
-<p>否则要购买企业许可证,</p>
-<p>虽然国内环境大家都懂，</p>
-<p>但是现在火爆的yolo检测，要慎重,</p>
-<p>毕竟你在训练的时候，他们会加上在线统计，记录你的IP ,</p>
-<p>虽然Google Analytics统计在国内用不了,<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F2250" target="_blank">Why does training have Google statistics ?? · Issue #2250 · ultralytics/ultralytics (github.com)</a></em></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>利好国产AI框架,</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0e786910a5.png"></p>
-<p>来源：<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F6789" target="_blank">AGPL-3.0 license : Third party framework inference, ONNX model, whether protocol compliance is required · Issue #6789 · ultralytics/ultralytics (github.com)</a></em></p>
-</blockquote>
-<p>yolov5,yolov8,用了模型就必须开源,</p>
-<p>采用AGPL-3.0 开源协议,</p>
-<p>调用了pt模型 或者 转换后的onnx模型,</p>
-<p>项目都必须要开源,</p>
-<p>否则要购买企业许可证,</p>
-<p>虽然国内环境大家都懂，</p>
-<p>但是现在火爆的yolo检测，要慎重,</p>
-<p>毕竟你在训练的时候，他们会加上在线统计，记录你的IP ,</p>
-<p>虽然Google Analytics统计在国内用不了,<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F2250" target="_blank">Why does training have Google statistics ?? · Issue #2250 · ultralytics/ultralytics (github.com)</a></em></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>利好国产AI框架,</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0e786910a5.png"></p>
-<p>来源：<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F6789" target="_blank">AGPL-3.0 license : Third party framework inference, ONNX model, whether protocol compliance is required · Issue #6789 · ultralytics/ultralytics (github.com)</a></em></p>
-</blockquote>
-<p>yolov5,yolov8,用了模型就必须开源,</p>
-<p>采用AGPL-3.0 开源协议,</p>
-<p>调用了pt模型 或者 转换后的onnx模型,</p>
-<p>项目都必须要开源,</p>
-<p>否则要购买企业许可证,</p>
-<p>虽然国内环境大家都懂，</p>
-<p>但是现在火爆的yolo检测，要慎重,</p>
-<p>毕竟你在训练的时候，他们会加上在线统计，记录你的IP ,</p>
-<p>虽然Google Analytics统计在国内用不了,<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fultralytics%2Fultralytics%2Fissues%2F2250" target="_blank">Why does training have Google statistics ?? · Issue #2250 · ultralytics/ultralytics (github.com)</a></em></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0e786910a5.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0e786910a5.png" medium="image"/>
-    <pubDate>Wed, 06 Dec 2023 08:30:09 +0800</pubDate>
   </item></channel>
 </rss>
