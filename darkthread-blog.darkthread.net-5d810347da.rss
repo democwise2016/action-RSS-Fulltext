@@ -30,6 +30,96 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 8 升級踩坑 - ASP.NET Core DI 多建構式設定失效]]></title>
+    <link>https://blog.darkthread.net/blog/net8-issue-activatorutilitiesconstructor/</link>
+    <itunes:title><![CDATA[.NET 8 升級踩坑 - ASP.NET Core DI 多建構式設定失效]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>.NET 8.0 已於 11/14 發佈，.NET 8 為 LTS (長期支援版，單數版號如 .NET 7 為 STS，支援週期只有 18 個月 ) 較符合企業應用需求。最近便試著將 .NET 6.0 專案升到 .NET 8.0，原以為可無痛升級，但連續踩坑搞到灰頭土臉，這裡先分享多建構式型別的 DI 冷門問題一枚。</p> <p>我的專案有個型別有多個建構式，在使用 DI (依賴注入) 時，DI 服務會不知道使用哪個建構式，這個議題之前<a href="/blog/aspnet-core-di-multi-constructors/">研究過</a>，簡單做法是在預期 DI 採用的建構式加上 <code>[ActivatorUtilitiesConstructor]</code>，註冊物件時寫成 <code>builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));</code>。</p> <p>這個做法在 .NET 6 運行多時，試著將專案升級到 .NET 8 後，它開了第一槍，冒出 <code>'Multiple constructors for type 'MyService' were found with length 2.'</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638379947922303830.png"></p> <p>我寫了一段小程式重現問題：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton&lt;Foo&gt;();
+builder.Services.AddSingleton&lt;Bar&gt;();
+builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));
+var app = builder.Build();
+Console.WriteLine($".NET {Environment.Version}");
+try
+{
+var scope = app.Services.CreateScope();
+var svc = scope.ServiceProvider.GetRequiredService&lt;MyService&gt;();
+Console.WriteLine("MyService created successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("MyService failed to create");
+Console.WriteLine(ex.Message);
+}
+public class Foo { }
+public class Bar { }
+public class MyService
+{
+[ActivatorUtilitiesConstructor]
+public MyService(Foo foo, IWebHostEnvironment env) { }
+public MyService(Bar bar, IWebHostEnvironment env) { }
+}
+</code></pre> <p>將 csproj <code>&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;</code> 改成 6.0 或 7.0 都能正常執行，切到 8.0 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638379947924200389.png"></p> <p>追了一下原始碼找到問題根源，.NET 8 為了改善 ActivatorUtilities.CreateInstance() 效能，合併了一個<a href="https://github.com/dotnet/runtime/commit/00937b28fe980944b694b17999dc61145ea6150a">修改</a>，原本 <code>bool isPreferred = constructor.IsDefined(typeof(ActivatorUtilitiesConstructorActtribute))</code> 的檢查被移除，導致行為改變。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638379947926320005.png"></p> <p>在 .NET Runtime 發了 <a href="https://github.com/dotnet/runtime/issues/95915">Issue</a>，得到回應是這屬於 .NET 8 的<a href="https://learn.microsoft.com/zh-tw/dotnet/core/compatibility/extensions/8.0/activatorutilities-createinstance-behavior?WT.mc_id=DOP-MVP-37580">行為變更(Breaking Change)</a>，ActivatorUtilities.CreateInstance() 改為會尋找參數最多的建構式，若有個數相同的建構式便會發生錯誤，而 ActivatorUtilitiesConstructorActtribute 已失去其原有作用。</p> <p>在上述程式為第一個建構式多加參數，即可引導 ActivatorUtilities.CreateInstance() 使用它建構物件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638380140117499127.png"></p> <p>增加第二個建構式參數則會改用其建立物件，證明 [ActivatorUtilitiesConstructor] 已無作用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638380142882463062.png"></p> <p>若專案原本依賴 ActivatorUtilitiesConstructorActtribute 決定建構式，升級 .NET 8 需要進行調整。</p> <p data-slug="net8-issue-ActivatorUtilitiesConstructor" data-tite-en=".NET Break Change - ActivatorUtilitiesConstructorAttribute doesn't work after upgrade to .NET 8" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/11/28/10/48/child-1864718_960_720.jpg#960#720">ActivatorUtilitiesConstructorAttribute can help ActivatorUtilities.CreateInstance() to choose the preferred constructor of mutilple-contructor type. It works fine in .NET 6/7, and failed in .NET 8.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>.NET 8.0 已於 11/14 發佈，.NET 8 為 LTS (長期支援版，單數版號如 .NET 7 為 STS，支援週期只有 18 個月 ) 較符合企業應用需求。最近便試著將 .NET 6.0 專案升到 .NET 8.0，原以為可無痛升級，但連續踩坑搞到灰頭土臉，這裡先分享多建構式型別的 DI 冷門問題一枚。</p> <p>我的專案有個型別有多個建構式，在使用 DI (依賴注入) 時，DI 服務會不知道使用哪個建構式，這個議題之前<a href="/blog/aspnet-core-di-multi-constructors/">研究過</a>，簡單做法是在預期 DI 採用的建構式加上 <code>[ActivatorUtilitiesConstructor]</code>，註冊物件時寫成 <code>builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));</code>。</p> <p>這個做法在 .NET 6 運行多時，試著將專案升級到 .NET 8 後，它開了第一槍，冒出 <code>'Multiple constructors for type 'MyService' were found with length 2.'</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638379947922303830.png"></p> <p>我寫了一段小程式重現問題：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton&lt;Foo&gt;();
+builder.Services.AddSingleton&lt;Bar&gt;();
+builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));
+var app = builder.Build();
+Console.WriteLine($".NET {Environment.Version}");
+try
+{
+var scope = app.Services.CreateScope();
+var svc = scope.ServiceProvider.GetRequiredService&lt;MyService&gt;();
+Console.WriteLine("MyService created successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("MyService failed to create");
+Console.WriteLine(ex.Message);
+}
+public class Foo { }
+public class Bar { }
+public class MyService
+{
+[ActivatorUtilitiesConstructor]
+public MyService(Foo foo, IWebHostEnvironment env) { }
+public MyService(Bar bar, IWebHostEnvironment env) { }
+}
+</code></pre> <p>將 csproj <code>&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;</code> 改成 6.0 或 7.0 都能正常執行，切到 8.0 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638379947924200389.png"></p> <p>追了一下原始碼找到問題根源，.NET 8 為了改善 ActivatorUtilities.CreateInstance() 效能，合併了一個<a href="https://github.com/dotnet/runtime/commit/00937b28fe980944b694b17999dc61145ea6150a">修改</a>，原本 <code>bool isPreferred = constructor.IsDefined(typeof(ActivatorUtilitiesConstructorActtribute))</code> 的檢查被移除，導致行為改變。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638379947926320005.png"></p> <p>在 .NET Runtime 發了 <a href="https://github.com/dotnet/runtime/issues/95915">Issue</a>，得到回應是這屬於 .NET 8 的<a href="https://learn.microsoft.com/zh-tw/dotnet/core/compatibility/extensions/8.0/activatorutilities-createinstance-behavior?WT.mc_id=DOP-MVP-37580">行為變更(Breaking Change)</a>，ActivatorUtilities.CreateInstance() 改為會尋找參數最多的建構式，若有個數相同的建構式便會發生錯誤，而 ActivatorUtilitiesConstructorActtribute 已失去其原有作用。</p> <p>在上述程式為第一個建構式多加參數，即可引導 ActivatorUtilities.CreateInstance() 使用它建構物件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638380140117499127.png"></p> <p>增加第二個建構式參數則會改用其建立物件，證明 [ActivatorUtilitiesConstructor] 已無作用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638380142882463062.png"></p> <p>若專案原本依賴 ActivatorUtilitiesConstructorActtribute 決定建構式，升級 .NET 8 需要進行調整。</p> <p data-slug="net8-issue-ActivatorUtilitiesConstructor" data-tite-en=".NET Break Change - ActivatorUtilitiesConstructorAttribute doesn't work after upgrade to .NET 8" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/11/28/10/48/child-1864718_960_720.jpg#960#720">ActivatorUtilitiesConstructorAttribute can help ActivatorUtilities.CreateInstance() to choose the preferred constructor of mutilple-contructor type. It works fine in .NET 6/7, and failed in .NET 8.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>.NET 8.0 已於 11/14 發佈，.NET 8 為 LTS (長期支援版，單數版號如 .NET 7 為 STS，支援週期只有 18 個月 ) 較符合企業應用需求。最近便試著將 .NET 6.0 專案升到 .NET 8.0，原以為可無痛升級，但連續踩坑搞到灰頭土臉，這裡先分享多建構式型別的 DI 冷門問題一枚。</p> <p>我的專案有個型別有多個建構式，在使用 DI (依賴注入) 時，DI 服務會不知道使用哪個建構式，這個議題之前<a href="/blog/aspnet-core-di-multi-constructors/">研究過</a>，簡單做法是在預期 DI 採用的建構式加上 <code>[ActivatorUtilitiesConstructor]</code>，註冊物件時寫成 <code>builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));</code>。</p> <p>這個做法在 .NET 6 運行多時，試著將專案升級到 .NET 8 後，它開了第一槍，冒出 <code>'Multiple constructors for type 'MyService' were found with length 2.'</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638379947922303830.png"></p> <p>我寫了一段小程式重現問題：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton&lt;Foo&gt;();
+builder.Services.AddSingleton&lt;Bar&gt;();
+builder.Services.AddSingleton&lt;MyService&gt;(sp =&gt; ActivatorUtilities.CreateInstance&lt;MyService&gt;(sp));
+var app = builder.Build();
+Console.WriteLine($".NET {Environment.Version}");
+try
+{
+var scope = app.Services.CreateScope();
+var svc = scope.ServiceProvider.GetRequiredService&lt;MyService&gt;();
+Console.WriteLine("MyService created successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("MyService failed to create");
+Console.WriteLine(ex.Message);
+}
+public class Foo { }
+public class Bar { }
+public class MyService
+{
+[ActivatorUtilitiesConstructor]
+public MyService(Foo foo, IWebHostEnvironment env) { }
+public MyService(Bar bar, IWebHostEnvironment env) { }
+}
+</code></pre> <p>將 csproj <code>&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;</code> 改成 6.0 或 7.0 都能正常執行，切到 8.0 才會出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638379947924200389.png"></p> <p>追了一下原始碼找到問題根源，.NET 8 為了改善 ActivatorUtilities.CreateInstance() 效能，合併了一個<a href="https://github.com/dotnet/runtime/commit/00937b28fe980944b694b17999dc61145ea6150a">修改</a>，原本 <code>bool isPreferred = constructor.IsDefined(typeof(ActivatorUtilitiesConstructorActtribute))</code> 的檢查被移除，導致行為改變。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638379947926320005.png"></p> <p>在 .NET Runtime 發了 <a href="https://github.com/dotnet/runtime/issues/95915">Issue</a>，得到回應是這屬於 .NET 8 的<a href="https://learn.microsoft.com/zh-tw/dotnet/core/compatibility/extensions/8.0/activatorutilities-createinstance-behavior?WT.mc_id=DOP-MVP-37580">行為變更(Breaking Change)</a>，ActivatorUtilities.CreateInstance() 改為會尋找參數最多的建構式，若有個數相同的建構式便會發生錯誤，而 ActivatorUtilitiesConstructorActtribute 已失去其原有作用。</p> <p>在上述程式為第一個建構式多加參數，即可引導 ActivatorUtilities.CreateInstance() 使用它建構物件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638380140117499127.png"></p> <p>增加第二個建構式參數則會改用其建立物件，證明 [ActivatorUtilitiesConstructor] 已無作用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638380142882463062.png"></p> <p>若專案原本依賴 ActivatorUtilitiesConstructorActtribute 決定建構式，升級 .NET 8 需要進行調整。</p> <p data-slug="net8-issue-ActivatorUtilitiesConstructor" data-tite-en=".NET Break Change - ActivatorUtilitiesConstructorAttribute doesn't work after upgrade to .NET 8" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/11/28/10/48/child-1864718_960_720.jpg#960#720">ActivatorUtilitiesConstructorAttribute can help ActivatorUtilities.CreateInstance() to choose the preferred constructor of mutilple-contructor type. It works fine in .NET 6/7, and failed in .NET 8.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638379947922303830.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638379947922303830.png" medium="image"/>
+    <pubDate>Tue, 12 Dec 2023 15:59:05 GMT</pubDate>
+  </item><item>
     <title><![CDATA[小試手機 Bing Chat - 語音交談、拍照上傳、AI 生圖隨意玩]]></title>
     <link>https://blog.darkthread.net/blog/bing-chat-app/</link>
     <itunes:title><![CDATA[小試手機 Bing Chat - 語音交談、拍照上傳、AI 生圖隨意玩]]></itunes:title>
@@ -1729,169 +1819,5 @@ reset halt
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638370732569932330.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638370732569932330.png" medium="image"/>
     <pubDate>Sat, 02 Dec 2023 00:15:55 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[PowerShell 小工具 - 將複製文字轉為鍵盤輸入]]></title>
-    <link>https://blog.darkthread.net/blog/ps-paste-as-keystrokes/</link>
-    <itunes:title><![CDATA[PowerShell 小工具 - 將複製文字轉為鍵盤輸入]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>解救自己的小工具，部分遠端環境不能使用複製貼上功能，有些是系統不支援，有些基於安全原則(例如：Windows RDP 可透過<a href="https://learn.microsoft.com/en-us/windows-365/enterprise/manage-rdp-device-redirections?WT.mc_id=DOP-MVP-37580#rdp-device-redirection-settings">群組原則 Do not allow Clipboard redirection</a> 停用)或需要特別設定，伺服器非我方管理，無計可施。</p> <p>此一限制造成不少困擾，像是筆記裡的超長指令，只能認命敲完；最討厭的是系統控管的動態產生密碼，亳無規則穿插滿滿的特殊符號，敲錯三次會鎖帳號，但不管怎麼睜大眼睛小心輸入，還是常三條命只剩一條才成功 Orz (都有剁手指的衝動惹) 應該是因為命盤中破軍坐打字宮(咦?)的關係，打錯字是躲不過的宿命，寫文章總是滿篇錯字也源於此。(謎：不要瞎掰好嗎？)</p> <p>為了避免有一天真的氣到剁手，我想寫個讓我選取文字後模擬打字輸入的手指保護程式。花點心思應該可以找到現成的軟體或工具，但我想用最具可攜性的 PowerShell 自己寫(<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oTUWCLsqGHmHgeVCFCW5HhPgmhUQcBZ77Yn8zdytZzAnan5whfBRnWq13V11H1j2l">理由</a>)。</p> <p>廢話不多說，直接上 Code:</p> <pre><code>param (
-[int]$Delay = 5, # delay seconds
-[switch]$Enter, # append ENTER key
-[switch]$Raw, # raw mode, don't escape special characters
-[switch]$Mask, # mask password
-[switch]$Password # mask + append ENTER key
-)
-$ErrorActionPreference = 'Stop'
-$text = Get-Clipboard -TextFormatType Text
-$disp = $text
-$maxLen = 256
-if ($Password) {
-$Mask = $true
-$Enter = $true
-}
-if ($mask -and $disp.Length -gt 2) {
-$disp= $disp.Substring(0,1) + ('*' * $disp.Length) + $disp.Substring($disp.Length - 1)
-}
-if ($disp.Length -gt $maxLen) {
-$disp = $disp.Substring(0, $maxLen) + '...'
-}
-Write-Host "Get Text from Clipboard:"
-Write-Host $disp -ForegroundColor Cyan
-Write-Host
-$waitSecs = $Delay;
-$progressTitle = "Paste Countdown"
-for ($i = $waitSecs; $i -gt 0; $i--) {
-Write-Progress -Activity $progressTitle -Status "$i seconds..." -PercentComplete ($i / $waitSecs * 100)
-Start-Sleep -Seconds 1
-$host.UI.RawUI.CursorPosition.X = 0
-}
-Write-Progress $progressTitle -Completed
-$lines = $text.Split("`n")
-Add-Type -AssemblyName System.Windows.Forms
-for ($i = 0; $i -lt $lines.Length; $i++) {
-$keys = $lines[$i]
-if (-not $Raw) {
-$keys = [regex]::Replace($keys, "[+^%~()\{\}]", { param ($m) return "{" + $m.Value + "}" })
-$keys = $keys.Replace("`r", '')
-$keys = $keys.Replace("`t", "{TAB}")
-}
-[System.Windows.Forms.SendKeys]::SendWait($keys)
-Start-Sleep -Milliseconds 100
-if ($i -lt ($lines.Length - 1) -and !$Raw) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-}
-if ($Enter) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-</code></pre> <p>程式用到一個老 API，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys.sendwait?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580">System.Windows.Forms.SendKeys.SendWait()</a>，傳入要輸入的文字即可(支援中文字元)，特殊按鍵用 <code>{TAB}</code>、<code>{ENTER}</code>、<code>{ESC}</code>、<code>{HOME}</code> ... 等表示(<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580#remarks">完整指令清單</a>)。</p> <p>使用方法很簡單，先選取複製要輸入內容，執行 <code>Paste-As-KeyStrokes.ps1</code> 程式會等待五秒後模擬鍵盤輸入剪貼簿中的文字，<code>-Delay n</code> 可指定等待 N 秒，<code>-Enter</code> 會在輸完文字後加按 Enter，<code>-Raw</code> 則允許將複製文字視為原始控制指令送給 SendWait()；<code>-Mask</code> 用於密碼，只保留頭尾明碼，其餘換成 * 符號；<code>-Password</code> 等於 <code>-Mask</code> + <code>-Enter</code>，遮蔽字元並在輸入完成後按 Enter。</p> <p>以下是簡單展示，原本不支援剪下貼上的 Debian 遠端桌面，輸入又長又複雜的 30 字元長密碼，完成 nano 建立 test.txt、存檔、顯示內容後刪除的一連串操作(使用 -Raw 以輸入 Ctrl-O、Ctrl-X)，以及展示 Windows RDP 可直接傳入中文字元的功能。</p> <p><a href="https://www.youtube.com/watch?v=WYKpG2cuA6c">操作展示</a></p> <p>工具箱再添好用工具一件。</p> <p data-slug="ps-paste-as-keystrokes" data-title-en="Paste clipboard text as keystrokes with PowerShell" data-catg=".NET" data-fbimg="https://i.imgur.com/2DEQG9k.png#665#374">This is a straightforward PowerShell script designed to paste text content from the clipboard as keystrokes, useful for scenarios that do not support the standard copy-and-paste function.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>解救自己的小工具，部分遠端環境不能使用複製貼上功能，有些是系統不支援，有些基於安全原則(例如：Windows RDP 可透過<a href="https://learn.microsoft.com/en-us/windows-365/enterprise/manage-rdp-device-redirections?WT.mc_id=DOP-MVP-37580#rdp-device-redirection-settings">群組原則 Do not allow Clipboard redirection</a> 停用)或需要特別設定，伺服器非我方管理，無計可施。</p> <p>此一限制造成不少困擾，像是筆記裡的超長指令，只能認命敲完；最討厭的是系統控管的動態產生密碼，亳無規則穿插滿滿的特殊符號，敲錯三次會鎖帳號，但不管怎麼睜大眼睛小心輸入，還是常三條命只剩一條才成功 Orz (都有剁手指的衝動惹) 應該是因為命盤中破軍坐打字宮(咦?)的關係，打錯字是躲不過的宿命，寫文章總是滿篇錯字也源於此。(謎：不要瞎掰好嗎？)</p> <p>為了避免有一天真的氣到剁手，我想寫個讓我選取文字後模擬打字輸入的手指保護程式。花點心思應該可以找到現成的軟體或工具，但我想用最具可攜性的 PowerShell 自己寫(<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oTUWCLsqGHmHgeVCFCW5HhPgmhUQcBZ77Yn8zdytZzAnan5whfBRnWq13V11H1j2l">理由</a>)。</p> <p>廢話不多說，直接上 Code:</p> <pre><code>param (
-[int]$Delay = 5, # delay seconds
-[switch]$Enter, # append ENTER key
-[switch]$Raw, # raw mode, don't escape special characters
-[switch]$Mask, # mask password
-[switch]$Password # mask + append ENTER key
-)
-$ErrorActionPreference = 'Stop'
-$text = Get-Clipboard -TextFormatType Text
-$disp = $text
-$maxLen = 256
-if ($Password) {
-$Mask = $true
-$Enter = $true
-}
-if ($mask -and $disp.Length -gt 2) {
-$disp= $disp.Substring(0,1) + ('*' * $disp.Length) + $disp.Substring($disp.Length - 1)
-}
-if ($disp.Length -gt $maxLen) {
-$disp = $disp.Substring(0, $maxLen) + '...'
-}
-Write-Host "Get Text from Clipboard:"
-Write-Host $disp -ForegroundColor Cyan
-Write-Host
-$waitSecs = $Delay;
-$progressTitle = "Paste Countdown"
-for ($i = $waitSecs; $i -gt 0; $i--) {
-Write-Progress -Activity $progressTitle -Status "$i seconds..." -PercentComplete ($i / $waitSecs * 100)
-Start-Sleep -Seconds 1
-$host.UI.RawUI.CursorPosition.X = 0
-}
-Write-Progress $progressTitle -Completed
-$lines = $text.Split("`n")
-Add-Type -AssemblyName System.Windows.Forms
-for ($i = 0; $i -lt $lines.Length; $i++) {
-$keys = $lines[$i]
-if (-not $Raw) {
-$keys = [regex]::Replace($keys, "[+^%~()\{\}]", { param ($m) return "{" + $m.Value + "}" })
-$keys = $keys.Replace("`r", '')
-$keys = $keys.Replace("`t", "{TAB}")
-}
-[System.Windows.Forms.SendKeys]::SendWait($keys)
-Start-Sleep -Milliseconds 100
-if ($i -lt ($lines.Length - 1) -and !$Raw) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-}
-if ($Enter) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-</code></pre> <p>程式用到一個老 API，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys.sendwait?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580">System.Windows.Forms.SendKeys.SendWait()</a>，傳入要輸入的文字即可(支援中文字元)，特殊按鍵用 <code>{TAB}</code>、<code>{ENTER}</code>、<code>{ESC}</code>、<code>{HOME}</code> ... 等表示(<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580#remarks">完整指令清單</a>)。</p> <p>使用方法很簡單，先選取複製要輸入內容，執行 <code>Paste-As-KeyStrokes.ps1</code> 程式會等待五秒後模擬鍵盤輸入剪貼簿中的文字，<code>-Delay n</code> 可指定等待 N 秒，<code>-Enter</code> 會在輸完文字後加按 Enter，<code>-Raw</code> 則允許將複製文字視為原始控制指令送給 SendWait()；<code>-Mask</code> 用於密碼，只保留頭尾明碼，其餘換成 * 符號；<code>-Password</code> 等於 <code>-Mask</code> + <code>-Enter</code>，遮蔽字元並在輸入完成後按 Enter。</p> <p>以下是簡單展示，原本不支援剪下貼上的 Debian 遠端桌面，輸入又長又複雜的 30 字元長密碼，完成 nano 建立 test.txt、存檔、顯示內容後刪除的一連串操作(使用 -Raw 以輸入 Ctrl-O、Ctrl-X)，以及展示 Windows RDP 可直接傳入中文字元的功能。</p> <p><a href="https://www.youtube.com/watch?v=WYKpG2cuA6c">操作展示</a></p> <p>工具箱再添好用工具一件。</p> <p data-slug="ps-paste-as-keystrokes" data-title-en="Paste clipboard text as keystrokes with PowerShell" data-catg=".NET" data-fbimg="https://i.imgur.com/2DEQG9k.png#665#374">This is a straightforward PowerShell script designed to paste text content from the clipboard as keystrokes, useful for scenarios that do not support the standard copy-and-paste function.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>解救自己的小工具，部分遠端環境不能使用複製貼上功能，有些是系統不支援，有些基於安全原則(例如：Windows RDP 可透過<a href="https://learn.microsoft.com/en-us/windows-365/enterprise/manage-rdp-device-redirections?WT.mc_id=DOP-MVP-37580#rdp-device-redirection-settings">群組原則 Do not allow Clipboard redirection</a> 停用)或需要特別設定，伺服器非我方管理，無計可施。</p> <p>此一限制造成不少困擾，像是筆記裡的超長指令，只能認命敲完；最討厭的是系統控管的動態產生密碼，亳無規則穿插滿滿的特殊符號，敲錯三次會鎖帳號，但不管怎麼睜大眼睛小心輸入，還是常三條命只剩一條才成功 Orz (都有剁手指的衝動惹) 應該是因為命盤中破軍坐打字宮(咦?)的關係，打錯字是躲不過的宿命，寫文章總是滿篇錯字也源於此。(謎：不要瞎掰好嗎？)</p> <p>為了避免有一天真的氣到剁手，我想寫個讓我選取文字後模擬打字輸入的手指保護程式。花點心思應該可以找到現成的軟體或工具，但我想用最具可攜性的 PowerShell 自己寫(<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oTUWCLsqGHmHgeVCFCW5HhPgmhUQcBZ77Yn8zdytZzAnan5whfBRnWq13V11H1j2l">理由</a>)。</p> <p>廢話不多說，直接上 Code:</p> <pre><code>param (
-[int]$Delay = 5, # delay seconds
-[switch]$Enter, # append ENTER key
-[switch]$Raw, # raw mode, don't escape special characters
-[switch]$Mask, # mask password
-[switch]$Password # mask + append ENTER key
-)
-$ErrorActionPreference = 'Stop'
-$text = Get-Clipboard -TextFormatType Text
-$disp = $text
-$maxLen = 256
-if ($Password) {
-$Mask = $true
-$Enter = $true
-}
-if ($mask -and $disp.Length -gt 2) {
-$disp= $disp.Substring(0,1) + ('*' * $disp.Length) + $disp.Substring($disp.Length - 1)
-}
-if ($disp.Length -gt $maxLen) {
-$disp = $disp.Substring(0, $maxLen) + '...'
-}
-Write-Host "Get Text from Clipboard:"
-Write-Host $disp -ForegroundColor Cyan
-Write-Host
-$waitSecs = $Delay;
-$progressTitle = "Paste Countdown"
-for ($i = $waitSecs; $i -gt 0; $i--) {
-Write-Progress -Activity $progressTitle -Status "$i seconds..." -PercentComplete ($i / $waitSecs * 100)
-Start-Sleep -Seconds 1
-$host.UI.RawUI.CursorPosition.X = 0
-}
-Write-Progress $progressTitle -Completed
-$lines = $text.Split("`n")
-Add-Type -AssemblyName System.Windows.Forms
-for ($i = 0; $i -lt $lines.Length; $i++) {
-$keys = $lines[$i]
-if (-not $Raw) {
-$keys = [regex]::Replace($keys, "[+^%~()\{\}]", { param ($m) return "{" + $m.Value + "}" })
-$keys = $keys.Replace("`r", '')
-$keys = $keys.Replace("`t", "{TAB}")
-}
-[System.Windows.Forms.SendKeys]::SendWait($keys)
-Start-Sleep -Milliseconds 100
-if ($i -lt ($lines.Length - 1) -and !$Raw) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-}
-if ($Enter) {
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-</code></pre> <p>程式用到一個老 API，<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys.sendwait?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580">System.Windows.Forms.SendKeys.SendWait()</a>，傳入要輸入的文字即可(支援中文字元)，特殊按鍵用 <code>{TAB}</code>、<code>{ENTER}</code>、<code>{ESC}</code>、<code>{HOME}</code> ... 等表示(<a href="https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys?view=windowsdesktop-8.0&amp;WT.mc_id=DOP-MVP-37580#remarks">完整指令清單</a>)。</p> <p>使用方法很簡單，先選取複製要輸入內容，執行 <code>Paste-As-KeyStrokes.ps1</code> 程式會等待五秒後模擬鍵盤輸入剪貼簿中的文字，<code>-Delay n</code> 可指定等待 N 秒，<code>-Enter</code> 會在輸完文字後加按 Enter，<code>-Raw</code> 則允許將複製文字視為原始控制指令送給 SendWait()；<code>-Mask</code> 用於密碼，只保留頭尾明碼，其餘換成 * 符號；<code>-Password</code> 等於 <code>-Mask</code> + <code>-Enter</code>，遮蔽字元並在輸入完成後按 Enter。</p> <p>以下是簡單展示，原本不支援剪下貼上的 Debian 遠端桌面，輸入又長又複雜的 30 字元長密碼，完成 nano 建立 test.txt、存檔、顯示內容後刪除的一連串操作(使用 -Raw 以輸入 Ctrl-O、Ctrl-X)，以及展示 Windows RDP 可直接傳入中文字元的功能。</p> <p><a href="https://www.youtube.com/watch?v=WYKpG2cuA6c">操作展示</a></p> <p>工具箱再添好用工具一件。</p> <p data-slug="ps-paste-as-keystrokes" data-title-en="Paste clipboard text as keystrokes with PowerShell" data-catg=".NET" data-fbimg="https://i.imgur.com/2DEQG9k.png#665#374">This is a straightforward PowerShell script designed to paste text content from the clipboard as keystrokes, useful for scenarios that do not support the standard copy-and-paste function.</p>]]></content:encoded>
-    
-    <pubDate>Wed, 29 Nov 2023 15:06:04 GMT</pubDate>
   </item></channel>
 </rss>
