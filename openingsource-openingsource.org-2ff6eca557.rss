@@ -30,6 +30,321 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1042期：《Best-websites-a-programmer-should-visit》]]></title>
+    <link>https://openingsource.org/11342/</link>
+    <itunes:title><![CDATA[开源日报第1042期：《Best-websites-a-programmer-should-visit》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》<br>
+今日推荐英文原文：《Fetch Data in React JS in Modern Way》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x9.png.pagespeed.ic.y1KcRAjFuj.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》传送门：<a href="https://github.com/sdmg15/Best-websites-a-programmer-should-visit" target="_blank">项目链接</a></p>
+<p>非常好的阅读材料，编程导航，内涵很多程序员必备的专业知识，但也不局限于。<br>
+合格的programmer不仅是技术优良，还有很多软技能需要掌握</p>
+<p>仓库的目录：<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x1-1.png.pagespeed.ic.yfqSt1O1I_.png"></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/gitconnected/web-workers-in-react-6c44ba4b344b" target="_blank">Web workers in React</a></p>
+<p>推荐理由：介绍了webWorker的基本使用方法和使用场景，适用于前端mock 假数据快速开发</p>
+<hr>
+<h1>Web workers in React</h1>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*L1c1Th0wknTUkfzJRp1BwA.png"></p>
+<p>Have you ever faced a situation in which you are executing a block of code and it is freezing the UI for a few seconds? If yes then you surely need a solution to handle that block of code in the background.</p>
+<p>In React we have a simple way to do these types of CPU-intensive processes in the background with the help of web workers. First of all what a web worker is?</p>
+<p>A&nbsp;<strong>web worker</strong>&nbsp;is a JavaScript feature that allows you to run scripts in the background, separate from the main thread of your web page. This background execution enables you to perform tasks concurrently without blocking the user interface (UI) or causing it to become unresponsive. Web workers are particularly useful for handling computationally intensive or time-consuming operations without impacting the user’s experience.</p>
+<p>The&nbsp;<strong>use cases</strong>&nbsp;for a web worker are</p>
+<ul>
+<li><strong>Complex Calculations:</strong>&nbsp;Web workers are ideal for performing complex mathematical calculations or data processing tasks without impacting the main thread.</li>
+<li><strong>Large Data Handling:</strong>&nbsp;When dealing with large datasets or files, web workers can help process and parse the data in the background.</li>
+<li><strong>Background Services:</strong>&nbsp;Web workers can be used to run background services such as periodic data synchronization or background notifications.</li>
+</ul>
+<p>So, let’s try to implement a web worker in a React application.</p>
+<p>First, we create a react project, and then we use a service&nbsp;<a href="https://fakerjs.dev/" target="_blank">faker</a>&nbsp;to create 25000 user records.</p>
+<p>import { faker } from '@faker-js/faker'; </p>
+<p>export function fetchUsers() {<br>
+const users = []; </p>
+<pre><code>for (let i = 0; i &lt; 25000; i++) {
+let id = i + 1;
+let name = faker.person.fullName();
+let email = faker.internet.email();
+let joinedOn = faker.date.recent();
+let commentCount = faker.number.int({ min: 0, max: 100 });
+let user = {
+id,
+name,
+email,
+joinedOn,
+commentCount
+};
+users.push(user);
+}
+return Promise.resolve(users);  </code></pre>
+<p>}</p>
+<p>Now, our goal is to sort these records ascending and descending based on “commentCount” by using a web worker.</p>
+<p>So, first, we will create two files “src/app.worker.js” and “src/WebWorker.js”.</p>
+<p>In the “app.worker.js” file we will export an arrow function in which we will add an event listener on the window object(self) to listen to the “message”. This “message” will be triggered from the UI with “users” and “type”(ascending or descending” variables.</p>
+<p>export default () =&gt; {<br>
+self.addEventListener('message', e =&gt; { // eslint-disable-line no-restricted-globals<br>
+if (!e) return;<br>
+let { users, type } = e.data; </p>
+<pre><code>  if(type === "asc") {
+users = users.sort((a, b) =&gt; a.commentCount - b.commentCount);
+} else {
+users = users.sort((a, b) =&gt; b.commentCount - a.commentCount);
+}
+postMessage(users);  </code></pre>
+<p>})<br>
+}</p>
+<p>And we will sort it according to the “type” variable and return it by “postMesssage” method.</p>
+<p>And in the “WebWorker.js” we will export a class.</p>
+<pre><code>constructor(worker) {
+const code = worker.toString();
+const blob = new Blob(['('+code+')()']);
+return new Worker(URL.createObjectURL(blob));
+}  </code></pre>
+<p>}</p>
+<p>It will simply change the worker we defined in “app.worker.js” to an object URL.</p>
+<p>Now, let’s connect this webworker to the UI.</p>
+<p>First, we will import both the “worker” and “WebWorker” from the respective files.</p>
+<p>import worker from './app.worker.js';<br>
+import WebWorker from './WebWorker';</p>
+<p>Then, we will initialize the “WebWorker” with the argument “worker”.</p>
+<p>const webWorker = new WebWorker(worker);</p>
+<p>First, we will work on the ascending logic. So, we will send the “users” and “type” to the worker by the “postMessage” method on this web worker.</p>
+<p>webWorker.postMessage({ users, type: "asc"});</p>
+<p>Then, we will listen to the “message” and get the sorted data from the web worker like this.</p>
+<p>webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>Same logic we will add for the descending function as well.</p>
+<p>webWorker.postMessage({ users, type: "desc"});<br>
+webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>So, now our sorting is working fine. But don't forget to terminate the web worker at the time of component unmounting.</p>
+<p>return () =&gt; {<br>
+webWorker.terminate()<br>
+}</p>
+<p>So, finally, our application will look something like this.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》<br>
+今日推荐英文原文：《Fetch Data in React JS in Modern Way》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x9.png.pagespeed.ic.y1KcRAjFuj.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》传送门：<a href="https://github.com/sdmg15/Best-websites-a-programmer-should-visit" target="_blank">项目链接</a></p>
+<p>非常好的阅读材料，编程导航，内涵很多程序员必备的专业知识，但也不局限于。<br>
+合格的programmer不仅是技术优良，还有很多软技能需要掌握</p>
+<p>仓库的目录：<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x1-1.png.pagespeed.ic.yfqSt1O1I_.png"></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/gitconnected/web-workers-in-react-6c44ba4b344b" target="_blank">Web workers in React</a></p>
+<p>推荐理由：介绍了webWorker的基本使用方法和使用场景，适用于前端mock 假数据快速开发</p>
+<hr>
+<h1>Web workers in React</h1>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*L1c1Th0wknTUkfzJRp1BwA.png"></p>
+<p>Have you ever faced a situation in which you are executing a block of code and it is freezing the UI for a few seconds? If yes then you surely need a solution to handle that block of code in the background.</p>
+<p>In React we have a simple way to do these types of CPU-intensive processes in the background with the help of web workers. First of all what a web worker is?</p>
+<p>A&nbsp;<strong>web worker</strong>&nbsp;is a JavaScript feature that allows you to run scripts in the background, separate from the main thread of your web page. This background execution enables you to perform tasks concurrently without blocking the user interface (UI) or causing it to become unresponsive. Web workers are particularly useful for handling computationally intensive or time-consuming operations without impacting the user’s experience.</p>
+<p>The&nbsp;<strong>use cases</strong>&nbsp;for a web worker are</p>
+<ul>
+<li><strong>Complex Calculations:</strong>&nbsp;Web workers are ideal for performing complex mathematical calculations or data processing tasks without impacting the main thread.</li>
+<li><strong>Large Data Handling:</strong>&nbsp;When dealing with large datasets or files, web workers can help process and parse the data in the background.</li>
+<li><strong>Background Services:</strong>&nbsp;Web workers can be used to run background services such as periodic data synchronization or background notifications.</li>
+</ul>
+<p>So, let’s try to implement a web worker in a React application.</p>
+<p>First, we create a react project, and then we use a service&nbsp;<a href="https://fakerjs.dev/" target="_blank">faker</a>&nbsp;to create 25000 user records.</p>
+<p>import { faker } from '@faker-js/faker'; </p>
+<p>export function fetchUsers() {<br>
+const users = []; </p>
+<pre><code>for (let i = 0; i &lt; 25000; i++) {
+let id = i + 1;
+let name = faker.person.fullName();
+let email = faker.internet.email();
+let joinedOn = faker.date.recent();
+let commentCount = faker.number.int({ min: 0, max: 100 });
+let user = {
+id,
+name,
+email,
+joinedOn,
+commentCount
+};
+users.push(user);
+}
+return Promise.resolve(users);  </code></pre>
+<p>}</p>
+<p>Now, our goal is to sort these records ascending and descending based on “commentCount” by using a web worker.</p>
+<p>So, first, we will create two files “src/app.worker.js” and “src/WebWorker.js”.</p>
+<p>In the “app.worker.js” file we will export an arrow function in which we will add an event listener on the window object(self) to listen to the “message”. This “message” will be triggered from the UI with “users” and “type”(ascending or descending” variables.</p>
+<p>export default () =&gt; {<br>
+self.addEventListener('message', e =&gt; { // eslint-disable-line no-restricted-globals<br>
+if (!e) return;<br>
+let { users, type } = e.data; </p>
+<pre><code>  if(type === "asc") {
+users = users.sort((a, b) =&gt; a.commentCount - b.commentCount);
+} else {
+users = users.sort((a, b) =&gt; b.commentCount - a.commentCount);
+}
+postMessage(users);  </code></pre>
+<p>})<br>
+}</p>
+<p>And we will sort it according to the “type” variable and return it by “postMesssage” method.</p>
+<p>And in the “WebWorker.js” we will export a class.</p>
+<pre><code>constructor(worker) {
+const code = worker.toString();
+const blob = new Blob(['('+code+')()']);
+return new Worker(URL.createObjectURL(blob));
+}  </code></pre>
+<p>}</p>
+<p>It will simply change the worker we defined in “app.worker.js” to an object URL.</p>
+<p>Now, let’s connect this webworker to the UI.</p>
+<p>First, we will import both the “worker” and “WebWorker” from the respective files.</p>
+<p>import worker from './app.worker.js';<br>
+import WebWorker from './WebWorker';</p>
+<p>Then, we will initialize the “WebWorker” with the argument “worker”.</p>
+<p>const webWorker = new WebWorker(worker);</p>
+<p>First, we will work on the ascending logic. So, we will send the “users” and “type” to the worker by the “postMessage” method on this web worker.</p>
+<p>webWorker.postMessage({ users, type: "asc"});</p>
+<p>Then, we will listen to the “message” and get the sorted data from the web worker like this.</p>
+<p>webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>Same logic we will add for the descending function as well.</p>
+<p>webWorker.postMessage({ users, type: "desc"});<br>
+webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>So, now our sorting is working fine. But don't forget to terminate the web worker at the time of component unmounting.</p>
+<p>return () =&gt; {<br>
+webWorker.terminate()<br>
+}</p>
+<p>So, finally, our application will look something like this.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》<br>
+今日推荐英文原文：《Fetch Data in React JS in Modern Way》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x9.png.pagespeed.ic.y1KcRAjFuj.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Best-websites-a-programmer-should-visit》传送门：<a href="https://github.com/sdmg15/Best-websites-a-programmer-should-visit" target="_blank">项目链接</a></p>
+<p>非常好的阅读材料，编程导航，内涵很多程序员必备的专业知识，但也不局限于。<br>
+合格的programmer不仅是技术优良，还有很多软技能需要掌握</p>
+<p>仓库的目录：<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/x1-1.png.pagespeed.ic.yfqSt1O1I_.png"></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/gitconnected/web-workers-in-react-6c44ba4b344b" target="_blank">Web workers in React</a></p>
+<p>推荐理由：介绍了webWorker的基本使用方法和使用场景，适用于前端mock 假数据快速开发</p>
+<hr>
+<h1>Web workers in React</h1>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*L1c1Th0wknTUkfzJRp1BwA.png"></p>
+<p>Have you ever faced a situation in which you are executing a block of code and it is freezing the UI for a few seconds? If yes then you surely need a solution to handle that block of code in the background.</p>
+<p>In React we have a simple way to do these types of CPU-intensive processes in the background with the help of web workers. First of all what a web worker is?</p>
+<p>A&nbsp;<strong>web worker</strong>&nbsp;is a JavaScript feature that allows you to run scripts in the background, separate from the main thread of your web page. This background execution enables you to perform tasks concurrently without blocking the user interface (UI) or causing it to become unresponsive. Web workers are particularly useful for handling computationally intensive or time-consuming operations without impacting the user’s experience.</p>
+<p>The&nbsp;<strong>use cases</strong>&nbsp;for a web worker are</p>
+<ul>
+<li><strong>Complex Calculations:</strong>&nbsp;Web workers are ideal for performing complex mathematical calculations or data processing tasks without impacting the main thread.</li>
+<li><strong>Large Data Handling:</strong>&nbsp;When dealing with large datasets or files, web workers can help process and parse the data in the background.</li>
+<li><strong>Background Services:</strong>&nbsp;Web workers can be used to run background services such as periodic data synchronization or background notifications.</li>
+</ul>
+<p>So, let’s try to implement a web worker in a React application.</p>
+<p>First, we create a react project, and then we use a service&nbsp;<a href="https://fakerjs.dev/" target="_blank">faker</a>&nbsp;to create 25000 user records.</p>
+<p>import { faker } from '@faker-js/faker'; </p>
+<p>export function fetchUsers() {<br>
+const users = []; </p>
+<pre><code>for (let i = 0; i &lt; 25000; i++) {
+let id = i + 1;
+let name = faker.person.fullName();
+let email = faker.internet.email();
+let joinedOn = faker.date.recent();
+let commentCount = faker.number.int({ min: 0, max: 100 });
+let user = {
+id,
+name,
+email,
+joinedOn,
+commentCount
+};
+users.push(user);
+}
+return Promise.resolve(users);  </code></pre>
+<p>}</p>
+<p>Now, our goal is to sort these records ascending and descending based on “commentCount” by using a web worker.</p>
+<p>So, first, we will create two files “src/app.worker.js” and “src/WebWorker.js”.</p>
+<p>In the “app.worker.js” file we will export an arrow function in which we will add an event listener on the window object(self) to listen to the “message”. This “message” will be triggered from the UI with “users” and “type”(ascending or descending” variables.</p>
+<p>export default () =&gt; {<br>
+self.addEventListener('message', e =&gt; { // eslint-disable-line no-restricted-globals<br>
+if (!e) return;<br>
+let { users, type } = e.data; </p>
+<pre><code>  if(type === "asc") {
+users = users.sort((a, b) =&gt; a.commentCount - b.commentCount);
+} else {
+users = users.sort((a, b) =&gt; b.commentCount - a.commentCount);
+}
+postMessage(users);  </code></pre>
+<p>})<br>
+}</p>
+<p>And we will sort it according to the “type” variable and return it by “postMesssage” method.</p>
+<p>And in the “WebWorker.js” we will export a class.</p>
+<pre><code>constructor(worker) {
+const code = worker.toString();
+const blob = new Blob(['('+code+')()']);
+return new Worker(URL.createObjectURL(blob));
+}  </code></pre>
+<p>}</p>
+<p>It will simply change the worker we defined in “app.worker.js” to an object URL.</p>
+<p>Now, let’s connect this webworker to the UI.</p>
+<p>First, we will import both the “worker” and “WebWorker” from the respective files.</p>
+<p>import worker from './app.worker.js';<br>
+import WebWorker from './WebWorker';</p>
+<p>Then, we will initialize the “WebWorker” with the argument “worker”.</p>
+<p>const webWorker = new WebWorker(worker);</p>
+<p>First, we will work on the ascending logic. So, we will send the “users” and “type” to the worker by the “postMessage” method on this web worker.</p>
+<p>webWorker.postMessage({ users, type: "asc"});</p>
+<p>Then, we will listen to the “message” and get the sorted data from the web worker like this.</p>
+<p>webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>Same logic we will add for the descending function as well.</p>
+<p>webWorker.postMessage({ users, type: "desc"});<br>
+webWorker.addEventListener('message', (event) =&gt; {<br>
+const sortedList = event.data; </p>
+<pre><code>        setUsers(sortedList);
+});</code></pre>
+<p>So, now our sorting is working fine. But don't forget to terminate the web worker at the time of component unmounting.</p>
+<p>return () =&gt; {<br>
+webWorker.terminate()<br>
+}</p>
+<p>So, finally, our application will look something like this.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/x9.png.pagespeed.ic.y1KcRAjFuj.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2023/12/x9.png.pagespeed.ic.y1KcRAjFuj.jpg" medium="image"/>
+    <pubDate>Wed, 13 Dec 2023 15:44:01 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1041期：《group your tabs with AI：ai-group-tabs》]]></title>
     <link>https://openingsource.org/11339/</link>
     <itunes:title><![CDATA[开源日报第1041期：《group your tabs with AI：ai-group-tabs》]]></itunes:title>
@@ -2015,89 +2330,5 @@ return (
     <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/1.png"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2023/12/1.png" medium="image"/>
     <pubDate>Wed, 06 Dec 2023 15:37:22 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[GNOME 2023 亚洲峰会开放演讲报名，截止日9月1日]]></title>
-    <link>https://openingsource.org/11227/</link>
-    <itunes:title><![CDATA[GNOME 2023 亚洲峰会开放演讲报名，截止日9月1日]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>根据 GNOME 基金会此前的消息：<a href="https://openingsource.org/11220/">GNOME 2023 亚洲峰会将于12月在尼泊尔加德满都举行</a>，近日该活动已经正式开放接受演讲报名，提交演讲摘要。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2023/07/xGNOME-Aisa-2023-logo.png.pagespeed.ic.fI_0AV0Qpw.png"></p>
-<p>GNOME.Asia 是亚洲地区的年度 GNOME 会议，主要关注 GNOME 桌面、应用程序和平台开发工具。该峰会汇集了亚洲的 GNOME 社区，为用户、开发者、基金会领导人、政府和企业提供了一个讨论当前技术和未来发展的论坛。下面是建议的话题方向，但不限于此：</p>
-<ul>
-<li>如何贡献 GNOME 项目</li>
-<li>用户界面设计</li>
-<li>无障碍</li>
-<li>人机界面工程（图标和图形设计）</li>
-<li>营销/参与</li>
-<li>在嵌入式系统或开放硬件上开发 GNOME</li>
-<li>为 Linux 和 FLOSS 做出贡献</li>
-<li>Linux内核与开发</li>
-<li>开源操作系统的开发和推广</li>
-<li>发行版，包括 Debian、Fedora、openSUSE、Ubuntu 和 FreeBSD</li>
-<li>其他开源项目的开发和推广</li>
-</ul>
-<p>以及其他与自由/自由和开源软件相关的其他主题。每个演讲话题的时间为30或50分钟，含问答环节在内。每一个演讲的形式不限于：技术话题或非技术话题；圆桌讨论；工作坊等,如果需要更多时间或者灵活性，请随时发送电子邮件至 asia@gnome.org 与组织团队联系。</p>
-<p>注意： 今年所有需要 GNOME 基金会旅行赞助的演讲者都应在提交 CfP 的同时进行申请。演讲征集和旅行赞助申请的截止日期为 <strong>9 月 1 日</strong>。</p>
-<p>提交演讲时需要您的演讲的简短摘要（200 字以下）。还包括您的姓名、简历信息、职位和所需的时长。 请将您的提案提交至以下链接： </p>
-<ul>
-<li>提交链接：<a href="https://events.gnome.org/event/170/abstracts/" target="_blank">https://events.gnome.org/event/170/abstracts/</a> </li>
-<li>差旅申请：<a href="https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true" target="_blank">https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-2023/">GNOME.Asia 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit/">GNOME.Asia Summit</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit-2023/">GNOME.Asia Summit 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%8a%a0%e5%be%b7%e6%bb%a1%e9%83%bd/">加德满都</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%b0%bc%e6%b3%8a%e5%b0%94/">尼泊尔</a></span><span><i></i> <a href="https://openingsource.org/tag/%e6%bc%94%e8%ae%b2%e5%be%81%e9%9b%86/">演讲征集</a></span></div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>根据 GNOME 基金会此前的消息：<a href="https://openingsource.org/11220/">GNOME 2023 亚洲峰会将于12月在尼泊尔加德满都举行</a>，近日该活动已经正式开放接受演讲报名，提交演讲摘要。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2023/07/xGNOME-Aisa-2023-logo.png.pagespeed.ic.fI_0AV0Qpw.png"></p>
-<p>GNOME.Asia 是亚洲地区的年度 GNOME 会议，主要关注 GNOME 桌面、应用程序和平台开发工具。该峰会汇集了亚洲的 GNOME 社区，为用户、开发者、基金会领导人、政府和企业提供了一个讨论当前技术和未来发展的论坛。下面是建议的话题方向，但不限于此：</p>
-<ul>
-<li>如何贡献 GNOME 项目</li>
-<li>用户界面设计</li>
-<li>无障碍</li>
-<li>人机界面工程（图标和图形设计）</li>
-<li>营销/参与</li>
-<li>在嵌入式系统或开放硬件上开发 GNOME</li>
-<li>为 Linux 和 FLOSS 做出贡献</li>
-<li>Linux内核与开发</li>
-<li>开源操作系统的开发和推广</li>
-<li>发行版，包括 Debian、Fedora、openSUSE、Ubuntu 和 FreeBSD</li>
-<li>其他开源项目的开发和推广</li>
-</ul>
-<p>以及其他与自由/自由和开源软件相关的其他主题。每个演讲话题的时间为30或50分钟，含问答环节在内。每一个演讲的形式不限于：技术话题或非技术话题；圆桌讨论；工作坊等,如果需要更多时间或者灵活性，请随时发送电子邮件至 asia@gnome.org 与组织团队联系。</p>
-<p>注意： 今年所有需要 GNOME 基金会旅行赞助的演讲者都应在提交 CfP 的同时进行申请。演讲征集和旅行赞助申请的截止日期为 <strong>9 月 1 日</strong>。</p>
-<p>提交演讲时需要您的演讲的简短摘要（200 字以下）。还包括您的姓名、简历信息、职位和所需的时长。 请将您的提案提交至以下链接： </p>
-<ul>
-<li>提交链接：<a href="https://events.gnome.org/event/170/abstracts/" target="_blank">https://events.gnome.org/event/170/abstracts/</a> </li>
-<li>差旅申请：<a href="https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true" target="_blank">https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-2023/">GNOME.Asia 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit/">GNOME.Asia Summit</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit-2023/">GNOME.Asia Summit 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%8a%a0%e5%be%b7%e6%bb%a1%e9%83%bd/">加德满都</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%b0%bc%e6%b3%8a%e5%b0%94/">尼泊尔</a></span><span><i></i> <a href="https://openingsource.org/tag/%e6%bc%94%e8%ae%b2%e5%be%81%e9%9b%86/">演讲征集</a></span></div>]]>
-    </description>
-    <content:encoded><![CDATA[<p>根据 GNOME 基金会此前的消息：<a href="https://openingsource.org/11220/">GNOME 2023 亚洲峰会将于12月在尼泊尔加德满都举行</a>，近日该活动已经正式开放接受演讲报名，提交演讲摘要。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2023/07/xGNOME-Aisa-2023-logo.png.pagespeed.ic.fI_0AV0Qpw.png"></p>
-<p>GNOME.Asia 是亚洲地区的年度 GNOME 会议，主要关注 GNOME 桌面、应用程序和平台开发工具。该峰会汇集了亚洲的 GNOME 社区，为用户、开发者、基金会领导人、政府和企业提供了一个讨论当前技术和未来发展的论坛。下面是建议的话题方向，但不限于此：</p>
-<ul>
-<li>如何贡献 GNOME 项目</li>
-<li>用户界面设计</li>
-<li>无障碍</li>
-<li>人机界面工程（图标和图形设计）</li>
-<li>营销/参与</li>
-<li>在嵌入式系统或开放硬件上开发 GNOME</li>
-<li>为 Linux 和 FLOSS 做出贡献</li>
-<li>Linux内核与开发</li>
-<li>开源操作系统的开发和推广</li>
-<li>发行版，包括 Debian、Fedora、openSUSE、Ubuntu 和 FreeBSD</li>
-<li>其他开源项目的开发和推广</li>
-</ul>
-<p>以及其他与自由/自由和开源软件相关的其他主题。每个演讲话题的时间为30或50分钟，含问答环节在内。每一个演讲的形式不限于：技术话题或非技术话题；圆桌讨论；工作坊等,如果需要更多时间或者灵活性，请随时发送电子邮件至 asia@gnome.org 与组织团队联系。</p>
-<p>注意： 今年所有需要 GNOME 基金会旅行赞助的演讲者都应在提交 CfP 的同时进行申请。演讲征集和旅行赞助申请的截止日期为 <strong>9 月 1 日</strong>。</p>
-<p>提交演讲时需要您的演讲的简短摘要（200 字以下）。还包括您的姓名、简历信息、职位和所需的时长。 请将您的提案提交至以下链接： </p>
-<ul>
-<li>提交链接：<a href="https://events.gnome.org/event/170/abstracts/" target="_blank">https://events.gnome.org/event/170/abstracts/</a> </li>
-<li>差旅申请：<a href="https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true" target="_blank">https://gitlab.gnome.org/Teams/TravelCommittee/-/issues/new?issue%5Bconfidential%5D=true</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-2023/">GNOME.Asia 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit/">GNOME.Asia Summit</a></span><span><i></i> <a href="https://openingsource.org/tag/gnome-asia-summit-2023/">GNOME.Asia Summit 2023</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%8a%a0%e5%be%b7%e6%bb%a1%e9%83%bd/">加德满都</a></span><span><i></i> <a href="https://openingsource.org/tag/%e5%b0%bc%e6%b3%8a%e5%b0%94/">尼泊尔</a></span><span><i></i> <a href="https://openingsource.org/tag/%e6%bc%94%e8%ae%b2%e5%be%81%e9%9b%86/">演讲征集</a></span></div>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/07/xGNOME-Aisa-2023-logo.png.pagespeed.ic.fI_0AV0Qpw.png"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2023/07/xGNOME-Aisa-2023-logo.png.pagespeed.ic.fI_0AV0Qpw.png" medium="image"/>
-    <pubDate>Thu, 03 Aug 2023 13:36:11 +0000</pubDate>
   </item></channel>
 </rss>
