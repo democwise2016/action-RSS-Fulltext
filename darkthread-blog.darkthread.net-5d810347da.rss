@@ -30,6 +30,89 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 8 之路 - System.Data.SqlClient 轉移 Microsoft.Data.SqlClient 經驗一則]]></title>
+    <link>https://blog.darkthread.net/blog/system-date-sqlclient-migrate-mds/</link>
+    <itunes:title><![CDATA[.NET 8 之路 - System.Data.SqlClient 轉移 Microsoft.Data.SqlClient 經驗一則]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天踩到 <a href="/blog/net8-issue-sqlguidcaster/">System.Data.SqlClient 與 .NET 8 不相容</a>的雷，無奈 System.Data.SqlClient 停更已成事實，要繼續往前走，儘早改用 Microsoft.Data.SqlClient 是上策。</p>
+<p>咬牙把某個專案的 System.Data.SqlClient 換成 Microsoft.Data.SqlClient，過程還算平和沒動怒 XD，修改處不多，沒遇到刁鑽問題。(轉換順利多少跟專案是用 <a href="/blog/dapper/">Dapper</a> 有關，Dapper 封裝了 SqlCommand、SqlParamater、SqlReader 底層操作，而專案也只用到常見的 CRUD 操作)</p>
+<p>這篇整理這次轉移涉及的修改，提供有類似需求的同學參考。</p>
+<ol>
+<li>第一步，專案要參照 Microsoft.Data.SqlClient (以下簡稱 MDS)，MDS 5.1 在 .NET 8 用到 Guid 欄位會遇到 <a href="/blog/net8-issue-sqlguidcaster/">SqlGuidCaster 無法載入錯誤</a>，現階段可 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 MDS 5.2.0-preview 解決。</li>
+<li>Dapper 在 2.0.4 版移除 System.Data.SqlClient 依賴，同時支援 System.Data.SqlClient 及 MDS <a href="https://dapperlib.github.io/Dapper/">參考</a>，故 Dapper 要升級到 2.0.4 以上。</li>
+<li>SqlConnection、SqlCommand、SqlReader、SqlParameter... 等常用型別在 MDS 名稱沒變，故將 <code>using System.Data.SqlClient;</code> 換成 <code>using Microsoft.Data.SqlClient;</code> 即可改用 MDS，幸運的話只改這行就完成切換。</li>
+<li>MDS 不再提供 IDbConnection、IDbTransaction 介面，基本上改用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbconnection?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbConnection</a>、<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbtransaction?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbTransaction</a> 即可。註：IDb* 介面隸屬 System.Data，Db* 抽象類別隸屬 System.Data.Common，故記得要 <code>using System.Data.Common;</code>。</li>
+<li>MDS 預設會啟用加密通訊，新版 SQL 大多已支援 TLS 加密，但多半是用自簽憑證，常會遇到 <code>A connection was successfully established with the server, but then an error occured during the login process. (provider: SSL Provider, error: 0 - The certificate chain was issued by an authority that is not trusted. / 此憑證鏈結是由不受信任的授權單位發出的)</code> 錯誤(<a href="/blog/view-sql-encrypt-certificate/">參考</a>。我不想為了換 MDS 而修改連線字串，就加了一小段邏輯向前相容。
+<pre><code>void SetConnectionString(string cnStr)
+{
+var scsb = new SqlConnectionStringBuilder(cnStr);
+// 若連線字串未指定 TrustServerCertificate，設為 true
+if (!cnStr.Contains("TrustServerCertificate", StringComparison.CurrentCultureIgnoreCase))
+{
+scsb.TrustServerCertificate = true;
+}
+_cnStr = scsb.ConnectionString;
+}
+</code></pre>
+</li>
+</ol>
+<p>就醬，經過一陣翻修，將 System.Data.SqlClient 換成 Microsoft.Data.SqlClinet，.NET 6 專案終於成功升級成 .NET 8 囉~ (轉圈灑花)</p>
+<p data-slug="system-date-sqlclient-migrate-mds" data-title-en="Notes for migrating System.Data.SqlClient to Microsoft.Data.SqlClient" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720" "="">My notes about migrating System.Data.SqlClient to Microsoft.Data.SqlClient.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天踩到 <a href="/blog/net8-issue-sqlguidcaster/">System.Data.SqlClient 與 .NET 8 不相容</a>的雷，無奈 System.Data.SqlClient 停更已成事實，要繼續往前走，儘早改用 Microsoft.Data.SqlClient 是上策。</p>
+<p>咬牙把某個專案的 System.Data.SqlClient 換成 Microsoft.Data.SqlClient，過程還算平和沒動怒 XD，修改處不多，沒遇到刁鑽問題。(轉換順利多少跟專案是用 <a href="/blog/dapper/">Dapper</a> 有關，Dapper 封裝了 SqlCommand、SqlParamater、SqlReader 底層操作，而專案也只用到常見的 CRUD 操作)</p>
+<p>這篇整理這次轉移涉及的修改，提供有類似需求的同學參考。</p>
+<ol>
+<li>第一步，專案要參照 Microsoft.Data.SqlClient (以下簡稱 MDS)，MDS 5.1 在 .NET 8 用到 Guid 欄位會遇到 <a href="/blog/net8-issue-sqlguidcaster/">SqlGuidCaster 無法載入錯誤</a>，現階段可 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 MDS 5.2.0-preview 解決。</li>
+<li>Dapper 在 2.0.4 版移除 System.Data.SqlClient 依賴，同時支援 System.Data.SqlClient 及 MDS <a href="https://dapperlib.github.io/Dapper/">參考</a>，故 Dapper 要升級到 2.0.4 以上。</li>
+<li>SqlConnection、SqlCommand、SqlReader、SqlParameter... 等常用型別在 MDS 名稱沒變，故將 <code>using System.Data.SqlClient;</code> 換成 <code>using Microsoft.Data.SqlClient;</code> 即可改用 MDS，幸運的話只改這行就完成切換。</li>
+<li>MDS 不再提供 IDbConnection、IDbTransaction 介面，基本上改用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbconnection?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbConnection</a>、<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbtransaction?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbTransaction</a> 即可。註：IDb* 介面隸屬 System.Data，Db* 抽象類別隸屬 System.Data.Common，故記得要 <code>using System.Data.Common;</code>。</li>
+<li>MDS 預設會啟用加密通訊，新版 SQL 大多已支援 TLS 加密，但多半是用自簽憑證，常會遇到 <code>A connection was successfully established with the server, but then an error occured during the login process. (provider: SSL Provider, error: 0 - The certificate chain was issued by an authority that is not trusted. / 此憑證鏈結是由不受信任的授權單位發出的)</code> 錯誤(<a href="/blog/view-sql-encrypt-certificate/">參考</a>。我不想為了換 MDS 而修改連線字串，就加了一小段邏輯向前相容。
+<pre><code>void SetConnectionString(string cnStr)
+{
+var scsb = new SqlConnectionStringBuilder(cnStr);
+// 若連線字串未指定 TrustServerCertificate，設為 true
+if (!cnStr.Contains("TrustServerCertificate", StringComparison.CurrentCultureIgnoreCase))
+{
+scsb.TrustServerCertificate = true;
+}
+_cnStr = scsb.ConnectionString;
+}
+</code></pre>
+</li>
+</ol>
+<p>就醬，經過一陣翻修，將 System.Data.SqlClient 換成 Microsoft.Data.SqlClinet，.NET 6 專案終於成功升級成 .NET 8 囉~ (轉圈灑花)</p>
+<p data-slug="system-date-sqlclient-migrate-mds" data-title-en="Notes for migrating System.Data.SqlClient to Microsoft.Data.SqlClient" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720" "="">My notes about migrating System.Data.SqlClient to Microsoft.Data.SqlClient.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天踩到 <a href="/blog/net8-issue-sqlguidcaster/">System.Data.SqlClient 與 .NET 8 不相容</a>的雷，無奈 System.Data.SqlClient 停更已成事實，要繼續往前走，儘早改用 Microsoft.Data.SqlClient 是上策。</p>
+<p>咬牙把某個專案的 System.Data.SqlClient 換成 Microsoft.Data.SqlClient，過程還算平和沒動怒 XD，修改處不多，沒遇到刁鑽問題。(轉換順利多少跟專案是用 <a href="/blog/dapper/">Dapper</a> 有關，Dapper 封裝了 SqlCommand、SqlParamater、SqlReader 底層操作，而專案也只用到常見的 CRUD 操作)</p>
+<p>這篇整理這次轉移涉及的修改，提供有類似需求的同學參考。</p>
+<ol>
+<li>第一步，專案要參照 Microsoft.Data.SqlClient (以下簡稱 MDS)，MDS 5.1 在 .NET 8 用到 Guid 欄位會遇到 <a href="/blog/net8-issue-sqlguidcaster/">SqlGuidCaster 無法載入錯誤</a>，現階段可 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 MDS 5.2.0-preview 解決。</li>
+<li>Dapper 在 2.0.4 版移除 System.Data.SqlClient 依賴，同時支援 System.Data.SqlClient 及 MDS <a href="https://dapperlib.github.io/Dapper/">參考</a>，故 Dapper 要升級到 2.0.4 以上。</li>
+<li>SqlConnection、SqlCommand、SqlReader、SqlParameter... 等常用型別在 MDS 名稱沒變，故將 <code>using System.Data.SqlClient;</code> 換成 <code>using Microsoft.Data.SqlClient;</code> 即可改用 MDS，幸運的話只改這行就完成切換。</li>
+<li>MDS 不再提供 IDbConnection、IDbTransaction 介面，基本上改用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbconnection?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbConnection</a>、<a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.data.common.dbtransaction?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">DbTransaction</a> 即可。註：IDb* 介面隸屬 System.Data，Db* 抽象類別隸屬 System.Data.Common，故記得要 <code>using System.Data.Common;</code>。</li>
+<li>MDS 預設會啟用加密通訊，新版 SQL 大多已支援 TLS 加密，但多半是用自簽憑證，常會遇到 <code>A connection was successfully established with the server, but then an error occured during the login process. (provider: SSL Provider, error: 0 - The certificate chain was issued by an authority that is not trusted. / 此憑證鏈結是由不受信任的授權單位發出的)</code> 錯誤(<a href="/blog/view-sql-encrypt-certificate/">參考</a>。我不想為了換 MDS 而修改連線字串，就加了一小段邏輯向前相容。
+<pre><code>void SetConnectionString(string cnStr)
+{
+var scsb = new SqlConnectionStringBuilder(cnStr);
+// 若連線字串未指定 TrustServerCertificate，設為 true
+if (!cnStr.Contains("TrustServerCertificate", StringComparison.CurrentCultureIgnoreCase))
+{
+scsb.TrustServerCertificate = true;
+}
+_cnStr = scsb.ConnectionString;
+}
+</code></pre>
+</li>
+</ol>
+<p>就醬，經過一陣翻修，將 System.Data.SqlClient 換成 Microsoft.Data.SqlClinet，.NET 6 專案終於成功升級成 .NET 8 囉~ (轉圈灑花)</p>
+<p data-slug="system-date-sqlclient-migrate-mds" data-title-en="Notes for migrating System.Data.SqlClient to Microsoft.Data.SqlClient" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720" "="">My notes about migrating System.Data.SqlClient to Microsoft.Data.SqlClient.</p>]]></content:encoded>
+    
+    <pubDate>Fri, 15 Dec 2023 14:58:25 GMT</pubDate>
+  </item><item>
     <title><![CDATA[無密碼登入時代 - WebAuthn 與 Passkey]]></title>
     <link>https://blog.darkthread.net/blog/webauthn-n-passkey-intro/</link>
     <itunes:title><![CDATA[無密碼登入時代 - WebAuthn 與 Passkey]]></itunes:title>
@@ -1759,89 +1842,5 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png" medium="image"/>
     <pubDate>Mon, 04 Dec 2023 12:57:47 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></title>
-    <link>https://blog.darkthread.net/blog/dev-tty/</link>
-    <itunes:title><![CDATA[StandardOutput/StandardError 抓不到的輸出訊息]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "gpg.exe"
-$p.StartInfo.Arguments = "--full-gen-key"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.WaitForExit()
-</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-int main() {
-printf("This is a message to stdout
-");
-fprintf(stderr, "This is a message to stderr
-");
-// FILE* fout = fopen("/dev/tty", "w"); for Linux
-FILE* fout = fopen("con:", "w");
-fprintf(fout, "This is a message to /dev/tty
-");
-fclose(fout);
-return EXIT_SUCCESS;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "gpg.exe"
-$p.StartInfo.Arguments = "--full-gen-key"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.WaitForExit()
-</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-int main() {
-printf("This is a message to stdout
-");
-fprintf(stderr, "This is a message to stderr
-");
-// FILE* fout = fopen("/dev/tty", "w"); for Linux
-FILE* fout = fopen("con:", "w");
-fprintf(fout, "This is a message to /dev/tty
-");
-fclose(fout);
-return EXIT_SUCCESS;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>用 C#/PowerShell 呼叫 .exe 程式，透過 StandardOuput、StandardError 讀取程式輸出算是 .NET 基本技巧 (參考：<a href="/blog/stdout-stderr/">命令列工具的 stdout, stderr 輸出與 .NET 整合應用</a>)，理論上要整合各式 CLI 程式都不成問題。今天踢到一塊鐵板，才知自己見識淺薄。</p> <p>我想用 PowerShell 呼叫 <code>gpg --full-gen-key</code> 簡化金鑰產生作業，有段程式寫法如下：</p> <pre><code>$p = New-Object System.Diagnostics.Process
-$p.StartInfo.FileName = "gpg.exe"
-$p.StartInfo.Arguments = "--full-gen-key"
-$p.StartInfo.UseShellExecute = $false
-$p.StartInfo.RedirectStandardOutput = $true
-$p.StartInfo.RedirectStandardInput = $true
-$p.StartInfo.RedirectStandardError = $true
-$p.Start() | Out-Null
-$p.WaitForExit()
-</code></pre> <p>既已設定 RedirectStandardOutput、RedirectStandardError，理論上不管正常或錯誤輸出應都被導向至 StreamReader 等我讀取，殊不知 gpg 還是能列出金鑰型別選項，登楞!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"></p> <p>用 CMD 導向指令 <code>gpg --full-gen-key &gt;msg.txt 2&gt;&amp;1</code> 也能印證這點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638371664001890888.png"></p> <p>爬文查到有人問過<a href="https://unix.stackexchange.com/q/372349/579365">類似問題</a>，由<a href="https://unix.stackexchange.com/a/372358/579365">網友回覆</a>學到新東西，除了 stdout, stderr 外，還有一個終端機傳輸通道 - <code>/dev/tty</code> (相當於 Windows 世界 CON:)，這塊不支援導向處理。</p> <p>寫一小段 C 來驗證：(參考：<a href="/blog/vscode-cpp-cli-setup/">Windows VSCode C/C++ 開發環境安裝指令懶人包</a>)</p> <pre><code>#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-int main() {
-printf("This is a message to stdout
-");
-fprintf(stderr, "This is a message to stderr
-");
-// FILE* fout = fopen("/dev/tty", "w"); for Linux
-FILE* fout = fopen("con:", "w");
-fprintf(fout, "This is a message to /dev/tty
-");
-fclose(fout);
-return EXIT_SUCCESS;
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638371664003748211.png"></p> <p>在 Linux 端驗證，結果相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638371664005741274.png"></p> <p>爬文跟問 ChatGPT 的結論是 /dev/tty 無法被導向，可能要搞個終端機模擬環境去攔截，工程大了點，決定繞道。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638371664007655023.png"></p> <p data-slug="dev-tty" data-title-en="The /dev/tty (CON:) output" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260#1260#750">This ariticle introduce the concept of /dev/tty and why it cannot be redirected.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638371663999954610.png" medium="image"/>
-    <pubDate>Sun, 03 Dec 2023 02:13:15 GMT</pubDate>
   </item></channel>
 </rss>
