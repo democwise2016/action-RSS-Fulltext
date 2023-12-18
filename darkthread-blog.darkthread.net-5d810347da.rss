@@ -30,6 +30,312 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[再談 .NET CSV 解析 - CsvHelper 與其他 38 種程式庫選擇]]></title>
+    <link>https://blog.darkthread.net/blog/csvhelper/</link>
+    <itunes:title><![CDATA[再談 .NET CSV 解析 - CsvHelper 與其他 38 種程式庫選擇]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>講到 .NET 解析 CSV，我習慣用 <a href="/blog/servicestack-text-csvserializer/">ServiceStack.Text CsvSerializer</a> 處理，功能與效能都沒啥問題，也就一直沿用至今。今天在 FB 看到<a href="https://www.facebook.com/groups/DotNetUserGroupTaiwan/posts/3288453408114421/">相關討論</a>，發現有個我錯過的 CSV 程式庫 - <a href="https://joshclose.github.io/CsvHelper/">CsvHelper</a> (感謝網友許智涵分享)，保哥之前寫過文章分享(參考：<a href="https://blog.miniasp.com/post/2022/11/12/Parsing-Taipei-Gov-OpenData-Taiwan-Holiday-using-CsvHelper">使用 C# 與 CsvHelper 套件解析《臺北市政府行政機關辦公日曆表》公開資料 </a>)，甚至當年 <a href="https://www.facebook.com/darkthread.net/posts/1194946433966878">FB 貼文</a>讀者 Tomex Ou 也曾推薦，不過機緣未到沒進我的工具箱。程式開發就是這樣，找到順手的程式庫一直用不必多想是好事，風險是會錯過其他更方便快速的選擇，挑選工具多少也靠緣分，感覺是該重新評估了，於是有了這篇。</p> <p>關於 .NET CSV 解析工具，我查到一篇能讓選擇障礙患者一秒發病的好文章 - <a href="https://www.joelverhagen.com/blog/2020/12/fastest-net-csv-parsers">The fastest CSV parser in .NET</a>，作者 Joel Verhagen 是微軟 NuGet 開發人員，文章蒐集了 39 種 CSV 解析程式庫 (39 種!!! 這是要逼死誰？)，進行一百萬筆 CSV 大檔解析效能測試。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385044718378356.png"></p> <p>在這個測試中，具備平行處理能力的 RecordParser 以 0.826s 奪冠，CsvHelper 以 2.484 秒排第七， ServiceStack.Text 則為 4.139s 排名 18，CsvHelper 效能明顯勝過 ServiceStack.Text。</p> <p>要留意該測試不包含欄位雙引號、欄位內含逗號或換行，並有大量重複欄位值(對實作 String Pooling 的程式庫有利)，同時也不考慮記憶體耗用，強型別映對能力等，故此測試結果挺極端，可能與一般實務應用需求有所出入。</p> <p>但作者有聲明，如果你只是需要一款功能完整的 CSV 程式庫，不在意幾 ms 的速度差異，那麼西瓜偎大邊，選最受歡迎的 CsvHelper 就對了，被廣泛使用且歷經各種情境考驗仍能存活，品質與方便性必然不差，並有範例與參考資料豐富的優點。</p> <p>NuGet 下載量 CsvHelper 190.9M vs ServiceStack.Text 46.8M。</p> <p>CsvHelper，就決定是你了!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638385047607094978.png" alt="thumbnail"></p> <p>CsvHelper <a href="https://joshclose.github.io/CsvHelper/getting-started/">說明文件</a>及<a href="https://joshclose.github.io/CsvHelper/examples/">範例</a>完整，不用擔心不會用，我打算將 ServiceStack.Text 範例改寫成 CsvHelper 版，檢測完自己最常用的情境就結束這回合。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Dynamic;
+using CsvHelper;
+using System.Globalization;
+namespace CsvTest
+{
+class Program
+{
+public class Entity
+{
+public int Num { get; set; }
+public DateTime Date { get; set; }
+public string Text { get; set; }
+public bool Flag { get; set; }
+public Entity(int num, DateTime date, string text, bool flag)
+{
+Num = num;
+Date = date;
+Text = text;
+Flag = flag;
+}
+public Entity() { } // CsvHelper需要無參數建構式
+}
+static Entity[] TestData = new Entity[]
+{
+new Entity(1, new DateTime(2012,12,21), "Normal", true),
+new Entity(16, new DateTime(2012,12,21), "Taipei, Taiwan", true),
+new Entity(32, new DateTime(2012,12,21), $@"""雙引號""跟,都來一下
+換行當然不可少
+", false)
+};
+static void Main(string[] args)
+{
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Directory.CreateDirectory("output");
+ObjArrayToCsv();
+CsvToObjArray();
+ParseAsStrArray();
+}
+//物件陣列轉成 CSV
+static void ObjArrayToCsv()
+{
+using (var sw = new StreamWriter("output\\Test1.csv", false, Encoding.UTF8))
+{
+using (var csv = new CsvWriter(sw, CultureInfo.InvariantCulture))
+{
+csv.WriteRecords(TestData);
+}
+}
+}
+// CSV 還原成物件陣列
+static void CsvToObjArray()
+{
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+var data = csv.GetRecords&lt;Entity&gt;().ToList();
+Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(data,
+new System.Text.Json.JsonSerializerOptions {
+WriteIndented = true,
+Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+}));
+Console.WriteLine();
+}
+// 不使用強型別，解析成 string 陣列
+static void ParseAsStrArray()
+{
+string[] propNames = null;
+List&lt;string[]&gt; rows = new List&lt;string[]&gt;();
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+while (csv.Read())
+{
+string[] strArray = Enumerable.Range(0, csv.Parser.Count)
+.Select(i =&gt; csv.GetField(i)).ToArray();
+if (propNames == null)
+propNames = strArray;
+else
+rows.Add(strArray);
+}
+Console.WriteLine($"PropNames={string.Join(",", propNames)}");
+for (int r = 0; r &lt; rows.Count; r++)
+{
+var cells = rows[r];
+for (int c = 0; c &lt; cells.Length; c++)
+{
+Console.WriteLine($"[{r},{c}]={cells[c]}");
+}
+}
+Console.WriteLine();
+}
+}
+}
+</code></pre> <p>輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638385044727508432.png"></p> <p data-slug="csvhelper" data-title-en="CsvHelper" data-catg=".NET" data-fbimg="https://i.imgur.com/8Eq18k6.png#500#266">My reason for changing CSV library from ServiceStack.Text to CsvHelper.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>講到 .NET 解析 CSV，我習慣用 <a href="/blog/servicestack-text-csvserializer/">ServiceStack.Text CsvSerializer</a> 處理，功能與效能都沒啥問題，也就一直沿用至今。今天在 FB 看到<a href="https://www.facebook.com/groups/DotNetUserGroupTaiwan/posts/3288453408114421/">相關討論</a>，發現有個我錯過的 CSV 程式庫 - <a href="https://joshclose.github.io/CsvHelper/">CsvHelper</a> (感謝網友許智涵分享)，保哥之前寫過文章分享(參考：<a href="https://blog.miniasp.com/post/2022/11/12/Parsing-Taipei-Gov-OpenData-Taiwan-Holiday-using-CsvHelper">使用 C# 與 CsvHelper 套件解析《臺北市政府行政機關辦公日曆表》公開資料 </a>)，甚至當年 <a href="https://www.facebook.com/darkthread.net/posts/1194946433966878">FB 貼文</a>讀者 Tomex Ou 也曾推薦，不過機緣未到沒進我的工具箱。程式開發就是這樣，找到順手的程式庫一直用不必多想是好事，風險是會錯過其他更方便快速的選擇，挑選工具多少也靠緣分，感覺是該重新評估了，於是有了這篇。</p> <p>關於 .NET CSV 解析工具，我查到一篇能讓選擇障礙患者一秒發病的好文章 - <a href="https://www.joelverhagen.com/blog/2020/12/fastest-net-csv-parsers">The fastest CSV parser in .NET</a>，作者 Joel Verhagen 是微軟 NuGet 開發人員，文章蒐集了 39 種 CSV 解析程式庫 (39 種!!! 這是要逼死誰？)，進行一百萬筆 CSV 大檔解析效能測試。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385044718378356.png"></p> <p>在這個測試中，具備平行處理能力的 RecordParser 以 0.826s 奪冠，CsvHelper 以 2.484 秒排第七， ServiceStack.Text 則為 4.139s 排名 18，CsvHelper 效能明顯勝過 ServiceStack.Text。</p> <p>要留意該測試不包含欄位雙引號、欄位內含逗號或換行，並有大量重複欄位值(對實作 String Pooling 的程式庫有利)，同時也不考慮記憶體耗用，強型別映對能力等，故此測試結果挺極端，可能與一般實務應用需求有所出入。</p> <p>但作者有聲明，如果你只是需要一款功能完整的 CSV 程式庫，不在意幾 ms 的速度差異，那麼西瓜偎大邊，選最受歡迎的 CsvHelper 就對了，被廣泛使用且歷經各種情境考驗仍能存活，品質與方便性必然不差，並有範例與參考資料豐富的優點。</p> <p>NuGet 下載量 CsvHelper 190.9M vs ServiceStack.Text 46.8M。</p> <p>CsvHelper，就決定是你了!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638385047607094978.png" alt="thumbnail"></p> <p>CsvHelper <a href="https://joshclose.github.io/CsvHelper/getting-started/">說明文件</a>及<a href="https://joshclose.github.io/CsvHelper/examples/">範例</a>完整，不用擔心不會用，我打算將 ServiceStack.Text 範例改寫成 CsvHelper 版，檢測完自己最常用的情境就結束這回合。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Dynamic;
+using CsvHelper;
+using System.Globalization;
+namespace CsvTest
+{
+class Program
+{
+public class Entity
+{
+public int Num { get; set; }
+public DateTime Date { get; set; }
+public string Text { get; set; }
+public bool Flag { get; set; }
+public Entity(int num, DateTime date, string text, bool flag)
+{
+Num = num;
+Date = date;
+Text = text;
+Flag = flag;
+}
+public Entity() { } // CsvHelper需要無參數建構式
+}
+static Entity[] TestData = new Entity[]
+{
+new Entity(1, new DateTime(2012,12,21), "Normal", true),
+new Entity(16, new DateTime(2012,12,21), "Taipei, Taiwan", true),
+new Entity(32, new DateTime(2012,12,21), $@"""雙引號""跟,都來一下
+換行當然不可少
+", false)
+};
+static void Main(string[] args)
+{
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Directory.CreateDirectory("output");
+ObjArrayToCsv();
+CsvToObjArray();
+ParseAsStrArray();
+}
+//物件陣列轉成 CSV
+static void ObjArrayToCsv()
+{
+using (var sw = new StreamWriter("output\\Test1.csv", false, Encoding.UTF8))
+{
+using (var csv = new CsvWriter(sw, CultureInfo.InvariantCulture))
+{
+csv.WriteRecords(TestData);
+}
+}
+}
+// CSV 還原成物件陣列
+static void CsvToObjArray()
+{
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+var data = csv.GetRecords&lt;Entity&gt;().ToList();
+Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(data,
+new System.Text.Json.JsonSerializerOptions {
+WriteIndented = true,
+Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+}));
+Console.WriteLine();
+}
+// 不使用強型別，解析成 string 陣列
+static void ParseAsStrArray()
+{
+string[] propNames = null;
+List&lt;string[]&gt; rows = new List&lt;string[]&gt;();
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+while (csv.Read())
+{
+string[] strArray = Enumerable.Range(0, csv.Parser.Count)
+.Select(i =&gt; csv.GetField(i)).ToArray();
+if (propNames == null)
+propNames = strArray;
+else
+rows.Add(strArray);
+}
+Console.WriteLine($"PropNames={string.Join(",", propNames)}");
+for (int r = 0; r &lt; rows.Count; r++)
+{
+var cells = rows[r];
+for (int c = 0; c &lt; cells.Length; c++)
+{
+Console.WriteLine($"[{r},{c}]={cells[c]}");
+}
+}
+Console.WriteLine();
+}
+}
+}
+</code></pre> <p>輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638385044727508432.png"></p> <p data-slug="csvhelper" data-title-en="CsvHelper" data-catg=".NET" data-fbimg="https://i.imgur.com/8Eq18k6.png#500#266">My reason for changing CSV library from ServiceStack.Text to CsvHelper.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>講到 .NET 解析 CSV，我習慣用 <a href="/blog/servicestack-text-csvserializer/">ServiceStack.Text CsvSerializer</a> 處理，功能與效能都沒啥問題，也就一直沿用至今。今天在 FB 看到<a href="https://www.facebook.com/groups/DotNetUserGroupTaiwan/posts/3288453408114421/">相關討論</a>，發現有個我錯過的 CSV 程式庫 - <a href="https://joshclose.github.io/CsvHelper/">CsvHelper</a> (感謝網友許智涵分享)，保哥之前寫過文章分享(參考：<a href="https://blog.miniasp.com/post/2022/11/12/Parsing-Taipei-Gov-OpenData-Taiwan-Holiday-using-CsvHelper">使用 C# 與 CsvHelper 套件解析《臺北市政府行政機關辦公日曆表》公開資料 </a>)，甚至當年 <a href="https://www.facebook.com/darkthread.net/posts/1194946433966878">FB 貼文</a>讀者 Tomex Ou 也曾推薦，不過機緣未到沒進我的工具箱。程式開發就是這樣，找到順手的程式庫一直用不必多想是好事，風險是會錯過其他更方便快速的選擇，挑選工具多少也靠緣分，感覺是該重新評估了，於是有了這篇。</p> <p>關於 .NET CSV 解析工具，我查到一篇能讓選擇障礙患者一秒發病的好文章 - <a href="https://www.joelverhagen.com/blog/2020/12/fastest-net-csv-parsers">The fastest CSV parser in .NET</a>，作者 Joel Verhagen 是微軟 NuGet 開發人員，文章蒐集了 39 種 CSV 解析程式庫 (39 種!!! 這是要逼死誰？)，進行一百萬筆 CSV 大檔解析效能測試。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385044718378356.png"></p> <p>在這個測試中，具備平行處理能力的 RecordParser 以 0.826s 奪冠，CsvHelper 以 2.484 秒排第七， ServiceStack.Text 則為 4.139s 排名 18，CsvHelper 效能明顯勝過 ServiceStack.Text。</p> <p>要留意該測試不包含欄位雙引號、欄位內含逗號或換行，並有大量重複欄位值(對實作 String Pooling 的程式庫有利)，同時也不考慮記憶體耗用，強型別映對能力等，故此測試結果挺極端，可能與一般實務應用需求有所出入。</p> <p>但作者有聲明，如果你只是需要一款功能完整的 CSV 程式庫，不在意幾 ms 的速度差異，那麼西瓜偎大邊，選最受歡迎的 CsvHelper 就對了，被廣泛使用且歷經各種情境考驗仍能存活，品質與方便性必然不差，並有範例與參考資料豐富的優點。</p> <p>NuGet 下載量 CsvHelper 190.9M vs ServiceStack.Text 46.8M。</p> <p>CsvHelper，就決定是你了!</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638385047607094978.png" alt="thumbnail"></p> <p>CsvHelper <a href="https://joshclose.github.io/CsvHelper/getting-started/">說明文件</a>及<a href="https://joshclose.github.io/CsvHelper/examples/">範例</a>完整，不用擔心不會用，我打算將 ServiceStack.Text 範例改寫成 CsvHelper 版，檢測完自己最常用的情境就結束這回合。</p> <pre><code>using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Dynamic;
+using CsvHelper;
+using System.Globalization;
+namespace CsvTest
+{
+class Program
+{
+public class Entity
+{
+public int Num { get; set; }
+public DateTime Date { get; set; }
+public string Text { get; set; }
+public bool Flag { get; set; }
+public Entity(int num, DateTime date, string text, bool flag)
+{
+Num = num;
+Date = date;
+Text = text;
+Flag = flag;
+}
+public Entity() { } // CsvHelper需要無參數建構式
+}
+static Entity[] TestData = new Entity[]
+{
+new Entity(1, new DateTime(2012,12,21), "Normal", true),
+new Entity(16, new DateTime(2012,12,21), "Taipei, Taiwan", true),
+new Entity(32, new DateTime(2012,12,21), $@"""雙引號""跟,都來一下
+換行當然不可少
+", false)
+};
+static void Main(string[] args)
+{
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Directory.CreateDirectory("output");
+ObjArrayToCsv();
+CsvToObjArray();
+ParseAsStrArray();
+}
+//物件陣列轉成 CSV
+static void ObjArrayToCsv()
+{
+using (var sw = new StreamWriter("output\\Test1.csv", false, Encoding.UTF8))
+{
+using (var csv = new CsvWriter(sw, CultureInfo.InvariantCulture))
+{
+csv.WriteRecords(TestData);
+}
+}
+}
+// CSV 還原成物件陣列
+static void CsvToObjArray()
+{
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+var data = csv.GetRecords&lt;Entity&gt;().ToList();
+Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(data,
+new System.Text.Json.JsonSerializerOptions {
+WriteIndented = true,
+Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+}));
+Console.WriteLine();
+}
+// 不使用強型別，解析成 string 陣列
+static void ParseAsStrArray()
+{
+string[] propNames = null;
+List&lt;string[]&gt; rows = new List&lt;string[]&gt;();
+using var sr = new StreamReader("output\\Test1.csv", Encoding.UTF8);
+using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
+while (csv.Read())
+{
+string[] strArray = Enumerable.Range(0, csv.Parser.Count)
+.Select(i =&gt; csv.GetField(i)).ToArray();
+if (propNames == null)
+propNames = strArray;
+else
+rows.Add(strArray);
+}
+Console.WriteLine($"PropNames={string.Join(",", propNames)}");
+for (int r = 0; r &lt; rows.Count; r++)
+{
+var cells = rows[r];
+for (int c = 0; c &lt; cells.Length; c++)
+{
+Console.WriteLine($"[{r},{c}]={cells[c]}");
+}
+}
+Console.WriteLine();
+}
+}
+}
+</code></pre> <p>輕鬆秒殺~</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638385044727508432.png"></p> <p data-slug="csvhelper" data-title-en="CsvHelper" data-catg=".NET" data-fbimg="https://i.imgur.com/8Eq18k6.png#500#266">My reason for changing CSV library from ServiceStack.Text to CsvHelper.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638385044718378356.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638385044718378356.png" medium="image"/>
+    <pubDate>Mon, 18 Dec 2023 13:45:05 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 8 之路 - System.Data.SqlClient 轉移 Microsoft.Data.SqlClient 經驗一則]]></title>
     <link>https://blog.darkthread.net/blog/system-date-sqlclient-migrate-mds/</link>
     <itunes:title><![CDATA[.NET 8 之路 - System.Data.SqlClient 轉移 Microsoft.Data.SqlClient 經驗一則]]></itunes:title>
@@ -1602,245 +1908,5 @@ return output.ToArray();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png" medium="image"/>
     <pubDate>Tue, 05 Dec 2023 12:34:40 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></title>
-    <link>https://blog.darkthread.net/blog/enable-mvc-on-minapi/</link>
-    <itunes:title><![CDATA[在 ASP.NET Minimal API 啟用 MVC 功能]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Hello World!");
-</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;title&gt;Home&lt;/title&gt;
-&lt;style&gt;
-iframe {
-height: 40px;
-width: 300px;
-margin-top: 5px;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;form action="/sha1" method="post" target="result"&gt;
-&lt;input name="data" value="Hello, World!" /&gt;
-&lt;button&gt;Calculate SHA1&lt;/button&gt;
-&lt;/form&gt;
-&lt;iframe name="result"&gt;&lt;/iframe&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-// 指定 index.html 為 wwwroot 預設文件
-app.UseDefaultFiles();
-// 啟用 wwwroot 靜態檔資料夾
-app.UseFileServer();
-app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
-.Replace("-", string.Empty);
-ctx.Response.ContentType = "text/html";
-await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
-});
-app.Run();
-</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Mvc;
-namespace min_api_add_mvc.Controllers
-{
-public class CryptoController : Controller
-{
-[HttpPost]
-public IActionResult Sha1(string data)
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(data.ToString())))
-.Replace("-", string.Empty);
-return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
-}
-}
-}
-</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-// 啟用 Controller
-builder.Services.AddControllers();
-var app = builder.Build();
-app.UseDefaultFiles();
-app.UseFileServer();
-// 指定 Controller 路由
-app.MapControllers();
-app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
-&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
-&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
-&lt;/ItemGroup&gt;
-</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
-&lt;pre&gt;@Model&lt;/pre&gt;
-</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Hello World!");
-</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;title&gt;Home&lt;/title&gt;
-&lt;style&gt;
-iframe {
-height: 40px;
-width: 300px;
-margin-top: 5px;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;form action="/sha1" method="post" target="result"&gt;
-&lt;input name="data" value="Hello, World!" /&gt;
-&lt;button&gt;Calculate SHA1&lt;/button&gt;
-&lt;/form&gt;
-&lt;iframe name="result"&gt;&lt;/iframe&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-// 指定 index.html 為 wwwroot 預設文件
-app.UseDefaultFiles();
-// 啟用 wwwroot 靜態檔資料夾
-app.UseFileServer();
-app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
-.Replace("-", string.Empty);
-ctx.Response.ContentType = "text/html";
-await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
-});
-app.Run();
-</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Mvc;
-namespace min_api_add_mvc.Controllers
-{
-public class CryptoController : Controller
-{
-[HttpPost]
-public IActionResult Sha1(string data)
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(data.ToString())))
-.Replace("-", string.Empty);
-return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
-}
-}
-}
-</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-// 啟用 Controller
-builder.Services.AddControllers();
-var app = builder.Build();
-app.UseDefaultFiles();
-app.UseFileServer();
-// 指定 Controller 路由
-app.MapControllers();
-app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
-&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
-&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
-&lt;/ItemGroup&gt;
-</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
-&lt;pre&gt;@Model&lt;/pre&gt;
-</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>近年來，我日常寫 ASP.NET Core 網站的起手式都是先開 <a href="/blog/minimal-api/">Minimal API 專案</a>，功能不太複雜的話，單一 Program.cs 不到 200 行程式把功能寫完，用最少資源搞定，不含半點贅肉，符合我追求的極簡精神。</p> <p>不過，當程式愈寫愈複雜，就得朝向前後端分離，建個 wwwroot 資料夾放 html、css、js 處理 UI 是個好主意；若後端邏輯再複雜一些，伺服端邏輯全擠在 Program.cs 的 MapGet("/...")、MapPost("/...") 太過雜亂，不好讀又難維護，此時我會選擇拆出一到多個 Controller 把相關邏輯集中在一起；若 UI 更複雜一點且前後端邏輯交錯，則導入 Razor View .cshtml 可讓 UI 層簡潔有條理一些。整個發展策略走一個「先用較少資源完成，能動就好，有需要再用架構複雜度換取簡潔及可維護性」的漸進式升級概念。</p> <p>要採用這種漸進式擴充戰術，學會怎麼在 Minimal API 專案新增 wwwroot 靜態檔資料夾、啟用 Controller，乃至於使用 .cshtml View，便成了基本技能。</p> <p>這篇筆記整理為 Minimal API 擴充 MVC 功能的做法，以利日後參考。</p> <p>我用一個簡單 Minimal API 專案示範，逐步擴充 wwwroot、Controller 到 .cshtml View 功能，為避免失焦，各階段以可運作的最小組合為準，整理要啟用各項功能的最小關鍵要素。</p> <h4>初陣</h4> <p>系統建立的空白專案，全部邏輯都集中在 Program.cs，只有三行：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-app.MapGet("/", () =&gt; "Hello World!");
-</code></pre> <h4>wwwroot 與 index.html</h4> <p>我打算用 MapPost("/sha1") 寫個簡單的計算 SHA1 雜湊功能，UI 則放在 index.html。故新增 wwwroot 資料夾放入 index.html：</p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;title&gt;Home&lt;/title&gt;
-&lt;style&gt;
-iframe {
-height: 40px;
-width: 300px;
-margin-top: 5px;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;form action="/sha1" method="post" target="result"&gt;
-&lt;input name="data" value="Hello, World!" /&gt;
-&lt;button&gt;Calculate SHA1&lt;/button&gt;
-&lt;/form&gt;
-&lt;iframe name="result"&gt;&lt;/iframe&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>Program.cs 需 <code>app.UseDefaultFiles();</code>、<code>app.UseFileServer();</code> 以啟用 wwwroot 並將 index.html 設為預設文件 (URL / 結尾自動導向 /index.html)：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-// 指定 index.html 為 wwwroot 預設文件
-app.UseDefaultFiles();
-// 啟用 wwwroot 靜態檔資料夾
-app.UseFileServer();
-app.MapPost("/Sha1", async (HttpContext ctx) =&gt;
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(ctx.Request.Form["data"].ToString())))
-.Replace("-", string.Empty);
-ctx.Response.ContentType = "text/html";
-await ctx.Response.WriteAsync($"&lt;pre&gt;{hash}&lt;/pre&gt;");
-});
-app.Run();
-</code></pre> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/06d330a92c193becb3c1289bb5ea3f1ccc21c5aa?diff=split&amp;w=0">Add wwwroot &amp; index.html Commit</a></p> <h3>啟用 Controller</h3> <p>接著，試著將伺服器端邏輯拆出來，新增 Controllers/CryptoController.cs，將 MapPost("/sha1"...) 邏輯搬過來：</p> <pre><code>using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Mvc;
-namespace min_api_add_mvc.Controllers
-{
-public class CryptoController : Controller
-{
-[HttpPost]
-public IActionResult Sha1(string data)
-{
-var hash = BitConverter.ToString(
-SHA1.Create().ComputeHash(
-Encoding.UTF8.GetBytes(data.ToString())))
-.Replace("-", string.Empty);
-return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");
-}
-}
-}
-</code></pre> <p>Program.cs 則加入 <code>builder.Services.AddControllers()</code> 及 <code>app.MapControllers();</code>、<code>app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");</code>：</p> <pre><code>var builder = WebApplication.CreateBuilder(args);
-// 啟用 Controller
-builder.Services.AddControllers();
-var app = builder.Build();
-app.UseDefaultFiles();
-app.UseFileServer();
-// 指定 Controller 路由
-app.MapControllers();
-app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-</code></pre> <p>index.html Form 送出 URL 由 /sha1 修改為 /crypto/sha1。</p> <p>此階段修改可參考 <a href="https://github.com/darkthread/min-api-add-mvc/commit/ffa1faa9b6358dc1aa154f498365b7feccc4c1aa">Add controller Commit</a>。</p> <h3>啟用 .cshtml View</h3> <p>要啟用 Razor View，修改幅度較大，首先 .csproj 加入參照： (此處以 .NET 8 為例)</p> <pre><code>&lt;ItemGroup&gt;
-&lt;PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.0" /&gt;
-&lt;PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" /&gt;
-&lt;/ItemGroup&gt;
-</code></pre> <p>新增 Views/Shared/_Layout.cshtml、Views/_ViewStart.cshtml 及 Views/Crypto/Sha1.cshtml (Sha1.cshtml 內容如下)。</p> <pre><code>@model string
-&lt;pre&gt;@Model&lt;/pre&gt;
-</code></pre> <p><code>CryptoController.Sha1(string data)</code> 由原本 <code>return Content($"&lt;pre&gt;{hash}&lt;/pre&gt;", "text/html");</code> 改為 <code>return View("Sha1", hash);</code>。</p> <p>Program.cs 的 <code>builder.Services.AddControllers();</code> 改為 <code>builder.Services.AddMvc();</code> 。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"></p> <p>這部分細節有點瑣碎，建議看 <a href="https://github.com/darkthread/min-api-add-mvc/commit/97d92a8f3c028225bd12bed597f80f563b162c42">Enable .csthml views Commit</a> 的修改前後對照，應該就很清楚了。</p> <p>就醬，寫程式也能仿效 <a href="https://www.inside.com.tw/article/22639-minimum-viable-product">MVP (Minimum Viable Product)</a> 精神，先從 Minimal API 專案出發，視需要逐步擴充到 MVC，由簡到繁，只把氣力花在刀口上，讚!</p> <p data-slug="enable-mvc-on-minapi" data-title-en="Enabling MVC features on ASP.NET Minimal API projects" data-catg=".NET" data-fbimg="https://i.imgur.com/9FzvQwk.png#1024#585">Tutorial of how to enable MVC features on ASP.NET Minimal API projects.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638372922661933109.png" medium="image"/>
-    <pubDate>Mon, 04 Dec 2023 12:57:47 GMT</pubDate>
   </item></channel>
 </rss>
