@@ -30,6 +30,390 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[PowerShell 小工具 - 自動補齊離線安裝 NuGet 套件]]></title>
+    <link>https://blog.darkthread.net/blog/ps-nupkg-downloader/</link>
+    <itunes:title><![CDATA[PowerShell 小工具 - 自動補齊離線安裝 NuGet 套件]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在一般情況下，NuGet 套件會在編譯時自動從網路下載安裝，不需我們費心。但現實世界不如想像美好，有時你需要在無法上網的環境編譯專案，簡單解法是開個本地資料夾當成 NuGet 套件來源<a href="/blog/local-nuget-packate-source/">參考</a>，手動下載預先放入 .nupkg 檔以實現離線安裝 NuGet 套件。</p> <p>在 <a href="https://www.nuget.org/packages">NuGet Gallery</a> 每個套件首頁都有個 Download Package，點下去可下載格式如 dapper.2.1.24.nupkg 的套件檔，將其放入本機資料夾即可用於離線安裝。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385933252304747.png"></p> <p>如果你耐心破表，人工比對參照清單或遇到編譯有缺再去查網頁另存 .nupkg，日子其實也能過，但我是現代王藍田哪可能受得了？要我重複做個三次，肯定又會上演氣到摔滑鼠，用腳踩再咬破吐掉的戲碼(喂)。</p> <p>所以，小工具來了，我寫了一支 Download-Nupkg.ps1，有三種用法：</p> <pre><code># 指定套件名稱及版號
+.\Download-Nupkg.ps1 Dapper 2.1.1
+# 指定套件名稱，列舉版號，預設下載最新版
+.\Download-Nupkg.ps1 Newtonsoft.Json
+# 掃瞄 packages.config (.NET Framework) 或 .csproj (.NET 6+) 列出有參照的 NuGet 套件
+# 比對本機資料夾是否已存在該 .nupkg ，若沒有才下載
+.\Download-Nupkg.ps1 "X:\Github\WebApiWithAspNetMvcDemo\src\DemoWeb\packages.config"
+</code></pre> <p><a href="https://www.youtube.com/watch?v=9A3ZX2XI8LQ">操作展示</a></p> <p>附上程式碼，有需要的同學請自取：(註：程式用 <a href="https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource?WT.mc_id=DOP-MVP-37580">NuGet API</a> 查詢套件可用版號及下載 .nupkg 檔)</p> <pre><code>param (
+[Parameter(Mandatory = $true)]
+[string]$pkgNameOrPkgConfig,
+[string]$version,
+[string]$saveFolder = '.'
+)
+Function GenNupkgPath($pkgName, $version) {
+return Join-Path $saveFolder "$pkgName.$version.nupkg"
+}
+Function DownloadNupkg {
+param (
+[Parameter(Mandatory = $true)]
+[string]$packageName, [string]$version
+)
+# https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource
+$lowerId = $packageName.ToLower()
+$url = "https://api.nuget.org/v3-flatcontainer/$lowerId/index.json"
+try {
+$json = (Invoke-WebRequest -Uri $url).Content
+}
+catch {
+Write-Host "Package not found - $packageName" -ForegroundColor Red
+return
+}
+$versions = ($json | ConvertFrom-Json).versions
+$latestVersion = $versions[-1]
+if ([string]::IsNullOrEmpty($version)) {
+$versionList = $versions -join ", "
+Write-Host "Versions: $versionList"
+$selVer = Read-Host "Select (default: $latestVersion)"
+if ([string]::IsNullOrEmpty($selVer)) {
+$selVer = $latestVersion
+}
+$version = $selVer
+}
+# Convert x.x.x.0 to x.x.x
+$verParts = $version.Split('.')
+if ($verParts.Length -eq 4 -and $verParts[-1] -eq '0') {
+$version = $verParts[0..2] -join '.'
+}
+if (!$versions.Contains($version)) {
+Write-Host "Failed to download $packageName $version" -ForegroundColor Red
+return
+}
+else {
+$lowerVersion = $version.ToLower()
+[string]$downloadUrl = "https://api.nuget.org/v3-flatcontainer/$lowerId/$lowerVersion/$lowerId.$lowerVersion.nupkg"
+$path = GenNupkgPath $packageName $version
+try {
+Invoke-WebRequest -Uri $downloadUrl -OutFile $path
+Write-Host "    $path saved" -ForegroundColor Gray
+}
+catch {
+Write-Host "Failed to download $downloadUrl" -ForegroundColor Red
+}
+}
+}
+$pkgList = @()
+if ($pkgNameOrPkgConfig -match '(.config|.csproj)$') {
+try {
+[xml]$xml = Get-Content $pkgNameOrPkgConfig
+if ($xml.Project) {
+$xml.Project.ItemGroup | ForEach-Object {
+$_.PackageReference | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.Include $_.Version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.Include
+Version = $_.Version
+}
+}
+}
+}
+}
+elseif ($xml.packages) {
+$xml.packages.package | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.id $_.version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.id
+Version = $_.version
+}
+}
+}
+}
+else {
+Write-Host "Unknown XML schema" -ForegroundColor Red
+return
+}
+if ($pkgList.Count -gt 0) {
+Write-Host "Missing pakcages found:"
+$idx = 1
+$pkgList | ForEach-Object {
+Write-Host "$idx. $($_.Name) $($_.Version)"
+$idx++
+}
+$confirm = Read-Host "Download? (Y/n)"
+if (![string]::IsNullOrEmpty($confirm) -and $confirm -ine 'y') {
+Write-Host 'Abort'
+return
+}
+}
+}
+catch {
+Write-Host "Failed to load $pkgNameOrPkgConfig - $_" -ForegroundColor Red
+return
+}
+}
+else {
+$pkgList += [PSCustomObject]@{
+Name    = $pkgNameOrPkgConfig
+Version = $version
+}
+}
+$pkgList | ForEach-Object {
+Write-Host "Downloading $($_.Name) $($_.Version)..." -ForegroundColor Yellow
+DownloadNupkg $_.Name $_.Version
+}
+</code></pre> <p data-slug="ps-nupkg-downloader" data-title-en="Downloading .nupkg automatically with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/06/19/21/08/castle-2420839_1280.jpg#1280#880">My PowerShell tool to scan packages.config or .csproj to download .nupkg to local folder for offline install.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在一般情況下，NuGet 套件會在編譯時自動從網路下載安裝，不需我們費心。但現實世界不如想像美好，有時你需要在無法上網的環境編譯專案，簡單解法是開個本地資料夾當成 NuGet 套件來源<a href="/blog/local-nuget-packate-source/">參考</a>，手動下載預先放入 .nupkg 檔以實現離線安裝 NuGet 套件。</p> <p>在 <a href="https://www.nuget.org/packages">NuGet Gallery</a> 每個套件首頁都有個 Download Package，點下去可下載格式如 dapper.2.1.24.nupkg 的套件檔，將其放入本機資料夾即可用於離線安裝。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385933252304747.png"></p> <p>如果你耐心破表，人工比對參照清單或遇到編譯有缺再去查網頁另存 .nupkg，日子其實也能過，但我是現代王藍田哪可能受得了？要我重複做個三次，肯定又會上演氣到摔滑鼠，用腳踩再咬破吐掉的戲碼(喂)。</p> <p>所以，小工具來了，我寫了一支 Download-Nupkg.ps1，有三種用法：</p> <pre><code># 指定套件名稱及版號
+.\Download-Nupkg.ps1 Dapper 2.1.1
+# 指定套件名稱，列舉版號，預設下載最新版
+.\Download-Nupkg.ps1 Newtonsoft.Json
+# 掃瞄 packages.config (.NET Framework) 或 .csproj (.NET 6+) 列出有參照的 NuGet 套件
+# 比對本機資料夾是否已存在該 .nupkg ，若沒有才下載
+.\Download-Nupkg.ps1 "X:\Github\WebApiWithAspNetMvcDemo\src\DemoWeb\packages.config"
+</code></pre> <p><a href="https://www.youtube.com/watch?v=9A3ZX2XI8LQ">操作展示</a></p> <p>附上程式碼，有需要的同學請自取：(註：程式用 <a href="https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource?WT.mc_id=DOP-MVP-37580">NuGet API</a> 查詢套件可用版號及下載 .nupkg 檔)</p> <pre><code>param (
+[Parameter(Mandatory = $true)]
+[string]$pkgNameOrPkgConfig,
+[string]$version,
+[string]$saveFolder = '.'
+)
+Function GenNupkgPath($pkgName, $version) {
+return Join-Path $saveFolder "$pkgName.$version.nupkg"
+}
+Function DownloadNupkg {
+param (
+[Parameter(Mandatory = $true)]
+[string]$packageName, [string]$version
+)
+# https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource
+$lowerId = $packageName.ToLower()
+$url = "https://api.nuget.org/v3-flatcontainer/$lowerId/index.json"
+try {
+$json = (Invoke-WebRequest -Uri $url).Content
+}
+catch {
+Write-Host "Package not found - $packageName" -ForegroundColor Red
+return
+}
+$versions = ($json | ConvertFrom-Json).versions
+$latestVersion = $versions[-1]
+if ([string]::IsNullOrEmpty($version)) {
+$versionList = $versions -join ", "
+Write-Host "Versions: $versionList"
+$selVer = Read-Host "Select (default: $latestVersion)"
+if ([string]::IsNullOrEmpty($selVer)) {
+$selVer = $latestVersion
+}
+$version = $selVer
+}
+# Convert x.x.x.0 to x.x.x
+$verParts = $version.Split('.')
+if ($verParts.Length -eq 4 -and $verParts[-1] -eq '0') {
+$version = $verParts[0..2] -join '.'
+}
+if (!$versions.Contains($version)) {
+Write-Host "Failed to download $packageName $version" -ForegroundColor Red
+return
+}
+else {
+$lowerVersion = $version.ToLower()
+[string]$downloadUrl = "https://api.nuget.org/v3-flatcontainer/$lowerId/$lowerVersion/$lowerId.$lowerVersion.nupkg"
+$path = GenNupkgPath $packageName $version
+try {
+Invoke-WebRequest -Uri $downloadUrl -OutFile $path
+Write-Host "    $path saved" -ForegroundColor Gray
+}
+catch {
+Write-Host "Failed to download $downloadUrl" -ForegroundColor Red
+}
+}
+}
+$pkgList = @()
+if ($pkgNameOrPkgConfig -match '(.config|.csproj)$') {
+try {
+[xml]$xml = Get-Content $pkgNameOrPkgConfig
+if ($xml.Project) {
+$xml.Project.ItemGroup | ForEach-Object {
+$_.PackageReference | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.Include $_.Version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.Include
+Version = $_.Version
+}
+}
+}
+}
+}
+elseif ($xml.packages) {
+$xml.packages.package | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.id $_.version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.id
+Version = $_.version
+}
+}
+}
+}
+else {
+Write-Host "Unknown XML schema" -ForegroundColor Red
+return
+}
+if ($pkgList.Count -gt 0) {
+Write-Host "Missing pakcages found:"
+$idx = 1
+$pkgList | ForEach-Object {
+Write-Host "$idx. $($_.Name) $($_.Version)"
+$idx++
+}
+$confirm = Read-Host "Download? (Y/n)"
+if (![string]::IsNullOrEmpty($confirm) -and $confirm -ine 'y') {
+Write-Host 'Abort'
+return
+}
+}
+}
+catch {
+Write-Host "Failed to load $pkgNameOrPkgConfig - $_" -ForegroundColor Red
+return
+}
+}
+else {
+$pkgList += [PSCustomObject]@{
+Name    = $pkgNameOrPkgConfig
+Version = $version
+}
+}
+$pkgList | ForEach-Object {
+Write-Host "Downloading $($_.Name) $($_.Version)..." -ForegroundColor Yellow
+DownloadNupkg $_.Name $_.Version
+}
+</code></pre> <p data-slug="ps-nupkg-downloader" data-title-en="Downloading .nupkg automatically with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/06/19/21/08/castle-2420839_1280.jpg#1280#880">My PowerShell tool to scan packages.config or .csproj to download .nupkg to local folder for offline install.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在一般情況下，NuGet 套件會在編譯時自動從網路下載安裝，不需我們費心。但現實世界不如想像美好，有時你需要在無法上網的環境編譯專案，簡單解法是開個本地資料夾當成 NuGet 套件來源<a href="/blog/local-nuget-packate-source/">參考</a>，手動下載預先放入 .nupkg 檔以實現離線安裝 NuGet 套件。</p> <p>在 <a href="https://www.nuget.org/packages">NuGet Gallery</a> 每個套件首頁都有個 Download Package，點下去可下載格式如 dapper.2.1.24.nupkg 的套件檔，將其放入本機資料夾即可用於離線安裝。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638385933252304747.png"></p> <p>如果你耐心破表，人工比對參照清單或遇到編譯有缺再去查網頁另存 .nupkg，日子其實也能過，但我是現代王藍田哪可能受得了？要我重複做個三次，肯定又會上演氣到摔滑鼠，用腳踩再咬破吐掉的戲碼(喂)。</p> <p>所以，小工具來了，我寫了一支 Download-Nupkg.ps1，有三種用法：</p> <pre><code># 指定套件名稱及版號
+.\Download-Nupkg.ps1 Dapper 2.1.1
+# 指定套件名稱，列舉版號，預設下載最新版
+.\Download-Nupkg.ps1 Newtonsoft.Json
+# 掃瞄 packages.config (.NET Framework) 或 .csproj (.NET 6+) 列出有參照的 NuGet 套件
+# 比對本機資料夾是否已存在該 .nupkg ，若沒有才下載
+.\Download-Nupkg.ps1 "X:\Github\WebApiWithAspNetMvcDemo\src\DemoWeb\packages.config"
+</code></pre> <p><a href="https://www.youtube.com/watch?v=9A3ZX2XI8LQ">操作展示</a></p> <p>附上程式碼，有需要的同學請自取：(註：程式用 <a href="https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource?WT.mc_id=DOP-MVP-37580">NuGet API</a> 查詢套件可用版號及下載 .nupkg 檔)</p> <pre><code>param (
+[Parameter(Mandatory = $true)]
+[string]$pkgNameOrPkgConfig,
+[string]$version,
+[string]$saveFolder = '.'
+)
+Function GenNupkgPath($pkgName, $version) {
+return Join-Path $saveFolder "$pkgName.$version.nupkg"
+}
+Function DownloadNupkg {
+param (
+[Parameter(Mandatory = $true)]
+[string]$packageName, [string]$version
+)
+# https://learn.microsoft.com/en-us/nuget/api/package-base-address-resource
+$lowerId = $packageName.ToLower()
+$url = "https://api.nuget.org/v3-flatcontainer/$lowerId/index.json"
+try {
+$json = (Invoke-WebRequest -Uri $url).Content
+}
+catch {
+Write-Host "Package not found - $packageName" -ForegroundColor Red
+return
+}
+$versions = ($json | ConvertFrom-Json).versions
+$latestVersion = $versions[-1]
+if ([string]::IsNullOrEmpty($version)) {
+$versionList = $versions -join ", "
+Write-Host "Versions: $versionList"
+$selVer = Read-Host "Select (default: $latestVersion)"
+if ([string]::IsNullOrEmpty($selVer)) {
+$selVer = $latestVersion
+}
+$version = $selVer
+}
+# Convert x.x.x.0 to x.x.x
+$verParts = $version.Split('.')
+if ($verParts.Length -eq 4 -and $verParts[-1] -eq '0') {
+$version = $verParts[0..2] -join '.'
+}
+if (!$versions.Contains($version)) {
+Write-Host "Failed to download $packageName $version" -ForegroundColor Red
+return
+}
+else {
+$lowerVersion = $version.ToLower()
+[string]$downloadUrl = "https://api.nuget.org/v3-flatcontainer/$lowerId/$lowerVersion/$lowerId.$lowerVersion.nupkg"
+$path = GenNupkgPath $packageName $version
+try {
+Invoke-WebRequest -Uri $downloadUrl -OutFile $path
+Write-Host "    $path saved" -ForegroundColor Gray
+}
+catch {
+Write-Host "Failed to download $downloadUrl" -ForegroundColor Red
+}
+}
+}
+$pkgList = @()
+if ($pkgNameOrPkgConfig -match '(.config|.csproj)$') {
+try {
+[xml]$xml = Get-Content $pkgNameOrPkgConfig
+if ($xml.Project) {
+$xml.Project.ItemGroup | ForEach-Object {
+$_.PackageReference | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.Include $_.Version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.Include
+Version = $_.Version
+}
+}
+}
+}
+}
+elseif ($xml.packages) {
+$xml.packages.package | ForEach-Object {
+if (!(Test-Path (GenNupkgPath $_.id $_.version))) {
+$pkgList += [PSCustomObject]@{
+Name    = $_.id
+Version = $_.version
+}
+}
+}
+}
+else {
+Write-Host "Unknown XML schema" -ForegroundColor Red
+return
+}
+if ($pkgList.Count -gt 0) {
+Write-Host "Missing pakcages found:"
+$idx = 1
+$pkgList | ForEach-Object {
+Write-Host "$idx. $($_.Name) $($_.Version)"
+$idx++
+}
+$confirm = Read-Host "Download? (Y/n)"
+if (![string]::IsNullOrEmpty($confirm) -and $confirm -ine 'y') {
+Write-Host 'Abort'
+return
+}
+}
+}
+catch {
+Write-Host "Failed to load $pkgNameOrPkgConfig - $_" -ForegroundColor Red
+return
+}
+}
+else {
+$pkgList += [PSCustomObject]@{
+Name    = $pkgNameOrPkgConfig
+Version = $version
+}
+}
+$pkgList | ForEach-Object {
+Write-Host "Downloading $($_.Name) $($_.Version)..." -ForegroundColor Yellow
+DownloadNupkg $_.Name $_.Version
+}
+</code></pre> <p data-slug="ps-nupkg-downloader" data-title-en="Downloading .nupkg automatically with PowerShell" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/06/19/21/08/castle-2420839_1280.jpg#1280#880">My PowerShell tool to scan packages.config or .csproj to download .nupkg to local folder for offline install.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638385933252304747.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638385933252304747.png" medium="image"/>
+    <pubDate>Tue, 19 Dec 2023 14:35:13 GMT</pubDate>
+  </item><item>
     <title><![CDATA[再談 .NET CSV 解析 - CsvHelper 與其他 38 種程式庫選擇]]></title>
     <link>https://blog.darkthread.net/blog/csvhelper/</link>
     <itunes:title><![CDATA[再談 .NET CSV 解析 - CsvHelper 與其他 38 種程式庫選擇]]></itunes:title>
@@ -1623,290 +2007,5 @@ return result;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png" medium="image"/>
     <pubDate>Wed, 06 Dec 2023 12:26:00 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></title>
-    <link>https://blog.darkthread.net/blog/print-tsv-as-table/</link>
-    <itunes:title><![CDATA[.NET CLI 小技巧 - Tab 分隔字串之表格化顯示]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
-var tsv = new string[] {
-"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
-"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
-"參與\tMay\tUser\t直接設定",
-"讀取\tCatherine\tMgr\t直接設定\t32,767",
-};
-Action&lt;string&gt; printTitle = (title) =&gt; {
-Console.WriteLine();
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(title);
-Console.ResetColor();
-};
-printTitle("原始格式");
-Console.WriteLine(string.Join("
-", tsv));
-Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-printTitle("表格顯示");
-Console.WriteLine(string.Join("
-", PrintTsvAsTable(tsv)));
-printTitle("表格顯示(自訂標題)");
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
-printTitle("表格顯示(第一列為標題)");
-tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, true)));
-/// &lt;summary&gt;
-/// 以表格方式列印 TSV
-/// &lt;/summary&gt;
-/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
-/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
-/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
-{
-if (firstRowAsHeader)
-{
-headers = tsv.First().Split('\t');
-tsv = tsv.Skip(1);
-}
-var maxLens = new List&lt;int&gt;();
-var numFlags = new List&lt;bool&gt;();
-var data = new List&lt;string[]&gt;();
-// 用 Big5 簡易換算，非英數字元寬度算 2
-// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
-Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
-Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
-Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
-foreach (var line in tsv)
-{
-var cells = line.Split('\t');
-for (int i = 0; i &lt; cells.Length; i++)
-{
-if (maxLens.Count &lt;= i) {
-maxLens.Add(0);
-numFlags.Add(true);
-}
-var val = cells[i];
-if (!float.TryParse(val.Replace(",", string.Empty), out _))
-{
-numFlags[i] = false;
-}
-maxLens[i] = Math.Max(maxLens[i], calcLen(val));
-}
-data.Add(cells);
-}
-var output = new List&lt;string&gt;();
-Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
-if (headers != null)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
-}
-foreach (var cells in data)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, cells.Length)
-.Select(i =&gt; numFlags[i] ?
-padLeft(cells[i], getMaxLen(i)) :
-padRight(cells[i], getMaxLen(i))).ToArray()));
-}
-return output.ToArray();
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
-var tsv = new string[] {
-"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
-"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
-"參與\tMay\tUser\t直接設定",
-"讀取\tCatherine\tMgr\t直接設定\t32,767",
-};
-Action&lt;string&gt; printTitle = (title) =&gt; {
-Console.WriteLine();
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(title);
-Console.ResetColor();
-};
-printTitle("原始格式");
-Console.WriteLine(string.Join("
-", tsv));
-Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-printTitle("表格顯示");
-Console.WriteLine(string.Join("
-", PrintTsvAsTable(tsv)));
-printTitle("表格顯示(自訂標題)");
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
-printTitle("表格顯示(第一列為標題)");
-tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, true)));
-/// &lt;summary&gt;
-/// 以表格方式列印 TSV
-/// &lt;/summary&gt;
-/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
-/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
-/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
-{
-if (firstRowAsHeader)
-{
-headers = tsv.First().Split('\t');
-tsv = tsv.Skip(1);
-}
-var maxLens = new List&lt;int&gt;();
-var numFlags = new List&lt;bool&gt;();
-var data = new List&lt;string[]&gt;();
-// 用 Big5 簡易換算，非英數字元寬度算 2
-// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
-Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
-Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
-Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
-foreach (var line in tsv)
-{
-var cells = line.Split('\t');
-for (int i = 0; i &lt; cells.Length; i++)
-{
-if (maxLens.Count &lt;= i) {
-maxLens.Add(0);
-numFlags.Add(true);
-}
-var val = cells[i];
-if (!float.TryParse(val.Replace(",", string.Empty), out _))
-{
-numFlags[i] = false;
-}
-maxLens[i] = Math.Max(maxLens[i], calcLen(val));
-}
-data.Add(cells);
-}
-var output = new List&lt;string&gt;();
-Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
-if (headers != null)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
-}
-foreach (var cells in data)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, cells.Length)
-.Select(i =&gt; numFlags[i] ?
-padLeft(cells[i], getMaxLen(i)) :
-padRight(cells[i], getMaxLen(i))).ToArray()));
-}
-return output.ToArray();
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>相較於 CSV (Comma-Separated Values)，我更愛用 <a href="https://en.wikipedia.org/wiki/Tab-separated_values">TSV</a> (Tab-Separated Values) 格式，字串值包含 Tab 符號的機率遠低於逗號，通常用 Split('\t') 就夠了，不需加入例外解析邏輯。</p> <p>Console.WriteLine() 輸出 TSV 時，理論上 Tab 應能發揮一定對齊效果，如果同一欄位的字元長度接近一致的話。但實務資料很少會這麼乖，欄位長短差異很大，中英文交差，因此通常輸出結果會如下圖般參差不齊：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"></p> <p>我心中理想的輸出結果，應該要像表格，整整齊齊排列：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638373764591975866.png"></p> <p>之前有處理<a href="/blog/gen-fix-width-col-data-text/">固定欄寬資料檔</a>的經驗，這個需求對 .NET 不算難事，這篇分享我的簡易版 TSV 表格化輸出函式。</p> <p>不囉嗦，直接上 Code：</p> <pre><code>using System.Text;
-var tsv = new string[] {
-"完全控制\tJeffrey\tAdmin,IT\t[AI 專案 擁有人]\t65,535",
-"讀取\tAlexander\tMgr\t[AI 專案 成員]\t9,999",
-"參與\tMay\tUser\t直接設定",
-"讀取\tCatherine\tMgr\t直接設定\t32,767",
-};
-Action&lt;string&gt; printTitle = (title) =&gt; {
-Console.WriteLine();
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(title);
-Console.ResetColor();
-};
-printTitle("原始格式");
-Console.WriteLine(string.Join("
-", tsv));
-Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-printTitle("表格顯示");
-Console.WriteLine(string.Join("
-", PrintTsvAsTable(tsv)));
-printTitle("表格顯示(自訂標題)");
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, headers: "權限,姓名,身分,來源,參數".Split(','))));
-printTitle("表格顯示(第一列為標題)");
-tsv = new List&lt;string&gt; { "權限\t姓名\t身分\t來源\t參數" }.Concat(tsv).ToArray();
-Console.WriteLine(string.Join("
-",
-PrintTsvAsTable(tsv, true)));
-/// &lt;summary&gt;
-/// 以表格方式列印 TSV
-/// &lt;/summary&gt;
-/// &lt;param name="tsv"&gt;Tab Separated Values&lt;/param&gt;
-/// &lt;param name="firstRowAsHeader"&gt;使用第一列作為標題&lt;/param&gt;
-/// &lt;param name="headers"&gt;自訂標題&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-string[] PrintTsvAsTable(IEnumerable&lt;string&gt; tsv, bool firstRowAsHeader = false, string[] headers = null!)
-{
-if (firstRowAsHeader)
-{
-headers = tsv.First().Split('\t');
-tsv = tsv.Skip(1);
-}
-var maxLens = new List&lt;int&gt;();
-var numFlags = new List&lt;bool&gt;();
-var data = new List&lt;string[]&gt;();
-// 用 Big5 簡易換算，非英數字元寬度算 2
-// TODO: 此處忽略難字、非 Big5 Unicode 字元之寬度誤差，使用 Graphics.MeasureString 可更精準
-Func&lt;string, int&gt; calcLen = (s) =&gt; Encoding.GetEncoding(950).GetByteCount(s);
-Func&lt;string, int, string&gt; padLeft = (s, l) =&gt; new String(' ', Math.Max(0, l - calcLen(s))) + s;
-Func&lt;string, int, string&gt; padRight = (s, l) =&gt; s + new String(' ', Math.Max(0, l - calcLen(s)));
-foreach (var line in tsv)
-{
-var cells = line.Split('\t');
-for (int i = 0; i &lt; cells.Length; i++)
-{
-if (maxLens.Count &lt;= i) {
-maxLens.Add(0);
-numFlags.Add(true);
-}
-var val = cells[i];
-if (!float.TryParse(val.Replace(",", string.Empty), out _))
-{
-numFlags[i] = false;
-}
-maxLens[i] = Math.Max(maxLens[i], calcLen(val));
-}
-data.Add(cells);
-}
-var output = new List&lt;string&gt;();
-Func&lt;int, int&gt; getMaxLen = (i) =&gt; i &lt; maxLens.Count ? maxLens[i] : 8;
-if (headers != null)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; padRight(headers[i], getMaxLen(i))).ToArray()));
-output.Add(string.Join(' ',
-Enumerable.Range(0, headers.Length)
-.Select(i =&gt; new string('-', getMaxLen(i))).ToArray()));
-}
-foreach (var cells in data)
-{
-output.Add(string.Join(' ',
-Enumerable.Range(0, cells.Length)
-.Select(i =&gt; numFlags[i] ?
-padLeft(cells[i], getMaxLen(i)) :
-padRight(cells[i], getMaxLen(i))).ToArray()));
-}
-return output.ToArray();
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638373764594411161.png"></p> <p>程式會掃瞄所有欄位值，統計各欄資料最大寬度，決定顯示時要補的空白字元數。我加了判斷欄位全部為數字靠右，否則靠左的邏輯。有個小挑戰是，中文字跟半型英數字的字元數都是 1，但顯示時中文寬度要算 2，會影響補空白的數量。這裡我是用字元轉 Big5 編碼後是兩個 Byte 判斷字元為中文字或英數字，寬度該算 2 還是 1，這個做法遇到難字或非 Big5 Unicode 字元時會失準，但優點是簡單，處理一般內容還堪用。若要更精準，可能從考慮用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.drawing.graphics.measurestring?view=dotnet-plat-ext-7.0&amp;WT.mc_id=DOP-MVP-37580">Graphics.MeasureString()</a>，複雜度較高，等真有需求再考慮。</p> <p data-slug="print-tsv-as-table" data-catg=".NET" data-fbimg="https://i.imgur.com/lC84bSC.png#835#493">Example C# code to print TSV in table format.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638373764589918582.png" medium="image"/>
-    <pubDate>Tue, 05 Dec 2023 12:34:40 GMT</pubDate>
   </item></channel>
 </rss>
