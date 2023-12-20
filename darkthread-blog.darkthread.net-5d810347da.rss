@@ -30,6 +30,93 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - ESP32 觸控式簡報遙控器 PoC]]></title>
+    <link>https://blog.darkthread.net/blog/esp32-slide-controller/</link>
+    <itunes:title><![CDATA[Coding4Fun - ESP32 觸控式簡報遙控器 PoC]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>無意間逛到線上購物的簡報遙控器區，突發奇想，零件箱有幾塊塵封多時的 <a href="/blog/esp32-for-iot/">ESP32 開發板</a>，ESP32 內建藍牙，要模擬藍牙鍵盤應是小菜一碟，接幾個實體按鍵觸發程式送出左右鍵，就是個陽春版簡報播放器囉，興之所至，決定做一個來玩玩。</p> <p>靠著強大開源社群的支持，我很快站上巨人的肩膀，找到一個 ESP32 模擬藍牙鍵盤的程式庫 - <a href="https://github.com/T-vK/ESP32-BLE-Keyboard">ESP32 BLE Keyboard library</a>，引用後 ESP32 搖身一變成為藍牙鍵盤，用 <code>bleKeyboard.write(KEY_RETURN);</code>、<code>bleKeyboard.print("Hello World");</code> 便能模擬按鍵跟打字動作。實體按鈕部分我偷懶，決定借用 ESP32 開發板內建的<a href="https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/api-reference/peripherals/touch_pad.html">電容式觸控感應</a>功能，將 32、33 PIN 外接兩個壹圓硬幣當成觸控板。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638386638815008871.jpg" alt="thumbnail"></p> <p>程式碼超簡單，不到 30 行搞定：</p> <pre><code>#include &lt;BleKeyboard.h&gt;
+#include &lt;Wire.h&gt;
+BleKeyboard bleKeyboard;
+#define PIN_LEFT 32
+#define PIN_RIGHT 33
+const unsigned long debounceTime = 200;
+unsigned long lastTouch = 0;
+void sendKey(int key) {
+if (bleKeyboard.isConnected()) {
+if (millis() - lastTouch &lt; debounceTime) {
+return;
+}
+bleKeyboard.write(key);
+lastTouch = millis();
+}
+}
+void setup() {
+touchAttachInterrupt(PIN_LEFT, []{sendKey(KEY_LEFT_ARROW);}, 50);
+touchAttachInterrupt(PIN_RIGHT, []{sendKey(KEY_RIGHT_ARROW);}, 50);
+bleKeyboard.begin();
+}
+void loop() {
+sleep(1000);
+}
+</code></pre> <p>ESP32 開發板啟動後，將 <code>ESP32 Keyboard</code> 新增為藍牙裝置：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638386638817029379.png"></p> <p>就這麼簡單，而且真的能用呢~</p> <p><a href="https://www.youtube.com/watch?v=Gl3YvpSE2yI">ESP32 簡報遙控器測試</a></p> <p>有趣歸有趣，真的要做到實用，還有不少問題要克服：電池供電、3D 列印外殼(大小要適中、好握不扎手)、觸控回饋感不佳得找好按的微動開關... 嚴格來說，真要簡報用現成產品比較實際，不然關鍵簡報場合遇上土砲簡報器出 Bug，只怕腸子都要悔青了 XD</p> <p>不過，我有想到一些其他有趣應用，例如：中午吃便當滑臉書沒手滑滑鼠，若有個「腳控器」應該很實用，有時間再來研究。</p> <p data-slug="esp32-slide-controller" data-fbimg="https://i.imgur.com/zedHci1.png#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>無意間逛到線上購物的簡報遙控器區，突發奇想，零件箱有幾塊塵封多時的 <a href="/blog/esp32-for-iot/">ESP32 開發板</a>，ESP32 內建藍牙，要模擬藍牙鍵盤應是小菜一碟，接幾個實體按鍵觸發程式送出左右鍵，就是個陽春版簡報播放器囉，興之所至，決定做一個來玩玩。</p> <p>靠著強大開源社群的支持，我很快站上巨人的肩膀，找到一個 ESP32 模擬藍牙鍵盤的程式庫 - <a href="https://github.com/T-vK/ESP32-BLE-Keyboard">ESP32 BLE Keyboard library</a>，引用後 ESP32 搖身一變成為藍牙鍵盤，用 <code>bleKeyboard.write(KEY_RETURN);</code>、<code>bleKeyboard.print("Hello World");</code> 便能模擬按鍵跟打字動作。實體按鈕部分我偷懶，決定借用 ESP32 開發板內建的<a href="https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/api-reference/peripherals/touch_pad.html">電容式觸控感應</a>功能，將 32、33 PIN 外接兩個壹圓硬幣當成觸控板。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638386638815008871.jpg" alt="thumbnail"></p> <p>程式碼超簡單，不到 30 行搞定：</p> <pre><code>#include &lt;BleKeyboard.h&gt;
+#include &lt;Wire.h&gt;
+BleKeyboard bleKeyboard;
+#define PIN_LEFT 32
+#define PIN_RIGHT 33
+const unsigned long debounceTime = 200;
+unsigned long lastTouch = 0;
+void sendKey(int key) {
+if (bleKeyboard.isConnected()) {
+if (millis() - lastTouch &lt; debounceTime) {
+return;
+}
+bleKeyboard.write(key);
+lastTouch = millis();
+}
+}
+void setup() {
+touchAttachInterrupt(PIN_LEFT, []{sendKey(KEY_LEFT_ARROW);}, 50);
+touchAttachInterrupt(PIN_RIGHT, []{sendKey(KEY_RIGHT_ARROW);}, 50);
+bleKeyboard.begin();
+}
+void loop() {
+sleep(1000);
+}
+</code></pre> <p>ESP32 開發板啟動後，將 <code>ESP32 Keyboard</code> 新增為藍牙裝置：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638386638817029379.png"></p> <p>就這麼簡單，而且真的能用呢~</p> <p><a href="https://www.youtube.com/watch?v=Gl3YvpSE2yI">ESP32 簡報遙控器測試</a></p> <p>有趣歸有趣，真的要做到實用，還有不少問題要克服：電池供電、3D 列印外殼(大小要適中、好握不扎手)、觸控回饋感不佳得找好按的微動開關... 嚴格來說，真要簡報用現成產品比較實際，不然關鍵簡報場合遇上土砲簡報器出 Bug，只怕腸子都要悔青了 XD</p> <p>不過，我有想到一些其他有趣應用，例如：中午吃便當滑臉書沒手滑滑鼠，若有個「腳控器」應該很實用，有時間再來研究。</p> <p data-slug="esp32-slide-controller" data-fbimg="https://i.imgur.com/zedHci1.png#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>無意間逛到線上購物的簡報遙控器區，突發奇想，零件箱有幾塊塵封多時的 <a href="/blog/esp32-for-iot/">ESP32 開發板</a>，ESP32 內建藍牙，要模擬藍牙鍵盤應是小菜一碟，接幾個實體按鍵觸發程式送出左右鍵，就是個陽春版簡報播放器囉，興之所至，決定做一個來玩玩。</p> <p>靠著強大開源社群的支持，我很快站上巨人的肩膀，找到一個 ESP32 模擬藍牙鍵盤的程式庫 - <a href="https://github.com/T-vK/ESP32-BLE-Keyboard">ESP32 BLE Keyboard library</a>，引用後 ESP32 搖身一變成為藍牙鍵盤，用 <code>bleKeyboard.write(KEY_RETURN);</code>、<code>bleKeyboard.print("Hello World");</code> 便能模擬按鍵跟打字動作。實體按鈕部分我偷懶，決定借用 ESP32 開發板內建的<a href="https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/api-reference/peripherals/touch_pad.html">電容式觸控感應</a>功能，將 32、33 PIN 外接兩個壹圓硬幣當成觸控板。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638386638815008871.jpg" alt="thumbnail"></p> <p>程式碼超簡單，不到 30 行搞定：</p> <pre><code>#include &lt;BleKeyboard.h&gt;
+#include &lt;Wire.h&gt;
+BleKeyboard bleKeyboard;
+#define PIN_LEFT 32
+#define PIN_RIGHT 33
+const unsigned long debounceTime = 200;
+unsigned long lastTouch = 0;
+void sendKey(int key) {
+if (bleKeyboard.isConnected()) {
+if (millis() - lastTouch &lt; debounceTime) {
+return;
+}
+bleKeyboard.write(key);
+lastTouch = millis();
+}
+}
+void setup() {
+touchAttachInterrupt(PIN_LEFT, []{sendKey(KEY_LEFT_ARROW);}, 50);
+touchAttachInterrupt(PIN_RIGHT, []{sendKey(KEY_RIGHT_ARROW);}, 50);
+bleKeyboard.begin();
+}
+void loop() {
+sleep(1000);
+}
+</code></pre> <p>ESP32 開發板啟動後，將 <code>ESP32 Keyboard</code> 新增為藍牙裝置：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638386638817029379.png"></p> <p>就這麼簡單，而且真的能用呢~</p> <p><a href="https://www.youtube.com/watch?v=Gl3YvpSE2yI">ESP32 簡報遙控器測試</a></p> <p>有趣歸有趣，真的要做到實用，還有不少問題要克服：電池供電、3D 列印外殼(大小要適中、好握不扎手)、觸控回饋感不佳得找好按的微動開關... 嚴格來說，真要簡報用現成產品比較實際，不然關鍵簡報場合遇上土砲簡報器出 Bug，只怕腸子都要悔青了 XD</p> <p>不過，我有想到一些其他有趣應用，例如：中午吃便當滑臉書沒手滑滑鼠，若有個「腳控器」應該很實用，有時間再來研究。</p> <p data-slug="esp32-slide-controller" data-fbimg="https://i.imgur.com/zedHci1.png#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638386638815008871.jpg"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638386638815008871.jpg" medium="image"/>
+    <pubDate>Wed, 20 Dec 2023 10:10:09 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PowerShell 小工具 - 自動補齊離線安裝 NuGet 套件]]></title>
     <link>https://blog.darkthread.net/blog/ps-nupkg-downloader/</link>
     <itunes:title><![CDATA[PowerShell 小工具 - 自動補齊離線安裝 NuGet 套件]]></itunes:title>
@@ -1506,506 +1593,5 @@ Context.ExecuteQuery();
 </code></pre> <p data-slug="csom-error-empty-role-definition-binding-collection" data-fbimg="https://images.pexels.com/photos/23789/pexels-photo.jpg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]></content:encoded>
     
     <pubDate>Fri, 08 Dec 2023 13:57:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[冷知識 - base64url 編碼]]></title>
-    <link>https://blog.darkthread.net/blog/base64url/</link>
-    <itunes:title><![CDATA[冷知識 - base64url 編碼]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
-{
-public PublicKeyCredentialDescriptor(byte[] id)
-: this(PublicKeyCredentialType.PublicKey, id, null) { }
-[JsonConstructor]
-public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
-{
-ArgumentNullException.ThrowIfNull(id);
-Type = type;
-Id = id;
-Transports = transports;
-}
-/// &lt;summary&gt;
-/// This member contains the credential ID of the public key credential the caller is referring to.
-/// &lt;/summary&gt;
-[JsonConverter(typeof(Base64UrlConverter))]
-[JsonPropertyName("id")]
-public byte[] Id { get; }
-//... 略 ...
-};
-/// &lt;summary&gt;
-/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
-/// &lt;/summary&gt;
-public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
-{
-public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-{
-if (!reader.HasValueSequence)
-{
-return Base64Url.DecodeUtf8(reader.ValueSpan);
-}
-else
-{
-return Base64Url.Decode(reader.GetString());
-}
-}
-public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
-{
-writer.WriteStringValue(Base64Url.Encode(value));
-}
-}
-/// &lt;summary&gt;
-/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
-/// &lt;/summary&gt;
-public static class Base64Url
-{
-/// &lt;summary&gt;
-/// Converts arg data to a Base64Url encoded string.
-/// &lt;/summary&gt;
-public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
-{
-int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
-char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
-Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
-Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
-for (int i = 0; i &lt; base64Url.Length; i++)
-{
-ref char c = ref base64Url[i];
-switch (c)
-{
-case '+':
-c = '-';
-break;
-case '/':
-c = '_';
-break;
-}
-}
-int equalIndex = base64Url.IndexOf('=');
-if (equalIndex &gt; -1) // remove trailing equal characters
-{
-base64Url = base64Url.Slice(0, equalIndex);
-}
-var result = new string(base64Url);
-ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref char c = ref buffer[i];
-switch (c)
-{
-case '-':
-c = '+';
-break;
-case '_':
-c = '/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = '=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = '=';
-buffer[encodedLength - 2] = '=';
-}
-var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
-ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref byte c = ref buffer[i];
-switch ((char)c)
-{
-case '-':
-c = (byte)'+';
-break;
-case '_':
-c = (byte)'/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = (byte)'=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = (byte)'=';
-buffer[encodedLength - 2] = (byte)'=';
-}
-if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
-{
-throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
-}
-var result = buffer.AsSpan(0, decodedLength).ToArray();
-ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
-return result;
-}
-}
-</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
-{
-public PublicKeyCredentialDescriptor(byte[] id)
-: this(PublicKeyCredentialType.PublicKey, id, null) { }
-[JsonConstructor]
-public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
-{
-ArgumentNullException.ThrowIfNull(id);
-Type = type;
-Id = id;
-Transports = transports;
-}
-/// &lt;summary&gt;
-/// This member contains the credential ID of the public key credential the caller is referring to.
-/// &lt;/summary&gt;
-[JsonConverter(typeof(Base64UrlConverter))]
-[JsonPropertyName("id")]
-public byte[] Id { get; }
-//... 略 ...
-};
-/// &lt;summary&gt;
-/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
-/// &lt;/summary&gt;
-public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
-{
-public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-{
-if (!reader.HasValueSequence)
-{
-return Base64Url.DecodeUtf8(reader.ValueSpan);
-}
-else
-{
-return Base64Url.Decode(reader.GetString());
-}
-}
-public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
-{
-writer.WriteStringValue(Base64Url.Encode(value));
-}
-}
-/// &lt;summary&gt;
-/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
-/// &lt;/summary&gt;
-public static class Base64Url
-{
-/// &lt;summary&gt;
-/// Converts arg data to a Base64Url encoded string.
-/// &lt;/summary&gt;
-public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
-{
-int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
-char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
-Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
-Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
-for (int i = 0; i &lt; base64Url.Length; i++)
-{
-ref char c = ref base64Url[i];
-switch (c)
-{
-case '+':
-c = '-';
-break;
-case '/':
-c = '_';
-break;
-}
-}
-int equalIndex = base64Url.IndexOf('=');
-if (equalIndex &gt; -1) // remove trailing equal characters
-{
-base64Url = base64Url.Slice(0, equalIndex);
-}
-var result = new string(base64Url);
-ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref char c = ref buffer[i];
-switch (c)
-{
-case '-':
-c = '+';
-break;
-case '_':
-c = '/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = '=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = '=';
-buffer[encodedLength - 2] = '=';
-}
-var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
-ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref byte c = ref buffer[i];
-switch ((char)c)
-{
-case '-':
-c = (byte)'+';
-break;
-case '_':
-c = (byte)'/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = (byte)'=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = (byte)'=';
-buffer[encodedLength - 2] = (byte)'=';
-}
-if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
-{
-throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
-}
-var result = buffer.AsSpan(0, decodedLength).ToArray();
-ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
-return result;
-}
-}
-</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>寫 Side Project 時踩到一個問題。某物件使用 <a href="/blog/system-text-json/">System.Text.Json</a> 序列化成 JSON，試著用 Json.NET 解析時冒出 "The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or a non-white space character among the padding characters" 錯誤。</p> <p>追進程式碼，發現是物件在 Id 屬性自訂了名為 Base64UrlConverter 的 Json 轉換規則，此一設定只對 System.Text.Json 有效，其轉換結果並非標準 Base64，而 Json.NET 會把它當成 Base64 處理，於是便爆炸了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"></p> <pre><code>public sealed class PublicKeyCredentialDescriptor
-{
-public PublicKeyCredentialDescriptor(byte[] id)
-: this(PublicKeyCredentialType.PublicKey, id, null) { }
-[JsonConstructor]
-public PublicKeyCredentialDescriptor(PublicKeyCredentialType type, byte[] id, AuthenticatorTransport[]? transports = null)
-{
-ArgumentNullException.ThrowIfNull(id);
-Type = type;
-Id = id;
-Transports = transports;
-}
-/// &lt;summary&gt;
-/// This member contains the credential ID of the public key credential the caller is referring to.
-/// &lt;/summary&gt;
-[JsonConverter(typeof(Base64UrlConverter))]
-[JsonPropertyName("id")]
-public byte[] Id { get; }
-//... 略 ...
-};
-/// &lt;summary&gt;
-/// Custom Converter for encoding/encoding byte[] using Base64Url instead of default Base64.
-/// &lt;/summary&gt;
-public sealed class Base64UrlConverter : JsonConverter&lt;byte[]&gt;
-{
-public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-{
-if (!reader.HasValueSequence)
-{
-return Base64Url.DecodeUtf8(reader.ValueSpan);
-}
-else
-{
-return Base64Url.Decode(reader.GetString());
-}
-}
-public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
-{
-writer.WriteStringValue(Base64Url.Encode(value));
-}
-}
-/// &lt;summary&gt;
-/// Helper class to handle Base64Url. Based on Carbon.Jose source code.
-/// &lt;/summary&gt;
-public static class Base64Url
-{
-/// &lt;summary&gt;
-/// Converts arg data to a Base64Url encoded string.
-/// &lt;/summary&gt;
-public static string Encode(ReadOnlySpan&lt;byte&gt; arg)
-{
-int base64Length = (int)(((long)arg.Length + 2) / 3 * 4);
-char[] pooledBuffer = ArrayPool&lt;char&gt;.Shared.Rent(base64Length);
-Convert.TryToBase64Chars(arg, pooledBuffer, out int encodedLength);
-Span&lt;char&gt; base64Url = pooledBuffer.AsSpan(0, encodedLength);
-for (int i = 0; i &lt; base64Url.Length; i++)
-{
-ref char c = ref base64Url[i];
-switch (c)
-{
-case '+':
-c = '-';
-break;
-case '/':
-c = '_';
-break;
-}
-}
-int equalIndex = base64Url.IndexOf('=');
-if (equalIndex &gt; -1) // remove trailing equal characters
-{
-base64Url = base64Url.Slice(0, equalIndex);
-}
-var result = new string(base64Url);
-ArrayPool&lt;char&gt;.Shared.Return(pooledBuffer, clearArray: true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] Decode(ReadOnlySpan&lt;char&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-char[] buffer = ArrayPool&lt;char&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref char c = ref buffer[i];
-switch (c)
-{
-case '-':
-c = '+';
-break;
-case '_':
-c = '/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = '=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = '=';
-buffer[encodedLength - 2] = '=';
-}
-var result = Convert.FromBase64CharArray(buffer, 0, encodedLength);
-ArrayPool&lt;char&gt;.Shared.Return(buffer, true);
-return result;
-}
-/// &lt;summary&gt;
-/// Decodes a Base64Url encoded string to its raw bytes.
-/// &lt;/summary&gt;
-public static byte[] DecodeUtf8(ReadOnlySpan&lt;byte&gt; text)
-{
-int padCharCount = (text.Length % 4) switch
-{
-2 =&gt; 2,
-3 =&gt; 1,
-_ =&gt; 0
-};
-int encodedLength = text.Length + padCharCount;
-byte[] buffer = ArrayPool&lt;byte&gt;.Shared.Rent(encodedLength);
-text.CopyTo(buffer);
-for (int i = 0; i &lt; text.Length; i++)
-{
-ref byte c = ref buffer[i];
-switch ((char)c)
-{
-case '-':
-c = (byte)'+';
-break;
-case '_':
-c = (byte)'/';
-break;
-}
-}
-if (padCharCount == 1)
-{
-buffer[encodedLength - 1] = (byte)'=';
-}
-else if (padCharCount == 2)
-{
-buffer[encodedLength - 1] = (byte)'=';
-buffer[encodedLength - 2] = (byte)'=';
-}
-if (OperationStatus.Done != Base64.DecodeFromUtf8InPlace(buffer.AsSpan(0, encodedLength), out int decodedLength))
-{
-throw new FormatException("The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.");
-}
-var result = buffer.AsSpan(0, decodedLength).ToArray();
-ArrayPool&lt;byte&gt;.Shared.Return(buffer, true);
-return result;
-}
-}
-</code></pre> <p>查了一下，Base 64 Encoding with URL and Filename Safe Alphabet (以下簡稱 base64url) 也算一種公開編碼規格，被定義在 <a href="https://www.rfc-editor.org/rfc/rfc4648#section-5">RFC4648 The Base16, Base32, and Base64 Data Encodings</a>，為 Base64 編碼的變化型，主要用於 URL 和檔案名稱。Base64 使用的 "+" 與 "/" 符號在 URL 具有特殊意義，分別代表空白及路徑分隔符號，寫在 URL 時必須跳脫處理。為解決這個問題，Base64URL 將這些字元替換為 URL 安全的字元，"+" 替換為 "-"（減號），"/" 替換為 "_"（底線），若長度已知，結尾的 "=" 填充字元亦可省略。如此 base64url 編碼可直接用於 URL 和檔案名稱，不需要特別編碼或解碼。</p> <p>學到一則經驗跟一則新知識：</p> <ol><li>同一資料物件使用 System.Text.Json 與 Json.NET 轉換的 JSON 有可能不同，關鍵在物件或屬性可能存在只對特定程式庫有意義的專屬 Attribute，導致換結果不同。</li> <li>除了 Base64 外，還有 Base16、Base32、base64url 等編譯規則，如有特殊需求可應用。</li></ol> <p data-slug="base64url" data-title-en="Base64Url encoding" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2014/06/23/19/35/fitness-375472_960_720.jpg#960#720">Introduce to the Base64URL encoding.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638374626942610582.png" medium="image"/>
-    <pubDate>Wed, 06 Dec 2023 12:26:00 GMT</pubDate>
   </item></channel>
 </rss>
