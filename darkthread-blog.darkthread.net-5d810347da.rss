@@ -30,6 +30,231 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[【茶包射手日記】LineBotSDK NullReferenceException 錯誤調查]]></title>
+    <link>https://blog.darkthread.net/blog/tls12-issue-on-linebotsdk/</link>
+    <itunes:title><![CDATA[【茶包射手日記】LineBotSDK NullReferenceException 錯誤調查]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.IO" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+string webErrMsg = string.Empty;
+try
+{
+try
+{
+var wc = new WebClient();
+wc.DownloadString("https://api.line.me/v2/bot/message/push");
+Response.Write("WTF! You should never see this.");
+}
+catch (System.Net.WebException wex)
+{
+webErrMsg = wex.Message;
+using (var sr = new StreamReader(wex.Response.GetResponseStream()))
+{
+Response.Write(sr.ReadToEnd());
+}
+}
+}
+catch (Exception ex)
+{
+Response.Write(webErrMsg + "\r
+");
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+// 設定使用 TLS 1.2
+ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.IO" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+string webErrMsg = string.Empty;
+try
+{
+try
+{
+var wc = new WebClient();
+wc.DownloadString("https://api.line.me/v2/bot/message/push");
+Response.Write("WTF! You should never see this.");
+}
+catch (System.Net.WebException wex)
+{
+webErrMsg = wex.Message;
+using (var sr = new StreamReader(wex.Response.GetResponseStream()))
+{
+Response.Write(sr.ReadToEnd());
+}
+}
+}
+catch (Exception ex)
+{
+Response.Write(webErrMsg + "\r
+");
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+// 設定使用 TLS 1.2
+ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.IO" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+string webErrMsg = string.Empty;
+try
+{
+try
+{
+var wc = new WebClient();
+wc.DownloadString("https://api.line.me/v2/bot/message/push");
+Response.Write("WTF! You should never see this.");
+}
+catch (System.Net.WebException wex)
+{
+webErrMsg = wex.Message;
+using (var sr = new StreamReader(wex.Response.GetResponseStream()))
+{
+Response.Write(sr.ReadToEnd());
+}
+}
+}
+catch (Exception ex)
+{
+Response.Write(webErrMsg + "\r
+");
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Net" %&gt;
+&lt;script runat="server"&gt;
+protected void Page_Load(object sender, EventArgs e)
+{
+Response.ContentType = "text/plain";
+try
+{
+// 設定使用 TLS 1.2
+ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
+Response.Write("WTF! You should never see this.");
+}
+catch (Exception ex)
+{
+Response.Write(ex);
+}
+}
+&lt;/script&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png" medium="image"/>
+    <pubDate>Thu, 21 Dec 2023 14:53:22 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - ESP32 觸控式簡報遙控器 PoC]]></title>
     <link>https://blog.darkthread.net/blog/esp32-slide-controller/</link>
     <itunes:title><![CDATA[Coding4Fun - ESP32 觸控式簡報遙控器 PoC]]></itunes:title>
@@ -1486,112 +1711,5 @@ display(response.status, response.statusText, await response.text());
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638376756478706756.png" medium="image"/>
     <pubDate>Fri, 08 Dec 2023 23:38:25 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[SharePoint CSOM 錯誤：Cannot add a role assignment with empty role definition binding collection]]></title>
-    <link>https://blog.darkthread.net/blog/csom-error-empty-role-definition-binding-collection/</link>
-    <itunes:title><![CDATA[SharePoint CSOM 錯誤：Cannot add a role assignment with empty role definition binding collection]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="/blog/access-sharepoint-doclib-with-dotnet/">SharePoint CSOM (Client-Site Object Model)</a> 的冷門茶包，搞了快兩小時，寫篇筆記留給有緣人。</p> <p>要授與 SharePoint 清單讀者權限給 Domain\Account，參考<a href="https://learn.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee535228(v=office.14)?WT.mc_id=DOP-MVP-37580#breaking-the-security-inheritance-of-a-document-and-changing-the-permissions-of-a-user">官方範例</a> BreakRoleInheritance()、建立 RoleDefinitionBindingCollection 加 RoleDefinition，RoleAssignments.Add() 行禮如儀，AD 帳號則需透過 <a href="https://learn.microsoft.com/zh-tw/previous-versions/office/sharepoint-csom/ee540627(v=office.15)?WT.mc_id=DOP-MVP-37580">Utility.ResolvePrincipal ()</a> 解析成 Microsoft.SharePoint.Client.Principal：</p> <pre><code>var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"), rdlc);
-Context.ExecuteQuery();
-public Microsoft.SharePoint.Client.Principal ResolvePrincipal(string ntAccount)
-{
-var info = Utility.ResolvePrincipal(Context, Web, ntAccount, PrincipalType.All, PrincipalSource.Windows, null, false);
-Context.ExecuteQuery();
-Microsoft.SharePoint.Client.Principal p = null;
-var type = info.Value.PrincipalType;
-if (type == PrincipalType.User)
-p = Web.EnsureUser(info.Value.LoginName);
-else if (type == PrincipalType.SharePointGroup || type == PrincipalType.SecurityGroup)
-p = Web.SiteGroups.GetById(info.Value.PrincipalId);
-else
-throw new ApplicationException($"Unsupported PrincipalType - {type}");
-Context.Load(p);
-Context.ExecuteQuery();
-return p;
-}
-</code></pre> <p>程式噴出「Cannot add a role assignment with empty role definition binding collection / 無法用空角色定義䌓結集合來新增角色指派」錯誤。訊息很明確，理應不難查，但幾乎把所有 Google 到的文章看完也沒看出所以然，最後在 <a href="https://sharepoint.stackexchange.com/a/159210/110620">StackExchange SharePoint 版</a> 找到答案：</p> <blockquote> <p>It appears that CSOM does not like the new RoleDefinitionBindingCollection being instaniated, calling ExecuteQuery(), and then calling ExecuteQuery() again after the RoleDefinitionBindingCollection is added to the folder.</p> </blockquote> <p>new RoleDefinitionBindingCollection(Context) 之後到被 RoleAssignments.Add() 加入之間不能呼叫 Context.ExecuteQuery()! 我在 ResolvePrincipal() 方法中呼叫了兩次。故要修正這個問題，方法有二：</p> <pre><code>// 解析函式(ExecuteQuery())移到 new RoleDefinitionBindingCollection() 之前
-var principal = ResolvePrincipal("Domain\\Account");
-var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(principal, rdlc);
-Context.ExecuteQuery();
-</code></pre> <p>或用 <a href="/blog/cs-in-depth-notes-4/">Collection Initializer</a> 寫成一行，放在 ResolvePrincipal() 之後：</p> <pre><code>list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"),
-new RoleDefinitionBindingCollection(Context) {
-Web.RoleDefinitions.GetByType(RoleType.Reader)
-});
-Context.ExecuteQuery();
-</code></pre> <p data-slug="csom-error-empty-role-definition-binding-collection" data-fbimg="https://images.pexels.com/photos/23789/pexels-photo.jpg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="/blog/access-sharepoint-doclib-with-dotnet/">SharePoint CSOM (Client-Site Object Model)</a> 的冷門茶包，搞了快兩小時，寫篇筆記留給有緣人。</p> <p>要授與 SharePoint 清單讀者權限給 Domain\Account，參考<a href="https://learn.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee535228(v=office.14)?WT.mc_id=DOP-MVP-37580#breaking-the-security-inheritance-of-a-document-and-changing-the-permissions-of-a-user">官方範例</a> BreakRoleInheritance()、建立 RoleDefinitionBindingCollection 加 RoleDefinition，RoleAssignments.Add() 行禮如儀，AD 帳號則需透過 <a href="https://learn.microsoft.com/zh-tw/previous-versions/office/sharepoint-csom/ee540627(v=office.15)?WT.mc_id=DOP-MVP-37580">Utility.ResolvePrincipal ()</a> 解析成 Microsoft.SharePoint.Client.Principal：</p> <pre><code>var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"), rdlc);
-Context.ExecuteQuery();
-public Microsoft.SharePoint.Client.Principal ResolvePrincipal(string ntAccount)
-{
-var info = Utility.ResolvePrincipal(Context, Web, ntAccount, PrincipalType.All, PrincipalSource.Windows, null, false);
-Context.ExecuteQuery();
-Microsoft.SharePoint.Client.Principal p = null;
-var type = info.Value.PrincipalType;
-if (type == PrincipalType.User)
-p = Web.EnsureUser(info.Value.LoginName);
-else if (type == PrincipalType.SharePointGroup || type == PrincipalType.SecurityGroup)
-p = Web.SiteGroups.GetById(info.Value.PrincipalId);
-else
-throw new ApplicationException($"Unsupported PrincipalType - {type}");
-Context.Load(p);
-Context.ExecuteQuery();
-return p;
-}
-</code></pre> <p>程式噴出「Cannot add a role assignment with empty role definition binding collection / 無法用空角色定義䌓結集合來新增角色指派」錯誤。訊息很明確，理應不難查，但幾乎把所有 Google 到的文章看完也沒看出所以然，最後在 <a href="https://sharepoint.stackexchange.com/a/159210/110620">StackExchange SharePoint 版</a> 找到答案：</p> <blockquote> <p>It appears that CSOM does not like the new RoleDefinitionBindingCollection being instaniated, calling ExecuteQuery(), and then calling ExecuteQuery() again after the RoleDefinitionBindingCollection is added to the folder.</p> </blockquote> <p>new RoleDefinitionBindingCollection(Context) 之後到被 RoleAssignments.Add() 加入之間不能呼叫 Context.ExecuteQuery()! 我在 ResolvePrincipal() 方法中呼叫了兩次。故要修正這個問題，方法有二：</p> <pre><code>// 解析函式(ExecuteQuery())移到 new RoleDefinitionBindingCollection() 之前
-var principal = ResolvePrincipal("Domain\\Account");
-var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(principal, rdlc);
-Context.ExecuteQuery();
-</code></pre> <p>或用 <a href="/blog/cs-in-depth-notes-4/">Collection Initializer</a> 寫成一行，放在 ResolvePrincipal() 之後：</p> <pre><code>list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"),
-new RoleDefinitionBindingCollection(Context) {
-Web.RoleDefinitions.GetByType(RoleType.Reader)
-});
-Context.ExecuteQuery();
-</code></pre> <p data-slug="csom-error-empty-role-definition-binding-collection" data-fbimg="https://images.pexels.com/photos/23789/pexels-photo.jpg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="/blog/access-sharepoint-doclib-with-dotnet/">SharePoint CSOM (Client-Site Object Model)</a> 的冷門茶包，搞了快兩小時，寫篇筆記留給有緣人。</p> <p>要授與 SharePoint 清單讀者權限給 Domain\Account，參考<a href="https://learn.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee535228(v=office.14)?WT.mc_id=DOP-MVP-37580#breaking-the-security-inheritance-of-a-document-and-changing-the-permissions-of-a-user">官方範例</a> BreakRoleInheritance()、建立 RoleDefinitionBindingCollection 加 RoleDefinition，RoleAssignments.Add() 行禮如儀，AD 帳號則需透過 <a href="https://learn.microsoft.com/zh-tw/previous-versions/office/sharepoint-csom/ee540627(v=office.15)?WT.mc_id=DOP-MVP-37580">Utility.ResolvePrincipal ()</a> 解析成 Microsoft.SharePoint.Client.Principal：</p> <pre><code>var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"), rdlc);
-Context.ExecuteQuery();
-public Microsoft.SharePoint.Client.Principal ResolvePrincipal(string ntAccount)
-{
-var info = Utility.ResolvePrincipal(Context, Web, ntAccount, PrincipalType.All, PrincipalSource.Windows, null, false);
-Context.ExecuteQuery();
-Microsoft.SharePoint.Client.Principal p = null;
-var type = info.Value.PrincipalType;
-if (type == PrincipalType.User)
-p = Web.EnsureUser(info.Value.LoginName);
-else if (type == PrincipalType.SharePointGroup || type == PrincipalType.SecurityGroup)
-p = Web.SiteGroups.GetById(info.Value.PrincipalId);
-else
-throw new ApplicationException($"Unsupported PrincipalType - {type}");
-Context.Load(p);
-Context.ExecuteQuery();
-return p;
-}
-</code></pre> <p>程式噴出「Cannot add a role assignment with empty role definition binding collection / 無法用空角色定義䌓結集合來新增角色指派」錯誤。訊息很明確，理應不難查，但幾乎把所有 Google 到的文章看完也沒看出所以然，最後在 <a href="https://sharepoint.stackexchange.com/a/159210/110620">StackExchange SharePoint 版</a> 找到答案：</p> <blockquote> <p>It appears that CSOM does not like the new RoleDefinitionBindingCollection being instaniated, calling ExecuteQuery(), and then calling ExecuteQuery() again after the RoleDefinitionBindingCollection is added to the folder.</p> </blockquote> <p>new RoleDefinitionBindingCollection(Context) 之後到被 RoleAssignments.Add() 加入之間不能呼叫 Context.ExecuteQuery()! 我在 ResolvePrincipal() 方法中呼叫了兩次。故要修正這個問題，方法有二：</p> <pre><code>// 解析函式(ExecuteQuery())移到 new RoleDefinitionBindingCollection() 之前
-var principal = ResolvePrincipal("Domain\\Account");
-var rdbc = new RoleDefinitionBindingCollection(Context);
-rdbc.Add(Web.RoleDefinitions.GetByType(RoleType.Reader));
-list.RoleAssignments.Add(principal, rdlc);
-Context.ExecuteQuery();
-</code></pre> <p>或用 <a href="/blog/cs-in-depth-notes-4/">Collection Initializer</a> 寫成一行，放在 ResolvePrincipal() 之後：</p> <pre><code>list.RoleAssignments.Add(ResolvePrincipal("Domain\\Account"),
-new RoleDefinitionBindingCollection(Context) {
-Web.RoleDefinitions.GetByType(RoleType.Reader)
-});
-Context.ExecuteQuery();
-</code></pre> <p data-slug="csom-error-empty-role-definition-binding-collection" data-fbimg="https://images.pexels.com/photos/23789/pexels-photo.jpg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]></content:encoded>
-    
-    <pubDate>Fri, 08 Dec 2023 13:57:08 GMT</pubDate>
   </item></channel>
 </rss>
