@@ -30,6 +30,480 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1051期：程序员的必修课：《computer-science》]]></title>
+    <link>https://openingsource.org/11417/</link>
+    <itunes:title><![CDATA[开源日报第1051期：程序员的必修课：《computer-science》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2023年12月22日，开源日报第1051期：<br>
+今日推荐开源项目：《computer-science》<br>
+今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
+<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
+<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
+<hr>
+<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
+<h1>Introduction</h1>
+<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
+<h1>Table of Content</h1>
+<ul>
+<li>Mastering Error Boundaries</li>
+<li>Unveiling Render-as-You-Fetch (RAYF)</li>
+<li>Combining Advanced React Patterns</li>
+<li>Best Practices and Considerations</li>
+<li>Real-world Applications of Error Patterns</li>
+<li>Conclusion</li>
+<li>References</li>
+</ul>
+<h1>Prerequisites</h1>
+<ul>
+<li>Basic understanding of React fundamentals</li>
+<li>Familiarity with JavaScript ES6+ features</li>
+<li>Knowledge of asynchronous programming and promises</li>
+<li>Experience with creating React components and managing state</li>
+<li>Awareness of React component lifecycle methods</li>
+<li>Familiarity with JSX syntax and component rendering</li>
+<li>Basic knowledge of network requests and API interactions in React applications</li>
+<li>Understanding of the concept of error handling in programming</li>
+<li>Awareness of the importance of performance optimization in web development</li>
+<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
+</ul>
+<h1>1. Mastering Error Boundaries</h1>
+<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
+<pre><code>import React, { useState, useEffect } from "react";
+const ErrorBoundary = ({ children }) =&gt; {
+const [hasError, setHasError] = useState(false);
+useEffect(() =&gt; {
+const errorHandler = (error) =&gt; {
+setHasError(true);
+};
+window.addEventListener("error", errorHandler);
+return () =&gt; {
+window.removeEventListener("error", errorHandler);
+};
+}, []);
+if (hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return children;
+};
+// Usage
+&lt;ErrorBoundary&gt;
+&lt;ComponentThatMightThrowAnError /&gt;
+&lt;/ErrorBoundary&gt;</code></pre>
+<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
+<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
+<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
+<pre><code>
+import React, { useState, useEffect } from "react";
+const RAYFExample = () =&gt; {
+const [data, setData] = useState([]);
+const [loading, setLoading] = useState(true);
+useEffect(() =&gt; {
+fetch("api/posts")
+.then((response) =&gt; response.json())
+.then((newData) =&gt; {
+setData(newData);
+setLoading(false);
+});
+}, []);
+return (
+&lt;div&gt;
+{loading ? (
+&lt;LoadingIndicator /&gt;
+) : (
+&lt;div&gt;
+{data.map((post) =&gt; (
+&lt;Post key={post.id} post={post} /&gt;
+))}
+&lt;/div&gt;
+)}
+&lt;/div&gt;
+);
+};</code></pre>
+<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
+<h1>3. Combining Advanced React Patterns</h1>
+<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
+<pre><code>import React from "react";
+class ErrorBoundary extends React.Component {
+state = { hasError: false };
+static getDerivedStateFromError(error) {
+return { hasError: true };
+}
+render() {
+if (this.state.hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return this.props.children;
+}
+}
+const RAYFWithErrors = () =&gt; (
+&lt;ErrorBoundary&gt;
+&lt;RAYFExample /&gt;
+&lt;/ErrorBoundary&gt;
+);</code></pre>
+<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
+<h1>4. Best Practices and Considerations</h1>
+<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
+<p><strong>Error Boundaries:</strong></p>
+<ul>
+<li>Place error boundaries strategically around components prone to errors.</li>
+<li>Keep error boundary logic simple to avoid introducing new issues.</li>
+<li>Provide meaningful fallback UIs that inform users about errors.</li>
+<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
+</ul>
+<p><strong>RAYF:</strong></p>
+<ul>
+<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
+<li>Strategically determine when and what components to fetch and render progressively.</li>
+<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
+<li>Ensure components are designed to handle incremental rendering and loading states.</li>
+</ul>
+<p><strong>Common Pitfalls and Challenges:</strong></p>
+<ul>
+<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
+<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
+<li>Ensuring consistent error handling across different components can be challenging.</li>
+</ul>
+<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
+<p><strong>Optimizing Performance and Code Quality:</strong></p>
+<ul>
+<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
+<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
+<li>Follow coding standards and document code extensively for maintainability.</li>
+</ul>
+<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
+<h1>5. Real-world Applications of error patterns</h1>
+<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
+<h1>6. Conclusion</h1>
+<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
+<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2023年12月22日，开源日报第1051期：<br>
+今日推荐开源项目：《computer-science》<br>
+今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
+<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
+<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
+<hr>
+<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
+<h1>Introduction</h1>
+<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
+<h1>Table of Content</h1>
+<ul>
+<li>Mastering Error Boundaries</li>
+<li>Unveiling Render-as-You-Fetch (RAYF)</li>
+<li>Combining Advanced React Patterns</li>
+<li>Best Practices and Considerations</li>
+<li>Real-world Applications of Error Patterns</li>
+<li>Conclusion</li>
+<li>References</li>
+</ul>
+<h1>Prerequisites</h1>
+<ul>
+<li>Basic understanding of React fundamentals</li>
+<li>Familiarity with JavaScript ES6+ features</li>
+<li>Knowledge of asynchronous programming and promises</li>
+<li>Experience with creating React components and managing state</li>
+<li>Awareness of React component lifecycle methods</li>
+<li>Familiarity with JSX syntax and component rendering</li>
+<li>Basic knowledge of network requests and API interactions in React applications</li>
+<li>Understanding of the concept of error handling in programming</li>
+<li>Awareness of the importance of performance optimization in web development</li>
+<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
+</ul>
+<h1>1. Mastering Error Boundaries</h1>
+<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
+<pre><code>import React, { useState, useEffect } from "react";
+const ErrorBoundary = ({ children }) =&gt; {
+const [hasError, setHasError] = useState(false);
+useEffect(() =&gt; {
+const errorHandler = (error) =&gt; {
+setHasError(true);
+};
+window.addEventListener("error", errorHandler);
+return () =&gt; {
+window.removeEventListener("error", errorHandler);
+};
+}, []);
+if (hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return children;
+};
+// Usage
+&lt;ErrorBoundary&gt;
+&lt;ComponentThatMightThrowAnError /&gt;
+&lt;/ErrorBoundary&gt;</code></pre>
+<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
+<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
+<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
+<pre><code>
+import React, { useState, useEffect } from "react";
+const RAYFExample = () =&gt; {
+const [data, setData] = useState([]);
+const [loading, setLoading] = useState(true);
+useEffect(() =&gt; {
+fetch("api/posts")
+.then((response) =&gt; response.json())
+.then((newData) =&gt; {
+setData(newData);
+setLoading(false);
+});
+}, []);
+return (
+&lt;div&gt;
+{loading ? (
+&lt;LoadingIndicator /&gt;
+) : (
+&lt;div&gt;
+{data.map((post) =&gt; (
+&lt;Post key={post.id} post={post} /&gt;
+))}
+&lt;/div&gt;
+)}
+&lt;/div&gt;
+);
+};</code></pre>
+<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
+<h1>3. Combining Advanced React Patterns</h1>
+<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
+<pre><code>import React from "react";
+class ErrorBoundary extends React.Component {
+state = { hasError: false };
+static getDerivedStateFromError(error) {
+return { hasError: true };
+}
+render() {
+if (this.state.hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return this.props.children;
+}
+}
+const RAYFWithErrors = () =&gt; (
+&lt;ErrorBoundary&gt;
+&lt;RAYFExample /&gt;
+&lt;/ErrorBoundary&gt;
+);</code></pre>
+<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
+<h1>4. Best Practices and Considerations</h1>
+<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
+<p><strong>Error Boundaries:</strong></p>
+<ul>
+<li>Place error boundaries strategically around components prone to errors.</li>
+<li>Keep error boundary logic simple to avoid introducing new issues.</li>
+<li>Provide meaningful fallback UIs that inform users about errors.</li>
+<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
+</ul>
+<p><strong>RAYF:</strong></p>
+<ul>
+<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
+<li>Strategically determine when and what components to fetch and render progressively.</li>
+<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
+<li>Ensure components are designed to handle incremental rendering and loading states.</li>
+</ul>
+<p><strong>Common Pitfalls and Challenges:</strong></p>
+<ul>
+<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
+<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
+<li>Ensuring consistent error handling across different components can be challenging.</li>
+</ul>
+<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
+<p><strong>Optimizing Performance and Code Quality:</strong></p>
+<ul>
+<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
+<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
+<li>Follow coding standards and document code extensively for maintainability.</li>
+</ul>
+<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
+<h1>5. Real-world Applications of error patterns</h1>
+<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
+<h1>6. Conclusion</h1>
+<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
+<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2023年12月22日，开源日报第1051期：<br>
+今日推荐开源项目：《computer-science》<br>
+今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
+<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
+<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
+<hr>
+<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
+<h1>Introduction</h1>
+<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
+<h1>Table of Content</h1>
+<ul>
+<li>Mastering Error Boundaries</li>
+<li>Unveiling Render-as-You-Fetch (RAYF)</li>
+<li>Combining Advanced React Patterns</li>
+<li>Best Practices and Considerations</li>
+<li>Real-world Applications of Error Patterns</li>
+<li>Conclusion</li>
+<li>References</li>
+</ul>
+<h1>Prerequisites</h1>
+<ul>
+<li>Basic understanding of React fundamentals</li>
+<li>Familiarity with JavaScript ES6+ features</li>
+<li>Knowledge of asynchronous programming and promises</li>
+<li>Experience with creating React components and managing state</li>
+<li>Awareness of React component lifecycle methods</li>
+<li>Familiarity with JSX syntax and component rendering</li>
+<li>Basic knowledge of network requests and API interactions in React applications</li>
+<li>Understanding of the concept of error handling in programming</li>
+<li>Awareness of the importance of performance optimization in web development</li>
+<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
+</ul>
+<h1>1. Mastering Error Boundaries</h1>
+<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
+<pre><code>import React, { useState, useEffect } from "react";
+const ErrorBoundary = ({ children }) =&gt; {
+const [hasError, setHasError] = useState(false);
+useEffect(() =&gt; {
+const errorHandler = (error) =&gt; {
+setHasError(true);
+};
+window.addEventListener("error", errorHandler);
+return () =&gt; {
+window.removeEventListener("error", errorHandler);
+};
+}, []);
+if (hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return children;
+};
+// Usage
+&lt;ErrorBoundary&gt;
+&lt;ComponentThatMightThrowAnError /&gt;
+&lt;/ErrorBoundary&gt;</code></pre>
+<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
+<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
+<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
+<pre><code>
+import React, { useState, useEffect } from "react";
+const RAYFExample = () =&gt; {
+const [data, setData] = useState([]);
+const [loading, setLoading] = useState(true);
+useEffect(() =&gt; {
+fetch("api/posts")
+.then((response) =&gt; response.json())
+.then((newData) =&gt; {
+setData(newData);
+setLoading(false);
+});
+}, []);
+return (
+&lt;div&gt;
+{loading ? (
+&lt;LoadingIndicator /&gt;
+) : (
+&lt;div&gt;
+{data.map((post) =&gt; (
+&lt;Post key={post.id} post={post} /&gt;
+))}
+&lt;/div&gt;
+)}
+&lt;/div&gt;
+);
+};</code></pre>
+<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
+<h1>3. Combining Advanced React Patterns</h1>
+<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
+<pre><code>import React from "react";
+class ErrorBoundary extends React.Component {
+state = { hasError: false };
+static getDerivedStateFromError(error) {
+return { hasError: true };
+}
+render() {
+if (this.state.hasError) {
+return &lt;FallbackUI /&gt;;
+}
+return this.props.children;
+}
+}
+const RAYFWithErrors = () =&gt; (
+&lt;ErrorBoundary&gt;
+&lt;RAYFExample /&gt;
+&lt;/ErrorBoundary&gt;
+);</code></pre>
+<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
+<h1>4. Best Practices and Considerations</h1>
+<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
+<p><strong>Error Boundaries:</strong></p>
+<ul>
+<li>Place error boundaries strategically around components prone to errors.</li>
+<li>Keep error boundary logic simple to avoid introducing new issues.</li>
+<li>Provide meaningful fallback UIs that inform users about errors.</li>
+<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
+</ul>
+<p><strong>RAYF:</strong></p>
+<ul>
+<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
+<li>Strategically determine when and what components to fetch and render progressively.</li>
+<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
+<li>Ensure components are designed to handle incremental rendering and loading states.</li>
+</ul>
+<p><strong>Common Pitfalls and Challenges:</strong></p>
+<ul>
+<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
+<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
+<li>Ensuring consistent error handling across different components can be challenging.</li>
+</ul>
+<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
+<p><strong>Optimizing Performance and Code Quality:</strong></p>
+<ul>
+<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
+<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
+<li>Follow coding standards and document code extensively for maintainability.</li>
+</ul>
+<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
+<h1>5. Real-world Applications of error patterns</h1>
+<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
+<h1>6. Conclusion</h1>
+<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
+<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg" medium="image"/>
+    <pubDate>Fri, 22 Dec 2023 15:25:32 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1050期：《如何高效提问：How-To-Ask-Questions-The-Smart-Way》]]></title>
     <link>https://openingsource.org/11413/</link>
     <itunes:title><![CDATA[开源日报第1050期：《如何高效提问：How-To-Ask-Questions-The-Smart-Way》]]></itunes:title>
@@ -1241,317 +1715,5 @@ Posts and Telecommunications Institute of Technology, Km 10, Ngõ 5 Trần Phú,
     <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/x12-1.png.pagespeed.ic.GfzJj3xhy1.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2023/12/x12-1.png.pagespeed.ic.GfzJj3xhy1.jpg" medium="image"/>
     <pubDate>Sat, 16 Dec 2023 05:18:28 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1044期：《新一代远程调试工具: page-spy-web》]]></title>
-    <link>https://openingsource.org/11353/</link>
-    <itunes:title><![CDATA[开源日报第1044期：《新一代远程调试工具: page-spy-web》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>今日推荐开源项目：《page-spy-web》</p>
-<p>今日推荐英文原文：《When to Use React Query vs useEffect for Data Fetching》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/x11.png.pagespeed.ic.TQk9mUKRFP.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《page-spy-web》传送门：<a href="https://github.com/HuolalaTech/page-spy-web" target="_blank">项目链接</a><br>
-PageSpy是一个用于web项目的远程调试工具,基于对本机web API的封装，在调用时过滤和转换本机方法的参数，并转换为具有特定格式的消息供调试器客户端使用， </p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/when-to-use-react-query-vs-useeffect-for-data-fetching-be5af8112daf" target="_blank">When to Use React Query vs useEffect for Data Fetching</a></p>
-<p>介绍fetching data 时 使用useEffect 和 React Query利弊，例子引入地非常好</p>
-<hr>
-<h1>When to Use React Query vs useEffect for Data Fetching</h1>
-<p>When it comes to fetching data in React applications, developers often face a dilemma: whether to use React Query or rely on the traditional useEffect hook.</p>
-<p>Both approaches have their merits, and the choice depends on the specific requirements of your project.</p>
-<h1>Using useEffect for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Simple Data Fetching:</strong>&nbsp;If your application requires fetching data from an API or a server endpoint once, useEffect is a straightforward solution.</li>
-<li><strong>Basic State Management:</strong>&nbsp;For applications with basic state management needs, where you can handle data loading, error, and success states manually, useEffect can be sufficient.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>
-import React, { useState, useEffect } from 'react';
-const DataFetchingComponent = () =&gt; {
-const [data, setData] = useState(null);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(null);
-useEffect(() =&gt; {
-const fetchData = async () =&gt; {
-try {
-const response = await fetch('/v1/data');
-const result = await response.json();
-setData(result);
-} catch (error) {
-setError(error);
-} finally {
-setLoading(false);
-}
-};
-fetchData();
-}, []);
-if (loading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (error) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};  </code></pre>
-<p>export default DataFetchingComponent;</p>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Simplicity:</strong>&nbsp;useEffect is easy to understand and implement, making it suitable for small projects or simple use cases.</li>
-<li><strong>Flexibility:</strong>&nbsp;You have complete control over the data fetching process and can handle different states based on your requirements.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Boilerplate Code:</strong>&nbsp;Handling loading, error, and success states can lead to boilerplate code, especially in larger applications.</li>
-<li><strong>Limited Features:</strong>&nbsp;useEffect does not provide built-in caching, pagination, or query invalidation, which might be necessary for complex applications.</li>
-</ul>
-<h1>Using React Query for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Complex Data Requirements:</strong>&nbsp;If your application requires advanced features like caching, pagination, background data synchronization, or automatic query invalidation, React Query provides a powerful solution.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;When you need to update the UI optimistically based on the assumption that a mutation will succeed, React Query handles this seamlessly.</li>
-<li><strong>Real-time Data:</strong>&nbsp;For real-time applications where data changes frequently and needs to be reflected in the UI without manual polling.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>import React from 'react';
-import { useQuery } from 'react-query';
-const fetchData = async () =&gt; {
-const response = await fetch('/v1/data');
-const data = await response.json();
-return data;
-};
-const DataFetchingComponent = () =&gt; {
-const { data, isLoading, isError, error } = useQuery('data', fetchData);
-if (isLoading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (isError) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};
-export default DataFetchingComponent;</code></pre>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Automatic Caching:</strong>&nbsp;React Query provides automatic caching, reducing unnecessary network requests and improving performance.</li>
-<li><strong>Pagination and Infinite Loading:</strong>&nbsp;Easily implement pagination and infinite loading with built-in features, simplifying complex UI requirements.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;Handle UI updates optimistically, ensuring a smooth user experience even before the data is persisted on the server.</li>
-<li><strong>Real-time Updates:</strong>&nbsp;React Query integrates seamlessly with real-time data sources, keeping the UI up-to-date with the latest changes.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Learning Curve:</strong>&nbsp;React Query introduces a learning curve due to its rich feature set and configuration options, especially for beginners.</li>
-<li><strong>Additional Dependency:</strong>&nbsp;React Query is an additional dependency that needs to be managed, which might be a concern for projects with strict size constraints.</li>
-</ul>
-<p>In summary, the choice between React Query and useEffect depends on the complexity of your data fetching requirements. For simple applications with basic data fetching needs and limited states, useEffect provides a straightforward solution. However, for complex applications with requirements like caching, pagination, real-time updates, and optimistic UI, React Query offers a robust and feature-rich solution.</p>
-<p>Understanding your project’s specific needs is crucial in making an informed decision, ensuring a seamless and efficient data-fetching experience for your users.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>今日推荐开源项目：《page-spy-web》</p>
-<p>今日推荐英文原文：《When to Use React Query vs useEffect for Data Fetching》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/x11.png.pagespeed.ic.TQk9mUKRFP.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《page-spy-web》传送门：<a href="https://github.com/HuolalaTech/page-spy-web" target="_blank">项目链接</a><br>
-PageSpy是一个用于web项目的远程调试工具,基于对本机web API的封装，在调用时过滤和转换本机方法的参数，并转换为具有特定格式的消息供调试器客户端使用， </p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/when-to-use-react-query-vs-useeffect-for-data-fetching-be5af8112daf" target="_blank">When to Use React Query vs useEffect for Data Fetching</a></p>
-<p>介绍fetching data 时 使用useEffect 和 React Query利弊，例子引入地非常好</p>
-<hr>
-<h1>When to Use React Query vs useEffect for Data Fetching</h1>
-<p>When it comes to fetching data in React applications, developers often face a dilemma: whether to use React Query or rely on the traditional useEffect hook.</p>
-<p>Both approaches have their merits, and the choice depends on the specific requirements of your project.</p>
-<h1>Using useEffect for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Simple Data Fetching:</strong>&nbsp;If your application requires fetching data from an API or a server endpoint once, useEffect is a straightforward solution.</li>
-<li><strong>Basic State Management:</strong>&nbsp;For applications with basic state management needs, where you can handle data loading, error, and success states manually, useEffect can be sufficient.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>
-import React, { useState, useEffect } from 'react';
-const DataFetchingComponent = () =&gt; {
-const [data, setData] = useState(null);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(null);
-useEffect(() =&gt; {
-const fetchData = async () =&gt; {
-try {
-const response = await fetch('/v1/data');
-const result = await response.json();
-setData(result);
-} catch (error) {
-setError(error);
-} finally {
-setLoading(false);
-}
-};
-fetchData();
-}, []);
-if (loading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (error) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};  </code></pre>
-<p>export default DataFetchingComponent;</p>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Simplicity:</strong>&nbsp;useEffect is easy to understand and implement, making it suitable for small projects or simple use cases.</li>
-<li><strong>Flexibility:</strong>&nbsp;You have complete control over the data fetching process and can handle different states based on your requirements.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Boilerplate Code:</strong>&nbsp;Handling loading, error, and success states can lead to boilerplate code, especially in larger applications.</li>
-<li><strong>Limited Features:</strong>&nbsp;useEffect does not provide built-in caching, pagination, or query invalidation, which might be necessary for complex applications.</li>
-</ul>
-<h1>Using React Query for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Complex Data Requirements:</strong>&nbsp;If your application requires advanced features like caching, pagination, background data synchronization, or automatic query invalidation, React Query provides a powerful solution.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;When you need to update the UI optimistically based on the assumption that a mutation will succeed, React Query handles this seamlessly.</li>
-<li><strong>Real-time Data:</strong>&nbsp;For real-time applications where data changes frequently and needs to be reflected in the UI without manual polling.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>import React from 'react';
-import { useQuery } from 'react-query';
-const fetchData = async () =&gt; {
-const response = await fetch('/v1/data');
-const data = await response.json();
-return data;
-};
-const DataFetchingComponent = () =&gt; {
-const { data, isLoading, isError, error } = useQuery('data', fetchData);
-if (isLoading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (isError) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};
-export default DataFetchingComponent;</code></pre>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Automatic Caching:</strong>&nbsp;React Query provides automatic caching, reducing unnecessary network requests and improving performance.</li>
-<li><strong>Pagination and Infinite Loading:</strong>&nbsp;Easily implement pagination and infinite loading with built-in features, simplifying complex UI requirements.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;Handle UI updates optimistically, ensuring a smooth user experience even before the data is persisted on the server.</li>
-<li><strong>Real-time Updates:</strong>&nbsp;React Query integrates seamlessly with real-time data sources, keeping the UI up-to-date with the latest changes.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Learning Curve:</strong>&nbsp;React Query introduces a learning curve due to its rich feature set and configuration options, especially for beginners.</li>
-<li><strong>Additional Dependency:</strong>&nbsp;React Query is an additional dependency that needs to be managed, which might be a concern for projects with strict size constraints.</li>
-</ul>
-<p>In summary, the choice between React Query and useEffect depends on the complexity of your data fetching requirements. For simple applications with basic data fetching needs and limited states, useEffect provides a straightforward solution. However, for complex applications with requirements like caching, pagination, real-time updates, and optimistic UI, React Query offers a robust and feature-rich solution.</p>
-<p>Understanding your project’s specific needs is crucial in making an informed decision, ensuring a seamless and efficient data-fetching experience for your users.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>今日推荐开源项目：《page-spy-web》</p>
-<p>今日推荐英文原文：《When to Use React Query vs useEffect for Data Fetching》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/x11.png.pagespeed.ic.TQk9mUKRFP.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《page-spy-web》传送门：<a href="https://github.com/HuolalaTech/page-spy-web" target="_blank">项目链接</a><br>
-PageSpy是一个用于web项目的远程调试工具,基于对本机web API的封装，在调用时过滤和转换本机方法的参数，并转换为具有特定格式的消息供调试器客户端使用， </p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/when-to-use-react-query-vs-useeffect-for-data-fetching-be5af8112daf" target="_blank">When to Use React Query vs useEffect for Data Fetching</a></p>
-<p>介绍fetching data 时 使用useEffect 和 React Query利弊，例子引入地非常好</p>
-<hr>
-<h1>When to Use React Query vs useEffect for Data Fetching</h1>
-<p>When it comes to fetching data in React applications, developers often face a dilemma: whether to use React Query or rely on the traditional useEffect hook.</p>
-<p>Both approaches have their merits, and the choice depends on the specific requirements of your project.</p>
-<h1>Using useEffect for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Simple Data Fetching:</strong>&nbsp;If your application requires fetching data from an API or a server endpoint once, useEffect is a straightforward solution.</li>
-<li><strong>Basic State Management:</strong>&nbsp;For applications with basic state management needs, where you can handle data loading, error, and success states manually, useEffect can be sufficient.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>
-import React, { useState, useEffect } from 'react';
-const DataFetchingComponent = () =&gt; {
-const [data, setData] = useState(null);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(null);
-useEffect(() =&gt; {
-const fetchData = async () =&gt; {
-try {
-const response = await fetch('/v1/data');
-const result = await response.json();
-setData(result);
-} catch (error) {
-setError(error);
-} finally {
-setLoading(false);
-}
-};
-fetchData();
-}, []);
-if (loading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (error) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};  </code></pre>
-<p>export default DataFetchingComponent;</p>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Simplicity:</strong>&nbsp;useEffect is easy to understand and implement, making it suitable for small projects or simple use cases.</li>
-<li><strong>Flexibility:</strong>&nbsp;You have complete control over the data fetching process and can handle different states based on your requirements.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Boilerplate Code:</strong>&nbsp;Handling loading, error, and success states can lead to boilerplate code, especially in larger applications.</li>
-<li><strong>Limited Features:</strong>&nbsp;useEffect does not provide built-in caching, pagination, or query invalidation, which might be necessary for complex applications.</li>
-</ul>
-<h1>Using React Query for Data Fetching:</h1>
-<h1>When to Use:</h1>
-<ul>
-<li><strong>Complex Data Requirements:</strong>&nbsp;If your application requires advanced features like caching, pagination, background data synchronization, or automatic query invalidation, React Query provides a powerful solution.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;When you need to update the UI optimistically based on the assumption that a mutation will succeed, React Query handles this seamlessly.</li>
-<li><strong>Real-time Data:</strong>&nbsp;For real-time applications where data changes frequently and needs to be reflected in the UI without manual polling.</li>
-</ul>
-<h1>Example:</h1>
-<pre><code>import React from 'react';
-import { useQuery } from 'react-query';
-const fetchData = async () =&gt; {
-const response = await fetch('/v1/data');
-const data = await response.json();
-return data;
-};
-const DataFetchingComponent = () =&gt; {
-const { data, isLoading, isError, error } = useQuery('data', fetchData);
-if (isLoading) return &lt;p&gt;Loading...&lt;/p&gt;;
-if (isError) return &lt;p&gt;Error: {error.message}&lt;/p&gt;;
-if (!data) return &lt;p&gt;No data available&lt;/p&gt;;
-return &lt;div&gt;{/* Render data here */}&lt;/div&gt;;
-};
-export default DataFetchingComponent;</code></pre>
-<h1>Advantages:</h1>
-<ul>
-<li><strong>Automatic Caching:</strong>&nbsp;React Query provides automatic caching, reducing unnecessary network requests and improving performance.</li>
-<li><strong>Pagination and Infinite Loading:</strong>&nbsp;Easily implement pagination and infinite loading with built-in features, simplifying complex UI requirements.</li>
-<li><strong>Optimistic Updates:</strong>&nbsp;Handle UI updates optimistically, ensuring a smooth user experience even before the data is persisted on the server.</li>
-<li><strong>Real-time Updates:</strong>&nbsp;React Query integrates seamlessly with real-time data sources, keeping the UI up-to-date with the latest changes.</li>
-</ul>
-<h1>Disadvantages:</h1>
-<ul>
-<li><strong>Learning Curve:</strong>&nbsp;React Query introduces a learning curve due to its rich feature set and configuration options, especially for beginners.</li>
-<li><strong>Additional Dependency:</strong>&nbsp;React Query is an additional dependency that needs to be managed, which might be a concern for projects with strict size constraints.</li>
-</ul>
-<p>In summary, the choice between React Query and useEffect depends on the complexity of your data fetching requirements. For simple applications with basic data fetching needs and limited states, useEffect provides a straightforward solution. However, for complex applications with requirements like caching, pagination, real-time updates, and optimistic UI, React Query offers a robust and feature-rich solution.</p>
-<p>Understanding your project’s specific needs is crucial in making an informed decision, ensuring a seamless and efficient data-fetching experience for your users.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/x11.png.pagespeed.ic.TQk9mUKRFP.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2023/12/x11.png.pagespeed.ic.TQk9mUKRFP.jpg" medium="image"/>
-    <pubDate>Fri, 15 Dec 2023 15:59:33 +0000</pubDate>
   </item></channel>
 </rss>
