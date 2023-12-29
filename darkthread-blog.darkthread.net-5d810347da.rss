@@ -30,6 +30,273 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[ESP32 Marauder - WiFi/Bluetooth 訊號分析儀與土製無線干擾器]]></title>
+    <link>https://blog.darkthread.net/blog/esp32-marauder/</link>
+    <itunes:title><![CDATA[ESP32 Marauder - WiFi/Bluetooth 訊號分析儀與土製無線干擾器]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天<a href="/blog/google-passkey/">手機免密碼登入 Google 帳號</a>文章跟讀者討論到手機與電腦間的藍牙究竟只做為距離判斷或是會用來傳輸 WebAuthn 協定，突發奇想，不如監聽一下藍牙封包見真章。</p> <p>查了網路，倒也不難，買個 nRF52840 USB Dongle 配 Wireshark 即可<a href="https://learn.adafruit.com/ble-sniffer-with-nrf52840/working-with-wireshark">比照無線線卡抓封包</a>，零件大約 500 有找。但要上網訂有點麻煩，ESP32 內建藍牙模組，能不能直接用它抓呢？</p> <p>Google 了一下，找到一個散發黑暗氣息的開源專案 - <a href="https://github.com/justcallmekoko/ESP32Marauder">ESP Marauder</a>。基本上它是個 WiFi 及藍牙訊息分析工具，能擷取封包、掃瞄裝置，還被加入一些邪惡功能，像是可以發送訊號癱瘓無線網路。它比較常見的型式是附上 2.8" 觸控螢幕、電池跟 SD 卡，並有外接天線，方便攜帶使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638394652054719661.png" alt="thumbnail"><br> <a href="https://www.instagram.com/hackers_setup/p/CzLBcdkLZQp/">照片來源</a></p> <p>我只想觀察藍牙訊息，不用這麼搞剛，就拿上週剛做好的<a href="/blog/esp32-slide-controller/">ESP32 觸控式簡報遙控器 PoC</a>改刷 ESP32 Marauder，什麼週邊都不用接，使用 COM 埠下指令操作：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394649770461111.jpg" alt="thumbnail"></p> <p>刷好軟體用 Putty 連上就能下指令掃 WiFi 基地台、客戶端 MAC、藍牙裝置等，但它的 CLI 介面不太友善，指令不是按 Enter 結束，而要在一定時間內敲完，不能遲疑不能打錯字。另外，掃瞄藍牙的結果顯示沒換行，東西都擠在一起不易閱讀：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394649772395134.png"></p> <p>之前玩 <a href="/blog/esp-control-pwm-fan/">ESP32 控制 PWM 風扇</a>時學會 C# 程式可用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-8.0&amp;WT.mc_id=DOP-MVP-37580">SerialPort 類別</a>讀寫 COM Port，就寫幾行程式做個友善介面。</p> <pre><code>using System.Text;
+using System.Text.RegularExpressions;
+using System.IO.Ports;
+var sb = new StringBuilder();
+var sniffing = false;
+Debouncer debouncer = new Debouncer(500);
+var agent = new MarauderBTSniffingAgent("COM4",
+(msg) =&gt; {
+if (!sniffing)
+Console.Write(msg);
+else
+{
+sb.Append(msg);
+// 同一行內容可能分兩次送到，使用 debounce 技巧，等 0.5 秒沒新資料再處理
+debouncer.Debounce(() =&gt;
+{
+foreach (var p in Regex.Split(sb.ToString(), "RSSI:").Skip(1))
+{
+if (!string.IsNullOrWhiteSpace(p))
+{
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine("RSSI:" + Regex.Replace(p, "Device: [0-9a-f:]{12}", "Device: *masked*:"));
+Console.ResetColor();
+}
+}
+sb.Clear();
+});
+}
+}
+);
+string command = "";
+while ((command = Console.ReadLine()) != null) {
+if (command == "start") {
+agent.Start();
+sniffing = true;
+}
+else if (command == "stop") {
+agent.Stop();
+sniffing = false;
+}
+else if (command == "reboot") {
+agent.Reboot();
+sniffing = false;
+}
+else if (command == "exit") {
+break;
+}
+else {
+Thread.Sleep(1000);
+}
+}
+public class Debouncer
+{
+private Timer timer;
+private readonly int interval;
+public Debouncer(int interval)
+{
+this.interval = interval;
+}
+public void Debounce(Action action)
+{
+timer?.Dispose();
+timer = new Timer(x =&gt; action(), null, interval, Timeout.Infinite);
+}
+}
+public class MarauderBTSniffingAgent
+{
+private SerialPort _serPort = null!;
+Action&lt;string&gt; msgCallback;
+public MarauderBTSniffingAgent(string portName, Action&lt;string&gt; msgCallback)
+{
+this.msgCallback = msgCallback;
+_serPort = new SerialPort(portName, 115200);
+_serPort.Open();
+_serPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+}
+private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+=&gt; msgCallback(((SerialPort)sender).ReadExisting());
+public void Start() =&gt; SendCommand("sniffbt");
+public void Stop() =&gt; SendCommand("stopscan");
+public void Reboot() =&gt; SendCommand("reboot");
+private void SendCommand(string command) =&gt; _serPort.WriteLine(command);
+public void Close() =&gt; _serPort.Close();
+}
+</code></pre> <p>測試成功，有掃到藍牙狀置。但我發現它是以電腦或手機的角度去尋找可用藍牙裝置，不是我所想像會攔截看到的封包，故可能還是買 nRF 模組配合 Wireshark 會比較方便。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394649774214818.png"></p> <p>好奇心驅使，順便試了它的 attack 指令，輕鬆讓家裡的基地台(Access Point)無法被連線，感覺有點小可怕。</p> <p>補充了一下資安知識，這種攻擊手法叫 <a href="https://en.wikipedia.org/wiki/Wi-Fi_deauthentication_attack">Wi-Fi Deauthentication Attack</a>，原理是攻擊者假冒受害客戶端 MAC 網址，向 Access Point 送出 802.11 協定中的 Deauthentication Frame，告知其已切斷連線，之後受害客戶端傳送的資料會被拒絕，AP 也會向其發出 Deauthentication 通知，屬於一種 Deny of Service (DoS) 攻擊。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638394649776096292.png"></p> <p>這個手法常被用來將受害者裝置從合法 AP 踢除，誘使其連上假冒 AP，或趁重新連線驗證時竊取密碼，再不然就像 ESP32 Marauder 一樣持續發送讓大家沒得用 。由於原理簡單，有一堆工具(Aircrack-ng Suite, MDK3, Void11, Scapy, Zulu software)可以實現這類攻擊，一些假冒 AP 也都會內建。</p> <p>唯一的防範之道應是 2009 發佈的 IEEE 802.11w 協定加入的<a href="https://www.asus.com/tw/support/FAQ/1042472/">受保護的管理訊框(Protected Management Frames, PMF)</a>，新版無線路由器幾乎都有支援，但啟用後應會面臨舊無線網卡可能不支援的問題，就像 IE 一樣，看來又是一個需要時間催化的問題。</p> <p data-slug="esp32-marauder" data-title-en="ESP32 Marauder" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/22/14/43/satellite-2528833_1280.jpg#1280#720">Discover the ESP32 Marauder, a device for WiFi/Bluetooth offensive and defensive tools, and how to integrate it with a .NET program, along with the threats of Wi-Fi Deauthentication Attack.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天<a href="/blog/google-passkey/">手機免密碼登入 Google 帳號</a>文章跟讀者討論到手機與電腦間的藍牙究竟只做為距離判斷或是會用來傳輸 WebAuthn 協定，突發奇想，不如監聽一下藍牙封包見真章。</p> <p>查了網路，倒也不難，買個 nRF52840 USB Dongle 配 Wireshark 即可<a href="https://learn.adafruit.com/ble-sniffer-with-nrf52840/working-with-wireshark">比照無線線卡抓封包</a>，零件大約 500 有找。但要上網訂有點麻煩，ESP32 內建藍牙模組，能不能直接用它抓呢？</p> <p>Google 了一下，找到一個散發黑暗氣息的開源專案 - <a href="https://github.com/justcallmekoko/ESP32Marauder">ESP Marauder</a>。基本上它是個 WiFi 及藍牙訊息分析工具，能擷取封包、掃瞄裝置，還被加入一些邪惡功能，像是可以發送訊號癱瘓無線網路。它比較常見的型式是附上 2.8" 觸控螢幕、電池跟 SD 卡，並有外接天線，方便攜帶使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638394652054719661.png" alt="thumbnail"><br> <a href="https://www.instagram.com/hackers_setup/p/CzLBcdkLZQp/">照片來源</a></p> <p>我只想觀察藍牙訊息，不用這麼搞剛，就拿上週剛做好的<a href="/blog/esp32-slide-controller/">ESP32 觸控式簡報遙控器 PoC</a>改刷 ESP32 Marauder，什麼週邊都不用接，使用 COM 埠下指令操作：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394649770461111.jpg" alt="thumbnail"></p> <p>刷好軟體用 Putty 連上就能下指令掃 WiFi 基地台、客戶端 MAC、藍牙裝置等，但它的 CLI 介面不太友善，指令不是按 Enter 結束，而要在一定時間內敲完，不能遲疑不能打錯字。另外，掃瞄藍牙的結果顯示沒換行，東西都擠在一起不易閱讀：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394649772395134.png"></p> <p>之前玩 <a href="/blog/esp-control-pwm-fan/">ESP32 控制 PWM 風扇</a>時學會 C# 程式可用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-8.0&amp;WT.mc_id=DOP-MVP-37580">SerialPort 類別</a>讀寫 COM Port，就寫幾行程式做個友善介面。</p> <pre><code>using System.Text;
+using System.Text.RegularExpressions;
+using System.IO.Ports;
+var sb = new StringBuilder();
+var sniffing = false;
+Debouncer debouncer = new Debouncer(500);
+var agent = new MarauderBTSniffingAgent("COM4",
+(msg) =&gt; {
+if (!sniffing)
+Console.Write(msg);
+else
+{
+sb.Append(msg);
+// 同一行內容可能分兩次送到，使用 debounce 技巧，等 0.5 秒沒新資料再處理
+debouncer.Debounce(() =&gt;
+{
+foreach (var p in Regex.Split(sb.ToString(), "RSSI:").Skip(1))
+{
+if (!string.IsNullOrWhiteSpace(p))
+{
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine("RSSI:" + Regex.Replace(p, "Device: [0-9a-f:]{12}", "Device: *masked*:"));
+Console.ResetColor();
+}
+}
+sb.Clear();
+});
+}
+}
+);
+string command = "";
+while ((command = Console.ReadLine()) != null) {
+if (command == "start") {
+agent.Start();
+sniffing = true;
+}
+else if (command == "stop") {
+agent.Stop();
+sniffing = false;
+}
+else if (command == "reboot") {
+agent.Reboot();
+sniffing = false;
+}
+else if (command == "exit") {
+break;
+}
+else {
+Thread.Sleep(1000);
+}
+}
+public class Debouncer
+{
+private Timer timer;
+private readonly int interval;
+public Debouncer(int interval)
+{
+this.interval = interval;
+}
+public void Debounce(Action action)
+{
+timer?.Dispose();
+timer = new Timer(x =&gt; action(), null, interval, Timeout.Infinite);
+}
+}
+public class MarauderBTSniffingAgent
+{
+private SerialPort _serPort = null!;
+Action&lt;string&gt; msgCallback;
+public MarauderBTSniffingAgent(string portName, Action&lt;string&gt; msgCallback)
+{
+this.msgCallback = msgCallback;
+_serPort = new SerialPort(portName, 115200);
+_serPort.Open();
+_serPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+}
+private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+=&gt; msgCallback(((SerialPort)sender).ReadExisting());
+public void Start() =&gt; SendCommand("sniffbt");
+public void Stop() =&gt; SendCommand("stopscan");
+public void Reboot() =&gt; SendCommand("reboot");
+private void SendCommand(string command) =&gt; _serPort.WriteLine(command);
+public void Close() =&gt; _serPort.Close();
+}
+</code></pre> <p>測試成功，有掃到藍牙狀置。但我發現它是以電腦或手機的角度去尋找可用藍牙裝置，不是我所想像會攔截看到的封包，故可能還是買 nRF 模組配合 Wireshark 會比較方便。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394649774214818.png"></p> <p>好奇心驅使，順便試了它的 attack 指令，輕鬆讓家裡的基地台(Access Point)無法被連線，感覺有點小可怕。</p> <p>補充了一下資安知識，這種攻擊手法叫 <a href="https://en.wikipedia.org/wiki/Wi-Fi_deauthentication_attack">Wi-Fi Deauthentication Attack</a>，原理是攻擊者假冒受害客戶端 MAC 網址，向 Access Point 送出 802.11 協定中的 Deauthentication Frame，告知其已切斷連線，之後受害客戶端傳送的資料會被拒絕，AP 也會向其發出 Deauthentication 通知，屬於一種 Deny of Service (DoS) 攻擊。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638394649776096292.png"></p> <p>這個手法常被用來將受害者裝置從合法 AP 踢除，誘使其連上假冒 AP，或趁重新連線驗證時竊取密碼，再不然就像 ESP32 Marauder 一樣持續發送讓大家沒得用 。由於原理簡單，有一堆工具(Aircrack-ng Suite, MDK3, Void11, Scapy, Zulu software)可以實現這類攻擊，一些假冒 AP 也都會內建。</p> <p>唯一的防範之道應是 2009 發佈的 IEEE 802.11w 協定加入的<a href="https://www.asus.com/tw/support/FAQ/1042472/">受保護的管理訊框(Protected Management Frames, PMF)</a>，新版無線路由器幾乎都有支援，但啟用後應會面臨舊無線網卡可能不支援的問題，就像 IE 一樣，看來又是一個需要時間催化的問題。</p> <p data-slug="esp32-marauder" data-title-en="ESP32 Marauder" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/22/14/43/satellite-2528833_1280.jpg#1280#720">Discover the ESP32 Marauder, a device for WiFi/Bluetooth offensive and defensive tools, and how to integrate it with a .NET program, along with the threats of Wi-Fi Deauthentication Attack.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天<a href="/blog/google-passkey/">手機免密碼登入 Google 帳號</a>文章跟讀者討論到手機與電腦間的藍牙究竟只做為距離判斷或是會用來傳輸 WebAuthn 協定，突發奇想，不如監聽一下藍牙封包見真章。</p> <p>查了網路，倒也不難，買個 nRF52840 USB Dongle 配 Wireshark 即可<a href="https://learn.adafruit.com/ble-sniffer-with-nrf52840/working-with-wireshark">比照無線線卡抓封包</a>，零件大約 500 有找。但要上網訂有點麻煩，ESP32 內建藍牙模組，能不能直接用它抓呢？</p> <p>Google 了一下，找到一個散發黑暗氣息的開源專案 - <a href="https://github.com/justcallmekoko/ESP32Marauder">ESP Marauder</a>。基本上它是個 WiFi 及藍牙訊息分析工具，能擷取封包、掃瞄裝置，還被加入一些邪惡功能，像是可以發送訊號癱瘓無線網路。它比較常見的型式是附上 2.8" 觸控螢幕、電池跟 SD 卡，並有外接天線，方便攜帶使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig6_638394652054719661.png" alt="thumbnail"><br> <a href="https://www.instagram.com/hackers_setup/p/CzLBcdkLZQp/">照片來源</a></p> <p>我只想觀察藍牙訊息，不用這麼搞剛，就拿上週剛做好的<a href="/blog/esp32-slide-controller/">ESP32 觸控式簡報遙控器 PoC</a>改刷 ESP32 Marauder，什麼週邊都不用接，使用 COM 埠下指令操作：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394649770461111.jpg" alt="thumbnail"></p> <p>刷好軟體用 Putty 連上就能下指令掃 WiFi 基地台、客戶端 MAC、藍牙裝置等，但它的 CLI 介面不太友善，指令不是按 Enter 結束，而要在一定時間內敲完，不能遲疑不能打錯字。另外，掃瞄藍牙的結果顯示沒換行，東西都擠在一起不易閱讀：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394649772395134.png"></p> <p>之前玩 <a href="/blog/esp-control-pwm-fan/">ESP32 控制 PWM 風扇</a>時學會 C# 程式可用 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-8.0&amp;WT.mc_id=DOP-MVP-37580">SerialPort 類別</a>讀寫 COM Port，就寫幾行程式做個友善介面。</p> <pre><code>using System.Text;
+using System.Text.RegularExpressions;
+using System.IO.Ports;
+var sb = new StringBuilder();
+var sniffing = false;
+Debouncer debouncer = new Debouncer(500);
+var agent = new MarauderBTSniffingAgent("COM4",
+(msg) =&gt; {
+if (!sniffing)
+Console.Write(msg);
+else
+{
+sb.Append(msg);
+// 同一行內容可能分兩次送到，使用 debounce 技巧，等 0.5 秒沒新資料再處理
+debouncer.Debounce(() =&gt;
+{
+foreach (var p in Regex.Split(sb.ToString(), "RSSI:").Skip(1))
+{
+if (!string.IsNullOrWhiteSpace(p))
+{
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine("RSSI:" + Regex.Replace(p, "Device: [0-9a-f:]{12}", "Device: *masked*:"));
+Console.ResetColor();
+}
+}
+sb.Clear();
+});
+}
+}
+);
+string command = "";
+while ((command = Console.ReadLine()) != null) {
+if (command == "start") {
+agent.Start();
+sniffing = true;
+}
+else if (command == "stop") {
+agent.Stop();
+sniffing = false;
+}
+else if (command == "reboot") {
+agent.Reboot();
+sniffing = false;
+}
+else if (command == "exit") {
+break;
+}
+else {
+Thread.Sleep(1000);
+}
+}
+public class Debouncer
+{
+private Timer timer;
+private readonly int interval;
+public Debouncer(int interval)
+{
+this.interval = interval;
+}
+public void Debounce(Action action)
+{
+timer?.Dispose();
+timer = new Timer(x =&gt; action(), null, interval, Timeout.Infinite);
+}
+}
+public class MarauderBTSniffingAgent
+{
+private SerialPort _serPort = null!;
+Action&lt;string&gt; msgCallback;
+public MarauderBTSniffingAgent(string portName, Action&lt;string&gt; msgCallback)
+{
+this.msgCallback = msgCallback;
+_serPort = new SerialPort(portName, 115200);
+_serPort.Open();
+_serPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+}
+private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+=&gt; msgCallback(((SerialPort)sender).ReadExisting());
+public void Start() =&gt; SendCommand("sniffbt");
+public void Stop() =&gt; SendCommand("stopscan");
+public void Reboot() =&gt; SendCommand("reboot");
+private void SendCommand(string command) =&gt; _serPort.WriteLine(command);
+public void Close() =&gt; _serPort.Close();
+}
+</code></pre> <p>測試成功，有掃到藍牙狀置。但我發現它是以電腦或手機的角度去尋找可用藍牙裝置，不是我所想像會攔截看到的封包，故可能還是買 nRF 模組配合 Wireshark 會比較方便。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394649774214818.png"></p> <p>好奇心驅使，順便試了它的 attack 指令，輕鬆讓家裡的基地台(Access Point)無法被連線，感覺有點小可怕。</p> <p>補充了一下資安知識，這種攻擊手法叫 <a href="https://en.wikipedia.org/wiki/Wi-Fi_deauthentication_attack">Wi-Fi Deauthentication Attack</a>，原理是攻擊者假冒受害客戶端 MAC 網址，向 Access Point 送出 802.11 協定中的 Deauthentication Frame，告知其已切斷連線，之後受害客戶端傳送的資料會被拒絕，AP 也會向其發出 Deauthentication 通知，屬於一種 Deny of Service (DoS) 攻擊。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig5_638394649776096292.png"></p> <p>這個手法常被用來將受害者裝置從合法 AP 踢除，誘使其連上假冒 AP，或趁重新連線驗證時竊取密碼，再不然就像 ESP32 Marauder 一樣持續發送讓大家沒得用 。由於原理簡單，有一堆工具(Aircrack-ng Suite, MDK3, Void11, Scapy, Zulu software)可以實現這類攻擊，一些假冒 AP 也都會內建。</p> <p>唯一的防範之道應是 2009 發佈的 IEEE 802.11w 協定加入的<a href="https://www.asus.com/tw/support/FAQ/1042472/">受保護的管理訊框(Protected Management Frames, PMF)</a>，新版無線路由器幾乎都有支援，但啟用後應會面臨舊無線網卡可能不支援的問題，就像 IE 一樣，看來又是一個需要時間催化的問題。</p> <p data-slug="esp32-marauder" data-title-en="ESP32 Marauder" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2017/07/22/14/43/satellite-2528833_1280.jpg#1280#720">Discover the ESP32 Marauder, a device for WiFi/Bluetooth offensive and defensive tools, and how to integrate it with a .NET program, along with the threats of Wi-Fi Deauthentication Attack.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig6_638394652054719661.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig6_638394652054719661.png" medium="image"/>
+    <pubDate>Fri, 29 Dec 2023 15:59:28 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Google Passkey 筆記 - 使用手機免密碼登入 Google 帳號]]></title>
     <link>https://blog.darkthread.net/blog/google-passkey/</link>
     <itunes:title><![CDATA[Google Passkey 筆記 - 使用手機免密碼登入 Google 帳號]]></itunes:title>
@@ -1174,71 +1441,5 @@ _cnStr = scsb.ConnectionString;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig5_638381605401061852.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig5_638381605401061852.png" medium="image"/>
     <pubDate>Thu, 14 Dec 2023 14:20:00 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.NET 8 升級踩坑 - SqlGuidCaster 問題與 System.Data.SqlClient 的未來]]></title>
-    <link>https://blog.darkthread.net/blog/net8-issue-sqlguidcaster/</link>
-    <itunes:title><![CDATA[.NET 8 升級踩坑 - SqlGuidCaster 問題與 System.Data.SqlClient 的未來]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>繼續分享<a href="/blog/net8-issue-activatorutilitiesconstructor/">升級 .NET 8 踩坑心得</a>，用以下程式重現問題：</p> <pre><code>using System;
-using System.Data.SqlClient;
-var obj = new SomeClass();
-var typeNames = AppDomain.CurrentDomain.GetAssemblies()
-.SelectMany(assembly =&gt; assembly.GetTypes())
-.Where(type =&gt; !type.IsInterface &amp;&amp; typeof(IFoo).IsAssignableFrom(type))
-.Select(type =&gt; type.Name)
-.Distinct();
-Console.WriteLine($".NET {Environment.Version}");
-Console.WriteLine(string.Join(Environment.NewLine, typeNames));
-public interface IFoo {}
-public class SomeClass : IFoo
-{
-public SomeClass() {
-var cn = new SqlCommand();
-}
-}
-</code></pre> <p>.NET 7 OK、.NET 8 出現 <code>Could not load type 'SqlGuidCaster' from assembly 'System.Data.SqlClient, Version=4.6.1.5, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' because it contains an object field at offset 0 that is incorrectly aligned or overlapped by a non-object field.</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638380188796587155.png"></p> <p>爬文查到<a href="https://github.com/dotnet/SqlClient/issues/1930#issuecomment-1440832296">原因</a>，System.Data.SqlTypes.SqlGuid 定義早先由 <code>struct SqlGuid{ byte[] _value; }</code> <a href="https://github.com/dotnet/runtime/issues/51836#issuecomment-1189555912">改成</a> <code>struct SqlGuid{ Guid? _value; }</code>，這導致 .NET 8 新加的轉換 Value Type 動作出錯。好消息是 Microsoft.Data.SqlClient 在 5.2.0-preview <a href="https://github.com/dotnet/SqlClient/pull/1934">修復了這個問題</a>；System.Data.SqlClient 也有相同 Issue，但引用 SQL Server Driver 開發主管的<a href="https://github.com/dotnet/runtime/issues/86969#issuecomment-1572694225">說法</a>：System.Data.SqlClient, is unlikely to receive further updates, much less those that are only for fixing Reflection issues. (System.Data.SqlClient 已停更，何況是 Relfection 這類次要問題)</p> <p>㤦用 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 Microsoft.Data.SqlClient 5.2.0-preview 版本，實測問題可解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638380188798570844.png"></p> <p>專案目前還有一些第三方套件依賴 System.Data.SqlClient，全面改用 Microsoft.Data.SqlClient 工程不小，避開 Relection 改用其他做法是較可行。</p> <p>最後整理 System.Data.SqlClient 的現況與未來發展。引用 .NET 部落格 2019 的文章 <a href="https://devblogs.microsoft.com/dotnet/introducing-the-new-microsoftdatasqlclient/?WT.mc_id=DOP-MVP-37580">Introducing the new Microsoft.Data.SqlClient</a> 對 System.Data.SqlClient 未來的規劃：</p> <blockquote> <p>It means the development focus has changed. We have no intention of dropping support for System.Data.SqlClient any time soon. It will remain as-is and we will fix important bugs and security issues as they arise. If you have a typical application that doesn’t use any of the newest SQL features, then you will still be well served by a stable and reliable System.Data.SqlClient for many years.</p> <p>However, Microsoft.Data.SqlClient will be the only place we will be implementing new features going forward. We would encourage you to evaluate your needs and options and choose the right time for you to migrate your application or library from System.Data.SqlClient to Microsoft.Data.SqlClient.</p> </blockquote> <p>在 Microsoft.Data.SqlClient 推出後，System.Data.SqlClient 只會針對重大 Bug 及安全問題做更新，只要不用新功能，System.Data.SqlClient 還可以用很多年沒問題。新功能將只會加入 Microsoft.Data.SqlClient，建議選擇適當時機從 System.Data.SqlClient 換成 Microsoft.Data.SqlClient。</p> <p>時代的巨輪向來不等人，只會輾人。還在用 System.Data.SqlClient 的專案要有心理準備，「新功能沒有，小問題不修，還能繼續用，早換早解脫」將是未來幾年的寫照。</p> <p data-slug="net8-issue-SqlGuidCaster" data-title-en="SqlGuidCaster issue on .NET 8" data-catg=".NET" data-fbimg="https://i.imgur.com/OAvlNAE.jpg#1280#853">SqlGuidCaster issue after upgrade to .NET 8 and roadmap of System.Data.SqlClient.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>繼續分享<a href="/blog/net8-issue-activatorutilitiesconstructor/">升級 .NET 8 踩坑心得</a>，用以下程式重現問題：</p> <pre><code>using System;
-using System.Data.SqlClient;
-var obj = new SomeClass();
-var typeNames = AppDomain.CurrentDomain.GetAssemblies()
-.SelectMany(assembly =&gt; assembly.GetTypes())
-.Where(type =&gt; !type.IsInterface &amp;&amp; typeof(IFoo).IsAssignableFrom(type))
-.Select(type =&gt; type.Name)
-.Distinct();
-Console.WriteLine($".NET {Environment.Version}");
-Console.WriteLine(string.Join(Environment.NewLine, typeNames));
-public interface IFoo {}
-public class SomeClass : IFoo
-{
-public SomeClass() {
-var cn = new SqlCommand();
-}
-}
-</code></pre> <p>.NET 7 OK、.NET 8 出現 <code>Could not load type 'SqlGuidCaster' from assembly 'System.Data.SqlClient, Version=4.6.1.5, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' because it contains an object field at offset 0 that is incorrectly aligned or overlapped by a non-object field.</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638380188796587155.png"></p> <p>爬文查到<a href="https://github.com/dotnet/SqlClient/issues/1930#issuecomment-1440832296">原因</a>，System.Data.SqlTypes.SqlGuid 定義早先由 <code>struct SqlGuid{ byte[] _value; }</code> <a href="https://github.com/dotnet/runtime/issues/51836#issuecomment-1189555912">改成</a> <code>struct SqlGuid{ Guid? _value; }</code>，這導致 .NET 8 新加的轉換 Value Type 動作出錯。好消息是 Microsoft.Data.SqlClient 在 5.2.0-preview <a href="https://github.com/dotnet/SqlClient/pull/1934">修復了這個問題</a>；System.Data.SqlClient 也有相同 Issue，但引用 SQL Server Driver 開發主管的<a href="https://github.com/dotnet/runtime/issues/86969#issuecomment-1572694225">說法</a>：System.Data.SqlClient, is unlikely to receive further updates, much less those that are only for fixing Reflection issues. (System.Data.SqlClient 已停更，何況是 Relfection 這類次要問題)</p> <p>㤦用 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 Microsoft.Data.SqlClient 5.2.0-preview 版本，實測問題可解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638380188798570844.png"></p> <p>專案目前還有一些第三方套件依賴 System.Data.SqlClient，全面改用 Microsoft.Data.SqlClient 工程不小，避開 Relection 改用其他做法是較可行。</p> <p>最後整理 System.Data.SqlClient 的現況與未來發展。引用 .NET 部落格 2019 的文章 <a href="https://devblogs.microsoft.com/dotnet/introducing-the-new-microsoftdatasqlclient/?WT.mc_id=DOP-MVP-37580">Introducing the new Microsoft.Data.SqlClient</a> 對 System.Data.SqlClient 未來的規劃：</p> <blockquote> <p>It means the development focus has changed. We have no intention of dropping support for System.Data.SqlClient any time soon. It will remain as-is and we will fix important bugs and security issues as they arise. If you have a typical application that doesn’t use any of the newest SQL features, then you will still be well served by a stable and reliable System.Data.SqlClient for many years.</p> <p>However, Microsoft.Data.SqlClient will be the only place we will be implementing new features going forward. We would encourage you to evaluate your needs and options and choose the right time for you to migrate your application or library from System.Data.SqlClient to Microsoft.Data.SqlClient.</p> </blockquote> <p>在 Microsoft.Data.SqlClient 推出後，System.Data.SqlClient 只會針對重大 Bug 及安全問題做更新，只要不用新功能，System.Data.SqlClient 還可以用很多年沒問題。新功能將只會加入 Microsoft.Data.SqlClient，建議選擇適當時機從 System.Data.SqlClient 換成 Microsoft.Data.SqlClient。</p> <p>時代的巨輪向來不等人，只會輾人。還在用 System.Data.SqlClient 的專案要有心理準備，「新功能沒有，小問題不修，還能繼續用，早換早解脫」將是未來幾年的寫照。</p> <p data-slug="net8-issue-SqlGuidCaster" data-title-en="SqlGuidCaster issue on .NET 8" data-catg=".NET" data-fbimg="https://i.imgur.com/OAvlNAE.jpg#1280#853">SqlGuidCaster issue after upgrade to .NET 8 and roadmap of System.Data.SqlClient.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>繼續分享<a href="/blog/net8-issue-activatorutilitiesconstructor/">升級 .NET 8 踩坑心得</a>，用以下程式重現問題：</p> <pre><code>using System;
-using System.Data.SqlClient;
-var obj = new SomeClass();
-var typeNames = AppDomain.CurrentDomain.GetAssemblies()
-.SelectMany(assembly =&gt; assembly.GetTypes())
-.Where(type =&gt; !type.IsInterface &amp;&amp; typeof(IFoo).IsAssignableFrom(type))
-.Select(type =&gt; type.Name)
-.Distinct();
-Console.WriteLine($".NET {Environment.Version}");
-Console.WriteLine(string.Join(Environment.NewLine, typeNames));
-public interface IFoo {}
-public class SomeClass : IFoo
-{
-public SomeClass() {
-var cn = new SqlCommand();
-}
-}
-</code></pre> <p>.NET 7 OK、.NET 8 出現 <code>Could not load type 'SqlGuidCaster' from assembly 'System.Data.SqlClient, Version=4.6.1.5, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' because it contains an object field at offset 0 that is incorrectly aligned or overlapped by a non-object field.</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638380188796587155.png"></p> <p>爬文查到<a href="https://github.com/dotnet/SqlClient/issues/1930#issuecomment-1440832296">原因</a>，System.Data.SqlTypes.SqlGuid 定義早先由 <code>struct SqlGuid{ byte[] _value; }</code> <a href="https://github.com/dotnet/runtime/issues/51836#issuecomment-1189555912">改成</a> <code>struct SqlGuid{ Guid? _value; }</code>，這導致 .NET 8 新加的轉換 Value Type 動作出錯。好消息是 Microsoft.Data.SqlClient 在 5.2.0-preview <a href="https://github.com/dotnet/SqlClient/pull/1934">修復了這個問題</a>；System.Data.SqlClient 也有相同 Issue，但引用 SQL Server Driver 開發主管的<a href="https://github.com/dotnet/runtime/issues/86969#issuecomment-1572694225">說法</a>：System.Data.SqlClient, is unlikely to receive further updates, much less those that are only for fixing Reflection issues. (System.Data.SqlClient 已停更，何況是 Relfection 這類次要問題)</p> <p>㤦用 <code>dotnet add package Microsoft.Data.SqlClient --prerelease</code> 安裝 Microsoft.Data.SqlClient 5.2.0-preview 版本，實測問題可解決：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638380188798570844.png"></p> <p>專案目前還有一些第三方套件依賴 System.Data.SqlClient，全面改用 Microsoft.Data.SqlClient 工程不小，避開 Relection 改用其他做法是較可行。</p> <p>最後整理 System.Data.SqlClient 的現況與未來發展。引用 .NET 部落格 2019 的文章 <a href="https://devblogs.microsoft.com/dotnet/introducing-the-new-microsoftdatasqlclient/?WT.mc_id=DOP-MVP-37580">Introducing the new Microsoft.Data.SqlClient</a> 對 System.Data.SqlClient 未來的規劃：</p> <blockquote> <p>It means the development focus has changed. We have no intention of dropping support for System.Data.SqlClient any time soon. It will remain as-is and we will fix important bugs and security issues as they arise. If you have a typical application that doesn’t use any of the newest SQL features, then you will still be well served by a stable and reliable System.Data.SqlClient for many years.</p> <p>However, Microsoft.Data.SqlClient will be the only place we will be implementing new features going forward. We would encourage you to evaluate your needs and options and choose the right time for you to migrate your application or library from System.Data.SqlClient to Microsoft.Data.SqlClient.</p> </blockquote> <p>在 Microsoft.Data.SqlClient 推出後，System.Data.SqlClient 只會針對重大 Bug 及安全問題做更新，只要不用新功能，System.Data.SqlClient 還可以用很多年沒問題。新功能將只會加入 Microsoft.Data.SqlClient，建議選擇適當時機從 System.Data.SqlClient 換成 Microsoft.Data.SqlClient。</p> <p>時代的巨輪向來不等人，只會輾人。還在用 System.Data.SqlClient 的專案要有心理準備，「新功能沒有，小問題不修，還能繼續用，早換早解脫」將是未來幾年的寫照。</p> <p data-slug="net8-issue-SqlGuidCaster" data-title-en="SqlGuidCaster issue on .NET 8" data-catg=".NET" data-fbimg="https://i.imgur.com/OAvlNAE.jpg#1280#853">SqlGuidCaster issue after upgrade to .NET 8 and roadmap of System.Data.SqlClient.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638380188796587155.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638380188796587155.png" medium="image"/>
-    <pubDate>Tue, 12 Dec 2023 22:57:06 GMT</pubDate>
   </item></channel>
 </rss>
