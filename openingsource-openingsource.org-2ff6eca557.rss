@@ -30,6 +30,336 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1059期：部署自己的 Spotify :《Spotube》]]></title>
+    <link>https://openingsource.org/11450/</link>
+    <itunes:title><![CDATA[开源日报第1059期：部署自己的 Spotify :《Spotube》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+2023年12月30日，开源日报第1059期：<br>
+今日推荐开源项目：《Spotube》<br>
+今日推荐英文原文：《Can CppRef<t> be ergonomic?》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231230.jpg"></t></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Spotube》传送门：<a href="https://github.com/KRTirtho/spotube?tab=readme-ov-file" target="_blank">项目链接</a> </p>
+<p>推荐理由： 该项目是一个开源的Spotify客户端，旨在跨多个平台兼容，而无需依赖Spotify Premium，它利用Spotify的数据API和其他音频来源，如YouTube、Piped.video或JioSaavn</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adetaylor/can-cppref-t-be-ergonomic-c9cb1365bda1" target="_blank">Can CppRef<t> be ergonomic?</t></a></p>
+<p>推荐理由：该文章主要在讲CppRef<t>的Rust类型，用于处理C++类型的引用, 引入了CppPin<t>确保Rust中对对象的所有权，同时允许在C++中引用。作者也提到字段访问需通过函数或宏，方法调用涉及泛型self类型的支持</t></t></p>
+<hr>
+<h1>Can CppRef<t> be ergonomic?</t></h1>
+<p><a href="https://medium.com/@adetaylor/are-we-reference-yet-c-references-in-rust-72c1c6c7015a" target="_blank">In a previous post</a>, I said that we simply can’t use Rust references to point to C++ types. This might work at small scale, but for any sizable C++ project, humans can’t promise that there are no other C++ references to the same data — so you run into aliasing violations, unexpected mutations, and the dreaded Undefined Behavior.</p>
+<p>So, instead of using <code>&amp;T</code> we’ll create a <code>CppRef&lt;T&gt;</code> to create a C++ reference (or pointer). There’s some early work <a href="https://docs.rs/autocxx/latest/autocxx/macro.safety.html" target="_blank">here</a> — see <code>unsafe_references_wrapped</code> and the linked type, <a href="https://github.com/google/autocxx/blob/main/examples/reference-wrappers/src/main.rs" target="_blank">plus this example</a>). This ideally relies on a Rust feature called “arbitrary self types” which I’m working on <a href="https://github.com/rust-lang/rfcs/pull/3519/files" target="_blank">here in an RFC</a> along with some very fine other people (thanks!)</p>
+<p>So far so good. But, one of the open questions has been — can <code>CppRef&lt;T&gt;</code> be ergonomic? And one specific question has come up during the RFC — is it desirable to support generic receivers? For example, is this monstrosity a good or bad idea?</p>
+<pre><code>impl SomeType {
+fn some_method(self: impl SomeTrait &lt; Target = Self &gt;) { ... }
+}</code></pre>
+<p>It turns out that these questions are related.</p>
+<p>First, let’s talk about <code>CppPin&lt;T&gt;</code> . If you have some data which may have C++ pointers or references to it, it’s simply <em>not OK</em> to have a Rust reference.</p>
+<p>There are some circumstances where the object will be stored over in C++ and all you would ever have in Rust is <code>CppRef</code> s to it:</p>
+<ul>
+<li>It’s stored in something like a <code>cxx::UniquePtr</code></li>
+<li>A C++ method has returned you a reference to something stored over in C++ land entirely.</li>
+</ul>
+<p>But, you might sometimes want to own objects in Rust and yet make them available to C++. These might be C++ types or they might be Rust types. In such a case, you need a way to ensure there are only C++ references but no Rust references. That’s what <code>CppPin&lt;T&gt;</code> is for.</p>
+<p><code>CppPin::new(something)</code> consumes the <code>something</code> , thus proving there are no existing Rust references. It can create new C++ references — <code>CppPin::as_cpp_ref() -&gt; CppRef&lt;T&gt;</code> — but there’s no way to get a <code>&amp;T</code> or <code>&amp;mut T</code> . You can safely do weird things to this type in C++, including storing references or pointers to it which you later manipulate, and there are guaranteed to be no Rust references which you discombobulate.</p>
+<p><code>CppPin</code> might seem a strange name in that it’s not exactly about preventing things moving — but it shares lots of the same properties as the regular <code>Pin</code> including an inability to vend references, complexity about “pin projections”, and a general level of annoyingness. <code>CppJail</code> or <code>CppBubble</code> might be better names — opinions welcomed.</p>
+<p>Overall, though, I think <code>CppPin&lt;T&gt;</code> is necessary and fairly straightforward.</p>
+<p>What about field access? We can’t have <code>&amp;T</code> so we can’t have <code>some_reference.some_field</code> . So, all field access needs to be either via function calls over into C++, or via macros based around <code>addr_of</code> and <code>read</code> (which would be in a function call itself).</p>
+<p>So,</p>
+<pre><code>// entirely auto-generated code from bindings generator
+struct SomeCppType {
+// my_field: usize, // not actually represented
+}
+impl SomeCppType {
+fn get_my_field(self: CppRef&lt;Self&gt;) -&gt; usize { ... }
+fn set_my_field(self: CppRef&lt;Self&gt;, val: usize) { ... }
+fn get_my_field_ref(self: CppRef&lt;Self&gt;) -&gt; CppRef&lt;usize&gt; { ... }
+}</code></pre>
+<p>I wanted to find out if this could be made slightly more ergonomic using a macro like <code>field!(some_value, field_name)</code> . This may depend upon stabilization of <code>concat_idents!</code> . I couldn’t get it to work, but ultimately I don’t think it’s a huge deal to need to call methods to get and set field values.</p>
+<p>What about method calls?</p>
+<p>The awesome thing about <code>CppRef&lt;T&gt;</code> is that it’s pretty much an opaque token. You’ll most commonly get a <code>CppRef&lt;T&gt;</code> from C++, and pass it back to C++, without any need to manipulate or touch the <code>CppRef&lt;T&gt;</code> at all. Most commonly, you’ll pass it back to C++ using as the <code>this</code> pointer in a method call:</p>
+<pre><code>fn main() {
+let vulture: CppRef&lt;Vulture&gt; = get_cpp_reference_to_vulture_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is what the “arbitrary self types” feature allows.</p>
+<p>However, it would also be nice to call <code>squawk()</code> on a <code>CppPin&lt;Vulture&gt;:</code></p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is where the question of generic <code>self</code> types first comes in.</p>
+<p>Which of these is better for our (auto-generated) <code>squawk</code> method signature?</p>
+<pre><code>impl Vulture {
+// This code would be auto generated
+fn squawk(self: CppRef&lt;Self&gt;) {} // 1
+fn squawk(self: impl AsCppRef&lt;Target=Self&gt;) {} // 2
+}</code></pre>
+<p>The second option seems appealing because we could implement <code>AsCppRef</code> even on <code>CppPin</code> . This <a href="https://github.com/adetaylor/cpppin-ergonomics-experiments/blob/main/src/main.rs" target="_blank">works</a>, but it turns out not to be especially ergonomic, because it consumes the <code>CppPin</code> each time. That is, you couldn’t do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk();
+vulture.squawk();
+}</code></pre>
+<p>You would instead have to do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.as_cpp_ref().squawk();
+vulture.squawk();
+}</code></pre>
+<p>which is very similar to the annoying <code>Pin::as_mut</code> method.</p>
+<p>Overall, it seems better to pick option 1, and force people to call <code>as_cpp_ref()</code> each time they want to call a method on the contents of the <code>CppPin</code> . This doesn’t yet seem like a sufficiently good motivation for generic self types.</p>
+<p>Finally — what about code that wants to be generic over the <em>type of reference?</em> That is, code which can handle a <code>&amp;Vulture</code> or a <code>CppRef&lt;Vulture&gt;</code> ? Is that even achievable?</p>
+<p>Yes!</p>
+<pre><code>impl Vulture {
+/// This method can accept either &amp;Self or CppRef&lt;Self&gt;
+/// because both of them impl a Ref trait
+fn squawk(self: impl Ref&lt;Target = Self&gt;) -&gt; u32 {
+// What to do here?
+}
+fn squawk_only_in_rust(&amp;self) {}
+fn squawk_only_in_cpp(self: CppRef&lt;Self&gt;) {}
+}</code></pre>
+<p>One oddity here is that Rust method calls’ autoref functionality doesn’t work here, so if we want to call this method with a <code>&amp;Vulture</code> we need to say <code>(&amp;my_vulture_by_value).squawk()</code> . Here’s how we’d call this:</p>
+<pre><code>let rust_accessible_vulture = Vulture(1);
+let cpp_accessible_vulture = CppPin::new(Vulture(2));
+(&amp;rust_accessible_vulture).squawk();
+cpp_accessible_vulture.as_cpp_ref().squawk();</code></pre>
+<p>But more importantly, what could <code>squawk</code> actually do here? The <code>impl Ref</code> is pretty useless — it’s no longer even a useful opaque token to pass back into C++. However, since both references can emit raw pointers, we can do field access. Even though <code>CppRef&lt;T&gt;</code> promises nothing about aliasing or mutability, it can still uphold C++ reference-like promises around alignment and not being null. So the <code>squawk</code> function here could, with suitable use of macros and autogenerated code, access fields within the <code>Vulture</code> and do useful work.</p>
+<p>This <em>is</em> a good use for generic receivers.</p>
+<p>So. Conclusions are:</p>
+<ul>
+<li><code>CppPin&lt;T&gt;</code> is necessary and I don’t think it sucks, though it is annoyingly like <code>Pin</code> in some ways.</li>
+<li>Field access to <code>CppRef&lt;T&gt;</code> and/or <code>impl Ref&lt;T&gt;</code> are ugly and will probably need methods calls or macros, but this is OK since usually a <code>CppRef&lt;T&gt;</code> is just an opaque token which will be passed back to C++, and field access will be rare.</li>
+<li>We probably <em>do</em> want to support generic self types, since sometimes people will want to write code that’s generic over <code>&amp;T</code> or <code>CppRef&lt;T&gt;</code> .<br>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>
+</li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+2023年12月30日，开源日报第1059期：<br>
+今日推荐开源项目：《Spotube》<br>
+今日推荐英文原文：《Can CppRef<t> be ergonomic?》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231230.jpg"></t></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Spotube》传送门：<a href="https://github.com/KRTirtho/spotube?tab=readme-ov-file" target="_blank">项目链接</a> </p>
+<p>推荐理由： 该项目是一个开源的Spotify客户端，旨在跨多个平台兼容，而无需依赖Spotify Premium，它利用Spotify的数据API和其他音频来源，如YouTube、Piped.video或JioSaavn</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adetaylor/can-cppref-t-be-ergonomic-c9cb1365bda1" target="_blank">Can CppRef<t> be ergonomic?</t></a></p>
+<p>推荐理由：该文章主要在讲CppRef<t>的Rust类型，用于处理C++类型的引用, 引入了CppPin<t>确保Rust中对对象的所有权，同时允许在C++中引用。作者也提到字段访问需通过函数或宏，方法调用涉及泛型self类型的支持</t></t></p>
+<hr>
+<h1>Can CppRef<t> be ergonomic?</t></h1>
+<p><a href="https://medium.com/@adetaylor/are-we-reference-yet-c-references-in-rust-72c1c6c7015a" target="_blank">In a previous post</a>, I said that we simply can’t use Rust references to point to C++ types. This might work at small scale, but for any sizable C++ project, humans can’t promise that there are no other C++ references to the same data — so you run into aliasing violations, unexpected mutations, and the dreaded Undefined Behavior.</p>
+<p>So, instead of using <code>&amp;T</code> we’ll create a <code>CppRef&lt;T&gt;</code> to create a C++ reference (or pointer). There’s some early work <a href="https://docs.rs/autocxx/latest/autocxx/macro.safety.html" target="_blank">here</a> — see <code>unsafe_references_wrapped</code> and the linked type, <a href="https://github.com/google/autocxx/blob/main/examples/reference-wrappers/src/main.rs" target="_blank">plus this example</a>). This ideally relies on a Rust feature called “arbitrary self types” which I’m working on <a href="https://github.com/rust-lang/rfcs/pull/3519/files" target="_blank">here in an RFC</a> along with some very fine other people (thanks!)</p>
+<p>So far so good. But, one of the open questions has been — can <code>CppRef&lt;T&gt;</code> be ergonomic? And one specific question has come up during the RFC — is it desirable to support generic receivers? For example, is this monstrosity a good or bad idea?</p>
+<pre><code>impl SomeType {
+fn some_method(self: impl SomeTrait &lt; Target = Self &gt;) { ... }
+}</code></pre>
+<p>It turns out that these questions are related.</p>
+<p>First, let’s talk about <code>CppPin&lt;T&gt;</code> . If you have some data which may have C++ pointers or references to it, it’s simply <em>not OK</em> to have a Rust reference.</p>
+<p>There are some circumstances where the object will be stored over in C++ and all you would ever have in Rust is <code>CppRef</code> s to it:</p>
+<ul>
+<li>It’s stored in something like a <code>cxx::UniquePtr</code></li>
+<li>A C++ method has returned you a reference to something stored over in C++ land entirely.</li>
+</ul>
+<p>But, you might sometimes want to own objects in Rust and yet make them available to C++. These might be C++ types or they might be Rust types. In such a case, you need a way to ensure there are only C++ references but no Rust references. That’s what <code>CppPin&lt;T&gt;</code> is for.</p>
+<p><code>CppPin::new(something)</code> consumes the <code>something</code> , thus proving there are no existing Rust references. It can create new C++ references — <code>CppPin::as_cpp_ref() -&gt; CppRef&lt;T&gt;</code> — but there’s no way to get a <code>&amp;T</code> or <code>&amp;mut T</code> . You can safely do weird things to this type in C++, including storing references or pointers to it which you later manipulate, and there are guaranteed to be no Rust references which you discombobulate.</p>
+<p><code>CppPin</code> might seem a strange name in that it’s not exactly about preventing things moving — but it shares lots of the same properties as the regular <code>Pin</code> including an inability to vend references, complexity about “pin projections”, and a general level of annoyingness. <code>CppJail</code> or <code>CppBubble</code> might be better names — opinions welcomed.</p>
+<p>Overall, though, I think <code>CppPin&lt;T&gt;</code> is necessary and fairly straightforward.</p>
+<p>What about field access? We can’t have <code>&amp;T</code> so we can’t have <code>some_reference.some_field</code> . So, all field access needs to be either via function calls over into C++, or via macros based around <code>addr_of</code> and <code>read</code> (which would be in a function call itself).</p>
+<p>So,</p>
+<pre><code>// entirely auto-generated code from bindings generator
+struct SomeCppType {
+// my_field: usize, // not actually represented
+}
+impl SomeCppType {
+fn get_my_field(self: CppRef&lt;Self&gt;) -&gt; usize { ... }
+fn set_my_field(self: CppRef&lt;Self&gt;, val: usize) { ... }
+fn get_my_field_ref(self: CppRef&lt;Self&gt;) -&gt; CppRef&lt;usize&gt; { ... }
+}</code></pre>
+<p>I wanted to find out if this could be made slightly more ergonomic using a macro like <code>field!(some_value, field_name)</code> . This may depend upon stabilization of <code>concat_idents!</code> . I couldn’t get it to work, but ultimately I don’t think it’s a huge deal to need to call methods to get and set field values.</p>
+<p>What about method calls?</p>
+<p>The awesome thing about <code>CppRef&lt;T&gt;</code> is that it’s pretty much an opaque token. You’ll most commonly get a <code>CppRef&lt;T&gt;</code> from C++, and pass it back to C++, without any need to manipulate or touch the <code>CppRef&lt;T&gt;</code> at all. Most commonly, you’ll pass it back to C++ using as the <code>this</code> pointer in a method call:</p>
+<pre><code>fn main() {
+let vulture: CppRef&lt;Vulture&gt; = get_cpp_reference_to_vulture_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is what the “arbitrary self types” feature allows.</p>
+<p>However, it would also be nice to call <code>squawk()</code> on a <code>CppPin&lt;Vulture&gt;:</code></p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is where the question of generic <code>self</code> types first comes in.</p>
+<p>Which of these is better for our (auto-generated) <code>squawk</code> method signature?</p>
+<pre><code>impl Vulture {
+// This code would be auto generated
+fn squawk(self: CppRef&lt;Self&gt;) {} // 1
+fn squawk(self: impl AsCppRef&lt;Target=Self&gt;) {} // 2
+}</code></pre>
+<p>The second option seems appealing because we could implement <code>AsCppRef</code> even on <code>CppPin</code> . This <a href="https://github.com/adetaylor/cpppin-ergonomics-experiments/blob/main/src/main.rs" target="_blank">works</a>, but it turns out not to be especially ergonomic, because it consumes the <code>CppPin</code> each time. That is, you couldn’t do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk();
+vulture.squawk();
+}</code></pre>
+<p>You would instead have to do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.as_cpp_ref().squawk();
+vulture.squawk();
+}</code></pre>
+<p>which is very similar to the annoying <code>Pin::as_mut</code> method.</p>
+<p>Overall, it seems better to pick option 1, and force people to call <code>as_cpp_ref()</code> each time they want to call a method on the contents of the <code>CppPin</code> . This doesn’t yet seem like a sufficiently good motivation for generic self types.</p>
+<p>Finally — what about code that wants to be generic over the <em>type of reference?</em> That is, code which can handle a <code>&amp;Vulture</code> or a <code>CppRef&lt;Vulture&gt;</code> ? Is that even achievable?</p>
+<p>Yes!</p>
+<pre><code>impl Vulture {
+/// This method can accept either &amp;Self or CppRef&lt;Self&gt;
+/// because both of them impl a Ref trait
+fn squawk(self: impl Ref&lt;Target = Self&gt;) -&gt; u32 {
+// What to do here?
+}
+fn squawk_only_in_rust(&amp;self) {}
+fn squawk_only_in_cpp(self: CppRef&lt;Self&gt;) {}
+}</code></pre>
+<p>One oddity here is that Rust method calls’ autoref functionality doesn’t work here, so if we want to call this method with a <code>&amp;Vulture</code> we need to say <code>(&amp;my_vulture_by_value).squawk()</code> . Here’s how we’d call this:</p>
+<pre><code>let rust_accessible_vulture = Vulture(1);
+let cpp_accessible_vulture = CppPin::new(Vulture(2));
+(&amp;rust_accessible_vulture).squawk();
+cpp_accessible_vulture.as_cpp_ref().squawk();</code></pre>
+<p>But more importantly, what could <code>squawk</code> actually do here? The <code>impl Ref</code> is pretty useless — it’s no longer even a useful opaque token to pass back into C++. However, since both references can emit raw pointers, we can do field access. Even though <code>CppRef&lt;T&gt;</code> promises nothing about aliasing or mutability, it can still uphold C++ reference-like promises around alignment and not being null. So the <code>squawk</code> function here could, with suitable use of macros and autogenerated code, access fields within the <code>Vulture</code> and do useful work.</p>
+<p>This <em>is</em> a good use for generic receivers.</p>
+<p>So. Conclusions are:</p>
+<ul>
+<li><code>CppPin&lt;T&gt;</code> is necessary and I don’t think it sucks, though it is annoyingly like <code>Pin</code> in some ways.</li>
+<li>Field access to <code>CppRef&lt;T&gt;</code> and/or <code>impl Ref&lt;T&gt;</code> are ugly and will probably need methods calls or macros, but this is OK since usually a <code>CppRef&lt;T&gt;</code> is just an opaque token which will be passed back to C++, and field access will be rare.</li>
+<li>We probably <em>do</em> want to support generic self types, since sometimes people will want to write code that’s generic over <code>&amp;T</code> or <code>CppRef&lt;T&gt;</code> .<br>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>
+</li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+2023年12月30日，开源日报第1059期：<br>
+今日推荐开源项目：《Spotube》<br>
+今日推荐英文原文：《Can CppRef<t> be ergonomic?》<br>
+<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231230.jpg"></t></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Spotube》传送门：<a href="https://github.com/KRTirtho/spotube?tab=readme-ov-file" target="_blank">项目链接</a> </p>
+<p>推荐理由： 该项目是一个开源的Spotify客户端，旨在跨多个平台兼容，而无需依赖Spotify Premium，它利用Spotify的数据API和其他音频来源，如YouTube、Piped.video或JioSaavn</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adetaylor/can-cppref-t-be-ergonomic-c9cb1365bda1" target="_blank">Can CppRef<t> be ergonomic?</t></a></p>
+<p>推荐理由：该文章主要在讲CppRef<t>的Rust类型，用于处理C++类型的引用, 引入了CppPin<t>确保Rust中对对象的所有权，同时允许在C++中引用。作者也提到字段访问需通过函数或宏，方法调用涉及泛型self类型的支持</t></t></p>
+<hr>
+<h1>Can CppRef<t> be ergonomic?</t></h1>
+<p><a href="https://medium.com/@adetaylor/are-we-reference-yet-c-references-in-rust-72c1c6c7015a" target="_blank">In a previous post</a>, I said that we simply can’t use Rust references to point to C++ types. This might work at small scale, but for any sizable C++ project, humans can’t promise that there are no other C++ references to the same data — so you run into aliasing violations, unexpected mutations, and the dreaded Undefined Behavior.</p>
+<p>So, instead of using <code>&amp;T</code> we’ll create a <code>CppRef&lt;T&gt;</code> to create a C++ reference (or pointer). There’s some early work <a href="https://docs.rs/autocxx/latest/autocxx/macro.safety.html" target="_blank">here</a> — see <code>unsafe_references_wrapped</code> and the linked type, <a href="https://github.com/google/autocxx/blob/main/examples/reference-wrappers/src/main.rs" target="_blank">plus this example</a>). This ideally relies on a Rust feature called “arbitrary self types” which I’m working on <a href="https://github.com/rust-lang/rfcs/pull/3519/files" target="_blank">here in an RFC</a> along with some very fine other people (thanks!)</p>
+<p>So far so good. But, one of the open questions has been — can <code>CppRef&lt;T&gt;</code> be ergonomic? And one specific question has come up during the RFC — is it desirable to support generic receivers? For example, is this monstrosity a good or bad idea?</p>
+<pre><code>impl SomeType {
+fn some_method(self: impl SomeTrait &lt; Target = Self &gt;) { ... }
+}</code></pre>
+<p>It turns out that these questions are related.</p>
+<p>First, let’s talk about <code>CppPin&lt;T&gt;</code> . If you have some data which may have C++ pointers or references to it, it’s simply <em>not OK</em> to have a Rust reference.</p>
+<p>There are some circumstances where the object will be stored over in C++ and all you would ever have in Rust is <code>CppRef</code> s to it:</p>
+<ul>
+<li>It’s stored in something like a <code>cxx::UniquePtr</code></li>
+<li>A C++ method has returned you a reference to something stored over in C++ land entirely.</li>
+</ul>
+<p>But, you might sometimes want to own objects in Rust and yet make them available to C++. These might be C++ types or they might be Rust types. In such a case, you need a way to ensure there are only C++ references but no Rust references. That’s what <code>CppPin&lt;T&gt;</code> is for.</p>
+<p><code>CppPin::new(something)</code> consumes the <code>something</code> , thus proving there are no existing Rust references. It can create new C++ references — <code>CppPin::as_cpp_ref() -&gt; CppRef&lt;T&gt;</code> — but there’s no way to get a <code>&amp;T</code> or <code>&amp;mut T</code> . You can safely do weird things to this type in C++, including storing references or pointers to it which you later manipulate, and there are guaranteed to be no Rust references which you discombobulate.</p>
+<p><code>CppPin</code> might seem a strange name in that it’s not exactly about preventing things moving — but it shares lots of the same properties as the regular <code>Pin</code> including an inability to vend references, complexity about “pin projections”, and a general level of annoyingness. <code>CppJail</code> or <code>CppBubble</code> might be better names — opinions welcomed.</p>
+<p>Overall, though, I think <code>CppPin&lt;T&gt;</code> is necessary and fairly straightforward.</p>
+<p>What about field access? We can’t have <code>&amp;T</code> so we can’t have <code>some_reference.some_field</code> . So, all field access needs to be either via function calls over into C++, or via macros based around <code>addr_of</code> and <code>read</code> (which would be in a function call itself).</p>
+<p>So,</p>
+<pre><code>// entirely auto-generated code from bindings generator
+struct SomeCppType {
+// my_field: usize, // not actually represented
+}
+impl SomeCppType {
+fn get_my_field(self: CppRef&lt;Self&gt;) -&gt; usize { ... }
+fn set_my_field(self: CppRef&lt;Self&gt;, val: usize) { ... }
+fn get_my_field_ref(self: CppRef&lt;Self&gt;) -&gt; CppRef&lt;usize&gt; { ... }
+}</code></pre>
+<p>I wanted to find out if this could be made slightly more ergonomic using a macro like <code>field!(some_value, field_name)</code> . This may depend upon stabilization of <code>concat_idents!</code> . I couldn’t get it to work, but ultimately I don’t think it’s a huge deal to need to call methods to get and set field values.</p>
+<p>What about method calls?</p>
+<p>The awesome thing about <code>CppRef&lt;T&gt;</code> is that it’s pretty much an opaque token. You’ll most commonly get a <code>CppRef&lt;T&gt;</code> from C++, and pass it back to C++, without any need to manipulate or touch the <code>CppRef&lt;T&gt;</code> at all. Most commonly, you’ll pass it back to C++ using as the <code>this</code> pointer in a method call:</p>
+<pre><code>fn main() {
+let vulture: CppRef&lt;Vulture&gt; = get_cpp_reference_to_vulture_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is what the “arbitrary self types” feature allows.</p>
+<p>However, it would also be nice to call <code>squawk()</code> on a <code>CppPin&lt;Vulture&gt;:</code></p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk(); // autogenerated method
+}</code></pre>
+<p>This is where the question of generic <code>self</code> types first comes in.</p>
+<p>Which of these is better for our (auto-generated) <code>squawk</code> method signature?</p>
+<pre><code>impl Vulture {
+// This code would be auto generated
+fn squawk(self: CppRef&lt;Self&gt;) {} // 1
+fn squawk(self: impl AsCppRef&lt;Target=Self&gt;) {} // 2
+}</code></pre>
+<p>The second option seems appealing because we could implement <code>AsCppRef</code> even on <code>CppPin</code> . This <a href="https://github.com/adetaylor/cpppin-ergonomics-experiments/blob/main/src/main.rs" target="_blank">works</a>, but it turns out not to be especially ergonomic, because it consumes the <code>CppPin</code> each time. That is, you couldn’t do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.squawk();
+vulture.squawk();
+}</code></pre>
+<p>You would instead have to do:</p>
+<pre><code>fn main() {
+let vulture: CppPin&lt;Vulture&gt; = obtain_vulture_by_value_from_cpp();
+vulture.as_cpp_ref().squawk();
+vulture.squawk();
+}</code></pre>
+<p>which is very similar to the annoying <code>Pin::as_mut</code> method.</p>
+<p>Overall, it seems better to pick option 1, and force people to call <code>as_cpp_ref()</code> each time they want to call a method on the contents of the <code>CppPin</code> . This doesn’t yet seem like a sufficiently good motivation for generic self types.</p>
+<p>Finally — what about code that wants to be generic over the <em>type of reference?</em> That is, code which can handle a <code>&amp;Vulture</code> or a <code>CppRef&lt;Vulture&gt;</code> ? Is that even achievable?</p>
+<p>Yes!</p>
+<pre><code>impl Vulture {
+/// This method can accept either &amp;Self or CppRef&lt;Self&gt;
+/// because both of them impl a Ref trait
+fn squawk(self: impl Ref&lt;Target = Self&gt;) -&gt; u32 {
+// What to do here?
+}
+fn squawk_only_in_rust(&amp;self) {}
+fn squawk_only_in_cpp(self: CppRef&lt;Self&gt;) {}
+}</code></pre>
+<p>One oddity here is that Rust method calls’ autoref functionality doesn’t work here, so if we want to call this method with a <code>&amp;Vulture</code> we need to say <code>(&amp;my_vulture_by_value).squawk()</code> . Here’s how we’d call this:</p>
+<pre><code>let rust_accessible_vulture = Vulture(1);
+let cpp_accessible_vulture = CppPin::new(Vulture(2));
+(&amp;rust_accessible_vulture).squawk();
+cpp_accessible_vulture.as_cpp_ref().squawk();</code></pre>
+<p>But more importantly, what could <code>squawk</code> actually do here? The <code>impl Ref</code> is pretty useless — it’s no longer even a useful opaque token to pass back into C++. However, since both references can emit raw pointers, we can do field access. Even though <code>CppRef&lt;T&gt;</code> promises nothing about aliasing or mutability, it can still uphold C++ reference-like promises around alignment and not being null. So the <code>squawk</code> function here could, with suitable use of macros and autogenerated code, access fields within the <code>Vulture</code> and do useful work.</p>
+<p>This <em>is</em> a good use for generic receivers.</p>
+<p>So. Conclusions are:</p>
+<ul>
+<li><code>CppPin&lt;T&gt;</code> is necessary and I don’t think it sucks, though it is annoyingly like <code>Pin</code> in some ways.</li>
+<li>Field access to <code>CppRef&lt;T&gt;</code> and/or <code>impl Ref&lt;T&gt;</code> are ugly and will probably need methods calls or macros, but this is OK since usually a <code>CppRef&lt;T&gt;</code> is just an opaque token which will be passed back to C++, and field access will be rare.</li>
+<li>We probably <em>do</em> want to support generic self types, since sometimes people will want to write code that’s generic over <code>&amp;T</code> or <code>CppRef&lt;T&gt;</code> .<br>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>
+</li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/osd-20231230.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2023/12/osd-20231230.jpg" medium="image"/>
+    <pubDate>Sat, 30 Dec 2023 03:29:32 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1058期：推荐免费实用的 mac app：《awesome-mac》]]></title>
     <link>https://openingsource.org/11447/</link>
     <itunes:title><![CDATA[开源日报第1058期：推荐免费实用的 mac app：《awesome-mac》]]></itunes:title>
@@ -1931,479 +2261,5 @@ const contextValue = useContext(MyContext);
     <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/xosd-20231223.jpg.pagespeed.ic.PJJCakQNLP.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2023/12/xosd-20231223.jpg.pagespeed.ic.PJJCakQNLP.jpg" medium="image"/>
     <pubDate>Sat, 23 Dec 2023 14:20:53 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1051期：程序员的必修课：《computer-science》]]></title>
-    <link>https://openingsource.org/11417/</link>
-    <itunes:title><![CDATA[开源日报第1051期：程序员的必修课：《computer-science》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2023年12月22日，开源日报第1051期：<br>
-今日推荐开源项目：《computer-science》<br>
-今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
-<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
-<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
-<hr>
-<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
-<h1>Introduction</h1>
-<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
-<h1>Table of Content</h1>
-<ul>
-<li>Mastering Error Boundaries</li>
-<li>Unveiling Render-as-You-Fetch (RAYF)</li>
-<li>Combining Advanced React Patterns</li>
-<li>Best Practices and Considerations</li>
-<li>Real-world Applications of Error Patterns</li>
-<li>Conclusion</li>
-<li>References</li>
-</ul>
-<h1>Prerequisites</h1>
-<ul>
-<li>Basic understanding of React fundamentals</li>
-<li>Familiarity with JavaScript ES6+ features</li>
-<li>Knowledge of asynchronous programming and promises</li>
-<li>Experience with creating React components and managing state</li>
-<li>Awareness of React component lifecycle methods</li>
-<li>Familiarity with JSX syntax and component rendering</li>
-<li>Basic knowledge of network requests and API interactions in React applications</li>
-<li>Understanding of the concept of error handling in programming</li>
-<li>Awareness of the importance of performance optimization in web development</li>
-<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
-</ul>
-<h1>1. Mastering Error Boundaries</h1>
-<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
-<pre><code>import React, { useState, useEffect } from "react";
-const ErrorBoundary = ({ children }) =&gt; {
-const [hasError, setHasError] = useState(false);
-useEffect(() =&gt; {
-const errorHandler = (error) =&gt; {
-setHasError(true);
-};
-window.addEventListener("error", errorHandler);
-return () =&gt; {
-window.removeEventListener("error", errorHandler);
-};
-}, []);
-if (hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return children;
-};
-// Usage
-&lt;ErrorBoundary&gt;
-&lt;ComponentThatMightThrowAnError /&gt;
-&lt;/ErrorBoundary&gt;</code></pre>
-<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
-<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
-<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
-<pre><code>
-import React, { useState, useEffect } from "react";
-const RAYFExample = () =&gt; {
-const [data, setData] = useState([]);
-const [loading, setLoading] = useState(true);
-useEffect(() =&gt; {
-fetch("api/posts")
-.then((response) =&gt; response.json())
-.then((newData) =&gt; {
-setData(newData);
-setLoading(false);
-});
-}, []);
-return (
-&lt;div&gt;
-{loading ? (
-&lt;LoadingIndicator /&gt;
-) : (
-&lt;div&gt;
-{data.map((post) =&gt; (
-&lt;Post key={post.id} post={post} /&gt;
-))}
-&lt;/div&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
-<h1>3. Combining Advanced React Patterns</h1>
-<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
-<pre><code>import React from "react";
-class ErrorBoundary extends React.Component {
-state = { hasError: false };
-static getDerivedStateFromError(error) {
-return { hasError: true };
-}
-render() {
-if (this.state.hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return this.props.children;
-}
-}
-const RAYFWithErrors = () =&gt; (
-&lt;ErrorBoundary&gt;
-&lt;RAYFExample /&gt;
-&lt;/ErrorBoundary&gt;
-);</code></pre>
-<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
-<h1>4. Best Practices and Considerations</h1>
-<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
-<p><strong>Error Boundaries:</strong></p>
-<ul>
-<li>Place error boundaries strategically around components prone to errors.</li>
-<li>Keep error boundary logic simple to avoid introducing new issues.</li>
-<li>Provide meaningful fallback UIs that inform users about errors.</li>
-<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
-</ul>
-<p><strong>RAYF:</strong></p>
-<ul>
-<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
-<li>Strategically determine when and what components to fetch and render progressively.</li>
-<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
-<li>Ensure components are designed to handle incremental rendering and loading states.</li>
-</ul>
-<p><strong>Common Pitfalls and Challenges:</strong></p>
-<ul>
-<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
-<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
-<li>Ensuring consistent error handling across different components can be challenging.</li>
-</ul>
-<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
-<p><strong>Optimizing Performance and Code Quality:</strong></p>
-<ul>
-<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
-<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
-<li>Follow coding standards and document code extensively for maintainability.</li>
-</ul>
-<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
-<h1>5. Real-world Applications of error patterns</h1>
-<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
-<h1>6. Conclusion</h1>
-<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
-<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2023年12月22日，开源日报第1051期：<br>
-今日推荐开源项目：《computer-science》<br>
-今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
-<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
-<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
-<hr>
-<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
-<h1>Introduction</h1>
-<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
-<h1>Table of Content</h1>
-<ul>
-<li>Mastering Error Boundaries</li>
-<li>Unveiling Render-as-You-Fetch (RAYF)</li>
-<li>Combining Advanced React Patterns</li>
-<li>Best Practices and Considerations</li>
-<li>Real-world Applications of Error Patterns</li>
-<li>Conclusion</li>
-<li>References</li>
-</ul>
-<h1>Prerequisites</h1>
-<ul>
-<li>Basic understanding of React fundamentals</li>
-<li>Familiarity with JavaScript ES6+ features</li>
-<li>Knowledge of asynchronous programming and promises</li>
-<li>Experience with creating React components and managing state</li>
-<li>Awareness of React component lifecycle methods</li>
-<li>Familiarity with JSX syntax and component rendering</li>
-<li>Basic knowledge of network requests and API interactions in React applications</li>
-<li>Understanding of the concept of error handling in programming</li>
-<li>Awareness of the importance of performance optimization in web development</li>
-<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
-</ul>
-<h1>1. Mastering Error Boundaries</h1>
-<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
-<pre><code>import React, { useState, useEffect } from "react";
-const ErrorBoundary = ({ children }) =&gt; {
-const [hasError, setHasError] = useState(false);
-useEffect(() =&gt; {
-const errorHandler = (error) =&gt; {
-setHasError(true);
-};
-window.addEventListener("error", errorHandler);
-return () =&gt; {
-window.removeEventListener("error", errorHandler);
-};
-}, []);
-if (hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return children;
-};
-// Usage
-&lt;ErrorBoundary&gt;
-&lt;ComponentThatMightThrowAnError /&gt;
-&lt;/ErrorBoundary&gt;</code></pre>
-<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
-<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
-<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
-<pre><code>
-import React, { useState, useEffect } from "react";
-const RAYFExample = () =&gt; {
-const [data, setData] = useState([]);
-const [loading, setLoading] = useState(true);
-useEffect(() =&gt; {
-fetch("api/posts")
-.then((response) =&gt; response.json())
-.then((newData) =&gt; {
-setData(newData);
-setLoading(false);
-});
-}, []);
-return (
-&lt;div&gt;
-{loading ? (
-&lt;LoadingIndicator /&gt;
-) : (
-&lt;div&gt;
-{data.map((post) =&gt; (
-&lt;Post key={post.id} post={post} /&gt;
-))}
-&lt;/div&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
-<h1>3. Combining Advanced React Patterns</h1>
-<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
-<pre><code>import React from "react";
-class ErrorBoundary extends React.Component {
-state = { hasError: false };
-static getDerivedStateFromError(error) {
-return { hasError: true };
-}
-render() {
-if (this.state.hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return this.props.children;
-}
-}
-const RAYFWithErrors = () =&gt; (
-&lt;ErrorBoundary&gt;
-&lt;RAYFExample /&gt;
-&lt;/ErrorBoundary&gt;
-);</code></pre>
-<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
-<h1>4. Best Practices and Considerations</h1>
-<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
-<p><strong>Error Boundaries:</strong></p>
-<ul>
-<li>Place error boundaries strategically around components prone to errors.</li>
-<li>Keep error boundary logic simple to avoid introducing new issues.</li>
-<li>Provide meaningful fallback UIs that inform users about errors.</li>
-<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
-</ul>
-<p><strong>RAYF:</strong></p>
-<ul>
-<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
-<li>Strategically determine when and what components to fetch and render progressively.</li>
-<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
-<li>Ensure components are designed to handle incremental rendering and loading states.</li>
-</ul>
-<p><strong>Common Pitfalls and Challenges:</strong></p>
-<ul>
-<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
-<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
-<li>Ensuring consistent error handling across different components can be challenging.</li>
-</ul>
-<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
-<p><strong>Optimizing Performance and Code Quality:</strong></p>
-<ul>
-<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
-<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
-<li>Follow coding standards and document code extensively for maintainability.</li>
-</ul>
-<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
-<h1>5. Real-world Applications of error patterns</h1>
-<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
-<h1>6. Conclusion</h1>
-<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
-<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2023年12月22日，开源日报第1051期：<br>
-今日推荐开源项目：《computer-science》<br>
-今日推荐英文原文：《 Advanced React Patterns : Enhancing Error Handling and Perceived Performance》<br>
-<img src="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《computer-science》传送门：<a href="https://github.com/ossu/computer-science" target="_blank">项目链接</a></p>
-<p>推荐理由：OSSU课程为追求计算机科学全面教育的学习者提供在线学习资源，旨在培养广泛的计算概念，精选世界一流学府课程，适用于具备自主学习能力和全球学习社群支持的学习者, 非常全面</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/advanced-react-patterns-enhancing-error-handling-and-perceived-performance-78c39d5e9dce" target="_blank"> Advanced React Patterns : Enhancing Error Handling and Perceived Performance</a></p>
-<p>推荐理由：探讨了React开发中两种高级模式：错误边界和逐步渲染（Render-as-You-Fetch），错误边界作为安全网，可以优雅处理组件渲染过程中的错误；逐步渲染通过分阶段渲染数据，可以改善用户体验。充分理解这两种开发模式然后在项目中熟练应用</p>
-<hr>
-<h1>Advanced React Patterns : Enhancing Error Handling and Perceived Performance</h1>
-<h1>Introduction</h1>
-<p>In the rapidly evolving landscape of React development, mastering advanced patterns has become essential. Modern applications are becoming increasingly complex, incorporating intricate user interfaces and intricate data flows. As a result, there arises a pressing need for robust solutions that address two critical aspects: error handling to prevent application crashes and performance optimization to ensure a seamless user experience. In this article, we delve into two such advanced patterns — error boundaries and the Render-as-You-Fetch (RAYF) approach — exploring how they offer practical solutions to these challenges and elevate the quality of React applications.</p>
-<h1>Table of Content</h1>
-<ul>
-<li>Mastering Error Boundaries</li>
-<li>Unveiling Render-as-You-Fetch (RAYF)</li>
-<li>Combining Advanced React Patterns</li>
-<li>Best Practices and Considerations</li>
-<li>Real-world Applications of Error Patterns</li>
-<li>Conclusion</li>
-<li>References</li>
-</ul>
-<h1>Prerequisites</h1>
-<ul>
-<li>Basic understanding of React fundamentals</li>
-<li>Familiarity with JavaScript ES6+ features</li>
-<li>Knowledge of asynchronous programming and promises</li>
-<li>Experience with creating React components and managing state</li>
-<li>Awareness of React component lifecycle methods</li>
-<li>Familiarity with JSX syntax and component rendering</li>
-<li>Basic knowledge of network requests and API interactions in React applications</li>
-<li>Understanding of the concept of error handling in programming</li>
-<li>Awareness of the importance of performance optimization in web development</li>
-<li>Familiarity with concepts of user experience (UX) and perceived performance.</li>
-</ul>
-<h1>1. Mastering Error Boundaries</h1>
-<p>Error boundaries in React serve as safety nets to gracefully handle errors that occur during the rendering of components. They prevent these errors from propagating and causing a complete application crash, enabling developers to provide a more stable user experience. In complex applications, tracking down errors and their origins can be challenging, often leading to unexpected crashes. Error boundaries address this by allowing developers to define fallback UI components that will be displayed in case of errors, shielding users from seeing a broken interface. By encapsulating specific components within error boundaries, the rest of the application remains functional even if an error occurs within a boundary. Here's a code snippet demonstrating the use of an error boundary</p>
-<pre><code>import React, { useState, useEffect } from "react";
-const ErrorBoundary = ({ children }) =&gt; {
-const [hasError, setHasError] = useState(false);
-useEffect(() =&gt; {
-const errorHandler = (error) =&gt; {
-setHasError(true);
-};
-window.addEventListener("error", errorHandler);
-return () =&gt; {
-window.removeEventListener("error", errorHandler);
-};
-}, []);
-if (hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return children;
-};
-// Usage
-&lt;ErrorBoundary&gt;
-&lt;ComponentThatMightThrowAnError /&gt;
-&lt;/ErrorBoundary&gt;</code></pre>
-<p>In this functional component version, we use the&nbsp;<code>useState</code>&nbsp;hook to manage the&nbsp;<code>hasError</code>&nbsp;state and the&nbsp;<code>useEffect</code>&nbsp;hook to add and remove the&nbsp;<code>errorHandler</code>&nbsp;event listener. The&nbsp;<code>errorHandler</code>&nbsp;function is called when an error occurs in the component tree under the&nbsp;<code>ErrorBoundary</code>. If an error is detected, the&nbsp;<code>hasError</code>&nbsp;state is set to&nbsp;<code>true</code>, and the&nbsp;<code>FallbackUI</code>&nbsp;component is rendered. Otherwise, the&nbsp;<code>children</code>&nbsp;(the wrapped component) are rendered.</p>
-<h1>2. Unveiling Render-as-You-Fetch (RAYF)</h1>
-<p>The Render-as-You-Fetch (RAYF) pattern is an advanced approach in React that enhances perceived performance by progressively rendering data as it becomes available. RAYF splits the rendering process into smaller, manageable chunks, delivering an improved user experience by reducing initial loading times and providing quicker interactions. Traditionally, applications load and render all data at once, potentially leading to long loading times and a suboptimal user experience. In contrast, RAYF loads essential components first and subsequently fetches and renders additional components as needed. Consider a social media feed: RAYF could prioritize rendering the initial posts, then fetch and display more posts as the user scrolls down, creating a smoother and more interactive browsing experience.</p>
-<pre><code>
-import React, { useState, useEffect } from "react";
-const RAYFExample = () =&gt; {
-const [data, setData] = useState([]);
-const [loading, setLoading] = useState(true);
-useEffect(() =&gt; {
-fetch("api/posts")
-.then((response) =&gt; response.json())
-.then((newData) =&gt; {
-setData(newData);
-setLoading(false);
-});
-}, []);
-return (
-&lt;div&gt;
-{loading ? (
-&lt;LoadingIndicator /&gt;
-) : (
-&lt;div&gt;
-{data.map((post) =&gt; (
-&lt;Post key={post.id} post={post} /&gt;
-))}
-&lt;/div&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Implementing RAYF involves handling loading states and progressively rendering components. Challenges may include managing complex state transitions and optimizing the sequence of fetching and rendering. It’s crucial to strike a balance between fetching and rendering to avoid overwhelming the user with too much content or causing unnecessary delays. Additionally, ensure that components are efficiently designed for RAYF, as unnecessary rerenders can negatively impact performance.</p>
-<h1>3. Combining Advanced React Patterns</h1>
-<p>When error boundaries and the Render-as-You-Fetch (RAYF) pattern are combined, they form a powerful duo that enhances both the reliability and performance of React applications. Error boundaries offer a safety net, preventing errors from crashing the application and providing a fallback UI when needed. During RAYF, where components are progressively rendered, there’s a potential for errors to occur due to network delays or server-side issues. Error boundaries come into play by gracefully capturing and handling these errors without disrupting the entire user experience.</p>
-<pre><code>import React from "react";
-class ErrorBoundary extends React.Component {
-state = { hasError: false };
-static getDerivedStateFromError(error) {
-return { hasError: true };
-}
-render() {
-if (this.state.hasError) {
-return &lt;FallbackUI /&gt;;
-}
-return this.props.children;
-}
-}
-const RAYFWithErrors = () =&gt; (
-&lt;ErrorBoundary&gt;
-&lt;RAYFExample /&gt;
-&lt;/ErrorBoundary&gt;
-);</code></pre>
-<p>In the above example, the&nbsp;<code>ErrorBoundary</code>&nbsp;component wraps around the&nbsp;<code>RAYFExample</code>, ensuring that any errors that occur during the RAYF process are caught and handled gracefully. This approach prevents a single error from compromising the entire RAYF-rendered content. The combination of these patterns not only creates a robust and reliable application but also contributes to a smoother user experience by ensuring that loading and rendering processes are resilient to potential failures.</p>
-<h1>4. Best Practices and Considerations</h1>
-<p>When implementing error boundaries and the Render-as-You-Fetch (RAYF) pattern, adhere to the following best practices for a successful integration:</p>
-<p><strong>Error Boundaries:</strong></p>
-<ul>
-<li>Place error boundaries strategically around components prone to errors.</li>
-<li>Keep error boundary logic simple to avoid introducing new issues.</li>
-<li>Provide meaningful fallback UIs that inform users about errors.</li>
-<li>Avoid wrapping the entire application with error boundaries to prevent masking critical issues.</li>
-</ul>
-<p><strong>RAYF:</strong></p>
-<ul>
-<li>Prioritize essential components for initial rendering to enhance perceived performance.</li>
-<li>Strategically determine when and what components to fetch and render progressively.</li>
-<li>Monitor network conditions to prevent over-fetching or under-fetching data.</li>
-<li>Ensure components are designed to handle incremental rendering and loading states.</li>
-</ul>
-<p><strong>Common Pitfalls and Challenges:</strong></p>
-<ul>
-<li>Overloading with too many error boundaries may lead to unnecessary complexity.</li>
-<li>RAYF might lead to unexpected content flickering if not managed carefully.</li>
-<li>Ensuring consistent error handling across different components can be challenging.</li>
-</ul>
-<p><strong>Importance of Testing and Debugging:</strong>&nbsp;Testing and debugging are critical when using advanced patterns. Automated tests can catch errors early and validate error boundary behavior. For RAYF, testing network conditions and response handling helps ensure the proper rendering sequence.</p>
-<p><strong>Optimizing Performance and Code Quality:</strong></p>
-<ul>
-<li>Optimize RAYF by fine-tuning component fetching and rendering strategies.</li>
-<li>Profile and analyze performance using browser developer tools to identify bottlenecks.</li>
-<li>Follow coding standards and document code extensively for maintainability.</li>
-</ul>
-<p>By embracing these best practices, addressing challenges, and investing in thorough testing and performance optimization, developers can harness the full potential of error boundaries and RAYF while ensuring robust, performant, and high-quality React applications.</p>
-<h1>5. Real-world Applications of error patterns</h1>
-<p>Real-world applications provide tangible examples of how the integration of error boundaries and the Render-as-You-Fetch (RAYF) pattern can yield substantial benefits. By examining these applications, we gain insights into the practical impact of these advanced patterns on user experience and application stability. In various domains, from content-rich websites to data-driven dashboards, these patterns have proven instrumental in enhancing perceived performance, minimizing disruptions caused by errors, and ensuring seamless interactions. By showcasing specific case studies and success stories, we illuminate how error boundaries and RAYF have contributed to more reliable, responsive, and user-friendly applications, thereby underscoring their relevance and effectiveness in addressing modern development challenges.</p>
-<h1>6. Conclusion</h1>
-<p>In the dynamic realm of React development, the exploration of advanced patterns like error boundaries and the Render-as-You-Fetch (RAYF) approach unveils potent tools for creating robust, high-performing applications. As developers, we’ve uncovered the significance of error boundaries in shielding applications from catastrophic failures and learned how RAYF enhances perceived performance by progressively rendering content. By incorporating these patterns strategically, developers gain the ability to elevate user experience, tackle complex scenarios, and mitigate the impact of errors. The realm of advanced patterns invites us to embrace new methodologies that amplify the reliability and responsiveness of our applications, ultimately fostering a culture of innovation and continuous improvement. As you embark on your development journey, we encourage you to experiment, adapt, and harness the power of error boundaries and RAYF to create exceptional digital experiences.</p>
-<p><em>Thank you for reading until the end. Please consider following the writer and this publication. Visit</em>&nbsp;<a href="https://stackademic.com/" target="_blank"><em>Stackademic</em></a>&nbsp;<em>to find out more about how we are democratizing free programming education around the world.</em></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2023/12/osd-20231222.jpg" medium="image"/>
-    <pubDate>Fri, 22 Dec 2023 15:25:32 +0000</pubDate>
   </item></channel>
 </rss>
