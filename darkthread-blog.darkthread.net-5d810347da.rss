@@ -30,6 +30,219 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 小技巧 - 禁止 JSON 包含無法對映的屬性]]></title>
+    <link>https://blog.darkthread.net/blog/unmap-json-prop/</link>
+    <itunes:title><![CDATA[.NET 小技巧 - 禁止 JSON 包含無法對映的屬性]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>讀者 Galaxy952 分享<a href="/blog/webapi2-post-validation/#26727f30-3c19-4ff5-a91f-1d734710816f">一則實際經驗</a>：JSON 反序列化時，若出現對映型別上沒有的屬性一般都會選擇無視，但某些資安政策認為 JSON 反序列化容忍未被定義的屬性是一種風險。故詢問 .NET 要如何偵測 JSON 有多餘的屬性參數並回傳錯誤。</p> <p>舉例來說，若我們的物件有 Id 及 Name 兩個屬性，若傳入 JSON 內容如下(多了 NoSuchProp)，程式必須拋出例外並拒絕反序列化：</p> <pre><code>{
+"Id": 32767,
+"Name": "Jeffrey",
+"NoSuchProp": "No mapping for this property"
+}
+</code></pre> <p>先寫一小段程式驗證標準行為，分別用 Json.NET 跟 System.Text.Json 反序化這段多了 NoSuchProp 的 JSON 內容，二者都會無視 NoSuchProp 完成轉換。</p> <pre><code>using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json);
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+class User {
+public int Id {get; set;}
+public string Name {get; set;}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png"></p> <p>要解決這個問題，Json.NET 可在 JsonSerializationOptions 加上 <a href="https://www.newtonsoft.com/json/help/html/DeserializeMissingMemberHandling.htm">MissingMemberHandling.Error 設定</a>；System.Text.Json 則是在 .NET 8 開始加入 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.text.json.serialization.jsonunmappedmemberhandlingattribute?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">JsonUnmappedMemberHandlingAttribute</a> 標註物件不允許 JSON 包含未對映屬性。(若尚末升級 .NET 6 ，可考慮<a href="https://stackoverflow.com/a/74996510/288936">自己實作</a>)</p> <pre><code>using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json, new JsonSerializerSettings {
+MissingMemberHandling = MissingMemberHandling.Error
+});
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+class User
+{
+public int Id { get; set; }
+public string Name { get; set; }
+}
+</code></pre> <p>修改後，Json.NET 及 System.Text.Json 便會因 JSON 多了 NoSuchProp 無法反序列化，搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638399796688288828.png"></p> <p data-slug="unmap-json-prop" data-title-en="Avoiding unmappped properies in JSON" data-catg=".NET" data-fbimg="https://i.imgur.com/6qdjJS5.jpg#1280#720">Guidelines on avoiding unmapped properties in JSON using Json.NET and System.Text.Json.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>讀者 Galaxy952 分享<a href="/blog/webapi2-post-validation/#26727f30-3c19-4ff5-a91f-1d734710816f">一則實際經驗</a>：JSON 反序列化時，若出現對映型別上沒有的屬性一般都會選擇無視，但某些資安政策認為 JSON 反序列化容忍未被定義的屬性是一種風險。故詢問 .NET 要如何偵測 JSON 有多餘的屬性參數並回傳錯誤。</p> <p>舉例來說，若我們的物件有 Id 及 Name 兩個屬性，若傳入 JSON 內容如下(多了 NoSuchProp)，程式必須拋出例外並拒絕反序列化：</p> <pre><code>{
+"Id": 32767,
+"Name": "Jeffrey",
+"NoSuchProp": "No mapping for this property"
+}
+</code></pre> <p>先寫一小段程式驗證標準行為，分別用 Json.NET 跟 System.Text.Json 反序化這段多了 NoSuchProp 的 JSON 內容，二者都會無視 NoSuchProp 完成轉換。</p> <pre><code>using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json);
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+class User {
+public int Id {get; set;}
+public string Name {get; set;}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png"></p> <p>要解決這個問題，Json.NET 可在 JsonSerializationOptions 加上 <a href="https://www.newtonsoft.com/json/help/html/DeserializeMissingMemberHandling.htm">MissingMemberHandling.Error 設定</a>；System.Text.Json 則是在 .NET 8 開始加入 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.text.json.serialization.jsonunmappedmemberhandlingattribute?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">JsonUnmappedMemberHandlingAttribute</a> 標註物件不允許 JSON 包含未對映屬性。(若尚末升級 .NET 6 ，可考慮<a href="https://stackoverflow.com/a/74996510/288936">自己實作</a>)</p> <pre><code>using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json, new JsonSerializerSettings {
+MissingMemberHandling = MissingMemberHandling.Error
+});
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+class User
+{
+public int Id { get; set; }
+public string Name { get; set; }
+}
+</code></pre> <p>修改後，Json.NET 及 System.Text.Json 便會因 JSON 多了 NoSuchProp 無法反序列化，搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638399796688288828.png"></p> <p data-slug="unmap-json-prop" data-title-en="Avoiding unmappped properies in JSON" data-catg=".NET" data-fbimg="https://i.imgur.com/6qdjJS5.jpg#1280#720">Guidelines on avoiding unmapped properties in JSON using Json.NET and System.Text.Json.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>讀者 Galaxy952 分享<a href="/blog/webapi2-post-validation/#26727f30-3c19-4ff5-a91f-1d734710816f">一則實際經驗</a>：JSON 反序列化時，若出現對映型別上沒有的屬性一般都會選擇無視，但某些資安政策認為 JSON 反序列化容忍未被定義的屬性是一種風險。故詢問 .NET 要如何偵測 JSON 有多餘的屬性參數並回傳錯誤。</p> <p>舉例來說，若我們的物件有 Id 及 Name 兩個屬性，若傳入 JSON 內容如下(多了 NoSuchProp)，程式必須拋出例外並拒絕反序列化：</p> <pre><code>{
+"Id": 32767,
+"Name": "Jeffrey",
+"NoSuchProp": "No mapping for this property"
+}
+</code></pre> <p>先寫一小段程式驗證標準行為，分別用 Json.NET 跟 System.Text.Json 反序化這段多了 NoSuchProp 的 JSON 內容，二者都會無視 NoSuchProp 完成轉換。</p> <pre><code>using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json);
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+class User {
+public int Id {get; set;}
+public string Name {get; set;}
+}
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png"></p> <p>要解決這個問題，Json.NET 可在 JsonSerializationOptions 加上 <a href="https://www.newtonsoft.com/json/help/html/DeserializeMissingMemberHandling.htm">MissingMemberHandling.Error 設定</a>；System.Text.Json 則是在 .NET 8 開始加入 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.text.json.serialization.jsonunmappedmemberhandlingattribute?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">JsonUnmappedMemberHandlingAttribute</a> 標註物件不允許 JSON 包含未對映屬性。(若尚末升級 .NET 6 ，可考慮<a href="https://stackoverflow.com/a/74996510/288936">自己實作</a>)</p> <pre><code>using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+var json = @"{
+""Id"": 32767,
+""Name"": ""Jeffrey"",
+""NoSuchProp"": ""No mapping for this property""
+}";
+try
+{
+var userJsonNet = JsonConvert.DeserializeObject&lt;User&gt;(json, new JsonSerializerSettings {
+MissingMemberHandling = MissingMemberHandling.Error
+});
+Console.WriteLine("Json.NET deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("Json.NET ERROR-" + ex.Message);
+}
+try
+{
+var userTextJson = System.Text.Json.JsonSerializer.Deserialize&lt;User&gt;(json);
+Console.WriteLine("System.Text.Json deserialized the object successfully");
+}
+catch (Exception ex)
+{
+Console.WriteLine("System.Text.Json ERROR-" + ex.Message);
+}
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+class User
+{
+public int Id { get; set; }
+public string Name { get; set; }
+}
+</code></pre> <p>修改後，Json.NET 及 System.Text.Json 便會因 JSON 多了 NoSuchProp 無法反序列化，搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638399796688288828.png"></p> <p data-slug="unmap-json-prop" data-title-en="Avoiding unmappped properies in JSON" data-catg=".NET" data-fbimg="https://i.imgur.com/6qdjJS5.jpg#1280#720">Guidelines on avoiding unmapped properties in JSON using Json.NET and System.Text.Json.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png" medium="image"/>
+    <pubDate>Thu, 04 Jan 2024 15:40:20 GMT</pubDate>
+  </item><item>
     <title><![CDATA[UI 設計小錦囊 - 20 種差異鮮明色彩組合]]></title>
     <link>https://blog.darkthread.net/blog/20-distinct-colors/</link>
     <itunes:title><![CDATA[UI 設計小錦囊 - 20 種差異鮮明色彩組合]]></itunes:title>
@@ -847,230 +1060,5 @@ public void Close() =&gt; _serPort.Close();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig2_638389143387844210.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig2_638389143387844210.jpg" medium="image"/>
     <pubDate>Sat, 23 Dec 2023 07:31:33 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[【茶包射手日記】LineBotSDK NullReferenceException 錯誤調查]]></title>
-    <link>https://blog.darkthread.net/blog/tls12-issue-on-linebotsdk/</link>
-    <itunes:title><![CDATA[【茶包射手日記】LineBotSDK NullReferenceException 錯誤調查]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.IO" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-string webErrMsg = string.Empty;
-try
-{
-try
-{
-var wc = new WebClient();
-wc.DownloadString("https://api.line.me/v2/bot/message/push");
-Response.Write("WTF! You should never see this.");
-}
-catch (System.Net.WebException wex)
-{
-webErrMsg = wex.Message;
-using (var sr = new StreamReader(wex.Response.GetResponseStream()))
-{
-Response.Write(sr.ReadToEnd());
-}
-}
-}
-catch (Exception ex)
-{
-Response.Write(webErrMsg + "\r
-");
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-// 設定使用 TLS 1.2
-ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.IO" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-string webErrMsg = string.Empty;
-try
-{
-try
-{
-var wc = new WebClient();
-wc.DownloadString("https://api.line.me/v2/bot/message/push");
-Response.Write("WTF! You should never see this.");
-}
-catch (System.Net.WebException wex)
-{
-webErrMsg = wex.Message;
-using (var sr = new StreamReader(wex.Response.GetResponseStream()))
-{
-Response.Write(sr.ReadToEnd());
-}
-}
-}
-catch (Exception ex)
-{
-Response.Write(webErrMsg + "\r
-");
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-// 設定使用 TLS 1.2
-ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>讀者 Edward 問了一個有趣問題，花了點時間追查，發現是 TLS 1.2 問題的變形茶包，累積了一些經驗值，簡單整理分享。</p> <p>錯誤出現在<a href="/blog/line-bot-sdk-notes/">使用 LineBotSDK 傳送 LINE 訊息</a>的超簡單範例，甚至可簡化成一行就好：(參數都是亂給的，不可能傳送成功，正常情況應得到 HTTP 401，在特定環境則可重現錯誤)</p> <pre><code>isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-</code></pre> <p>我先試著在 .NET 6 Console 跑這行程式，可正確得到 HTTP 401 Authentication failed. Confirm that the access token in the authorization header is valid.</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"></p> <p>後來在 Visual Studio 2022 改用 .NET Framework Console 跑，我的電腦只裝了 .NET 4.7.2 跟 4.8，這兩個版本也都不會出錯。依 Edward 提供的情報，他的出錯環境是 .NET 4.5，莫非跟 .NET Framework 版本有關？</p> <p>為了方便測試，我把程式搬進 Inline ASPX：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p>ASP.NET Runtime 指定 4.5，我成功重現了 NullReferenceException 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638387678160568910.png"></p> <p>懷疑跟呼叫 API 的部分有關，我另寫了一段程式成功重現錯誤，也找到真正原因：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.IO" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-string webErrMsg = string.Empty;
-try
-{
-try
-{
-var wc = new WebClient();
-wc.DownloadString("https://api.line.me/v2/bot/message/push");
-Response.Write("WTF! You should never see this.");
-}
-catch (System.Net.WebException wex)
-{
-webErrMsg = wex.Message;
-using (var sr = new StreamReader(wex.Response.GetResponseStream()))
-{
-Response.Write(sr.ReadToEnd());
-}
-}
-}
-catch (Exception ex)
-{
-Response.Write(webErrMsg + "\r
-");
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><code>要求已經中止: 無法建立 SSL/TLS 的安全通道。</code> 是標準的 TLS 1.2 相容問題，LINE API 依循安全規範限定 TLS 1.2，而 .NET Framework 4.6+ 才預設使用 TLS 1.2，如果是 .NET 4.5 若沒加上 <code>ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12</code> <a href="/blog/disable-tls-1-0-issues/">參考</a> 或修改 Registry <a href="/blog/net35-tls12-issue/">參考</a>，將無法建立 TLS 連線。而在 catch WebException 部分，程式未考量到完全無法連線時 WebException.Response 為 null 的狀況，未經檢查呼叫 Response.GetResponseStream() 是 NullReferenceException 的來源。(已提報 Issue 給 David 老師)</p> <p>修改程式，指定使用 TLS 1.2，問題排除：</p> <pre><code>&lt;%@ Page Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Net" %&gt;
-&lt;script runat="server"&gt;
-protected void Page_Load(object sender, EventArgs e)
-{
-Response.ContentType = "text/plain";
-try
-{
-// 設定使用 TLS 1.2
-ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-isRock.LineBot.Utility.PushMessage("NoSuchUserId", "Never Sent", "InvalidToken");
-Response.Write("WTF! You should never see this.");
-}
-catch (Exception ex)
-{
-Response.Write(ex);
-}
-}
-&lt;/script&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638387678162538704.png"></p> <p>試著縮減出最小可重現問題的程式片段，比對不同環境的結果，抽取可疑行為聚焦觀察，最終找出原因破案，這回也算一次標準的射茶包範例吧! 分享給大家參考。</p> <p data-slug="tls12-issue-on-linebotsdk" data-title-en="Another TLS 1.2 issue on LineBotSDK library" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2019/05/12/15/07/electric-4198293_960_720.jpg#960#720">Debugging a NullReferenceException issue in the LineBotSDK code to discover the root cause of a TLS 1.2 support issue.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638387678158650673.png" medium="image"/>
-    <pubDate>Thu, 21 Dec 2023 14:53:22 GMT</pubDate>
   </item></channel>
 </rss>
