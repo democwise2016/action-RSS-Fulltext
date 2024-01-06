@@ -30,6 +30,396 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[觀察 Round-Robin DNS 查詢結果變化]]></title>
+    <link>https://blog.darkthread.net/blog/round-robin-dns-test/</link>
+    <itunes:title><![CDATA[觀察 Round-Robin DNS 查詢結果變化]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://zh.wikipedia.org/zh-tw/DNS%E8%BD%AE%E5%BE%AA">Round-Robin DNS</a> (DNS 輪循、循環 DNS) 是非常古老的負載平衡手法，其原理是 DNS 伺服器回應 DNS 請求時，返回結果來自一長串 IP 位址清單，並在每次回應時抽換 IP 組合跟掉換 IP 順序，一般來說，客戶端會採用回應結果的第一個 IP，如此，要連上 <a href="http://www.xxx.yyy">www.xxx.yyy</a> 的不同客戶端便會導向不同 IP 連到不同主機，達到分散流量及工作負載的效果。</p> <p>雖然這種做法無法平均分配負載(將流量導向空閒主機)、不會避開故障中的伺服器，並可能因客戶端快取減弱效果，但因為容易實現，至今仍普遍使用。(延伸閱讀：現代 CDN 會使用 BGP Anycast 實現負載平衡，<a href="/blog/bgp-anycast/">Internet 跟你想的不一樣：IP 地址不是唯一，有許多相同 IP 的主機散落各地</a>)</p> <p>以微軟的 login.microsoftonline.com 為例，nslookup 可得到 8 個 IPv4 地址，反覆查詢，IP 項目及順序會改變：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638401497693300901.png"></p> <p>好奇心起：這個 IP 清單包含多少個不同 IP？每次查詢 IP 的變化有特殊規律嗎？</p> <p>做個實驗試試，我寫了以下 PowerShell 從 nslookup 輸出擷取 IPv4 地址，10 秒查一次。</p> <pre><code>for ($i = 0; $i -lt 128; $i++) {
+$capture = $false
+$ips = @()
+. nslookup.exe login.microsoftonline.com 8.8.8.8 | ForEach-Object {
+if ($_ -match 'Addresses') {
+$capture = $true
+}
+elseif ($capture -and $_ -match '(\d+\.\d+\.\d+\.\d+)') {
+$ips += $matches[1]
+}
+}
+Write-Output ($ips -join ',')
+Start-Sleep -Seconds 10
+}
+</code></pre> <p><code>.\run-100-times-dns.ps1 | Out-File -FilePath 'dns-results.txt'</code> 將執行結果輸出到 dns-results.txt。有趣的是，「未經授權的回答:」是<a href="/blog/stdout-stderr/">透過 stderr 輸出</a>，不會寫入檔案而是顯示在螢幕上。</p> <p>然後我用 Vue 寫了個簡單查詢，方便觀察各 IP 出現次數、順序。<a href="https://output.jsbin.com/zawehob">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638401497699220478.png"></p> <p>由結果可知，login.microsoftonline.com 背後共有 20 個 IP，每次出現 8 個 128 次總數 1024，1024 / 20 = 理論上每個 IP 會出現 51.2 次，接近實測的數字。而順序分佈也呈現隨機。點選最上方 IP [1] 可觀察該 IP 出現在哪些資料列，點選列號 [2] 可觀察相同 IP 組合重複出現的位置。依觀察結果，相同 IP 組合出現次數介於 1 到 7 次，而且偏集中，前後很少超過五分鐘(每列相隔十秒，也就是序號差小於 30)。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Round-Robin DNS Test&lt;/title&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+body {
+font-family: Arial, Helvetica, sans-serif; font-size: 9pt;
+}
+.iplist {
+display: flex; flex-direction: row; flex-wrap: wrap;
+}
+.iplist&gt;span {
+margin-right: 2px; padding: 2px; border: 1px solid #ccc;
+width: 120px; text-align: center;
+}
+table {
+margin-top: 12px; border-collapse: collapse;
+}
+tr:nth-child(odd) {
+background-color: #eee;
+}
+td {
+border: 1px solid #ccc; padding: 4px;
+}
+td.sn {
+text-align: right;
+}
+.focus {
+text-shadow: 1px 1px 2px black; font-weight: bolder;
+background-color: black!important;
+color: yellow!important;
+}
+.link {
+cursor: pointer;
+}
+#app {
+width: 800px;
+}
+.dc-0  { color:#e6194B; } .dbc-0  { color:#ffffff; background-color:#e6194Ba0; }
+.dc-1  { color:#3cb44b; } .dbc-1  { color:#ffffff; background-color:#3cb44ba0; }
+/* ... 省略 ... */
+.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffffa0; }
+.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000a0; }
+&lt;/style&gt;
+&lt;script type="application/x-data" id="data"&gt;
+40.126.38.19,20.190.166.68,20.190.166.66,20.190.166.132,20.190.166.67,40.126.38.22,20.190.166.131,40.126.38.20
+20.190.141.33,20.190.141.32,20.190.141.39,20.190.141.38,20.190.141.37,20.190.141.35,40.126.13.8,40.126.13.9
+... 省略 ...
+40.126.13.9,20.190.141.38,40.126.13.8,20.190.141.33,20.190.141.35,20.190.141.39,20.190.141.32,20.190.141.37
+&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="iplist"&gt;
+&lt;span v-for="ip in list" @click="focusIp = ip" class="link"
+:class="css(ip)"&gt;{{ip}} ({{counts[ip]}})&lt;/span&gt;
+&lt;/div&gt;
+&lt;table&gt;
+&lt;tr v-for="(line,idx) in data"  &gt;
+&lt;td class="sn link" @click="focusLine = line" :class="{'focus':focusLine == line}"&gt;
+{{idx+1}}. ({{dupLineCount[line]}})
+&lt;/td&gt;
+&lt;td v-for="ip in line.split(',')" :class="css(ip)"&gt;{{ip}}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const data = [];
+const ipChk = {};
+const counts = {};
+const dupLineCount = {};
+let c = 0;
+document.head.querySelector('script[id=data]').innerText.split('
+').forEach(function (line) {
+line = line.trim();
+if (!line) return;
+if (line in dupLineCount) dupLineCount[line]++;
+else dupLineCount[line] = 1;
+var ips = line.split(',');
+ips.forEach(function (ip) {
+if (!(ip in ipChk)) { ipChk[ip] = c++; counts[ip] = 0; }
+else counts[ip]++;
+});
+data.push(line);
+});
+const ips = Object.keys(ipChk);
+ips.sort();
+const app = Vue.createApp({
+data: function () {
+return {
+data: data,
+list: ips,
+counts: counts,
+focusLine: '',
+dupLineCount: dupLineCount,
+focusIp: ''
+};
+},
+methods: {
+css: function (ip) {
+return (this.focusIp == ip ? 'focus ' : '') +
+'dbc-' + (ipChk[ip] % 22);
+}
+}
+});
+app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>就醬，我又完成一次無聊的實驗，累積一些 Coding 經驗。</p> <p data-slug="round-robin-dns-test" data-title-en="How Round-Robin DNS change IP addresss" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/08/25/00/07/horse-905958_1280.jpg#1280#720">A experiment to observe how round-robin DNS provides different IP addresses.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://zh.wikipedia.org/zh-tw/DNS%E8%BD%AE%E5%BE%AA">Round-Robin DNS</a> (DNS 輪循、循環 DNS) 是非常古老的負載平衡手法，其原理是 DNS 伺服器回應 DNS 請求時，返回結果來自一長串 IP 位址清單，並在每次回應時抽換 IP 組合跟掉換 IP 順序，一般來說，客戶端會採用回應結果的第一個 IP，如此，要連上 <a href="http://www.xxx.yyy">www.xxx.yyy</a> 的不同客戶端便會導向不同 IP 連到不同主機，達到分散流量及工作負載的效果。</p> <p>雖然這種做法無法平均分配負載(將流量導向空閒主機)、不會避開故障中的伺服器，並可能因客戶端快取減弱效果，但因為容易實現，至今仍普遍使用。(延伸閱讀：現代 CDN 會使用 BGP Anycast 實現負載平衡，<a href="/blog/bgp-anycast/">Internet 跟你想的不一樣：IP 地址不是唯一，有許多相同 IP 的主機散落各地</a>)</p> <p>以微軟的 login.microsoftonline.com 為例，nslookup 可得到 8 個 IPv4 地址，反覆查詢，IP 項目及順序會改變：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638401497693300901.png"></p> <p>好奇心起：這個 IP 清單包含多少個不同 IP？每次查詢 IP 的變化有特殊規律嗎？</p> <p>做個實驗試試，我寫了以下 PowerShell 從 nslookup 輸出擷取 IPv4 地址，10 秒查一次。</p> <pre><code>for ($i = 0; $i -lt 128; $i++) {
+$capture = $false
+$ips = @()
+. nslookup.exe login.microsoftonline.com 8.8.8.8 | ForEach-Object {
+if ($_ -match 'Addresses') {
+$capture = $true
+}
+elseif ($capture -and $_ -match '(\d+\.\d+\.\d+\.\d+)') {
+$ips += $matches[1]
+}
+}
+Write-Output ($ips -join ',')
+Start-Sleep -Seconds 10
+}
+</code></pre> <p><code>.\run-100-times-dns.ps1 | Out-File -FilePath 'dns-results.txt'</code> 將執行結果輸出到 dns-results.txt。有趣的是，「未經授權的回答:」是<a href="/blog/stdout-stderr/">透過 stderr 輸出</a>，不會寫入檔案而是顯示在螢幕上。</p> <p>然後我用 Vue 寫了個簡單查詢，方便觀察各 IP 出現次數、順序。<a href="https://output.jsbin.com/zawehob">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638401497699220478.png"></p> <p>由結果可知，login.microsoftonline.com 背後共有 20 個 IP，每次出現 8 個 128 次總數 1024，1024 / 20 = 理論上每個 IP 會出現 51.2 次，接近實測的數字。而順序分佈也呈現隨機。點選最上方 IP [1] 可觀察該 IP 出現在哪些資料列，點選列號 [2] 可觀察相同 IP 組合重複出現的位置。依觀察結果，相同 IP 組合出現次數介於 1 到 7 次，而且偏集中，前後很少超過五分鐘(每列相隔十秒，也就是序號差小於 30)。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Round-Robin DNS Test&lt;/title&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+body {
+font-family: Arial, Helvetica, sans-serif; font-size: 9pt;
+}
+.iplist {
+display: flex; flex-direction: row; flex-wrap: wrap;
+}
+.iplist&gt;span {
+margin-right: 2px; padding: 2px; border: 1px solid #ccc;
+width: 120px; text-align: center;
+}
+table {
+margin-top: 12px; border-collapse: collapse;
+}
+tr:nth-child(odd) {
+background-color: #eee;
+}
+td {
+border: 1px solid #ccc; padding: 4px;
+}
+td.sn {
+text-align: right;
+}
+.focus {
+text-shadow: 1px 1px 2px black; font-weight: bolder;
+background-color: black!important;
+color: yellow!important;
+}
+.link {
+cursor: pointer;
+}
+#app {
+width: 800px;
+}
+.dc-0  { color:#e6194B; } .dbc-0  { color:#ffffff; background-color:#e6194Ba0; }
+.dc-1  { color:#3cb44b; } .dbc-1  { color:#ffffff; background-color:#3cb44ba0; }
+/* ... 省略 ... */
+.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffffa0; }
+.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000a0; }
+&lt;/style&gt;
+&lt;script type="application/x-data" id="data"&gt;
+40.126.38.19,20.190.166.68,20.190.166.66,20.190.166.132,20.190.166.67,40.126.38.22,20.190.166.131,40.126.38.20
+20.190.141.33,20.190.141.32,20.190.141.39,20.190.141.38,20.190.141.37,20.190.141.35,40.126.13.8,40.126.13.9
+... 省略 ...
+40.126.13.9,20.190.141.38,40.126.13.8,20.190.141.33,20.190.141.35,20.190.141.39,20.190.141.32,20.190.141.37
+&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="iplist"&gt;
+&lt;span v-for="ip in list" @click="focusIp = ip" class="link"
+:class="css(ip)"&gt;{{ip}} ({{counts[ip]}})&lt;/span&gt;
+&lt;/div&gt;
+&lt;table&gt;
+&lt;tr v-for="(line,idx) in data"  &gt;
+&lt;td class="sn link" @click="focusLine = line" :class="{'focus':focusLine == line}"&gt;
+{{idx+1}}. ({{dupLineCount[line]}})
+&lt;/td&gt;
+&lt;td v-for="ip in line.split(',')" :class="css(ip)"&gt;{{ip}}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const data = [];
+const ipChk = {};
+const counts = {};
+const dupLineCount = {};
+let c = 0;
+document.head.querySelector('script[id=data]').innerText.split('
+').forEach(function (line) {
+line = line.trim();
+if (!line) return;
+if (line in dupLineCount) dupLineCount[line]++;
+else dupLineCount[line] = 1;
+var ips = line.split(',');
+ips.forEach(function (ip) {
+if (!(ip in ipChk)) { ipChk[ip] = c++; counts[ip] = 0; }
+else counts[ip]++;
+});
+data.push(line);
+});
+const ips = Object.keys(ipChk);
+ips.sort();
+const app = Vue.createApp({
+data: function () {
+return {
+data: data,
+list: ips,
+counts: counts,
+focusLine: '',
+dupLineCount: dupLineCount,
+focusIp: ''
+};
+},
+methods: {
+css: function (ip) {
+return (this.focusIp == ip ? 'focus ' : '') +
+'dbc-' + (ipChk[ip] % 22);
+}
+}
+});
+app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>就醬，我又完成一次無聊的實驗，累積一些 Coding 經驗。</p> <p data-slug="round-robin-dns-test" data-title-en="How Round-Robin DNS change IP addresss" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/08/25/00/07/horse-905958_1280.jpg#1280#720">A experiment to observe how round-robin DNS provides different IP addresses.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://zh.wikipedia.org/zh-tw/DNS%E8%BD%AE%E5%BE%AA">Round-Robin DNS</a> (DNS 輪循、循環 DNS) 是非常古老的負載平衡手法，其原理是 DNS 伺服器回應 DNS 請求時，返回結果來自一長串 IP 位址清單，並在每次回應時抽換 IP 組合跟掉換 IP 順序，一般來說，客戶端會採用回應結果的第一個 IP，如此，要連上 <a href="http://www.xxx.yyy">www.xxx.yyy</a> 的不同客戶端便會導向不同 IP 連到不同主機，達到分散流量及工作負載的效果。</p> <p>雖然這種做法無法平均分配負載(將流量導向空閒主機)、不會避開故障中的伺服器，並可能因客戶端快取減弱效果，但因為容易實現，至今仍普遍使用。(延伸閱讀：現代 CDN 會使用 BGP Anycast 實現負載平衡，<a href="/blog/bgp-anycast/">Internet 跟你想的不一樣：IP 地址不是唯一，有許多相同 IP 的主機散落各地</a>)</p> <p>以微軟的 login.microsoftonline.com 為例，nslookup 可得到 8 個 IPv4 地址，反覆查詢，IP 項目及順序會改變：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638401497693300901.png"></p> <p>好奇心起：這個 IP 清單包含多少個不同 IP？每次查詢 IP 的變化有特殊規律嗎？</p> <p>做個實驗試試，我寫了以下 PowerShell 從 nslookup 輸出擷取 IPv4 地址，10 秒查一次。</p> <pre><code>for ($i = 0; $i -lt 128; $i++) {
+$capture = $false
+$ips = @()
+. nslookup.exe login.microsoftonline.com 8.8.8.8 | ForEach-Object {
+if ($_ -match 'Addresses') {
+$capture = $true
+}
+elseif ($capture -and $_ -match '(\d+\.\d+\.\d+\.\d+)') {
+$ips += $matches[1]
+}
+}
+Write-Output ($ips -join ',')
+Start-Sleep -Seconds 10
+}
+</code></pre> <p><code>.\run-100-times-dns.ps1 | Out-File -FilePath 'dns-results.txt'</code> 將執行結果輸出到 dns-results.txt。有趣的是，「未經授權的回答:」是<a href="/blog/stdout-stderr/">透過 stderr 輸出</a>，不會寫入檔案而是顯示在螢幕上。</p> <p>然後我用 Vue 寫了個簡單查詢，方便觀察各 IP 出現次數、順序。<a href="https://output.jsbin.com/zawehob">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638401497699220478.png"></p> <p>由結果可知，login.microsoftonline.com 背後共有 20 個 IP，每次出現 8 個 128 次總數 1024，1024 / 20 = 理論上每個 IP 會出現 51.2 次，接近實測的數字。而順序分佈也呈現隨機。點選最上方 IP [1] 可觀察該 IP 出現在哪些資料列，點選列號 [2] 可觀察相同 IP 組合重複出現的位置。依觀察結果，相同 IP 組合出現次數介於 1 到 7 次，而且偏集中，前後很少超過五分鐘(每列相隔十秒，也就是序號差小於 30)。</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;title&gt;Round-Robin DNS Test&lt;/title&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+body {
+font-family: Arial, Helvetica, sans-serif; font-size: 9pt;
+}
+.iplist {
+display: flex; flex-direction: row; flex-wrap: wrap;
+}
+.iplist&gt;span {
+margin-right: 2px; padding: 2px; border: 1px solid #ccc;
+width: 120px; text-align: center;
+}
+table {
+margin-top: 12px; border-collapse: collapse;
+}
+tr:nth-child(odd) {
+background-color: #eee;
+}
+td {
+border: 1px solid #ccc; padding: 4px;
+}
+td.sn {
+text-align: right;
+}
+.focus {
+text-shadow: 1px 1px 2px black; font-weight: bolder;
+background-color: black!important;
+color: yellow!important;
+}
+.link {
+cursor: pointer;
+}
+#app {
+width: 800px;
+}
+.dc-0  { color:#e6194B; } .dbc-0  { color:#ffffff; background-color:#e6194Ba0; }
+.dc-1  { color:#3cb44b; } .dbc-1  { color:#ffffff; background-color:#3cb44ba0; }
+/* ... 省略 ... */
+.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffffa0; }
+.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000a0; }
+&lt;/style&gt;
+&lt;script type="application/x-data" id="data"&gt;
+40.126.38.19,20.190.166.68,20.190.166.66,20.190.166.132,20.190.166.67,40.126.38.22,20.190.166.131,40.126.38.20
+20.190.141.33,20.190.141.32,20.190.141.39,20.190.141.38,20.190.141.37,20.190.141.35,40.126.13.8,40.126.13.9
+... 省略 ...
+40.126.13.9,20.190.141.38,40.126.13.8,20.190.141.33,20.190.141.35,20.190.141.39,20.190.141.32,20.190.141.37
+&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="iplist"&gt;
+&lt;span v-for="ip in list" @click="focusIp = ip" class="link"
+:class="css(ip)"&gt;{{ip}} ({{counts[ip]}})&lt;/span&gt;
+&lt;/div&gt;
+&lt;table&gt;
+&lt;tr v-for="(line,idx) in data"  &gt;
+&lt;td class="sn link" @click="focusLine = line" :class="{'focus':focusLine == line}"&gt;
+{{idx+1}}. ({{dupLineCount[line]}})
+&lt;/td&gt;
+&lt;td v-for="ip in line.split(',')" :class="css(ip)"&gt;{{ip}}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const data = [];
+const ipChk = {};
+const counts = {};
+const dupLineCount = {};
+let c = 0;
+document.head.querySelector('script[id=data]').innerText.split('
+').forEach(function (line) {
+line = line.trim();
+if (!line) return;
+if (line in dupLineCount) dupLineCount[line]++;
+else dupLineCount[line] = 1;
+var ips = line.split(',');
+ips.forEach(function (ip) {
+if (!(ip in ipChk)) { ipChk[ip] = c++; counts[ip] = 0; }
+else counts[ip]++;
+});
+data.push(line);
+});
+const ips = Object.keys(ipChk);
+ips.sort();
+const app = Vue.createApp({
+data: function () {
+return {
+data: data,
+list: ips,
+counts: counts,
+focusLine: '',
+dupLineCount: dupLineCount,
+focusIp: ''
+};
+},
+methods: {
+css: function (ip) {
+return (this.focusIp == ip ? 'focus ' : '') +
+'dbc-' + (ipChk[ip] % 22);
+}
+}
+});
+app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>就醬，我又完成一次無聊的實驗，累積一些 Coding 經驗。</p> <p data-slug="round-robin-dns-test" data-title-en="How Round-Robin DNS change IP addresss" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/08/25/00/07/horse-905958_1280.jpg#1280#720">A experiment to observe how round-robin DNS provides different IP addresses.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638401497693300901.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638401497693300901.png" medium="image"/>
+    <pubDate>Sat, 06 Jan 2024 14:50:04 GMT</pubDate>
+  </item><item>
     <title><![CDATA[輕前端注意，unpkg.com/vue@next CDN 網址已失效!!]]></title>
     <link>https://blog.darkthread.net/blog/unpkg-vue-next-broken/</link>
     <itunes:title><![CDATA[輕前端注意，unpkg.com/vue@next CDN 網址已失效!!]]></itunes:title>
@@ -1045,20 +1435,5 @@ public void Close() =&gt; _serPort.Close();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638392466535904764.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638392466535904764.png" medium="image"/>
     <pubDate>Wed, 27 Dec 2023 04:03:00 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[閒聊 - Y2Q 倒數與 Q-Day，當代資訊安全防線即將崩潰]]></title>
-    <link>https://blog.darkthread.net/blog/q-day/</link>
-    <itunes:title><![CDATA[閒聊 - Y2Q 倒數與 Q-Day，當代資訊安全防線即將崩潰]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>之前在 <a href="/blog/yt-notes-quantum-mechanics/">YT 筆記 - 搞懂量子糾纏、疊加態、測不準原理</a>提到，以量子位元（Qubits）為基礎進行運算的量子電腦，運算能力將完全輾壓當代超級電腦，預估能破解現今被視為牢不可破的加密金鑰，讓資訊安全體係面臨一場革命。</p> <p>隨著量子電腦研究不斷有新進展，這場革命感覺也愈來愈近了。依據 2021 年 IBM 公佈的量子電腦發展藍圖，2023 年量子位元會達到 1121 Qubits，實際上也如期達標了(<a href="https://www.cool3c.com/article/204972">IBM 新推 1121 量子位量子處理器 Condor 及可擴展量子運算系統 System Two by COOL3C</a>)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638390033457749926.jpg"><br> <a href="https://technews.tw/2021/02/05/ibm-quantum-computing-development-roadmap-envisions-applications/">圖片來源</a></p> <p>換言之，按此發展，舉凡當今電子交易、資訊保密、身分驗證所依賴的 <a href="/blog/ecc-notes/">RSA、DSA、ECC... 一干演算法</a>，都會在量子電腦成熟後，從固若金湯變成青菜蛋花湯，原本古典電腦(是的，我們現在每天在用的電腦要變成古典電腦了)跑幾千萬年也破不了的加密，量子電腦只需幾小時便可完成破解，想看什麼就看什麼，想假冒誰就假冒誰。</p> <p>這天何時到來呢？有個推動雲端安全的組織 CSA (Cloud Security Alliance)，在 2022 年 3 月<a href="https://cloudsecurityalliance.org/press-releases/2022/03/09/cloud-security-alliance-sets-countdown-clock-to-quantum/">啟動</a>了一個<a href="https://cloudsecurityalliance.org/research/working-groups/quantum-safe-security/">倒數計時</a>，預測 2030 年 4 月 14 日量子電腦將具備能力破解當今的網路安全機制，命名為 Y2Q (Year to Quantum) 倒數，寫這篇文章的當下，只剩 6 年 110 天 20 小時 21 分 42 秒惹...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638390033461455748.png"></p> <p>這類預測想當然不可能精準到秒，倒數計時的象徵意義大於實質意義，用意只在提醒大家重視這個議題吧。倒是最近有另一則新聞 - 加拿大資安公司 Quantum Defen5e 向美國國防部官員示警，「Q-Day」可能會在 2025 年到來！(延伸閱讀：<a href="https://www.inside.com.tw/article/33655-what-is-q-day">一文解釋什麼是「Q-Day」 by INSIDE 報導</a>)</p> <p>Q-Day 切入角度除了量子電腦運算能力的提升，又加上破解技術的演進，1994 年麻省理工學院數學家 Peter Shor 發明秀爾演算法，證明一台成熟的量子電腦可以輕易秒殺任何非對稱加密；2019 年 Google 科學家與瑞典科學家想出新方法，證明只需要 2000 萬 Qubits 便能在 8 小時破解當今仍普遍使用的 RSA 2048 位元金鑰。而中國清華大學龍桂魯教授今年發了表只需 372 Qubits 即可破解 RSA 2048 的新演算法，雖然正確性仍待學術界驗證，但整體發展已令人心驚。</p> <p>不過，這場防止人類資訊社會的秩序被量子電腦瓦解的保衛戰，數學家跟物理學家才是戰士(在我心中，他們跟我不是同一物種呀)，身為能力只到會寫程式的平凡人，能做的應該只有觀注抗量子密碼演算法的發展，萬一哪天忽然接到通知「RSA/DSA/ECC 演算法將於明年全面停用，請改用 QQQ 處理非對稱加解密」，能臉上不顯驚恐，而是撫鬚嘆道：唉，這天終於來了~ (笑)</p> <p>註：其實 NIST (美國國家標準技術研究所) 2017 年就開始公開徵求後量子密碼演算法(一如當初催生 DES、AES 的過程)，總計收到 69 個提案，NIST <a href="https://www.ithome.com.tw/news/151796">於 2022/7/5 正式公告</a>，選定其中四款：包含一般加密用的 CRYSTALS-Kyber、數位簽章用的 CRYSTALS-Dilithium、FALCON 及 SPHINCS+，想超前部署的同學可花點時間研究一下。</p> <p data-slug="q-day" data-fbimg="https://i.imgur.com/08r3jZu.png#900#506"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>之前在 <a href="/blog/yt-notes-quantum-mechanics/">YT 筆記 - 搞懂量子糾纏、疊加態、測不準原理</a>提到，以量子位元（Qubits）為基礎進行運算的量子電腦，運算能力將完全輾壓當代超級電腦，預估能破解現今被視為牢不可破的加密金鑰，讓資訊安全體係面臨一場革命。</p> <p>隨著量子電腦研究不斷有新進展，這場革命感覺也愈來愈近了。依據 2021 年 IBM 公佈的量子電腦發展藍圖，2023 年量子位元會達到 1121 Qubits，實際上也如期達標了(<a href="https://www.cool3c.com/article/204972">IBM 新推 1121 量子位量子處理器 Condor 及可擴展量子運算系統 System Two by COOL3C</a>)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638390033457749926.jpg"><br> <a href="https://technews.tw/2021/02/05/ibm-quantum-computing-development-roadmap-envisions-applications/">圖片來源</a></p> <p>換言之，按此發展，舉凡當今電子交易、資訊保密、身分驗證所依賴的 <a href="/blog/ecc-notes/">RSA、DSA、ECC... 一干演算法</a>，都會在量子電腦成熟後，從固若金湯變成青菜蛋花湯，原本古典電腦(是的，我們現在每天在用的電腦要變成古典電腦了)跑幾千萬年也破不了的加密，量子電腦只需幾小時便可完成破解，想看什麼就看什麼，想假冒誰就假冒誰。</p> <p>這天何時到來呢？有個推動雲端安全的組織 CSA (Cloud Security Alliance)，在 2022 年 3 月<a href="https://cloudsecurityalliance.org/press-releases/2022/03/09/cloud-security-alliance-sets-countdown-clock-to-quantum/">啟動</a>了一個<a href="https://cloudsecurityalliance.org/research/working-groups/quantum-safe-security/">倒數計時</a>，預測 2030 年 4 月 14 日量子電腦將具備能力破解當今的網路安全機制，命名為 Y2Q (Year to Quantum) 倒數，寫這篇文章的當下，只剩 6 年 110 天 20 小時 21 分 42 秒惹...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638390033461455748.png"></p> <p>這類預測想當然不可能精準到秒，倒數計時的象徵意義大於實質意義，用意只在提醒大家重視這個議題吧。倒是最近有另一則新聞 - 加拿大資安公司 Quantum Defen5e 向美國國防部官員示警，「Q-Day」可能會在 2025 年到來！(延伸閱讀：<a href="https://www.inside.com.tw/article/33655-what-is-q-day">一文解釋什麼是「Q-Day」 by INSIDE 報導</a>)</p> <p>Q-Day 切入角度除了量子電腦運算能力的提升，又加上破解技術的演進，1994 年麻省理工學院數學家 Peter Shor 發明秀爾演算法，證明一台成熟的量子電腦可以輕易秒殺任何非對稱加密；2019 年 Google 科學家與瑞典科學家想出新方法，證明只需要 2000 萬 Qubits 便能在 8 小時破解當今仍普遍使用的 RSA 2048 位元金鑰。而中國清華大學龍桂魯教授今年發了表只需 372 Qubits 即可破解 RSA 2048 的新演算法，雖然正確性仍待學術界驗證，但整體發展已令人心驚。</p> <p>不過，這場防止人類資訊社會的秩序被量子電腦瓦解的保衛戰，數學家跟物理學家才是戰士(在我心中，他們跟我不是同一物種呀)，身為能力只到會寫程式的平凡人，能做的應該只有觀注抗量子密碼演算法的發展，萬一哪天忽然接到通知「RSA/DSA/ECC 演算法將於明年全面停用，請改用 QQQ 處理非對稱加解密」，能臉上不顯驚恐，而是撫鬚嘆道：唉，這天終於來了~ (笑)</p> <p>註：其實 NIST (美國國家標準技術研究所) 2017 年就開始公開徵求後量子密碼演算法(一如當初催生 DES、AES 的過程)，總計收到 69 個提案，NIST <a href="https://www.ithome.com.tw/news/151796">於 2022/7/5 正式公告</a>，選定其中四款：包含一般加密用的 CRYSTALS-Kyber、數位簽章用的 CRYSTALS-Dilithium、FALCON 及 SPHINCS+，想超前部署的同學可花點時間研究一下。</p> <p data-slug="q-day" data-fbimg="https://i.imgur.com/08r3jZu.png#900#506"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>之前在 <a href="/blog/yt-notes-quantum-mechanics/">YT 筆記 - 搞懂量子糾纏、疊加態、測不準原理</a>提到，以量子位元（Qubits）為基礎進行運算的量子電腦，運算能力將完全輾壓當代超級電腦，預估能破解現今被視為牢不可破的加密金鑰，讓資訊安全體係面臨一場革命。</p> <p>隨著量子電腦研究不斷有新進展，這場革命感覺也愈來愈近了。依據 2021 年 IBM 公佈的量子電腦發展藍圖，2023 年量子位元會達到 1121 Qubits，實際上也如期達標了(<a href="https://www.cool3c.com/article/204972">IBM 新推 1121 量子位量子處理器 Condor 及可擴展量子運算系統 System Two by COOL3C</a>)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638390033457749926.jpg"><br> <a href="https://technews.tw/2021/02/05/ibm-quantum-computing-development-roadmap-envisions-applications/">圖片來源</a></p> <p>換言之，按此發展，舉凡當今電子交易、資訊保密、身分驗證所依賴的 <a href="/blog/ecc-notes/">RSA、DSA、ECC... 一干演算法</a>，都會在量子電腦成熟後，從固若金湯變成青菜蛋花湯，原本古典電腦(是的，我們現在每天在用的電腦要變成古典電腦了)跑幾千萬年也破不了的加密，量子電腦只需幾小時便可完成破解，想看什麼就看什麼，想假冒誰就假冒誰。</p> <p>這天何時到來呢？有個推動雲端安全的組織 CSA (Cloud Security Alliance)，在 2022 年 3 月<a href="https://cloudsecurityalliance.org/press-releases/2022/03/09/cloud-security-alliance-sets-countdown-clock-to-quantum/">啟動</a>了一個<a href="https://cloudsecurityalliance.org/research/working-groups/quantum-safe-security/">倒數計時</a>，預測 2030 年 4 月 14 日量子電腦將具備能力破解當今的網路安全機制，命名為 Y2Q (Year to Quantum) 倒數，寫這篇文章的當下，只剩 6 年 110 天 20 小時 21 分 42 秒惹...</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638390033461455748.png"></p> <p>這類預測想當然不可能精準到秒，倒數計時的象徵意義大於實質意義，用意只在提醒大家重視這個議題吧。倒是最近有另一則新聞 - 加拿大資安公司 Quantum Defen5e 向美國國防部官員示警，「Q-Day」可能會在 2025 年到來！(延伸閱讀：<a href="https://www.inside.com.tw/article/33655-what-is-q-day">一文解釋什麼是「Q-Day」 by INSIDE 報導</a>)</p> <p>Q-Day 切入角度除了量子電腦運算能力的提升，又加上破解技術的演進，1994 年麻省理工學院數學家 Peter Shor 發明秀爾演算法，證明一台成熟的量子電腦可以輕易秒殺任何非對稱加密；2019 年 Google 科學家與瑞典科學家想出新方法，證明只需要 2000 萬 Qubits 便能在 8 小時破解當今仍普遍使用的 RSA 2048 位元金鑰。而中國清華大學龍桂魯教授今年發了表只需 372 Qubits 即可破解 RSA 2048 的新演算法，雖然正確性仍待學術界驗證，但整體發展已令人心驚。</p> <p>不過，這場防止人類資訊社會的秩序被量子電腦瓦解的保衛戰，數學家跟物理學家才是戰士(在我心中，他們跟我不是同一物種呀)，身為能力只到會寫程式的平凡人，能做的應該只有觀注抗量子密碼演算法的發展，萬一哪天忽然接到通知「RSA/DSA/ECC 演算法將於明年全面停用，請改用 QQQ 處理非對稱加解密」，能臉上不顯驚恐，而是撫鬚嘆道：唉，這天終於來了~ (笑)</p> <p>註：其實 NIST (美國國家標準技術研究所) 2017 年就開始公開徵求後量子密碼演算法(一如當初催生 DES、AES 的過程)，總計收到 69 個提案，NIST <a href="https://www.ithome.com.tw/news/151796">於 2022/7/5 正式公告</a>，選定其中四款：包含一般加密用的 CRYSTALS-Kyber、數位簽章用的 CRYSTALS-Dilithium、FALCON 及 SPHINCS+，想超前部署的同學可花點時間研究一下。</p> <p data-slug="q-day" data-fbimg="https://i.imgur.com/08r3jZu.png#900#506"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638390033457749926.jpg"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638390033457749926.jpg" medium="image"/>
-    <pubDate>Sun, 24 Dec 2023 08:27:00 GMT</pubDate>
   </item></channel>
 </rss>
