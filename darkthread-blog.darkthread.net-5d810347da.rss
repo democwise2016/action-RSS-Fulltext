@@ -30,6 +30,396 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[依背景色決定文字顏色的正確姿勢 - W3C 標準]]></title>
+    <link>https://blog.darkthread.net/blog/wcag-g18-color-contrast/</link>
+    <itunes:title><![CDATA[依背景色決定文字顏色的正確姿勢 - W3C 標準]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
+→ (L + 0.05)^2 / 0.05 &gt; 1.05
+→ (L + 0.05)^2 &gt; 1.05 * 0.05
+→ L + 0.05 &gt; sqrt(1.05 * 0.05)
+→ L &gt; sqrt(1.05 * 0.05) - 0.05
+→ L &gt; 0.179
+</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+.palette {
+display: flex; margin-bottom: 12px;
+flex-direction: row; flex-wrap: wrap;
+width: 900px; font-size: 10pt;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.palette&gt;div {
+position: relative; width: 72px; height: 150px;
+margin: 2px; padding: 6px;
+}
+.palette .chk {
+background-color: white; text-align: center;
+margin-top: 8px; margin-bottom: 8px;
+}
+.palette .chk span {
+color: red; text-decoration: line-through;
+margin-right: 4px;
+}
+.palette .chk span.pass {
+text-decoration: none; color: green;
+font-weight: bolder;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="palette"&gt;
+&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
+&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
+&lt;div&gt;{{ color.bg }}&lt;/div&gt;
+&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
+&lt;div class="chk"&gt;
+&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
+&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
+const getTextColor186 = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
+}
+const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+const colors = pool.map(hex =&gt;
+({
+bg: hex,
+fgColors:
+[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
+const ratio = calcContrastRatio(fg, hex);
+return {
+fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
+};
+})
+}));
+const app = Vue.createApp({
+data() {
+return {
+colors: colors
+}
+}
+});
+var vm = app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
+→ (L + 0.05)^2 / 0.05 &gt; 1.05
+→ (L + 0.05)^2 &gt; 1.05 * 0.05
+→ L + 0.05 &gt; sqrt(1.05 * 0.05)
+→ L &gt; sqrt(1.05 * 0.05) - 0.05
+→ L &gt; 0.179
+</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+.palette {
+display: flex; margin-bottom: 12px;
+flex-direction: row; flex-wrap: wrap;
+width: 900px; font-size: 10pt;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.palette&gt;div {
+position: relative; width: 72px; height: 150px;
+margin: 2px; padding: 6px;
+}
+.palette .chk {
+background-color: white; text-align: center;
+margin-top: 8px; margin-bottom: 8px;
+}
+.palette .chk span {
+color: red; text-decoration: line-through;
+margin-right: 4px;
+}
+.palette .chk span.pass {
+text-decoration: none; color: green;
+font-weight: bolder;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="palette"&gt;
+&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
+&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
+&lt;div&gt;{{ color.bg }}&lt;/div&gt;
+&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
+&lt;div class="chk"&gt;
+&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
+&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
+const getTextColor186 = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
+}
+const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+const colors = pool.map(hex =&gt;
+({
+bg: hex,
+fgColors:
+[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
+const ratio = calcContrastRatio(fg, hex);
+return {
+fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
+};
+})
+}));
+const app = Vue.createApp({
+data() {
+return {
+colors: colors
+}
+}
+});
+var vm = app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
+→ (L + 0.05)^2 / 0.05 &gt; 1.05
+→ (L + 0.05)^2 &gt; 1.05 * 0.05
+→ L + 0.05 &gt; sqrt(1.05 * 0.05)
+→ L &gt; sqrt(1.05 * 0.05) - 0.05
+→ L &gt; 0.179
+</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
+&lt;style&gt;
+.palette {
+display: flex; margin-bottom: 12px;
+flex-direction: row; flex-wrap: wrap;
+width: 900px; font-size: 10pt;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.palette&gt;div {
+position: relative; width: 72px; height: 150px;
+margin: 2px; padding: 6px;
+}
+.palette .chk {
+background-color: white; text-align: center;
+margin-top: 8px; margin-bottom: 8px;
+}
+.palette .chk span {
+color: red; text-decoration: line-through;
+margin-right: 4px;
+}
+.palette .chk span.pass {
+text-decoration: none; color: green;
+font-weight: bolder;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="app"&gt;
+&lt;div class="palette"&gt;
+&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
+&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
+&lt;div&gt;{{ color.bg }}&lt;/div&gt;
+&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
+&lt;div class="chk"&gt;
+&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
+&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
+const getTextColor186 = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
+}
+const calcLuminance = (hex) =&gt; {
+const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+const [r, g, b] = colors.map(c =&gt; {
+const r = c / 255.0;
+if (r &lt;= 0.03928) {
+return r / 12.92;
+} else {
+return Math.pow((r + 0.055) / 1.055, 2.4);
+}
+});
+return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const calcContrastRatio = (hex1, hex2) =&gt; {
+let L1 = calcLuminance(hex1);
+let L2 = calcLuminance(hex2);
+if (L1 &lt; L2) {
+[L1, L2] = [L2, L1];
+}
+return (L1 + 0.05) / (L2 + 0.05);
+}
+const getTextColorWcag = (hex) =&gt;
+calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
+const colors = pool.map(hex =&gt;
+({
+bg: hex,
+fgColors:
+[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
+const ratio = calcContrastRatio(fg, hex);
+return {
+fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
+};
+})
+}));
+const app = Vue.createApp({
+data() {
+return {
+colors: colors
+}
+}
+});
+var vm = app.mount('#app');
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png" medium="image"/>
+    <pubDate>Wed, 10 Jan 2024 14:07:32 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Windows 設定多台 DNS 主機，第一台 DNS 無法解析時會改查第二台嗎？]]></title>
     <link>https://blog.darkthread.net/blog/win-alternative-dns/</link>
     <itunes:title><![CDATA[Windows 設定多台 DNS 主機，第一台 DNS 無法解析時會改查第二台嗎？]]></itunes:title>
@@ -1093,95 +1483,5 @@ app.mount('#app');
     <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig6_638396273452346540.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig6_638396273452346540.png" medium="image"/>
     <pubDate>Sun, 31 Dec 2023 15:23:31 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[hCaptcha 筆記與部落格留言機制調整公告]]></title>
-    <link>https://blog.darkthread.net/blog/hcaptcha/</link>
-    <itunes:title><![CDATA[hCaptcha 筆記與部落格留言機制調整公告]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>我的部落格這半年來不知為何被印尼的廣告留言廠商盯上，三不五時會跑來留一些印尼文垃圾留言(大多是吃角子老虎、線上賭場... 之類博弈類廣告，但有次是升學求職家教，跨度挺大)，頻率一週一兩次，每次會隨機挑五六篇留言，每則間隔一兩分鐘，印尼文居多，但也看過一兩次英文版。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394938343875700.png"></p> <p>推測對方有花了點心思，破解掉我防君子不防小人的陽春版加減計算 CAPTCHA，想說既然投資了就要定期採收。我推測是機器人的理由是 - 對方只管貼，根本沒注意到我加了審核關卡，貼了沒人看得到是在貼心酸？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638394938347490931.png"></p> <p>想了一些防堵手法。</p> <p>用 ChatGPT 判斷？酷歸酷，但有成本考量。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394938349335529.png"></p> <p>依據來源 IP 的留言時間隔判斷？有誤判可能，讀者馬上留言補充還挺常見，我自己就常這樣。</p> <p>評估使用機器學習演算法(隨機森林、支援向量機、貝式分類)及自定義啟發式演算法(N-Grams)，蒐集網路垃圾留言進行訓練，建立 AI 阻擋機制... (別鬧了)</p> <p>最後，決定別把簡單的事複雜化搞死自己，回歸傳統把 <a href="/blog/recaptcha-not-robot-notes/">reCAPTCHA</a> 裝起來吧。動手前，向兩位有重度 CAPTCHA 使用經驗的前輩請益，小熊子推薦我一個新選項 - <a href="https://www.hcaptcha.com/">hCaptcha</a>。</p> <p>看了一下，hCaptcha 使用方式宇宙無敵簡單，用 Github 或 Google 帳號註冊，新增站台取得 Site Key (免費方案一個月一百萬次，不用鎖定網域名稱)，在<a href="https://dashboard.hcaptcha.com/settings">個人設定</a>可查到 Secret。</p> <p>前端只要加兩行：</p> <pre><code>&lt;script src="https://js.hcaptcha.com/1/api.js" async defer&gt;&lt;/script&gt;
-&lt;form&gt;
-&lt;div class="h-captcha" data-sitekey="your_site_key"&gt;&lt;/div&gt;
-&lt;/form&gt;
-</code></pre> <p>POST 表單回 ASP.NET Core 時，會自動加送一個 h-captcha-response 參數，用 Request.Form 讀取以 application/x-www-form-urlencoded 格式送出 Secret 及 Token，由回傳 JSON 的 success 屬性 true/false 判斷即可，比 reCaptcha 簡單許多。用 ASP.NET Core 寫的話，大約會像這樣：<br> (讓我想到 Angular 跟 Vue 的風格差異，Angular 架構完整考慮嚴謹，堪稱教科書等級，但有時我沒有要蓋 101，只想搭間小屋快點有地方遮蔭 😄)</p> <pre><code>var hcatpchaToken = Request.Form["h-captcha-response"];
-try
-{
-if (string.IsNullOrEmpty(hcaptchaToken))
-throw new ApplicationException("Please fill hCaptcha ");
-var form = new Dictionary&lt;string, string&gt;
-{
-{ "secret", _your_hcaptcha_secret_ },
-{ "response", hcatpchaToken }
-};
-var res = await httpClientSinglton.PostAsync("https://hcaptcha.com/siteverify",
-new FormUrlEncodedContent(form));
-res.EnsureSuccessStatusCode();
-var json = await res.Content.ReadFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;();
-if (!((System.Text.Json.JsonElement)json["success"]).GetBoolean())
-throw new ApplicationException("Failed to pass hCaptcha");
-}
-catch (Exception ex)
-{
-throw new ApplicationException("hCaptcha error: " + ex.Message);
-}
-</code></pre> <p>總之，大會報告：部落格留言的防機器人檢查我換成 hCaptcha 了(原本想同時保留加減運算的，雙重 CAPTCHA 效果加倍，但怕造成新同學混淆作罷)，大家如果有遇到什麼困難請再回報。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394938351130638.png"></p> <p data-slug="hcaptcha" data-title-en="Replacing captcha of my blog" data-catg="Web Development" data-fbimg="https://i.imgur.com/rXyNBoy.png#1792#1024">Due to spam comments, I decide to replace my blog captcha to hCaptcha</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>我的部落格這半年來不知為何被印尼的廣告留言廠商盯上，三不五時會跑來留一些印尼文垃圾留言(大多是吃角子老虎、線上賭場... 之類博弈類廣告，但有次是升學求職家教，跨度挺大)，頻率一週一兩次，每次會隨機挑五六篇留言，每則間隔一兩分鐘，印尼文居多，但也看過一兩次英文版。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394938343875700.png"></p> <p>推測對方有花了點心思，破解掉我防君子不防小人的陽春版加減計算 CAPTCHA，想說既然投資了就要定期採收。我推測是機器人的理由是 - 對方只管貼，根本沒注意到我加了審核關卡，貼了沒人看得到是在貼心酸？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638394938347490931.png"></p> <p>想了一些防堵手法。</p> <p>用 ChatGPT 判斷？酷歸酷，但有成本考量。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394938349335529.png"></p> <p>依據來源 IP 的留言時間隔判斷？有誤判可能，讀者馬上留言補充還挺常見，我自己就常這樣。</p> <p>評估使用機器學習演算法(隨機森林、支援向量機、貝式分類)及自定義啟發式演算法(N-Grams)，蒐集網路垃圾留言進行訓練，建立 AI 阻擋機制... (別鬧了)</p> <p>最後，決定別把簡單的事複雜化搞死自己，回歸傳統把 <a href="/blog/recaptcha-not-robot-notes/">reCAPTCHA</a> 裝起來吧。動手前，向兩位有重度 CAPTCHA 使用經驗的前輩請益，小熊子推薦我一個新選項 - <a href="https://www.hcaptcha.com/">hCaptcha</a>。</p> <p>看了一下，hCaptcha 使用方式宇宙無敵簡單，用 Github 或 Google 帳號註冊，新增站台取得 Site Key (免費方案一個月一百萬次，不用鎖定網域名稱)，在<a href="https://dashboard.hcaptcha.com/settings">個人設定</a>可查到 Secret。</p> <p>前端只要加兩行：</p> <pre><code>&lt;script src="https://js.hcaptcha.com/1/api.js" async defer&gt;&lt;/script&gt;
-&lt;form&gt;
-&lt;div class="h-captcha" data-sitekey="your_site_key"&gt;&lt;/div&gt;
-&lt;/form&gt;
-</code></pre> <p>POST 表單回 ASP.NET Core 時，會自動加送一個 h-captcha-response 參數，用 Request.Form 讀取以 application/x-www-form-urlencoded 格式送出 Secret 及 Token，由回傳 JSON 的 success 屬性 true/false 判斷即可，比 reCaptcha 簡單許多。用 ASP.NET Core 寫的話，大約會像這樣：<br> (讓我想到 Angular 跟 Vue 的風格差異，Angular 架構完整考慮嚴謹，堪稱教科書等級，但有時我沒有要蓋 101，只想搭間小屋快點有地方遮蔭 😄)</p> <pre><code>var hcatpchaToken = Request.Form["h-captcha-response"];
-try
-{
-if (string.IsNullOrEmpty(hcaptchaToken))
-throw new ApplicationException("Please fill hCaptcha ");
-var form = new Dictionary&lt;string, string&gt;
-{
-{ "secret", _your_hcaptcha_secret_ },
-{ "response", hcatpchaToken }
-};
-var res = await httpClientSinglton.PostAsync("https://hcaptcha.com/siteverify",
-new FormUrlEncodedContent(form));
-res.EnsureSuccessStatusCode();
-var json = await res.Content.ReadFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;();
-if (!((System.Text.Json.JsonElement)json["success"]).GetBoolean())
-throw new ApplicationException("Failed to pass hCaptcha");
-}
-catch (Exception ex)
-{
-throw new ApplicationException("hCaptcha error: " + ex.Message);
-}
-</code></pre> <p>總之，大會報告：部落格留言的防機器人檢查我換成 hCaptcha 了(原本想同時保留加減運算的，雙重 CAPTCHA 效果加倍，但怕造成新同學混淆作罷)，大家如果有遇到什麼困難請再回報。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394938351130638.png"></p> <p data-slug="hcaptcha" data-title-en="Replacing captcha of my blog" data-catg="Web Development" data-fbimg="https://i.imgur.com/rXyNBoy.png#1792#1024">Due to spam comments, I decide to replace my blog captcha to hCaptcha</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>我的部落格這半年來不知為何被印尼的廣告留言廠商盯上，三不五時會跑來留一些印尼文垃圾留言(大多是吃角子老虎、線上賭場... 之類博弈類廣告，但有次是升學求職家教，跨度挺大)，頻率一週一兩次，每次會隨機挑五六篇留言，每則間隔一兩分鐘，印尼文居多，但也看過一兩次英文版。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig1_638394938343875700.png"></p> <p>推測對方有花了點心思，破解掉我防君子不防小人的陽春版加減計算 CAPTCHA，想說既然投資了就要定期採收。我推測是機器人的理由是 - 對方只管貼，根本沒注意到我加了審核關卡，貼了沒人看得到是在貼心酸？</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig2_638394938347490931.png"></p> <p>想了一些防堵手法。</p> <p>用 ChatGPT 判斷？酷歸酷，但有成本考量。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig3_638394938349335529.png"></p> <p>依據來源 IP 的留言時間隔判斷？有誤判可能，讀者馬上留言補充還挺常見，我自己就常這樣。</p> <p>評估使用機器學習演算法(隨機森林、支援向量機、貝式分類)及自定義啟發式演算法(N-Grams)，蒐集網路垃圾留言進行訓練，建立 AI 阻擋機制... (別鬧了)</p> <p>最後，決定別把簡單的事複雜化搞死自己，回歸傳統把 <a href="/blog/recaptcha-not-robot-notes/">reCAPTCHA</a> 裝起來吧。動手前，向兩位有重度 CAPTCHA 使用經驗的前輩請益，小熊子推薦我一個新選項 - <a href="https://www.hcaptcha.com/">hCaptcha</a>。</p> <p>看了一下，hCaptcha 使用方式宇宙無敵簡單，用 Github 或 Google 帳號註冊，新增站台取得 Site Key (免費方案一個月一百萬次，不用鎖定網域名稱)，在<a href="https://dashboard.hcaptcha.com/settings">個人設定</a>可查到 Secret。</p> <p>前端只要加兩行：</p> <pre><code>&lt;script src="https://js.hcaptcha.com/1/api.js" async defer&gt;&lt;/script&gt;
-&lt;form&gt;
-&lt;div class="h-captcha" data-sitekey="your_site_key"&gt;&lt;/div&gt;
-&lt;/form&gt;
-</code></pre> <p>POST 表單回 ASP.NET Core 時，會自動加送一個 h-captcha-response 參數，用 Request.Form 讀取以 application/x-www-form-urlencoded 格式送出 Secret 及 Token，由回傳 JSON 的 success 屬性 true/false 判斷即可，比 reCaptcha 簡單許多。用 ASP.NET Core 寫的話，大約會像這樣：<br> (讓我想到 Angular 跟 Vue 的風格差異，Angular 架構完整考慮嚴謹，堪稱教科書等級，但有時我沒有要蓋 101，只想搭間小屋快點有地方遮蔭 😄)</p> <pre><code>var hcatpchaToken = Request.Form["h-captcha-response"];
-try
-{
-if (string.IsNullOrEmpty(hcaptchaToken))
-throw new ApplicationException("Please fill hCaptcha ");
-var form = new Dictionary&lt;string, string&gt;
-{
-{ "secret", _your_hcaptcha_secret_ },
-{ "response", hcatpchaToken }
-};
-var res = await httpClientSinglton.PostAsync("https://hcaptcha.com/siteverify",
-new FormUrlEncodedContent(form));
-res.EnsureSuccessStatusCode();
-var json = await res.Content.ReadFromJsonAsync&lt;Dictionary&lt;string, object&gt;&gt;();
-if (!((System.Text.Json.JsonElement)json["success"]).GetBoolean())
-throw new ApplicationException("Failed to pass hCaptcha");
-}
-catch (Exception ex)
-{
-throw new ApplicationException("hCaptcha error: " + ex.Message);
-}
-</code></pre> <p>總之，大會報告：部落格留言的防機器人檢查我換成 hCaptcha 了(原本想同時保留加減運算的，雙重 CAPTCHA 效果加倍，但怕造成新同學混淆作罷)，大家如果有遇到什麼困難請再回報。</p> <p><img src="https://blog.darkthread.net/Posts/files/2023/Fig4_638394938351130638.png"></p> <p data-slug="hcaptcha" data-title-en="Replacing captcha of my blog" data-catg="Web Development" data-fbimg="https://i.imgur.com/rXyNBoy.png#1792#1024">Due to spam comments, I decide to replace my blog captcha to hCaptcha</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2023/Fig1_638394938343875700.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2023/Fig1_638394938343875700.png" medium="image"/>
-    <pubDate>Sat, 30 Dec 2023 00:20:42 GMT</pubDate>
   </item></channel>
 </rss>
