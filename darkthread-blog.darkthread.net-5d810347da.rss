@@ -30,6 +30,114 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 6+ 可以直接參照 .NET Framework 編譯的 DLL 嗎？]]></title>
+    <link>https://blog.darkthread.net/blog/netcore-ref-netfx-dll/</link>
+    <itunes:title><![CDATA[.NET 6+ 可以直接參照 .NET Framework 編譯的 DLL 嗎？]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>如果你是 .NET 開發者，考個簡單問題：</p> <p>.NET 6+ 寫的程式可以直接參照引用 .NET Framework 編譯的 DLL 嗎？<br> (註：非 .NET Standard，純 .NET Framework 2.0/3.5/4.0/4.5 ~ 4.8，參考：<a href="/blog/netstandard-class-library/">淺談 .NET 類別程式庫跨平台開發</a>)</p> <p>我答錯了。</p> <p>在我的印象中，.NET Framework 寫的專案必須轉成 .NET 6+ 或 .NET Standard 才能供 .NET 6+ (過去叫 .NET Core) 叫用。前幾天幫看問題，大驚! 事情怎麼跟我想得不一樣。如下圖範例，.NET 8 Console Application 居然直接參照 .NET Framework 4.8 寫的類別程式庫(實際案例是參照 .NET 2.0 跟 .NET 3.5 寫的程式庫)，程式編譯成功，執行正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png"></p> <p>為此爬文，補齊一些知識。</p> <p>相關文件在此 - <a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/third-party-deps?WT.mc_id=DOP-MVP-37580#net-framework-compatibility-mode">.NET Framework 相容性模式</a>。</p> <p>.NET Standard 2.0 起加入了 .NET Framework 相容性模式，允許 .NET Standard 和 .NET Core 專案參考 .NET Framework 程式庫。但有個陷阱，並非所有專案都適用，如果 .NET Framework 程式庫用到 .NET 6+ 或 .NET Standard 不支援的 API，程式將會出錯，而且是編譯過程一片祥和，等執行階段再炸裂。</p> <p>例如：我在 .NET 4.8 類別故意用了 .NET Core 不支援的另建 AppDomain、System.Web.Services.WebService (延伸閱讀：<a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/?WT.mc_id=DOP-MVP-37580#unavailable-technologies">.NET 6+ 無法使用的 .NET Framework 技術</a>)</p> <pre><code>using System;
+namespace NetFXLib
+{
+public class Foo
+{
+public string SayHello()
+=&gt; "Hello from .NET Framework Class Library";
+public string TestAppDomain()
+=&gt; AppDomain.CreateDomain("TestAppDomain").FriendlyName;
+public string TestWebService()
+{
+var ws = new System.Web.Services.WebService();
+return ws.GetType().FullName;
+}
+}
+}
+</code></pre> <p>.NET 8 Console Program.cs 長這樣：</p> <pre><code>var foo = new NetFXLib.Foo();
+TryRun(() =&gt; Console.WriteLine(foo.SayHello()));
+TryRun(() =&gt; Console.WriteLine(foo.TestAppDomain()));
+TryRun(() =&gt; Console.WriteLine(foo.TestWebService()));
+void TryRun(Action action)
+{
+try
+{
+action.Invoke();
+}
+catch (Exception ex)
+{
+Console.WriteLine($"ERROR - {ex.Message}");
+}
+}
+</code></pre> <p>編譯沒問題，但執行時新增 AppDomain 及引用 System.Web.Services 相關型別的功能會出錯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407271054930502.png"></p> <p><code>dotnet publish -r linux-x64 --no-self-contained</code> 丟到 Linux 執行，結局相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407271057035875.png"></p> <p>相當然爾，若直接在 Linux 嘗試編譯，因 NetFXLib 是 .NET Framework 專案，是不可能成功的!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407271059274866.png"></p> <p>但若改成直接參照編譯好的 .NET Framework DLL，倒是可以成功編譯，但該出錯的還是要出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638407271061505145.png"></p> <p>由此可知，雖然 .NET 6+ 可以參照 .NET Framework DLL，但可能出現執行階段才冒出來的不相容錯誤，不能算是可靠的做法，等同失去 .NET 在編譯階段揪出錯誤的強型別優勢。故原則上還是建議將專案升級成 .NET 6+ 或 .NET Standard，會是較嚴謹可信賴的做法。</p> <p>要將 .NET Framework 專案升級成 .NET 6+/.NET Standard 專案，微軟有個 <a href="https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.upgradeassistant">.NET Upgrade Assistant</a> 能協助升級，可多加利用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638407271063696617.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638407271065862520.png"></p> <p data-slug="netcore-ref-netfx-dll" data-title-en="Can .NET 6+ reference .NET Framework dll directly?" data-catg=".NET" data-fbimg="https://i.imgur.com/lXlrMc4.jpg#1280#854">A discussion on whether a .NET 6+ program can directly reference .NET Framework library.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>如果你是 .NET 開發者，考個簡單問題：</p> <p>.NET 6+ 寫的程式可以直接參照引用 .NET Framework 編譯的 DLL 嗎？<br> (註：非 .NET Standard，純 .NET Framework 2.0/3.5/4.0/4.5 ~ 4.8，參考：<a href="/blog/netstandard-class-library/">淺談 .NET 類別程式庫跨平台開發</a>)</p> <p>我答錯了。</p> <p>在我的印象中，.NET Framework 寫的專案必須轉成 .NET 6+ 或 .NET Standard 才能供 .NET 6+ (過去叫 .NET Core) 叫用。前幾天幫看問題，大驚! 事情怎麼跟我想得不一樣。如下圖範例，.NET 8 Console Application 居然直接參照 .NET Framework 4.8 寫的類別程式庫(實際案例是參照 .NET 2.0 跟 .NET 3.5 寫的程式庫)，程式編譯成功，執行正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png"></p> <p>為此爬文，補齊一些知識。</p> <p>相關文件在此 - <a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/third-party-deps?WT.mc_id=DOP-MVP-37580#net-framework-compatibility-mode">.NET Framework 相容性模式</a>。</p> <p>.NET Standard 2.0 起加入了 .NET Framework 相容性模式，允許 .NET Standard 和 .NET Core 專案參考 .NET Framework 程式庫。但有個陷阱，並非所有專案都適用，如果 .NET Framework 程式庫用到 .NET 6+ 或 .NET Standard 不支援的 API，程式將會出錯，而且是編譯過程一片祥和，等執行階段再炸裂。</p> <p>例如：我在 .NET 4.8 類別故意用了 .NET Core 不支援的另建 AppDomain、System.Web.Services.WebService (延伸閱讀：<a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/?WT.mc_id=DOP-MVP-37580#unavailable-technologies">.NET 6+ 無法使用的 .NET Framework 技術</a>)</p> <pre><code>using System;
+namespace NetFXLib
+{
+public class Foo
+{
+public string SayHello()
+=&gt; "Hello from .NET Framework Class Library";
+public string TestAppDomain()
+=&gt; AppDomain.CreateDomain("TestAppDomain").FriendlyName;
+public string TestWebService()
+{
+var ws = new System.Web.Services.WebService();
+return ws.GetType().FullName;
+}
+}
+}
+</code></pre> <p>.NET 8 Console Program.cs 長這樣：</p> <pre><code>var foo = new NetFXLib.Foo();
+TryRun(() =&gt; Console.WriteLine(foo.SayHello()));
+TryRun(() =&gt; Console.WriteLine(foo.TestAppDomain()));
+TryRun(() =&gt; Console.WriteLine(foo.TestWebService()));
+void TryRun(Action action)
+{
+try
+{
+action.Invoke();
+}
+catch (Exception ex)
+{
+Console.WriteLine($"ERROR - {ex.Message}");
+}
+}
+</code></pre> <p>編譯沒問題，但執行時新增 AppDomain 及引用 System.Web.Services 相關型別的功能會出錯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407271054930502.png"></p> <p><code>dotnet publish -r linux-x64 --no-self-contained</code> 丟到 Linux 執行，結局相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407271057035875.png"></p> <p>相當然爾，若直接在 Linux 嘗試編譯，因 NetFXLib 是 .NET Framework 專案，是不可能成功的!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407271059274866.png"></p> <p>但若改成直接參照編譯好的 .NET Framework DLL，倒是可以成功編譯，但該出錯的還是要出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638407271061505145.png"></p> <p>由此可知，雖然 .NET 6+ 可以參照 .NET Framework DLL，但可能出現執行階段才冒出來的不相容錯誤，不能算是可靠的做法，等同失去 .NET 在編譯階段揪出錯誤的強型別優勢。故原則上還是建議將專案升級成 .NET 6+ 或 .NET Standard，會是較嚴謹可信賴的做法。</p> <p>要將 .NET Framework 專案升級成 .NET 6+/.NET Standard 專案，微軟有個 <a href="https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.upgradeassistant">.NET Upgrade Assistant</a> 能協助升級，可多加利用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638407271063696617.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638407271065862520.png"></p> <p data-slug="netcore-ref-netfx-dll" data-title-en="Can .NET 6+ reference .NET Framework dll directly?" data-catg=".NET" data-fbimg="https://i.imgur.com/lXlrMc4.jpg#1280#854">A discussion on whether a .NET 6+ program can directly reference .NET Framework library.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>如果你是 .NET 開發者，考個簡單問題：</p> <p>.NET 6+ 寫的程式可以直接參照引用 .NET Framework 編譯的 DLL 嗎？<br> (註：非 .NET Standard，純 .NET Framework 2.0/3.5/4.0/4.5 ~ 4.8，參考：<a href="/blog/netstandard-class-library/">淺談 .NET 類別程式庫跨平台開發</a>)</p> <p>我答錯了。</p> <p>在我的印象中，.NET Framework 寫的專案必須轉成 .NET 6+ 或 .NET Standard 才能供 .NET 6+ (過去叫 .NET Core) 叫用。前幾天幫看問題，大驚! 事情怎麼跟我想得不一樣。如下圖範例，.NET 8 Console Application 居然直接參照 .NET Framework 4.8 寫的類別程式庫(實際案例是參照 .NET 2.0 跟 .NET 3.5 寫的程式庫)，程式編譯成功，執行正常。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png"></p> <p>為此爬文，補齊一些知識。</p> <p>相關文件在此 - <a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/third-party-deps?WT.mc_id=DOP-MVP-37580#net-framework-compatibility-mode">.NET Framework 相容性模式</a>。</p> <p>.NET Standard 2.0 起加入了 .NET Framework 相容性模式，允許 .NET Standard 和 .NET Core 專案參考 .NET Framework 程式庫。但有個陷阱，並非所有專案都適用，如果 .NET Framework 程式庫用到 .NET 6+ 或 .NET Standard 不支援的 API，程式將會出錯，而且是編譯過程一片祥和，等執行階段再炸裂。</p> <p>例如：我在 .NET 4.8 類別故意用了 .NET Core 不支援的另建 AppDomain、System.Web.Services.WebService (延伸閱讀：<a href="https://learn.microsoft.com/zh-tw/dotnet/core/porting/?WT.mc_id=DOP-MVP-37580#unavailable-technologies">.NET 6+ 無法使用的 .NET Framework 技術</a>)</p> <pre><code>using System;
+namespace NetFXLib
+{
+public class Foo
+{
+public string SayHello()
+=&gt; "Hello from .NET Framework Class Library";
+public string TestAppDomain()
+=&gt; AppDomain.CreateDomain("TestAppDomain").FriendlyName;
+public string TestWebService()
+{
+var ws = new System.Web.Services.WebService();
+return ws.GetType().FullName;
+}
+}
+}
+</code></pre> <p>.NET 8 Console Program.cs 長這樣：</p> <pre><code>var foo = new NetFXLib.Foo();
+TryRun(() =&gt; Console.WriteLine(foo.SayHello()));
+TryRun(() =&gt; Console.WriteLine(foo.TestAppDomain()));
+TryRun(() =&gt; Console.WriteLine(foo.TestWebService()));
+void TryRun(Action action)
+{
+try
+{
+action.Invoke();
+}
+catch (Exception ex)
+{
+Console.WriteLine($"ERROR - {ex.Message}");
+}
+}
+</code></pre> <p>編譯沒問題，但執行時新增 AppDomain 及引用 System.Web.Services 相關型別的功能會出錯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407271054930502.png"></p> <p><code>dotnet publish -r linux-x64 --no-self-contained</code> 丟到 Linux 執行，結局相同：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407271057035875.png"></p> <p>相當然爾，若直接在 Linux 嘗試編譯，因 NetFXLib 是 .NET Framework 專案，是不可能成功的!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407271059274866.png"></p> <p>但若改成直接參照編譯好的 .NET Framework DLL，倒是可以成功編譯，但該出錯的還是要出錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638407271061505145.png"></p> <p>由此可知，雖然 .NET 6+ 可以參照 .NET Framework DLL，但可能出現執行階段才冒出來的不相容錯誤，不能算是可靠的做法，等同失去 .NET 在編譯階段揪出錯誤的強型別優勢。故原則上還是建議將專案升級成 .NET 6+ 或 .NET Standard，會是較嚴謹可信賴的做法。</p> <p>要將 .NET Framework 專案升級成 .NET 6+/.NET Standard 專案，微軟有個 <a href="https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.upgradeassistant">.NET Upgrade Assistant</a> 能協助升級，可多加利用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638407271063696617.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638407271065862520.png"></p> <p data-slug="netcore-ref-netfx-dll" data-title-en="Can .NET 6+ reference .NET Framework dll directly?" data-catg=".NET" data-fbimg="https://i.imgur.com/lXlrMc4.jpg#1280#854">A discussion on whether a .NET 6+ program can directly reference .NET Framework library.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png" medium="image"/>
+    <pubDate>Sat, 13 Jan 2024 07:16:25 GMT</pubDate>
+  </item><item>
     <title><![CDATA[「工人」智慧 CAPTCHA 破解服務]]></title>
     <link>https://blog.darkthread.net/blog/2captcha/</link>
     <itunes:title><![CDATA[「工人」智慧 CAPTCHA 破解服務]]></itunes:title>
@@ -1502,19 +1610,5 @@ app.mount('#app');
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png" medium="image"/>
     <pubDate>Mon, 01 Jan 2024 22:14:41 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[ASP.NET Core 整合 WebAuthn/Passkey 無密碼登入之精簡範例]]></title>
-    <link>https://blog.darkthread.net/blog/passkey-demo/</link>
-    <itunes:title><![CDATA[ASP.NET Core 整合 WebAuthn/Passkey 無密碼登入之精簡範例]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>前幾個星期入手 YubiKey，花了點時間<a href="/blog/webauthn-n-passkey-intro/">研究 WebAuthn / CTAP2 規格</a>，從 .NET FIDO2 程式庫的 Passwordless 與 Usernameless 範例弄懂 <a href="/blog/non-discoverable-credential-isnt-passkey/">WebAuthn 無密碼登入與 Passkey 的差異</a>，最後我打算整理一個 ASP.NET Core 整合 Passkey 註冊與登入的精簡版範例專案，作為本次研究的結尾。</p> <p>FIDO2 .NET Library 本身有提供<a href="https://github.com/passwordless-lib/fido2-net-lib/tree/master/Demo">範例專案</a>，但是使用 Razor Page + MVC Controller，並同時包含 MFA、Passwordless、Passkey 等好幾種情境，我只打算針對 Passkey，使用 ASP.NET Miminal API、靜態 HTML/JavaScript 跟一個 Controller 處理必要的 WebAPI ，做為日後其他專案要整合 Passkey 登入的參考。</p> <p><a href="https://www.youtube.com/watch?v=ChubbyNrgdY">Passkey 註冊及登入展示</a></p> <p>FIDO2 .NET Library 程式庫範例使用者資料及公鑰憑證只存在記憶體，也沒有登入狀態，我做了一點小改良，資料改用 JSON 保存，以免程式結束實體金鑰裡的 Passkey 瞬間報廢，另外弄了個購物網站的登入狀態虛擬場景，方便觀察註冊、登入、登出的狀態差異。</p> <p>專案原本只打算自己內用，不過既然花了時間整理，就放上 <a href="https://github.com/darkthread/passkey-demo">Github</a> 讓有需要的同學多一份資料可參考。</p> <p data-slug="passkey-demo" data-title-en="My ASP.NET Core passkey login demo" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720">My example project to integrate passkey login into ASP.NET Core web.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>前幾個星期入手 YubiKey，花了點時間<a href="/blog/webauthn-n-passkey-intro/">研究 WebAuthn / CTAP2 規格</a>，從 .NET FIDO2 程式庫的 Passwordless 與 Usernameless 範例弄懂 <a href="/blog/non-discoverable-credential-isnt-passkey/">WebAuthn 無密碼登入與 Passkey 的差異</a>，最後我打算整理一個 ASP.NET Core 整合 Passkey 註冊與登入的精簡版範例專案，作為本次研究的結尾。</p> <p>FIDO2 .NET Library 本身有提供<a href="https://github.com/passwordless-lib/fido2-net-lib/tree/master/Demo">範例專案</a>，但是使用 Razor Page + MVC Controller，並同時包含 MFA、Passwordless、Passkey 等好幾種情境，我只打算針對 Passkey，使用 ASP.NET Miminal API、靜態 HTML/JavaScript 跟一個 Controller 處理必要的 WebAPI ，做為日後其他專案要整合 Passkey 登入的參考。</p> <p><a href="https://www.youtube.com/watch?v=ChubbyNrgdY">Passkey 註冊及登入展示</a></p> <p>FIDO2 .NET Library 程式庫範例使用者資料及公鑰憑證只存在記憶體，也沒有登入狀態，我做了一點小改良，資料改用 JSON 保存，以免程式結束實體金鑰裡的 Passkey 瞬間報廢，另外弄了個購物網站的登入狀態虛擬場景，方便觀察註冊、登入、登出的狀態差異。</p> <p>專案原本只打算自己內用，不過既然花了時間整理，就放上 <a href="https://github.com/darkthread/passkey-demo">Github</a> 讓有需要的同學多一份資料可參考。</p> <p data-slug="passkey-demo" data-title-en="My ASP.NET Core passkey login demo" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720">My example project to integrate passkey login into ASP.NET Core web.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>前幾個星期入手 YubiKey，花了點時間<a href="/blog/webauthn-n-passkey-intro/">研究 WebAuthn / CTAP2 規格</a>，從 .NET FIDO2 程式庫的 Passwordless 與 Usernameless 範例弄懂 <a href="/blog/non-discoverable-credential-isnt-passkey/">WebAuthn 無密碼登入與 Passkey 的差異</a>，最後我打算整理一個 ASP.NET Core 整合 Passkey 註冊與登入的精簡版範例專案，作為本次研究的結尾。</p> <p>FIDO2 .NET Library 本身有提供<a href="https://github.com/passwordless-lib/fido2-net-lib/tree/master/Demo">範例專案</a>，但是使用 Razor Page + MVC Controller，並同時包含 MFA、Passwordless、Passkey 等好幾種情境，我只打算針對 Passkey，使用 ASP.NET Miminal API、靜態 HTML/JavaScript 跟一個 Controller 處理必要的 WebAPI ，做為日後其他專案要整合 Passkey 登入的參考。</p> <p><a href="https://www.youtube.com/watch?v=ChubbyNrgdY">Passkey 註冊及登入展示</a></p> <p>FIDO2 .NET Library 程式庫範例使用者資料及公鑰憑證只存在記憶體，也沒有登入狀態，我做了一點小改良，資料改用 JSON 保存，以免程式結束實體金鑰裡的 Passkey 瞬間報廢，另外弄了個購物網站的登入狀態虛擬場景，方便觀察註冊、登入、登出的狀態差異。</p> <p>專案原本只打算自己內用，不過既然花了時間整理，就放上 <a href="https://github.com/darkthread/passkey-demo">Github</a> 讓有需要的同學多一份資料可參考。</p> <p data-slug="passkey-demo" data-title-en="My ASP.NET Core passkey login demo" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2016/02/18/15/41/scaffold-1207389_960_720.jpg#960#720">My example project to integrate passkey login into ASP.NET Core web.</p>]]></content:encoded>
-    
-    <pubDate>Mon, 01 Jan 2024 03:03:03 GMT</pubDate>
   </item></channel>
 </rss>
