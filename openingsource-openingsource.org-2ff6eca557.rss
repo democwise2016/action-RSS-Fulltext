@@ -30,6 +30,282 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1074期：前端框架：《htmx》]]></title>
+    <link>https://openingsource.org/11511/</link>
+    <itunes:title><![CDATA[开源日报第1074期：前端框架：《htmx》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月14日，开源日报第1074期：<br>
+今日推荐开源项目：《htmx》<br>
+今日推荐英文原文：《Dynamic Imports in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
+htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
+htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
+<p>官方直达 htmx.org</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
+<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
+<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
+文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
+<hr>
+<h1>Dynamic Imports in React</h1>
+<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
+<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
+<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
+<pre><code>import React from 'react';
+const AnotherComponent = () =&gt; {
+return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
+};
+export default AnotherComponent;
+const MyComponent = () =&gt; {
+const [importedComponent, setImportedComponent] = useState(null);
+useEffect(() =&gt; {
+const importComponent = async () =&gt; {
+const module = await import('./AnotherComponent');
+const AnotherComponent = module.default;
+setImportedComponent(&lt;AnotherComponent /&gt;);
+};
+importComponent();
+}, []);
+return (
+&lt;div&gt;
+{importedComponent}
+&lt;div&gt;This is my functional component!&lt;/div&gt;
+&lt;/div&gt;
+);
+};
+///Another Way is ...///
+const MyComponent = async () =&gt; {
+const module = import('./AnotherComponent');
+const {AnotherComponent} = await module;
+return &lt;AnotherComponent /&gt;;
+};
+export default MyComponent;
+// when u console the export module { default: ""} is contains the all the
+// key value pair of the functions name as the key and the value as the
+// definition, with a default key if something is imported as default it
+// will be it's value else it will be undefined</code></pre>
+<h2>When To Use Dynamic Imports?</h2>
+<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
+<ul>
+<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
+<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
+<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
+</ul>
+<h2>React.lazy()</h2>
+<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
+<pre><code>import React, { lazy } from "react";
+const Blog = React.lazy(() =&gt;
+import('./Pages/Blog'));</code></pre>
+<h1>React.Suspense()</h1>
+<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
+<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
+<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
+<pre><code>import React, { Suspense } from 'react';
+const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
+const App = () =&gt; {
+return (
+&lt;div&gt;
+&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+&lt;LazyComponent /&gt;
+&lt;/Suspense&gt;
+&lt;/div&gt;
+);
+};
+export default App;</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月14日，开源日报第1074期：<br>
+今日推荐开源项目：《htmx》<br>
+今日推荐英文原文：《Dynamic Imports in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
+htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
+htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
+<p>官方直达 htmx.org</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
+<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
+<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
+文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
+<hr>
+<h1>Dynamic Imports in React</h1>
+<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
+<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
+<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
+<pre><code>import React from 'react';
+const AnotherComponent = () =&gt; {
+return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
+};
+export default AnotherComponent;
+const MyComponent = () =&gt; {
+const [importedComponent, setImportedComponent] = useState(null);
+useEffect(() =&gt; {
+const importComponent = async () =&gt; {
+const module = await import('./AnotherComponent');
+const AnotherComponent = module.default;
+setImportedComponent(&lt;AnotherComponent /&gt;);
+};
+importComponent();
+}, []);
+return (
+&lt;div&gt;
+{importedComponent}
+&lt;div&gt;This is my functional component!&lt;/div&gt;
+&lt;/div&gt;
+);
+};
+///Another Way is ...///
+const MyComponent = async () =&gt; {
+const module = import('./AnotherComponent');
+const {AnotherComponent} = await module;
+return &lt;AnotherComponent /&gt;;
+};
+export default MyComponent;
+// when u console the export module { default: ""} is contains the all the
+// key value pair of the functions name as the key and the value as the
+// definition, with a default key if something is imported as default it
+// will be it's value else it will be undefined</code></pre>
+<h2>When To Use Dynamic Imports?</h2>
+<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
+<ul>
+<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
+<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
+<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
+</ul>
+<h2>React.lazy()</h2>
+<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
+<pre><code>import React, { lazy } from "react";
+const Blog = React.lazy(() =&gt;
+import('./Pages/Blog'));</code></pre>
+<h1>React.Suspense()</h1>
+<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
+<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
+<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
+<pre><code>import React, { Suspense } from 'react';
+const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
+const App = () =&gt; {
+return (
+&lt;div&gt;
+&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+&lt;LazyComponent /&gt;
+&lt;/Suspense&gt;
+&lt;/div&gt;
+);
+};
+export default App;</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月14日，开源日报第1074期：<br>
+今日推荐开源项目：《htmx》<br>
+今日推荐英文原文：《Dynamic Imports in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
+htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
+htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
+<p>官方直达 htmx.org</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
+<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
+<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
+文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
+<hr>
+<h1>Dynamic Imports in React</h1>
+<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
+<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
+<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
+<pre><code>import React from 'react';
+const AnotherComponent = () =&gt; {
+return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
+};
+export default AnotherComponent;
+const MyComponent = () =&gt; {
+const [importedComponent, setImportedComponent] = useState(null);
+useEffect(() =&gt; {
+const importComponent = async () =&gt; {
+const module = await import('./AnotherComponent');
+const AnotherComponent = module.default;
+setImportedComponent(&lt;AnotherComponent /&gt;);
+};
+importComponent();
+}, []);
+return (
+&lt;div&gt;
+{importedComponent}
+&lt;div&gt;This is my functional component!&lt;/div&gt;
+&lt;/div&gt;
+);
+};
+///Another Way is ...///
+const MyComponent = async () =&gt; {
+const module = import('./AnotherComponent');
+const {AnotherComponent} = await module;
+return &lt;AnotherComponent /&gt;;
+};
+export default MyComponent;
+// when u console the export module { default: ""} is contains the all the
+// key value pair of the functions name as the key and the value as the
+// definition, with a default key if something is imported as default it
+// will be it's value else it will be undefined</code></pre>
+<h2>When To Use Dynamic Imports?</h2>
+<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
+<ul>
+<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
+<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
+<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
+</ul>
+<h2>React.lazy()</h2>
+<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
+<pre><code>import React, { lazy } from "react";
+const Blog = React.lazy(() =&gt;
+import('./Pages/Blog'));</code></pre>
+<h1>React.Suspense()</h1>
+<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
+<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
+<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
+<pre><code>import React, { Suspense } from 'react';
+const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
+const App = () =&gt; {
+return (
+&lt;div&gt;
+&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+&lt;LazyComponent /&gt;
+&lt;/Suspense&gt;
+&lt;/div&gt;
+);
+};
+export default App;</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg" medium="image"/>
+    <pubDate>Sun, 14 Jan 2024 12:01:36 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》]]></title>
     <link>https://openingsource.org/11508/</link>
     <itunes:title><![CDATA[开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》]]></itunes:title>
@@ -1763,257 +2039,5 @@ selectedIndex={selectedIndex}
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240107-1.jpg.pagespeed.ic.TzaOcZ-knT.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240107-1.jpg.pagespeed.ic.TzaOcZ-knT.jpg" medium="image"/>
     <pubDate>Sun, 07 Jan 2024 15:20:03 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1066期：github 中文排行榜《GitHub-Chinese-Top-Charts》]]></title>
-    <link>https://openingsource.org/11476/</link>
-    <itunes:title><![CDATA[开源日报第1066期：github 中文排行榜《GitHub-Chinese-Top-Charts》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月6日，开源日报第1066期：<br>
-今日推荐开源项目：《GitHub-Chinese-Top-Charts》<br>
-今日推荐英文原文：《Future-proof Your Components With This Game Changing React Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240106.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《GitHub-Chinese-Top-Charts》传送门：<a href="https://github.com/GrowingGit/GitHub-Chinese-Top-Charts" target="_blank">项目链接</a> </p>
-<p>推荐理由：🇨🇳 GitHub中文排行榜，各语言分设「软件 | 资料」榜单，精准定位中文好项目。各取所需，高效学习</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@kvs.sankar23/react-query-is-the-best-thing-that-happened-to-react-abd92553e953" target="_blank">React Query is the best thing that happened to React</a></p>
-<p>推荐理由：文章主要介绍了一种名为"headless component pattern"的React模式，该模式的核心思想是将组件的业务逻辑与UI部分分离，使得UI的更新可以在不影响业务逻辑的情况下进行。文章提供了一个简单的例子，展示了如何使用这一模式创建一个下拉菜单组件</p>
-<hr>
-<h1>Future-proof Your Components With This Game Changing React Pattern</h1>
-<p>Software development is a non-stop ongoing process. The biggest challenge in the process is maintainability. When new features and improvements start to add up, it results in more code being added to be maintained.</p>
-<p>Today we are going to explore a simple pattern in React which allows building future-proof components. The goal is to make those components easily adapt to future changes while keeping the business logic separate from the UI code.</p>
-<h2>How does it work?</h2>
-<p>The core of this pattern is to separate the business logic from the UI part of the component itself. This makes the UI part of the code decoupled from business logic. When the UI needs to be updated in the future, it can be done without touching the business logic code.</p>
-<p>The pattern which we are going to use is called the headless component pattern. In this pattern a component is implemented as React hooks. This component is responsible for the logic and state management. The headless component does not know anything about the UI. A separate component is built which is responsible only for the UI and integrates the first component for state and logic. The pattern is used by many popular React component libraries like: <a href="https://www.downshift-js.com/" target="_blank">DownShift</a>, <a href="https://github.com/tannerlinsley/react-table" target="_blank">React Table</a> etc.</p>
-<h2>Your first future-proof component</h2>
-<p>Let’s start with writing the first React component using this pattern.</p>
-<p>Below is an example of a drop-down headless component:</p>
-<pre><code>const useDropdown = (items: Item[]) =&gt; {
-// ... state variables ..
-const [selectedIndex, setSelectedIndex] = useState&lt;number&gt;(-1);
-const [isOpen, setIsOpen] = useState(false);
-const [selectedItem, setSelectedItem] = useState&lt;Item | null&gt;(null);
-// helper function can return some aria attribute for UI
-const getAriaAttributes = () =&gt; ({
-role: "combobox",
-"aria-expanded": isOpen,
-"aria-activedescendant": selectedItem ? selectedItem.text : undefined,
-});
-const handleKeyDown = (e: React.KeyboardEvent) =&gt; {
-// ... switch statement ...
-};
-const toggleDropdown = () =&gt; setIsOpen((isOpen) =&gt; !isOpen);
-return {
-isOpen,
-toggleDropdown,
-handleKeyDown,
-selectedItem,
-setSelectedItem,
-selectedIndex,
-};
-};</code></pre>
-<p>Let’s integrate our headless component with the component responsible for handling UIs:</p>
-<pre><code>const Dropdown = ({ items }: DropdownProps) =&gt; {
-const {
-isOpen,
-selectedItem,
-selectedIndex,
-toggleDropdown,
-handleKeyDown,
-setSelectedItem,
-} = useDropdown(items);
-return (
-&lt;div className="dropdown" onKeyDown={handleKeyDown}&gt;
-&lt;Trigger
-onClick={toggleDropdown}
-label={selectedItem ? selectedItem.text : "Select an item..."}
-/&gt;
-{isOpen &amp;&amp; (
-&lt;DropdownMenu
-items={items}
-onItemClick={setSelectedItem}
-selectedIndex={selectedIndex}
-/&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Above is a very basic example of a headless component. Imagine the possibility when the same pattern is integrated with more complex applications. The headless component pattern is extremely powerful when it comes to building future-proof highly extensible components.</p>
-<h2>When to use this pattern?</h2>
-<p>The magic of this pattern comes handy when building a large application that changes frequently. Implementing this pattern not only transforms React components to highly extensible but it also makes them very maintainable in a large codebase.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月6日，开源日报第1066期：<br>
-今日推荐开源项目：《GitHub-Chinese-Top-Charts》<br>
-今日推荐英文原文：《Future-proof Your Components With This Game Changing React Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240106.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《GitHub-Chinese-Top-Charts》传送门：<a href="https://github.com/GrowingGit/GitHub-Chinese-Top-Charts" target="_blank">项目链接</a> </p>
-<p>推荐理由：🇨🇳 GitHub中文排行榜，各语言分设「软件 | 资料」榜单，精准定位中文好项目。各取所需，高效学习</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@kvs.sankar23/react-query-is-the-best-thing-that-happened-to-react-abd92553e953" target="_blank">React Query is the best thing that happened to React</a></p>
-<p>推荐理由：文章主要介绍了一种名为"headless component pattern"的React模式，该模式的核心思想是将组件的业务逻辑与UI部分分离，使得UI的更新可以在不影响业务逻辑的情况下进行。文章提供了一个简单的例子，展示了如何使用这一模式创建一个下拉菜单组件</p>
-<hr>
-<h1>Future-proof Your Components With This Game Changing React Pattern</h1>
-<p>Software development is a non-stop ongoing process. The biggest challenge in the process is maintainability. When new features and improvements start to add up, it results in more code being added to be maintained.</p>
-<p>Today we are going to explore a simple pattern in React which allows building future-proof components. The goal is to make those components easily adapt to future changes while keeping the business logic separate from the UI code.</p>
-<h2>How does it work?</h2>
-<p>The core of this pattern is to separate the business logic from the UI part of the component itself. This makes the UI part of the code decoupled from business logic. When the UI needs to be updated in the future, it can be done without touching the business logic code.</p>
-<p>The pattern which we are going to use is called the headless component pattern. In this pattern a component is implemented as React hooks. This component is responsible for the logic and state management. The headless component does not know anything about the UI. A separate component is built which is responsible only for the UI and integrates the first component for state and logic. The pattern is used by many popular React component libraries like: <a href="https://www.downshift-js.com/" target="_blank">DownShift</a>, <a href="https://github.com/tannerlinsley/react-table" target="_blank">React Table</a> etc.</p>
-<h2>Your first future-proof component</h2>
-<p>Let’s start with writing the first React component using this pattern.</p>
-<p>Below is an example of a drop-down headless component:</p>
-<pre><code>const useDropdown = (items: Item[]) =&gt; {
-// ... state variables ..
-const [selectedIndex, setSelectedIndex] = useState&lt;number&gt;(-1);
-const [isOpen, setIsOpen] = useState(false);
-const [selectedItem, setSelectedItem] = useState&lt;Item | null&gt;(null);
-// helper function can return some aria attribute for UI
-const getAriaAttributes = () =&gt; ({
-role: "combobox",
-"aria-expanded": isOpen,
-"aria-activedescendant": selectedItem ? selectedItem.text : undefined,
-});
-const handleKeyDown = (e: React.KeyboardEvent) =&gt; {
-// ... switch statement ...
-};
-const toggleDropdown = () =&gt; setIsOpen((isOpen) =&gt; !isOpen);
-return {
-isOpen,
-toggleDropdown,
-handleKeyDown,
-selectedItem,
-setSelectedItem,
-selectedIndex,
-};
-};</code></pre>
-<p>Let’s integrate our headless component with the component responsible for handling UIs:</p>
-<pre><code>const Dropdown = ({ items }: DropdownProps) =&gt; {
-const {
-isOpen,
-selectedItem,
-selectedIndex,
-toggleDropdown,
-handleKeyDown,
-setSelectedItem,
-} = useDropdown(items);
-return (
-&lt;div className="dropdown" onKeyDown={handleKeyDown}&gt;
-&lt;Trigger
-onClick={toggleDropdown}
-label={selectedItem ? selectedItem.text : "Select an item..."}
-/&gt;
-{isOpen &amp;&amp; (
-&lt;DropdownMenu
-items={items}
-onItemClick={setSelectedItem}
-selectedIndex={selectedIndex}
-/&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Above is a very basic example of a headless component. Imagine the possibility when the same pattern is integrated with more complex applications. The headless component pattern is extremely powerful when it comes to building future-proof highly extensible components.</p>
-<h2>When to use this pattern?</h2>
-<p>The magic of this pattern comes handy when building a large application that changes frequently. Implementing this pattern not only transforms React components to highly extensible but it also makes them very maintainable in a large codebase.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月6日，开源日报第1066期：<br>
-今日推荐开源项目：《GitHub-Chinese-Top-Charts》<br>
-今日推荐英文原文：《Future-proof Your Components With This Game Changing React Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240106.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《GitHub-Chinese-Top-Charts》传送门：<a href="https://github.com/GrowingGit/GitHub-Chinese-Top-Charts" target="_blank">项目链接</a> </p>
-<p>推荐理由：🇨🇳 GitHub中文排行榜，各语言分设「软件 | 资料」榜单，精准定位中文好项目。各取所需，高效学习</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@kvs.sankar23/react-query-is-the-best-thing-that-happened-to-react-abd92553e953" target="_blank">React Query is the best thing that happened to React</a></p>
-<p>推荐理由：文章主要介绍了一种名为"headless component pattern"的React模式，该模式的核心思想是将组件的业务逻辑与UI部分分离，使得UI的更新可以在不影响业务逻辑的情况下进行。文章提供了一个简单的例子，展示了如何使用这一模式创建一个下拉菜单组件</p>
-<hr>
-<h1>Future-proof Your Components With This Game Changing React Pattern</h1>
-<p>Software development is a non-stop ongoing process. The biggest challenge in the process is maintainability. When new features and improvements start to add up, it results in more code being added to be maintained.</p>
-<p>Today we are going to explore a simple pattern in React which allows building future-proof components. The goal is to make those components easily adapt to future changes while keeping the business logic separate from the UI code.</p>
-<h2>How does it work?</h2>
-<p>The core of this pattern is to separate the business logic from the UI part of the component itself. This makes the UI part of the code decoupled from business logic. When the UI needs to be updated in the future, it can be done without touching the business logic code.</p>
-<p>The pattern which we are going to use is called the headless component pattern. In this pattern a component is implemented as React hooks. This component is responsible for the logic and state management. The headless component does not know anything about the UI. A separate component is built which is responsible only for the UI and integrates the first component for state and logic. The pattern is used by many popular React component libraries like: <a href="https://www.downshift-js.com/" target="_blank">DownShift</a>, <a href="https://github.com/tannerlinsley/react-table" target="_blank">React Table</a> etc.</p>
-<h2>Your first future-proof component</h2>
-<p>Let’s start with writing the first React component using this pattern.</p>
-<p>Below is an example of a drop-down headless component:</p>
-<pre><code>const useDropdown = (items: Item[]) =&gt; {
-// ... state variables ..
-const [selectedIndex, setSelectedIndex] = useState&lt;number&gt;(-1);
-const [isOpen, setIsOpen] = useState(false);
-const [selectedItem, setSelectedItem] = useState&lt;Item | null&gt;(null);
-// helper function can return some aria attribute for UI
-const getAriaAttributes = () =&gt; ({
-role: "combobox",
-"aria-expanded": isOpen,
-"aria-activedescendant": selectedItem ? selectedItem.text : undefined,
-});
-const handleKeyDown = (e: React.KeyboardEvent) =&gt; {
-// ... switch statement ...
-};
-const toggleDropdown = () =&gt; setIsOpen((isOpen) =&gt; !isOpen);
-return {
-isOpen,
-toggleDropdown,
-handleKeyDown,
-selectedItem,
-setSelectedItem,
-selectedIndex,
-};
-};</code></pre>
-<p>Let’s integrate our headless component with the component responsible for handling UIs:</p>
-<pre><code>const Dropdown = ({ items }: DropdownProps) =&gt; {
-const {
-isOpen,
-selectedItem,
-selectedIndex,
-toggleDropdown,
-handleKeyDown,
-setSelectedItem,
-} = useDropdown(items);
-return (
-&lt;div className="dropdown" onKeyDown={handleKeyDown}&gt;
-&lt;Trigger
-onClick={toggleDropdown}
-label={selectedItem ? selectedItem.text : "Select an item..."}
-/&gt;
-{isOpen &amp;&amp; (
-&lt;DropdownMenu
-items={items}
-onItemClick={setSelectedItem}
-selectedIndex={selectedIndex}
-/&gt;
-)}
-&lt;/div&gt;
-);
-};</code></pre>
-<p>Above is a very basic example of a headless component. Imagine the possibility when the same pattern is integrated with more complex applications. The headless component pattern is extremely powerful when it comes to building future-proof highly extensible components.</p>
-<h2>When to use this pattern?</h2>
-<p>The magic of this pattern comes handy when building a large application that changes frequently. Implementing this pattern not only transforms React components to highly extensible but it also makes them very maintainable in a large codebase.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240106.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240106.jpg" medium="image"/>
-    <pubDate>Sat, 06 Jan 2024 04:00:22 +0000</pubDate>
   </item></channel>
 </rss>
