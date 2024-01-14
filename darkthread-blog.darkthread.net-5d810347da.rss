@@ -30,6 +30,429 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性]]></title>
+    <link>https://blog.darkthread.net/blog/text-embedding-ada-002-lab/</link>
+    <itunes:title><![CDATA[動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在 <a href="/blog/rag/">ChatGPT 整合自有資料的 RAG 測試</a>學到不少新東西，其中一個是 Embedding。(嵌入、內嵌，這些翻譯我都覺得怪，文章會用英文原文)</p> <p><a href="https://zh.wikipedia.org/zh-tw/%E8%AF%8D%E5%B5%8C%E5%85%A5">Word Embedding</a> 是自然語言處理(NLP)中將文字內容轉成多維向量數值的一種技術，概念是將原本每個詞一個維度(數量以萬起跳)的高維空間嵌入到一個維度低很多的向量空間，文字特徵或表徵(Feature/Representation)被轉成數字，便可運用數學方法進行運算，用以評估文字相似度，實現分類(找出垃圾郵件、情感分析)、文字檢索、機器翻譯、推薦系統... 等各式文字應用。</p> <p>RAG 範例中用了 <a href="https://www.ithome.com.tw/news/154772">OpenAI text-embedding-ada-002 模型</a>將文字內容轉成 Embedding 並存入 Azure AI Search 索引庫，查詢時則將查詢問題也轉 Embedding，交由 AI Search 服務比對找出相關內容。</p> <p>我過去沒碰過 NLP，現在才發立最基本的概念，打算用見識豬走路的心態實測一下 text-embedding-ada-002。我計劃寫段 .NET 程式做簡單測試，將多段文字使用 OpenAI Embedding 模型轉成 Embedding，透過比對 Embedding 測試彼此間的相似度，是否符合一般的認知，以上就是本次的企劃。</p> <p>MS Learn 上有 <a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">C# 呼叫 OpenAI Embedding API 範例</a>，照抄即能可輕易將一段文字轉成一串 float 浮點數。(註：float 數量共 1536 個，即 text-embedding-ada-002 使用的向量陣列長度，身為門外漢覺得龐大，但其實它只有 davinci-001 的 1/8，已經縮小很多了)</p> <p>如此我們便可將任意文字都轉成 1536 個 float，但要怎麼用它來判斷文字是否相似？</p> <p>Cosine Similarity (餘弦相似性) 是依據 Embedding 向量計算文件相似性的常用做法，背後有一堆數學理論，若你跟我一樣只想有個概念不想深入，大概的意思是相近文字的對映向量角度也會相似，兩個向量形成的夾角愈小，Cosine 值例大，夾角為 0 時 Cosine 等於 1，完全無關夾角 90 度 Cosine 等於 0。如下圖，Cat 與 Dog Cosine = 0.998，Dog 與 Apple 關聯較少 Cosine 為 0.4284：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407950821627000.png"><br> <a href="https://spencerporter2.medium.com/understanding-cosine-similarity-and-word-embeddings-dbf19362a3c">圖片來源</a></p> <p>以下是我的測試程式，輸入一串 string[]，呼叫 OpenAI API 取得 Embedding 向量值，兩兩計算 Cosine Similarity，以 HTML 表單呈現結果，數值為 Consine Similarity 計算值，數字愈高文字顏色愈紅，底色愈黃，代表二者愈相似。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407950823783513.png"></p> <p>由上圖，恨與怒高度相似，其次是 hate 與恨，再其次是 love 與愛、love 與 hate。Cosine Similarity 值愈大意味文字同時出現機率愈高，二者愈相關，但未必是同義字，像是 love 跟 hate 常伴隨出現，隨然二者詞義相反，但相關性排第四。其中相關度最低的是 love 與怒，愈風馬牛不相及，值愈低。</p> <p>再試另外一組：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407950825904572.png"></p> <p>最相關的是炸雞跟薯條，有趣的是，炸雞與反應爐關聯性頗高(因為炸跟爐嗎？)；而企鵝跟薯條、炸雞的關聯比企鵝跟南極還密切。天外飛來一筆的氟，跟所有其他項目的關聯最低，其次是南極，也屬於本群中較邊緣的項目。</p> <p>最後試一下文字段落的比對，我準備了以下內容：</p> <pre><code>var texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+</code></pre> <p>「一棵開花的樹」與「誓言版求佛」相近，兩段血糖運作原因描述相近，兩段談內崁的文字相近，符合一般的預期：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407950828021390.png"></p> <p>體驗完畢，對 Word Embedding 有了粗淺的認識，後續再看 RAG 流程就不會霧煞煞囉。</p> <p>最後附上範例程式，也想動手玩看看的同學可以參考：(專案使用 Azure OpenAI 服務，需 <code>dotnet add package Azure.AI.OpenAI --prerelease</code> 引用相關程序庫，<a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">官方教學</a>)</p> <pre><code>using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using Azure;
+using Azure.AI.OpenAI;
+Uri oaiEndpoint = new("https://&lt;your-host-name&gt;.openai.azure.com");
+string oaiKey = "&lt;your-key&gt;";
+AzureKeyCredential credentials = new(oaiKey);
+OpenAIClient openAIClient = new(oaiEndpoint, credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+// 暫存 Embedding 查詢結果，若測試文字未變，不需每次重新查詢
+var results = new Dictionary&lt;string, float[]&gt;();
+var cacheName = "results.json";
+if (File.Exists(cacheName))
+results = JsonSerializer.Deserialize&lt;Dictionary&lt;string, float[]&gt;&gt;(File.ReadAllText(cacheName))!;
+string[] texts;
+texts = new string[] {
+"love",
+"hate",
+"愛",
+"恨",
+"怒"
+};
+texts = new string[] {
+"漢堡",
+"薯條",
+"可樂",
+"炸雞",
+"反應爐",
+"氟",
+"企鵝",
+"南極"
+};
+texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+// 是否文字都是查過的
+if (!texts.All(results.ContainsKey))
+{
+results = texts.ToDictionary(text =&gt; text, GetEmbedding);
+File.WriteAllText(cacheName, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+}
+Func&lt;string, string&gt; SimpTrim = t =&gt; t.Substring(0, Math.Min(t.Length, 7)) + (t.Length &gt; 7 ? "..." : "");
+var keys = results.Keys.ToArray();
+var sb = new StringBuilder();
+sb.AppendLine(@"
+&lt;!DOCTYPE html&gt;
+&lt;style&gt;
+td.inv { border: none; }
+td { width: 100px; }
+td.val { text-align: right; padding-right: 6px; }
+td.word { background-color: #bfef45; font-size: 9pt; }
+&lt;/style&gt;
+&lt;table border=1&gt;
+");
+var simVals = new List&lt;float&gt;();
+for (var a = 0; a &lt; keys.Length; a++)
+{
+sb.Append($"&lt;tr&gt;");
+if (a &gt; 0) sb.Append($"&lt;td colspan={a} class=inv&gt;&lt;/td&gt;");
+sb.Append($"&lt;td class=word&gt;{SimpTrim(keys[a])}&lt;/td&gt;");
+for (var b = a + 1; b &lt; keys.Length; b++)
+{
+var sim = CosineSimilarity(results[keys[a]], results[keys[b]]);
+simVals.Add(sim);
+sb.Append($"&lt;td class=val&gt;{sim:n4}&lt;/td&gt;");
+}
+sb.AppendLine("&lt;/tr&gt;");
+}
+sb.AppendLine("&lt;/table&gt;");
+var avg = simVals.Average();
+var min = simVals.Min();
+var max =  simVals.Max();
+var range = max - min;
+sb.AppendLine($"&lt;p&gt;平均相似度: {avg:n4}, 最高: {max:n4}, 最低：{min:n4}&lt;/p&gt;");
+sb.AppendLine(@$"
+&lt;script&gt;
+const avg = {avg}, max = {max}, min = {min}, range = {range};
+const tds = document.querySelectorAll('td');
+function toHex(n) {{
+return parseInt(n).toString(16).padStart(2, '0');
+}}
+for (const td of tds) {{
+if (td.innerText === '' || isNaN(td.innerText)) continue;
+const sim = parseFloat(td.innerText);
+const diff = Math.abs(sim - min);
+td.style.backgroundColor = '#ffff00' + toHex(255 * diff / range);
+td.style.color = '#' + toHex(191 * diff / range + 64) + '0000';
+}}
+&lt;/script&gt;
+");
+var tmpFile = Path.GetTempFileName() + ".html";
+File.WriteAllText(tmpFile, sb.ToString());
+Process.Start(new ProcessStartInfo("cmd", $"/c start {tmpFile}")
+{ CreateNoWindow = true });
+// 1 = 一致, 0 = 無關
+static float CosineSimilarity(float[] vector1, float[] vector2)
+{
+if (vector1.Length != vector2.Length)
+{
+throw new Exception("Vectors are not the same dimensionality");
+}
+float dotProduct = 0.0f;
+float norm1 = 0.0f;
+float norm2 = 0.0f;
+for (int i = 0; i &lt; vector1.Length; i++)
+{
+dotProduct += vector1[i] * vector2[i];
+norm1 += vector1[i] * vector1[i];
+norm2 += vector2[i] * vector2[i];
+}
+return (float)(dotProduct / (Math.Sqrt(norm1) * Math.Sqrt(norm2)));
+}
+</code></pre> <p data-slug="text-embedding-ada-002-lab" data-title-en="OpenAI embedding model lab" data-catg=".NET" data-fbimg="https://i.imgur.com/xBkx8lK.png#800#450">Example of using text-embedding-ada-002 model to get embedding and calculate cosine similarity to find similarity between words and paragraphs.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在 <a href="/blog/rag/">ChatGPT 整合自有資料的 RAG 測試</a>學到不少新東西，其中一個是 Embedding。(嵌入、內嵌，這些翻譯我都覺得怪，文章會用英文原文)</p> <p><a href="https://zh.wikipedia.org/zh-tw/%E8%AF%8D%E5%B5%8C%E5%85%A5">Word Embedding</a> 是自然語言處理(NLP)中將文字內容轉成多維向量數值的一種技術，概念是將原本每個詞一個維度(數量以萬起跳)的高維空間嵌入到一個維度低很多的向量空間，文字特徵或表徵(Feature/Representation)被轉成數字，便可運用數學方法進行運算，用以評估文字相似度，實現分類(找出垃圾郵件、情感分析)、文字檢索、機器翻譯、推薦系統... 等各式文字應用。</p> <p>RAG 範例中用了 <a href="https://www.ithome.com.tw/news/154772">OpenAI text-embedding-ada-002 模型</a>將文字內容轉成 Embedding 並存入 Azure AI Search 索引庫，查詢時則將查詢問題也轉 Embedding，交由 AI Search 服務比對找出相關內容。</p> <p>我過去沒碰過 NLP，現在才發立最基本的概念，打算用見識豬走路的心態實測一下 text-embedding-ada-002。我計劃寫段 .NET 程式做簡單測試，將多段文字使用 OpenAI Embedding 模型轉成 Embedding，透過比對 Embedding 測試彼此間的相似度，是否符合一般的認知，以上就是本次的企劃。</p> <p>MS Learn 上有 <a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">C# 呼叫 OpenAI Embedding API 範例</a>，照抄即能可輕易將一段文字轉成一串 float 浮點數。(註：float 數量共 1536 個，即 text-embedding-ada-002 使用的向量陣列長度，身為門外漢覺得龐大，但其實它只有 davinci-001 的 1/8，已經縮小很多了)</p> <p>如此我們便可將任意文字都轉成 1536 個 float，但要怎麼用它來判斷文字是否相似？</p> <p>Cosine Similarity (餘弦相似性) 是依據 Embedding 向量計算文件相似性的常用做法，背後有一堆數學理論，若你跟我一樣只想有個概念不想深入，大概的意思是相近文字的對映向量角度也會相似，兩個向量形成的夾角愈小，Cosine 值例大，夾角為 0 時 Cosine 等於 1，完全無關夾角 90 度 Cosine 等於 0。如下圖，Cat 與 Dog Cosine = 0.998，Dog 與 Apple 關聯較少 Cosine 為 0.4284：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407950821627000.png"><br> <a href="https://spencerporter2.medium.com/understanding-cosine-similarity-and-word-embeddings-dbf19362a3c">圖片來源</a></p> <p>以下是我的測試程式，輸入一串 string[]，呼叫 OpenAI API 取得 Embedding 向量值，兩兩計算 Cosine Similarity，以 HTML 表單呈現結果，數值為 Consine Similarity 計算值，數字愈高文字顏色愈紅，底色愈黃，代表二者愈相似。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407950823783513.png"></p> <p>由上圖，恨與怒高度相似，其次是 hate 與恨，再其次是 love 與愛、love 與 hate。Cosine Similarity 值愈大意味文字同時出現機率愈高，二者愈相關，但未必是同義字，像是 love 跟 hate 常伴隨出現，隨然二者詞義相反，但相關性排第四。其中相關度最低的是 love 與怒，愈風馬牛不相及，值愈低。</p> <p>再試另外一組：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407950825904572.png"></p> <p>最相關的是炸雞跟薯條，有趣的是，炸雞與反應爐關聯性頗高(因為炸跟爐嗎？)；而企鵝跟薯條、炸雞的關聯比企鵝跟南極還密切。天外飛來一筆的氟，跟所有其他項目的關聯最低，其次是南極，也屬於本群中較邊緣的項目。</p> <p>最後試一下文字段落的比對，我準備了以下內容：</p> <pre><code>var texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+</code></pre> <p>「一棵開花的樹」與「誓言版求佛」相近，兩段血糖運作原因描述相近，兩段談內崁的文字相近，符合一般的預期：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407950828021390.png"></p> <p>體驗完畢，對 Word Embedding 有了粗淺的認識，後續再看 RAG 流程就不會霧煞煞囉。</p> <p>最後附上範例程式，也想動手玩看看的同學可以參考：(專案使用 Azure OpenAI 服務，需 <code>dotnet add package Azure.AI.OpenAI --prerelease</code> 引用相關程序庫，<a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">官方教學</a>)</p> <pre><code>using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using Azure;
+using Azure.AI.OpenAI;
+Uri oaiEndpoint = new("https://&lt;your-host-name&gt;.openai.azure.com");
+string oaiKey = "&lt;your-key&gt;";
+AzureKeyCredential credentials = new(oaiKey);
+OpenAIClient openAIClient = new(oaiEndpoint, credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+// 暫存 Embedding 查詢結果，若測試文字未變，不需每次重新查詢
+var results = new Dictionary&lt;string, float[]&gt;();
+var cacheName = "results.json";
+if (File.Exists(cacheName))
+results = JsonSerializer.Deserialize&lt;Dictionary&lt;string, float[]&gt;&gt;(File.ReadAllText(cacheName))!;
+string[] texts;
+texts = new string[] {
+"love",
+"hate",
+"愛",
+"恨",
+"怒"
+};
+texts = new string[] {
+"漢堡",
+"薯條",
+"可樂",
+"炸雞",
+"反應爐",
+"氟",
+"企鵝",
+"南極"
+};
+texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+// 是否文字都是查過的
+if (!texts.All(results.ContainsKey))
+{
+results = texts.ToDictionary(text =&gt; text, GetEmbedding);
+File.WriteAllText(cacheName, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+}
+Func&lt;string, string&gt; SimpTrim = t =&gt; t.Substring(0, Math.Min(t.Length, 7)) + (t.Length &gt; 7 ? "..." : "");
+var keys = results.Keys.ToArray();
+var sb = new StringBuilder();
+sb.AppendLine(@"
+&lt;!DOCTYPE html&gt;
+&lt;style&gt;
+td.inv { border: none; }
+td { width: 100px; }
+td.val { text-align: right; padding-right: 6px; }
+td.word { background-color: #bfef45; font-size: 9pt; }
+&lt;/style&gt;
+&lt;table border=1&gt;
+");
+var simVals = new List&lt;float&gt;();
+for (var a = 0; a &lt; keys.Length; a++)
+{
+sb.Append($"&lt;tr&gt;");
+if (a &gt; 0) sb.Append($"&lt;td colspan={a} class=inv&gt;&lt;/td&gt;");
+sb.Append($"&lt;td class=word&gt;{SimpTrim(keys[a])}&lt;/td&gt;");
+for (var b = a + 1; b &lt; keys.Length; b++)
+{
+var sim = CosineSimilarity(results[keys[a]], results[keys[b]]);
+simVals.Add(sim);
+sb.Append($"&lt;td class=val&gt;{sim:n4}&lt;/td&gt;");
+}
+sb.AppendLine("&lt;/tr&gt;");
+}
+sb.AppendLine("&lt;/table&gt;");
+var avg = simVals.Average();
+var min = simVals.Min();
+var max =  simVals.Max();
+var range = max - min;
+sb.AppendLine($"&lt;p&gt;平均相似度: {avg:n4}, 最高: {max:n4}, 最低：{min:n4}&lt;/p&gt;");
+sb.AppendLine(@$"
+&lt;script&gt;
+const avg = {avg}, max = {max}, min = {min}, range = {range};
+const tds = document.querySelectorAll('td');
+function toHex(n) {{
+return parseInt(n).toString(16).padStart(2, '0');
+}}
+for (const td of tds) {{
+if (td.innerText === '' || isNaN(td.innerText)) continue;
+const sim = parseFloat(td.innerText);
+const diff = Math.abs(sim - min);
+td.style.backgroundColor = '#ffff00' + toHex(255 * diff / range);
+td.style.color = '#' + toHex(191 * diff / range + 64) + '0000';
+}}
+&lt;/script&gt;
+");
+var tmpFile = Path.GetTempFileName() + ".html";
+File.WriteAllText(tmpFile, sb.ToString());
+Process.Start(new ProcessStartInfo("cmd", $"/c start {tmpFile}")
+{ CreateNoWindow = true });
+// 1 = 一致, 0 = 無關
+static float CosineSimilarity(float[] vector1, float[] vector2)
+{
+if (vector1.Length != vector2.Length)
+{
+throw new Exception("Vectors are not the same dimensionality");
+}
+float dotProduct = 0.0f;
+float norm1 = 0.0f;
+float norm2 = 0.0f;
+for (int i = 0; i &lt; vector1.Length; i++)
+{
+dotProduct += vector1[i] * vector2[i];
+norm1 += vector1[i] * vector1[i];
+norm2 += vector2[i] * vector2[i];
+}
+return (float)(dotProduct / (Math.Sqrt(norm1) * Math.Sqrt(norm2)));
+}
+</code></pre> <p data-slug="text-embedding-ada-002-lab" data-title-en="OpenAI embedding model lab" data-catg=".NET" data-fbimg="https://i.imgur.com/xBkx8lK.png#800#450">Example of using text-embedding-ada-002 model to get embedding and calculate cosine similarity to find similarity between words and paragraphs.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在 <a href="/blog/rag/">ChatGPT 整合自有資料的 RAG 測試</a>學到不少新東西，其中一個是 Embedding。(嵌入、內嵌，這些翻譯我都覺得怪，文章會用英文原文)</p> <p><a href="https://zh.wikipedia.org/zh-tw/%E8%AF%8D%E5%B5%8C%E5%85%A5">Word Embedding</a> 是自然語言處理(NLP)中將文字內容轉成多維向量數值的一種技術，概念是將原本每個詞一個維度(數量以萬起跳)的高維空間嵌入到一個維度低很多的向量空間，文字特徵或表徵(Feature/Representation)被轉成數字，便可運用數學方法進行運算，用以評估文字相似度，實現分類(找出垃圾郵件、情感分析)、文字檢索、機器翻譯、推薦系統... 等各式文字應用。</p> <p>RAG 範例中用了 <a href="https://www.ithome.com.tw/news/154772">OpenAI text-embedding-ada-002 模型</a>將文字內容轉成 Embedding 並存入 Azure AI Search 索引庫，查詢時則將查詢問題也轉 Embedding，交由 AI Search 服務比對找出相關內容。</p> <p>我過去沒碰過 NLP，現在才發立最基本的概念，打算用見識豬走路的心態實測一下 text-embedding-ada-002。我計劃寫段 .NET 程式做簡單測試，將多段文字使用 OpenAI Embedding 模型轉成 Embedding，透過比對 Embedding 測試彼此間的相似度，是否符合一般的認知，以上就是本次的企劃。</p> <p>MS Learn 上有 <a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">C# 呼叫 OpenAI Embedding API 範例</a>，照抄即能可輕易將一段文字轉成一串 float 浮點數。(註：float 數量共 1536 個，即 text-embedding-ada-002 使用的向量陣列長度，身為門外漢覺得龐大，但其實它只有 davinci-001 的 1/8，已經縮小很多了)</p> <p>如此我們便可將任意文字都轉成 1536 個 float，但要怎麼用它來判斷文字是否相似？</p> <p>Cosine Similarity (餘弦相似性) 是依據 Embedding 向量計算文件相似性的常用做法，背後有一堆數學理論，若你跟我一樣只想有個概念不想深入，大概的意思是相近文字的對映向量角度也會相似，兩個向量形成的夾角愈小，Cosine 值例大，夾角為 0 時 Cosine 等於 1，完全無關夾角 90 度 Cosine 等於 0。如下圖，Cat 與 Dog Cosine = 0.998，Dog 與 Apple 關聯較少 Cosine 為 0.4284：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638407950821627000.png"><br> <a href="https://spencerporter2.medium.com/understanding-cosine-similarity-and-word-embeddings-dbf19362a3c">圖片來源</a></p> <p>以下是我的測試程式，輸入一串 string[]，呼叫 OpenAI API 取得 Embedding 向量值，兩兩計算 Cosine Similarity，以 HTML 表單呈現結果，數值為 Consine Similarity 計算值，數字愈高文字顏色愈紅，底色愈黃，代表二者愈相似。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638407950823783513.png"></p> <p>由上圖，恨與怒高度相似，其次是 hate 與恨，再其次是 love 與愛、love 與 hate。Cosine Similarity 值愈大意味文字同時出現機率愈高，二者愈相關，但未必是同義字，像是 love 跟 hate 常伴隨出現，隨然二者詞義相反，但相關性排第四。其中相關度最低的是 love 與怒，愈風馬牛不相及，值愈低。</p> <p>再試另外一組：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638407950825904572.png"></p> <p>最相關的是炸雞跟薯條，有趣的是，炸雞與反應爐關聯性頗高(因為炸跟爐嗎？)；而企鵝跟薯條、炸雞的關聯比企鵝跟南極還密切。天外飛來一筆的氟，跟所有其他項目的關聯最低，其次是南極，也屬於本群中較邊緣的項目。</p> <p>最後試一下文字段落的比對，我準備了以下內容：</p> <pre><code>var texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+</code></pre> <p>「一棵開花的樹」與「誓言版求佛」相近，兩段血糖運作原因描述相近，兩段談內崁的文字相近，符合一般的預期：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638407950828021390.png"></p> <p>體驗完畢，對 Word Embedding 有了粗淺的認識，後續再看 RAG 流程就不會霧煞煞囉。</p> <p>最後附上範例程式，也想動手玩看看的同學可以參考：(專案使用 Azure OpenAI 服務，需 <code>dotnet add package Azure.AI.OpenAI --prerelease</code> 引用相關程序庫，<a href="https://learn.microsoft.com/zh-tw/azure/ai-services/openai/how-to/embeddings?tabs=csharp&amp;WT.mc_id=DOP-MVP-37580">官方教學</a>)</p> <pre><code>using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using Azure;
+using Azure.AI.OpenAI;
+Uri oaiEndpoint = new("https://&lt;your-host-name&gt;.openai.azure.com");
+string oaiKey = "&lt;your-key&gt;";
+AzureKeyCredential credentials = new(oaiKey);
+OpenAIClient openAIClient = new(oaiEndpoint, credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+// 暫存 Embedding 查詢結果，若測試文字未變，不需每次重新查詢
+var results = new Dictionary&lt;string, float[]&gt;();
+var cacheName = "results.json";
+if (File.Exists(cacheName))
+results = JsonSerializer.Deserialize&lt;Dictionary&lt;string, float[]&gt;&gt;(File.ReadAllText(cacheName))!;
+string[] texts;
+texts = new string[] {
+"love",
+"hate",
+"愛",
+"恨",
+"怒"
+};
+texts = new string[] {
+"漢堡",
+"薯條",
+"可樂",
+"炸雞",
+"反應爐",
+"氟",
+"企鵝",
+"南極"
+};
+texts = new string[] {
+"我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+// 是否文字都是查過的
+if (!texts.All(results.ContainsKey))
+{
+results = texts.ToDictionary(text =&gt; text, GetEmbedding);
+File.WriteAllText(cacheName, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+}
+Func&lt;string, string&gt; SimpTrim = t =&gt; t.Substring(0, Math.Min(t.Length, 7)) + (t.Length &gt; 7 ? "..." : "");
+var keys = results.Keys.ToArray();
+var sb = new StringBuilder();
+sb.AppendLine(@"
+&lt;!DOCTYPE html&gt;
+&lt;style&gt;
+td.inv { border: none; }
+td { width: 100px; }
+td.val { text-align: right; padding-right: 6px; }
+td.word { background-color: #bfef45; font-size: 9pt; }
+&lt;/style&gt;
+&lt;table border=1&gt;
+");
+var simVals = new List&lt;float&gt;();
+for (var a = 0; a &lt; keys.Length; a++)
+{
+sb.Append($"&lt;tr&gt;");
+if (a &gt; 0) sb.Append($"&lt;td colspan={a} class=inv&gt;&lt;/td&gt;");
+sb.Append($"&lt;td class=word&gt;{SimpTrim(keys[a])}&lt;/td&gt;");
+for (var b = a + 1; b &lt; keys.Length; b++)
+{
+var sim = CosineSimilarity(results[keys[a]], results[keys[b]]);
+simVals.Add(sim);
+sb.Append($"&lt;td class=val&gt;{sim:n4}&lt;/td&gt;");
+}
+sb.AppendLine("&lt;/tr&gt;");
+}
+sb.AppendLine("&lt;/table&gt;");
+var avg = simVals.Average();
+var min = simVals.Min();
+var max =  simVals.Max();
+var range = max - min;
+sb.AppendLine($"&lt;p&gt;平均相似度: {avg:n4}, 最高: {max:n4}, 最低：{min:n4}&lt;/p&gt;");
+sb.AppendLine(@$"
+&lt;script&gt;
+const avg = {avg}, max = {max}, min = {min}, range = {range};
+const tds = document.querySelectorAll('td');
+function toHex(n) {{
+return parseInt(n).toString(16).padStart(2, '0');
+}}
+for (const td of tds) {{
+if (td.innerText === '' || isNaN(td.innerText)) continue;
+const sim = parseFloat(td.innerText);
+const diff = Math.abs(sim - min);
+td.style.backgroundColor = '#ffff00' + toHex(255 * diff / range);
+td.style.color = '#' + toHex(191 * diff / range + 64) + '0000';
+}}
+&lt;/script&gt;
+");
+var tmpFile = Path.GetTempFileName() + ".html";
+File.WriteAllText(tmpFile, sb.ToString());
+Process.Start(new ProcessStartInfo("cmd", $"/c start {tmpFile}")
+{ CreateNoWindow = true });
+// 1 = 一致, 0 = 無關
+static float CosineSimilarity(float[] vector1, float[] vector2)
+{
+if (vector1.Length != vector2.Length)
+{
+throw new Exception("Vectors are not the same dimensionality");
+}
+float dotProduct = 0.0f;
+float norm1 = 0.0f;
+float norm2 = 0.0f;
+for (int i = 0; i &lt; vector1.Length; i++)
+{
+dotProduct += vector1[i] * vector2[i];
+norm1 += vector1[i] * vector1[i];
+norm2 += vector2[i] * vector2[i];
+}
+return (float)(dotProduct / (Math.Sqrt(norm1) * Math.Sqrt(norm2)));
+}
+</code></pre> <p data-slug="text-embedding-ada-002-lab" data-title-en="OpenAI embedding model lab" data-catg=".NET" data-fbimg="https://i.imgur.com/xBkx8lK.png#800#450">Example of using text-embedding-ada-002 model to get embedding and calculate cosine similarity to find similarity between words and paragraphs.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638407950821627000.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638407950821627000.png" medium="image"/>
+    <pubDate>Sun, 14 Jan 2024 02:11:19 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 6+ 可以直接參照 .NET Framework 編譯的 DLL 嗎？]]></title>
     <link>https://blog.darkthread.net/blog/netcore-ref-netfx-dll/</link>
     <itunes:title><![CDATA[.NET 6+ 可以直接參照 .NET Framework 編譯的 DLL 嗎？]]></itunes:title>
@@ -1595,20 +2018,5 @@ app.mount('#app');
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif" medium="image"/>
     <pubDate>Wed, 03 Jan 2024 14:28:51 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[小試 RAG - 整合 ChatGPT 與自有資料 (駕駛人手冊實測)]]></title>
-    <link>https://blog.darkthread.net/blog/rag/</link>
-    <itunes:title><![CDATA[小試 RAG - 整合 ChatGPT 與自有資料 (駕駛人手冊實測)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>最近學到新名詞 - <a href="https://learn.microsoft.com/zh-tw/azure/machine-learning/concept-retrieval-augmented-generation?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">Retrieval Augmented Generation (RAG)</a>，號稱可以結合 ChatGPT 這類預訓練大型語言模型(LLM)依據自有資料來源生成內容。要這麼做的理由是預訓練模型會以某個時點的資料定型，如要加入新資料或自訂資料，有兩種做法：用新資料進行微調訓練，或使用 RAG 靠提示工程整合補充資料。</p> <p>微調訓練可將客製化資料與 GPT 原有知識無縫融合，是最直覺有效的解法，但微調模型成本高昂，非人人負擔得起(以 Azure Open AI 為例，訓練成本是每小時 34 ~ 103 USD，跑自訂模型則每小時 1.7 ~ 7 USD，不考慮訓練成本，每個月光跑服務就要 3 ~ 15 萬台幣 <a href="https://vladiliescu.net/finetuning-costs-openai-vs-azure-openai/">參考</a>)。相較之下，RAG 只需小額課金就能上手，是可行性更高的解決方案。至於運作原理及效果如何，便是我這篇文章研究的重點。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png"><br> <a href="https://learn.microsoft.com/zh-tw/azure/search/retrieval-augmented-generation-overview?WT.mc_id=DOP-MVP-37580#custom-rag-pattern-for-azure-ai-search">圖片來源</a></p> <p>簡單來說，RAG 的架構是 App 服務接受使用者輸入內容，結合 ChatGPT 與自訂文件庫或資料來源，讓 ChatGPT 依據指定資料來源提供使用者回覆。這裡資料通常是機器學習常用的向量索引(Vector Index)形式，其中的資料關聯被轉成 Embedding (將資料/Concept 間的關聯轉為數字序號)，而 LLM 有能力從向量資料有效率地找出所需內容。向量索引部分，Azure RAG 解決方案支援 <a href="https://github.com/facebookresearch/faiss">Faiss</a> 開源專案或使用 Azure AI Search。<a href="https://learn.microsoft.com/en-us/azure/machine-learning/concept-vector-stores?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">參考</a></p> <p>將資料轉成向量是門學問，Azure AI Search 能讓事情簡單些，它提供方法可將文字、圖像、影片、音訊索引成 Token、向量再結合 ChatGPT 運用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638397445832789051.png"></p> <p>光看文件太抽象，我決定跑個展示實際用看看。我找到 <a href="https://github.com/Azure-Samples/azure-search-openai-demo-csharp">ChatGPT + Enterprise data with Azure OpenAI and Cognitive Search (.NET)</a> 範例專案，它虛構了一家 Contoso 電子公司，建立了一個 AI 交談介面回覆員工公司制度與福利相關問題，制度福利內容均來自 PDF 文件，非憑空生成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638397445834679287.png"></p> <p>PDF 文件部分透過 Azure AI Search (以前叫 Azure Cognitive Search，<a href="https://learn.microsoft.com/zh-tw/azure/search/whats-new?WT.mc_id=DOP-MVP-37580#service-rebrand">2023/11 才改名</a>的 Orz) 轉成向量索引並存入 Azure Storage 帳號；用 Azure OpenAI 服務生成回應內容，其中採用了 <a href="https://learn.microsoft.com/zh-tw/shows/on-net/on-dotnet-live-beyond-clicks-unleashing-the-power-of-microsoft-semantic-kernel?WT.mc_id=DOP-MVP-37580">Semantic Kernel 架構</a> (為開源 SDK，提供整合提示工程、記憶上下文、Zero/Few-Shot學習、Zembeddings 等技術的開發模式，簡化生成式 AI 應用的開發工作，參考：<a href="https://modernweb.tw/2023/session-page/2413">運用Semantic Kernel SDK 駕馭生成式AI應用的提示工程(Prompt Engineering) by MVP Ian</a>)。前端部分是用新潮的 Blazor WebAssembly，WebAPI 跑在 ASP.NET Core Minimal API。要運行專案，還需要建立多個 Azure 服務，修改 EndPoint 網址、API Key... 等設定，超複雜。</p> <p>我被逼著學了新時代雲端服務部署新概念 - <a href="https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/overview?WT.mc_id=DOP-MVP-37580">Azure Developer CLI</a>，把複雜部署程序寫成 Bicep 或 Terraform 檔，需要部署時，一個指令完成大小事，實現傳說中的 Infrastructure as Code (IaC)。，照著文件說明跑了 <code>azd up</code>就把全部服務設好，程式順利運轉，我進化到「玩過 IaC 的人」惹:D</p> <p>這是它建立的 Azure 服務項目：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638397445836620019.png"></p> <p>執行成果如下，用中文問就會用中文回答，畢竟背後可是 ChatGPT：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638397445838520232.png"></p> <p>我到公路局網站下載了<a href="https://www.thb.gov.tw/News_Download.aspx?n=12393&amp;sms=12823">駕駛人手冊</a>，共 7 個分章 PDF 檔，涵蓋駕照、交通規則、號誌、安全駕駛、事故處理... 等駕駛須知，我將範例專案中的公司章程 PDF 換成交通部駕駛人手冊，看 ChatGPT 能否變身老司機？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638397445840530260.png"></p> <p>表現比我預期好很多。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638397445842461269.png"></p> <p>有時來源連結會不正確，如下圖的 sournce 被導向錯誤的 BLOB 連結。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638397445844740378.png"></p> <p>Supporting Content 部分還算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638397445846881782.png"></p> <p>大部分時侯 Citation 連結指向的頁面也是對的：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638397445849410568.png"></p> <p>加考重機考照年齡，ChatGPT 也沒被難倒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638397445851320475.png"></p> <p>甚至惡搞故意胡亂提問... 哈，這回答我給過!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638397445853863887.png"></p> <p>我對機器學習、向量索引不熟，還沒完全搞懂 RAG 原理，但這個實測結果讓我很滿意，感覺已達可上場應戰的水平。未來有適當情境，應可將 RAG 列為解決方案之一。</p> <p data-slug="rag" data-title-en="Azure RAG lab" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/05/21/14/55/bobby-car-349695_960_720.jpg#960#720">My first RAG lab to run ChatGPT with custom data.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>最近學到新名詞 - <a href="https://learn.microsoft.com/zh-tw/azure/machine-learning/concept-retrieval-augmented-generation?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">Retrieval Augmented Generation (RAG)</a>，號稱可以結合 ChatGPT 這類預訓練大型語言模型(LLM)依據自有資料來源生成內容。要這麼做的理由是預訓練模型會以某個時點的資料定型，如要加入新資料或自訂資料，有兩種做法：用新資料進行微調訓練，或使用 RAG 靠提示工程整合補充資料。</p> <p>微調訓練可將客製化資料與 GPT 原有知識無縫融合，是最直覺有效的解法，但微調模型成本高昂，非人人負擔得起(以 Azure Open AI 為例，訓練成本是每小時 34 ~ 103 USD，跑自訂模型則每小時 1.7 ~ 7 USD，不考慮訓練成本，每個月光跑服務就要 3 ~ 15 萬台幣 <a href="https://vladiliescu.net/finetuning-costs-openai-vs-azure-openai/">參考</a>)。相較之下，RAG 只需小額課金就能上手，是可行性更高的解決方案。至於運作原理及效果如何，便是我這篇文章研究的重點。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png"><br> <a href="https://learn.microsoft.com/zh-tw/azure/search/retrieval-augmented-generation-overview?WT.mc_id=DOP-MVP-37580#custom-rag-pattern-for-azure-ai-search">圖片來源</a></p> <p>簡單來說，RAG 的架構是 App 服務接受使用者輸入內容，結合 ChatGPT 與自訂文件庫或資料來源，讓 ChatGPT 依據指定資料來源提供使用者回覆。這裡資料通常是機器學習常用的向量索引(Vector Index)形式，其中的資料關聯被轉成 Embedding (將資料/Concept 間的關聯轉為數字序號)，而 LLM 有能力從向量資料有效率地找出所需內容。向量索引部分，Azure RAG 解決方案支援 <a href="https://github.com/facebookresearch/faiss">Faiss</a> 開源專案或使用 Azure AI Search。<a href="https://learn.microsoft.com/en-us/azure/machine-learning/concept-vector-stores?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">參考</a></p> <p>將資料轉成向量是門學問，Azure AI Search 能讓事情簡單些，它提供方法可將文字、圖像、影片、音訊索引成 Token、向量再結合 ChatGPT 運用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638397445832789051.png"></p> <p>光看文件太抽象，我決定跑個展示實際用看看。我找到 <a href="https://github.com/Azure-Samples/azure-search-openai-demo-csharp">ChatGPT + Enterprise data with Azure OpenAI and Cognitive Search (.NET)</a> 範例專案，它虛構了一家 Contoso 電子公司，建立了一個 AI 交談介面回覆員工公司制度與福利相關問題，制度福利內容均來自 PDF 文件，非憑空生成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638397445834679287.png"></p> <p>PDF 文件部分透過 Azure AI Search (以前叫 Azure Cognitive Search，<a href="https://learn.microsoft.com/zh-tw/azure/search/whats-new?WT.mc_id=DOP-MVP-37580#service-rebrand">2023/11 才改名</a>的 Orz) 轉成向量索引並存入 Azure Storage 帳號；用 Azure OpenAI 服務生成回應內容，其中採用了 <a href="https://learn.microsoft.com/zh-tw/shows/on-net/on-dotnet-live-beyond-clicks-unleashing-the-power-of-microsoft-semantic-kernel?WT.mc_id=DOP-MVP-37580">Semantic Kernel 架構</a> (為開源 SDK，提供整合提示工程、記憶上下文、Zero/Few-Shot學習、Zembeddings 等技術的開發模式，簡化生成式 AI 應用的開發工作，參考：<a href="https://modernweb.tw/2023/session-page/2413">運用Semantic Kernel SDK 駕馭生成式AI應用的提示工程(Prompt Engineering) by MVP Ian</a>)。前端部分是用新潮的 Blazor WebAssembly，WebAPI 跑在 ASP.NET Core Minimal API。要運行專案，還需要建立多個 Azure 服務，修改 EndPoint 網址、API Key... 等設定，超複雜。</p> <p>我被逼著學了新時代雲端服務部署新概念 - <a href="https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/overview?WT.mc_id=DOP-MVP-37580">Azure Developer CLI</a>，把複雜部署程序寫成 Bicep 或 Terraform 檔，需要部署時，一個指令完成大小事，實現傳說中的 Infrastructure as Code (IaC)。，照著文件說明跑了 <code>azd up</code>就把全部服務設好，程式順利運轉，我進化到「玩過 IaC 的人」惹:D</p> <p>這是它建立的 Azure 服務項目：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638397445836620019.png"></p> <p>執行成果如下，用中文問就會用中文回答，畢竟背後可是 ChatGPT：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638397445838520232.png"></p> <p>我到公路局網站下載了<a href="https://www.thb.gov.tw/News_Download.aspx?n=12393&amp;sms=12823">駕駛人手冊</a>，共 7 個分章 PDF 檔，涵蓋駕照、交通規則、號誌、安全駕駛、事故處理... 等駕駛須知，我將範例專案中的公司章程 PDF 換成交通部駕駛人手冊，看 ChatGPT 能否變身老司機？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638397445840530260.png"></p> <p>表現比我預期好很多。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638397445842461269.png"></p> <p>有時來源連結會不正確，如下圖的 sournce 被導向錯誤的 BLOB 連結。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638397445844740378.png"></p> <p>Supporting Content 部分還算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638397445846881782.png"></p> <p>大部分時侯 Citation 連結指向的頁面也是對的：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638397445849410568.png"></p> <p>加考重機考照年齡，ChatGPT 也沒被難倒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638397445851320475.png"></p> <p>甚至惡搞故意胡亂提問... 哈，這回答我給過!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638397445853863887.png"></p> <p>我對機器學習、向量索引不熟，還沒完全搞懂 RAG 原理，但這個實測結果讓我很滿意，感覺已達可上場應戰的水平。未來有適當情境，應可將 RAG 列為解決方案之一。</p> <p data-slug="rag" data-title-en="Azure RAG lab" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/05/21/14/55/bobby-car-349695_960_720.jpg#960#720">My first RAG lab to run ChatGPT with custom data.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>最近學到新名詞 - <a href="https://learn.microsoft.com/zh-tw/azure/machine-learning/concept-retrieval-augmented-generation?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">Retrieval Augmented Generation (RAG)</a>，號稱可以結合 ChatGPT 這類預訓練大型語言模型(LLM)依據自有資料來源生成內容。要這麼做的理由是預訓練模型會以某個時點的資料定型，如要加入新資料或自訂資料，有兩種做法：用新資料進行微調訓練，或使用 RAG 靠提示工程整合補充資料。</p> <p>微調訓練可將客製化資料與 GPT 原有知識無縫融合，是最直覺有效的解法，但微調模型成本高昂，非人人負擔得起(以 Azure Open AI 為例，訓練成本是每小時 34 ~ 103 USD，跑自訂模型則每小時 1.7 ~ 7 USD，不考慮訓練成本，每個月光跑服務就要 3 ~ 15 萬台幣 <a href="https://vladiliescu.net/finetuning-costs-openai-vs-azure-openai/">參考</a>)。相較之下，RAG 只需小額課金就能上手，是可行性更高的解決方案。至於運作原理及效果如何，便是我這篇文章研究的重點。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png"><br> <a href="https://learn.microsoft.com/zh-tw/azure/search/retrieval-augmented-generation-overview?WT.mc_id=DOP-MVP-37580#custom-rag-pattern-for-azure-ai-search">圖片來源</a></p> <p>簡單來說，RAG 的架構是 App 服務接受使用者輸入內容，結合 ChatGPT 與自訂文件庫或資料來源，讓 ChatGPT 依據指定資料來源提供使用者回覆。這裡資料通常是機器學習常用的向量索引(Vector Index)形式，其中的資料關聯被轉成 Embedding (將資料/Concept 間的關聯轉為數字序號)，而 LLM 有能力從向量資料有效率地找出所需內容。向量索引部分，Azure RAG 解決方案支援 <a href="https://github.com/facebookresearch/faiss">Faiss</a> 開源專案或使用 Azure AI Search。<a href="https://learn.microsoft.com/en-us/azure/machine-learning/concept-vector-stores?view=azureml-api-2&amp;WT.mc_id=DOP-MVP-37580">參考</a></p> <p>將資料轉成向量是門學問，Azure AI Search 能讓事情簡單些，它提供方法可將文字、圖像、影片、音訊索引成 Token、向量再結合 ChatGPT 運用。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638397445832789051.png"></p> <p>光看文件太抽象，我決定跑個展示實際用看看。我找到 <a href="https://github.com/Azure-Samples/azure-search-openai-demo-csharp">ChatGPT + Enterprise data with Azure OpenAI and Cognitive Search (.NET)</a> 範例專案，它虛構了一家 Contoso 電子公司，建立了一個 AI 交談介面回覆員工公司制度與福利相關問題，制度福利內容均來自 PDF 文件，非憑空生成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638397445834679287.png"></p> <p>PDF 文件部分透過 Azure AI Search (以前叫 Azure Cognitive Search，<a href="https://learn.microsoft.com/zh-tw/azure/search/whats-new?WT.mc_id=DOP-MVP-37580#service-rebrand">2023/11 才改名</a>的 Orz) 轉成向量索引並存入 Azure Storage 帳號；用 Azure OpenAI 服務生成回應內容，其中採用了 <a href="https://learn.microsoft.com/zh-tw/shows/on-net/on-dotnet-live-beyond-clicks-unleashing-the-power-of-microsoft-semantic-kernel?WT.mc_id=DOP-MVP-37580">Semantic Kernel 架構</a> (為開源 SDK，提供整合提示工程、記憶上下文、Zero/Few-Shot學習、Zembeddings 等技術的開發模式，簡化生成式 AI 應用的開發工作，參考：<a href="https://modernweb.tw/2023/session-page/2413">運用Semantic Kernel SDK 駕馭生成式AI應用的提示工程(Prompt Engineering) by MVP Ian</a>)。前端部分是用新潮的 Blazor WebAssembly，WebAPI 跑在 ASP.NET Core Minimal API。要運行專案，還需要建立多個 Azure 服務，修改 EndPoint 網址、API Key... 等設定，超複雜。</p> <p>我被逼著學了新時代雲端服務部署新概念 - <a href="https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/overview?WT.mc_id=DOP-MVP-37580">Azure Developer CLI</a>，把複雜部署程序寫成 Bicep 或 Terraform 檔，需要部署時，一個指令完成大小事，實現傳說中的 Infrastructure as Code (IaC)。，照著文件說明跑了 <code>azd up</code>就把全部服務設好，程式順利運轉，我進化到「玩過 IaC 的人」惹:D</p> <p>這是它建立的 Azure 服務項目：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638397445836620019.png"></p> <p>執行成果如下，用中文問就會用中文回答，畢竟背後可是 ChatGPT：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638397445838520232.png"></p> <p>我到公路局網站下載了<a href="https://www.thb.gov.tw/News_Download.aspx?n=12393&amp;sms=12823">駕駛人手冊</a>，共 7 個分章 PDF 檔，涵蓋駕照、交通規則、號誌、安全駕駛、事故處理... 等駕駛須知，我將範例專案中的公司章程 PDF 換成交通部駕駛人手冊，看 ChatGPT 能否變身老司機？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638397445840530260.png"></p> <p>表現比我預期好很多。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638397445842461269.png"></p> <p>有時來源連結會不正確，如下圖的 sournce 被導向錯誤的 BLOB 連結。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638397445844740378.png"></p> <p>Supporting Content 部分還算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638397445846881782.png"></p> <p>大部分時侯 Citation 連結指向的頁面也是對的：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638397445849410568.png"></p> <p>加考重機考照年齡，ChatGPT 也沒被難倒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638397445851320475.png"></p> <p>甚至惡搞故意胡亂提問... 哈，這回答我給過!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638397445853863887.png"></p> <p>我對機器學習、向量索引不熟，還沒完全搞懂 RAG 原理，但這個實測結果讓我很滿意，感覺已達可上場應戰的水平。未來有適當情境，應可將 RAG 列為解決方案之一。</p> <p data-slug="rag" data-title-en="Azure RAG lab" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2014/05/21/14/55/bobby-car-349695_960_720.jpg#960#720">My first RAG lab to run ChatGPT with custom data.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638397445830811048.png" medium="image"/>
-    <pubDate>Mon, 01 Jan 2024 22:14:41 GMT</pubDate>
   </item></channel>
 </rss>
