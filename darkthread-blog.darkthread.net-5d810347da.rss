@@ -30,6 +30,342 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[偷看 Dapper 產生的 SQL 指令與參數型別]]></title>
+    <link>https://blog.darkthread.net/blog/spy-parameter-types-in-dapper/</link>
+    <itunes:title><![CDATA[偷看 Dapper 產生的 SQL 指令與參數型別]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
+{
+private readonly string _connectionString;
+public OracleDbConnectionFactory(string connectionString)
+{
+_connectionString = connectionString;
+}
+public DbConnection CreateConnection()
+{
+return new OracleConnection(_connectionString);
+}
+}
+</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
+using Oracle.ManagedDataAccess.Client;
+using StackExchange.Profiling.Internal;
+using System;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.Dynamic;
+using System.Linq;
+using System.Reflection;
+using System.Transactions;
+namespace NetFxConsole
+{
+internal class Program
+{
+// TODO: encrypt the connection string and store it in the app.config
+private const string csOracle =
+"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
+private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
+static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
+{
+var sqlMapperType = typeof(SqlMapper);
+var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
+// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
+var identity = sqlMapperIdentityType.GetConstructors(
+BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
+{
+cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
+});
+dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
+.Invoke(null, new object[] { identity, paramArg, false });
+return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
+}
+public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
+{
+var command = new CommandDefinition(commandText, paramArg);
+var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
+var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
+var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
+switch (cmd)
+{
+case OracleCommand oc:
+Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
+foreach (OracleParameter p in oc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
+}
+break;
+case SqlCommand sc:
+Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
+foreach (SqlParameter p in sc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
+}
+break;
+default:
+throw new NotSupportedException();
+}
+}
+static void Main(string[] args)
+{
+var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
+var paramObject = new
+{
+name = "Jeffrey",
+regDate = new DateTime(2012, 12, 21),
+score = 32767
+};
+using (var cn = new OracleConnection(csOracle))
+{
+SimulateDapperDbParameters(sql, cn, paramObject);
+FixOdpNetDbTypeStringMapping();
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+using (var cn = new SqlConnection(csMsSql))
+{
+sql = sql.Replace(":", "@");
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+Console.ReadLine();
+}
+// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
+static void FixOdpNetDbTypeStringMapping()
+{
+Assembly asm = typeof(OracleConnection).Assembly;
+Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
+var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
+BindingFlags.Static | BindingFlags.NonPublic);
+int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
+mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
+fldDbTypeMapping.SetValue(null, mappings);
+}
+}
+}
+</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
+{
+private readonly string _connectionString;
+public OracleDbConnectionFactory(string connectionString)
+{
+_connectionString = connectionString;
+}
+public DbConnection CreateConnection()
+{
+return new OracleConnection(_connectionString);
+}
+}
+</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
+using Oracle.ManagedDataAccess.Client;
+using StackExchange.Profiling.Internal;
+using System;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.Dynamic;
+using System.Linq;
+using System.Reflection;
+using System.Transactions;
+namespace NetFxConsole
+{
+internal class Program
+{
+// TODO: encrypt the connection string and store it in the app.config
+private const string csOracle =
+"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
+private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
+static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
+{
+var sqlMapperType = typeof(SqlMapper);
+var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
+// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
+var identity = sqlMapperIdentityType.GetConstructors(
+BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
+{
+cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
+});
+dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
+.Invoke(null, new object[] { identity, paramArg, false });
+return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
+}
+public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
+{
+var command = new CommandDefinition(commandText, paramArg);
+var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
+var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
+var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
+switch (cmd)
+{
+case OracleCommand oc:
+Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
+foreach (OracleParameter p in oc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
+}
+break;
+case SqlCommand sc:
+Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
+foreach (SqlParameter p in sc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
+}
+break;
+default:
+throw new NotSupportedException();
+}
+}
+static void Main(string[] args)
+{
+var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
+var paramObject = new
+{
+name = "Jeffrey",
+regDate = new DateTime(2012, 12, 21),
+score = 32767
+};
+using (var cn = new OracleConnection(csOracle))
+{
+SimulateDapperDbParameters(sql, cn, paramObject);
+FixOdpNetDbTypeStringMapping();
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+using (var cn = new SqlConnection(csMsSql))
+{
+sql = sql.Replace(":", "@");
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+Console.ReadLine();
+}
+// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
+static void FixOdpNetDbTypeStringMapping()
+{
+Assembly asm = typeof(OracleConnection).Assembly;
+Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
+var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
+BindingFlags.Static | BindingFlags.NonPublic);
+int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
+mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
+fldDbTypeMapping.SetValue(null, mappings);
+}
+}
+}
+</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
+{
+private readonly string _connectionString;
+public OracleDbConnectionFactory(string connectionString)
+{
+_connectionString = connectionString;
+}
+public DbConnection CreateConnection()
+{
+return new OracleConnection(_connectionString);
+}
+}
+</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
+using Oracle.ManagedDataAccess.Client;
+using StackExchange.Profiling.Internal;
+using System;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.Dynamic;
+using System.Linq;
+using System.Reflection;
+using System.Transactions;
+namespace NetFxConsole
+{
+internal class Program
+{
+// TODO: encrypt the connection string and store it in the app.config
+private const string csOracle =
+"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
+private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
+static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
+{
+var sqlMapperType = typeof(SqlMapper);
+var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
+// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
+var identity = sqlMapperIdentityType.GetConstructors(
+BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
+{
+cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
+});
+dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
+.Invoke(null, new object[] { identity, paramArg, false });
+return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
+}
+public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
+{
+var command = new CommandDefinition(commandText, paramArg);
+var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
+var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
+var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
+switch (cmd)
+{
+case OracleCommand oc:
+Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
+foreach (OracleParameter p in oc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
+}
+break;
+case SqlCommand sc:
+Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
+foreach (SqlParameter p in sc.Parameters)
+{
+Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
+}
+break;
+default:
+throw new NotSupportedException();
+}
+}
+static void Main(string[] args)
+{
+var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
+var paramObject = new
+{
+name = "Jeffrey",
+regDate = new DateTime(2012, 12, 21),
+score = 32767
+};
+using (var cn = new OracleConnection(csOracle))
+{
+SimulateDapperDbParameters(sql, cn, paramObject);
+FixOdpNetDbTypeStringMapping();
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+using (var cn = new SqlConnection(csMsSql))
+{
+sql = sql.Replace(":", "@");
+SimulateDapperDbParameters(sql, cn, paramObject);
+}
+Console.ReadLine();
+}
+// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
+static void FixOdpNetDbTypeStringMapping()
+{
+Assembly asm = typeof(OracleConnection).Assembly;
+Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
+var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
+BindingFlags.Static | BindingFlags.NonPublic);
+int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
+mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
+fldDbTypeMapping.SetValue(null, mappings);
+}
+}
+}
+</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png" medium="image"/>
+    <pubDate>Tue, 16 Jan 2024 12:53:01 GMT</pubDate>
+  </item><item>
     <title><![CDATA[動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性]]></title>
     <link>https://blog.darkthread.net/blog/text-embedding-ada-002-lab/</link>
     <itunes:title><![CDATA[動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性]]></itunes:title>
@@ -1646,377 +1982,5 @@ public string Name { get; set; }
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638399796686426395.png" medium="image"/>
     <pubDate>Thu, 04 Jan 2024 15:40:20 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[UI 設計小錦囊 - 20 種差異鮮明色彩組合]]></title>
-    <link>https://blog.darkthread.net/blog/20-distinct-colors/</link>
-    <itunes:title><![CDATA[UI 設計小錦囊 - 20 種差異鮮明色彩組合]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>寫網頁介面時，有時我會想用多種顏色表示不同類別資料，此時如何挑選一組彼此差異明顯的顏色，差異大到即使同框出現也不致混淆，這批顏色該如何搭配組合是個學問。</p> <p>面對這個常見的小需求，我 Google 到不錯的建議 - <a href="https://sashamaps.net/docs/resources/20-colors/">List of 20 Simple, Distinct Colors</a>，為了繪製捷運路線圖需要 20 種不同且差異鮮明的顏色(若加上黑白共 22 種)，作者花了不少時間，力求各顏色間不易混淆、色彩鮮明、具備對映顏色名稱，看起來也蠻順眼的，我很喜歡。</p> <p>考慮色弱及視力障礙人士的無障礙需求，作者還整理了涵蓋 99% (19色)、99.99% (9色)、100% (5色) 人口比例的較高反差組合。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif"></p> <p>另外，選擇 Convenient 順序時，可依序取用，若需要六個顏色則取 1 - 6，需要 12 種取 1 - 12，數字小的優先使用，效果較好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638398895478303595.png"></p> <p>為了方便使用，我將這 20 種顏色轉成 CSS 樣式並分為前景版及背景版，背景版還需依據背景色選用醒目的文字顏色，我想到之前 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">魔術數字公式</a>： <code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff';</code></p> <p>寫幾行 JavaScript 產生 CSS 樣式：</p> <pre><code>const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const complementary = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-console.log(pool.map((c, i) =&gt; `.dc-${i} { color:${c}; } .dbc-${i} { color:${complementary(c)}; background-color:${c}; }`).join('
-'));
-</code></pre> <p>最後輸出結果如下：</p> <pre><code>.dc-0 { color:'#e6194B'; } .dbc-0 { color:'#ffffff'; background-color:'#e6194B'; }
-.dc-1 { color:'#3cb44b'; } .dbc-1 { color:'#ffffff'; background-color:'#3cb44b'; }
-.dc-2 { color:'#ffe119'; } .dbc-2 { color:'#000000'; background-color:'#ffe119'; }
-.dc-3 { color:'#4363d8'; } .dbc-3 { color:'#ffffff'; background-color:'#4363d8'; }
-.dc-4 { color:'#f58231'; } .dbc-4 { color:'#ffffff'; background-color:'#f58231'; }
-.dc-5 { color:'#911eb4'; } .dbc-5 { color:'#ffffff'; background-color:'#911eb4'; }
-.dc-6 { color:'#42d4f4'; } .dbc-6 { color:'#ffffff'; background-color:'#42d4f4'; }
-.dc-7 { color:'#f032e6'; } .dbc-7 { color:'#ffffff'; background-color:'#f032e6'; }
-.dc-8 { color:'#bfef45'; } .dbc-8 { color:'#000000'; background-color:'#bfef45'; }
-.dc-9 { color:'#fabed4'; } .dbc-9 { color:'#000000'; background-color:'#fabed4'; }
-.dc-10 { color:'#469990'; } .dbc-10 { color:'#ffffff'; background-color:'#469990'; }
-.dc-11 { color:'#dcbeff'; } .dbc-11 { color:'#000000'; background-color:'#dcbeff'; }
-.dc-12 { color:'#9A6324'; } .dbc-12 { color:'#ffffff'; background-color:'#9A6324'; }
-.dc-13 { color:'#fffac8'; } .dbc-13 { color:'#000000'; background-color:'#fffac8'; }
-.dc-14 { color:'#800000'; } .dbc-14 { color:'#ffffff'; background-color:'#800000'; }
-.dc-15 { color:'#aaffc3'; } .dbc-15 { color:'#000000'; background-color:'#aaffc3'; }
-.dc-16 { color:'#808000'; } .dbc-16 { color:'#ffffff'; background-color:'#808000'; }
-.dc-17 { color:'#ffd8b1'; } .dbc-17 { color:'#000000'; background-color:'#ffd8b1'; }
-.dc-18 { color:'#000075'; } .dbc-18 { color:'#ffffff'; background-color:'#000075'; }
-.dc-19 { color:'#a9a9a9'; } .dbc-19 { color:'#ffffff'; background-color:'#a9a9a9'; }
-.dc-20 { color:'#ffffff'; } .dbc-20 { color:'#000000'; background-color:'#ffffff'; }
-.dc-21 { color:'#000000'; } .dbc-21 { color:'#ffffff'; background-color:'#000000'; }
-</code></pre> <p>簡單寫個網頁測試效果：<a href="https://output.jsbin.com/gajasum">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;style&gt;
-.dc-0 { color:#e6194B; } .dbc-0 { color:#ffffff; background-color:#e6194B; }
-.dc-1 { color:#3cb44b; } .dbc-1 { color:#ffffff; background-color:#3cb44b; }
-.dc-2 { color:#ffe119; } .dbc-2 { color:#000000; background-color:#ffe119; }
-.dc-3 { color:#4363d8; } .dbc-3 { color:#ffffff; background-color:#4363d8; }
-.dc-4 { color:#f58231; } .dbc-4 { color:#ffffff; background-color:#f58231; }
-.dc-5 { color:#911eb4; } .dbc-5 { color:#ffffff; background-color:#911eb4; }
-.dc-6 { color:#42d4f4; } .dbc-6 { color:#ffffff; background-color:#42d4f4; }
-.dc-7 { color:#f032e6; } .dbc-7 { color:#ffffff; background-color:#f032e6; }
-.dc-8 { color:#bfef45; } .dbc-8 { color:#000000; background-color:#bfef45; }
-.dc-9 { color:#fabed4; } .dbc-9 { color:#000000; background-color:#fabed4; }
-.dc-10 { color:#469990; } .dbc-10 { color:#ffffff; background-color:#469990; }
-.dc-11 { color:#dcbeff; } .dbc-11 { color:#000000; background-color:#dcbeff; }
-.dc-12 { color:#9A6324; } .dbc-12 { color:#ffffff; background-color:#9A6324; }
-.dc-13 { color:#fffac8; } .dbc-13 { color:#000000; background-color:#fffac8; }
-.dc-14 { color:#800000; } .dbc-14 { color:#ffffff; background-color:#800000; }
-.dc-15 { color:#aaffc3; } .dbc-15 { color:#000000; background-color:#aaffc3; }
-.dc-16 { color:#808000; } .dbc-16 { color:#ffffff; background-color:#808000; }
-.dc-17 { color:#ffd8b1; } .dbc-17 { color:#000000; background-color:#ffd8b1; }
-.dc-18 { color:#000075; } .dbc-18 { color:#ffffff; background-color:#000075; }
-.dc-19 { color:#a9a9a9; } .dbc-19 { color:#ffffff; background-color:#a9a9a9; }
-.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffff; }
-.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000; }
-&lt;/style&gt;
-&lt;style&gt;
-input[type="number"] {
-width: 4em;
-}
-.blocks {
-display: flex;
-flex-direction: row;
-flex-wrap: wrap;
-padding: 6px;
-}
-.blocks &gt; span {
-width: 2em; text-align: center;
-margin: 2px;
-border: 1px solid #ccc;
-}
-&lt;/style&gt;
-&lt;script src="https://unpkg.com/vue@next"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="colorCount" min="4" max="22" /&gt; Colors
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="blockCount" min="10" max="255" /&gt; Blocks
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="checkbox" v-model="bgcolor" /&gt; Background
-&lt;/label&gt;
-&lt;div class="blocks"&gt;
-&lt;span v-for="item in items" :class="item.css"&gt;
-{{item.seq}}
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const app = Vue.createApp({
-data: function () {
-return {
-colorCount: 20,
-blockCount: 100,
-bgcolor: false
-};
-},
-computed: {
-items: function () {
-const items = [];
-for (let i = 0; i &lt; this.blockCount; i++) {
-items.push({
-seq: i + 1,
-css: (this.bgcolor ? 'dbc-' : 'dc-') + (parseInt(Math.random() * this.colorCount) % this.colorCount)
-});
-}
-items.sort(() =&gt; Math.random() - 0.5);
-return items;
-}
-},
-});
-app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638398894080392622.gif"></p> <p>收入 UI 設計錦囊!</p> <p data-slug="20-distinct-colors" data-title-en="20 distinct colors for UI design" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/05/31/23/23/watercolor-3445376_1280.jpg#1280#720">The suggestion of 20 distinct colors in same UI, this article shows a easy way to use them in HTML.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>寫網頁介面時，有時我會想用多種顏色表示不同類別資料，此時如何挑選一組彼此差異明顯的顏色，差異大到即使同框出現也不致混淆，這批顏色該如何搭配組合是個學問。</p> <p>面對這個常見的小需求，我 Google 到不錯的建議 - <a href="https://sashamaps.net/docs/resources/20-colors/">List of 20 Simple, Distinct Colors</a>，為了繪製捷運路線圖需要 20 種不同且差異鮮明的顏色(若加上黑白共 22 種)，作者花了不少時間，力求各顏色間不易混淆、色彩鮮明、具備對映顏色名稱，看起來也蠻順眼的，我很喜歡。</p> <p>考慮色弱及視力障礙人士的無障礙需求，作者還整理了涵蓋 99% (19色)、99.99% (9色)、100% (5色) 人口比例的較高反差組合。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif"></p> <p>另外，選擇 Convenient 順序時，可依序取用，若需要六個顏色則取 1 - 6，需要 12 種取 1 - 12，數字小的優先使用，效果較好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638398895478303595.png"></p> <p>為了方便使用，我將這 20 種顏色轉成 CSS 樣式並分為前景版及背景版，背景版還需依據背景色選用醒目的文字顏色，我想到之前 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">魔術數字公式</a>： <code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff';</code></p> <p>寫幾行 JavaScript 產生 CSS 樣式：</p> <pre><code>const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const complementary = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-console.log(pool.map((c, i) =&gt; `.dc-${i} { color:${c}; } .dbc-${i} { color:${complementary(c)}; background-color:${c}; }`).join('
-'));
-</code></pre> <p>最後輸出結果如下：</p> <pre><code>.dc-0 { color:'#e6194B'; } .dbc-0 { color:'#ffffff'; background-color:'#e6194B'; }
-.dc-1 { color:'#3cb44b'; } .dbc-1 { color:'#ffffff'; background-color:'#3cb44b'; }
-.dc-2 { color:'#ffe119'; } .dbc-2 { color:'#000000'; background-color:'#ffe119'; }
-.dc-3 { color:'#4363d8'; } .dbc-3 { color:'#ffffff'; background-color:'#4363d8'; }
-.dc-4 { color:'#f58231'; } .dbc-4 { color:'#ffffff'; background-color:'#f58231'; }
-.dc-5 { color:'#911eb4'; } .dbc-5 { color:'#ffffff'; background-color:'#911eb4'; }
-.dc-6 { color:'#42d4f4'; } .dbc-6 { color:'#ffffff'; background-color:'#42d4f4'; }
-.dc-7 { color:'#f032e6'; } .dbc-7 { color:'#ffffff'; background-color:'#f032e6'; }
-.dc-8 { color:'#bfef45'; } .dbc-8 { color:'#000000'; background-color:'#bfef45'; }
-.dc-9 { color:'#fabed4'; } .dbc-9 { color:'#000000'; background-color:'#fabed4'; }
-.dc-10 { color:'#469990'; } .dbc-10 { color:'#ffffff'; background-color:'#469990'; }
-.dc-11 { color:'#dcbeff'; } .dbc-11 { color:'#000000'; background-color:'#dcbeff'; }
-.dc-12 { color:'#9A6324'; } .dbc-12 { color:'#ffffff'; background-color:'#9A6324'; }
-.dc-13 { color:'#fffac8'; } .dbc-13 { color:'#000000'; background-color:'#fffac8'; }
-.dc-14 { color:'#800000'; } .dbc-14 { color:'#ffffff'; background-color:'#800000'; }
-.dc-15 { color:'#aaffc3'; } .dbc-15 { color:'#000000'; background-color:'#aaffc3'; }
-.dc-16 { color:'#808000'; } .dbc-16 { color:'#ffffff'; background-color:'#808000'; }
-.dc-17 { color:'#ffd8b1'; } .dbc-17 { color:'#000000'; background-color:'#ffd8b1'; }
-.dc-18 { color:'#000075'; } .dbc-18 { color:'#ffffff'; background-color:'#000075'; }
-.dc-19 { color:'#a9a9a9'; } .dbc-19 { color:'#ffffff'; background-color:'#a9a9a9'; }
-.dc-20 { color:'#ffffff'; } .dbc-20 { color:'#000000'; background-color:'#ffffff'; }
-.dc-21 { color:'#000000'; } .dbc-21 { color:'#ffffff'; background-color:'#000000'; }
-</code></pre> <p>簡單寫個網頁測試效果：<a href="https://output.jsbin.com/gajasum">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;style&gt;
-.dc-0 { color:#e6194B; } .dbc-0 { color:#ffffff; background-color:#e6194B; }
-.dc-1 { color:#3cb44b; } .dbc-1 { color:#ffffff; background-color:#3cb44b; }
-.dc-2 { color:#ffe119; } .dbc-2 { color:#000000; background-color:#ffe119; }
-.dc-3 { color:#4363d8; } .dbc-3 { color:#ffffff; background-color:#4363d8; }
-.dc-4 { color:#f58231; } .dbc-4 { color:#ffffff; background-color:#f58231; }
-.dc-5 { color:#911eb4; } .dbc-5 { color:#ffffff; background-color:#911eb4; }
-.dc-6 { color:#42d4f4; } .dbc-6 { color:#ffffff; background-color:#42d4f4; }
-.dc-7 { color:#f032e6; } .dbc-7 { color:#ffffff; background-color:#f032e6; }
-.dc-8 { color:#bfef45; } .dbc-8 { color:#000000; background-color:#bfef45; }
-.dc-9 { color:#fabed4; } .dbc-9 { color:#000000; background-color:#fabed4; }
-.dc-10 { color:#469990; } .dbc-10 { color:#ffffff; background-color:#469990; }
-.dc-11 { color:#dcbeff; } .dbc-11 { color:#000000; background-color:#dcbeff; }
-.dc-12 { color:#9A6324; } .dbc-12 { color:#ffffff; background-color:#9A6324; }
-.dc-13 { color:#fffac8; } .dbc-13 { color:#000000; background-color:#fffac8; }
-.dc-14 { color:#800000; } .dbc-14 { color:#ffffff; background-color:#800000; }
-.dc-15 { color:#aaffc3; } .dbc-15 { color:#000000; background-color:#aaffc3; }
-.dc-16 { color:#808000; } .dbc-16 { color:#ffffff; background-color:#808000; }
-.dc-17 { color:#ffd8b1; } .dbc-17 { color:#000000; background-color:#ffd8b1; }
-.dc-18 { color:#000075; } .dbc-18 { color:#ffffff; background-color:#000075; }
-.dc-19 { color:#a9a9a9; } .dbc-19 { color:#ffffff; background-color:#a9a9a9; }
-.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffff; }
-.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000; }
-&lt;/style&gt;
-&lt;style&gt;
-input[type="number"] {
-width: 4em;
-}
-.blocks {
-display: flex;
-flex-direction: row;
-flex-wrap: wrap;
-padding: 6px;
-}
-.blocks &gt; span {
-width: 2em; text-align: center;
-margin: 2px;
-border: 1px solid #ccc;
-}
-&lt;/style&gt;
-&lt;script src="https://unpkg.com/vue@next"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="colorCount" min="4" max="22" /&gt; Colors
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="blockCount" min="10" max="255" /&gt; Blocks
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="checkbox" v-model="bgcolor" /&gt; Background
-&lt;/label&gt;
-&lt;div class="blocks"&gt;
-&lt;span v-for="item in items" :class="item.css"&gt;
-{{item.seq}}
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const app = Vue.createApp({
-data: function () {
-return {
-colorCount: 20,
-blockCount: 100,
-bgcolor: false
-};
-},
-computed: {
-items: function () {
-const items = [];
-for (let i = 0; i &lt; this.blockCount; i++) {
-items.push({
-seq: i + 1,
-css: (this.bgcolor ? 'dbc-' : 'dc-') + (parseInt(Math.random() * this.colorCount) % this.colorCount)
-});
-}
-items.sort(() =&gt; Math.random() - 0.5);
-return items;
-}
-},
-});
-app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638398894080392622.gif"></p> <p>收入 UI 設計錦囊!</p> <p data-slug="20-distinct-colors" data-title-en="20 distinct colors for UI design" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/05/31/23/23/watercolor-3445376_1280.jpg#1280#720">The suggestion of 20 distinct colors in same UI, this article shows a easy way to use them in HTML.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>寫網頁介面時，有時我會想用多種顏色表示不同類別資料，此時如何挑選一組彼此差異明顯的顏色，差異大到即使同框出現也不致混淆，這批顏色該如何搭配組合是個學問。</p> <p>面對這個常見的小需求，我 Google 到不錯的建議 - <a href="https://sashamaps.net/docs/resources/20-colors/">List of 20 Simple, Distinct Colors</a>，為了繪製捷運路線圖需要 20 種不同且差異鮮明的顏色(若加上黑白共 22 種)，作者花了不少時間，力求各顏色間不易混淆、色彩鮮明、具備對映顏色名稱，看起來也蠻順眼的，我很喜歡。</p> <p>考慮色弱及視力障礙人士的無障礙需求，作者還整理了涵蓋 99% (19色)、99.99% (9色)、100% (5色) 人口比例的較高反差組合。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif"></p> <p>另外，選擇 Convenient 順序時，可依序取用，若需要六個顏色則取 1 - 6，需要 12 種取 1 - 12，數字小的優先使用，效果較好。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638398895478303595.png"></p> <p>為了方便使用，我將這 20 種顏色轉成 CSS 樣式並分為前景版及背景版，背景版還需依據背景色選用醒目的文字顏色，我想到之前 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">魔術數字公式</a>： <code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff';</code></p> <p>寫幾行 JavaScript 產生 CSS 樣式：</p> <pre><code>const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const complementary = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-console.log(pool.map((c, i) =&gt; `.dc-${i} { color:${c}; } .dbc-${i} { color:${complementary(c)}; background-color:${c}; }`).join('
-'));
-</code></pre> <p>最後輸出結果如下：</p> <pre><code>.dc-0 { color:'#e6194B'; } .dbc-0 { color:'#ffffff'; background-color:'#e6194B'; }
-.dc-1 { color:'#3cb44b'; } .dbc-1 { color:'#ffffff'; background-color:'#3cb44b'; }
-.dc-2 { color:'#ffe119'; } .dbc-2 { color:'#000000'; background-color:'#ffe119'; }
-.dc-3 { color:'#4363d8'; } .dbc-3 { color:'#ffffff'; background-color:'#4363d8'; }
-.dc-4 { color:'#f58231'; } .dbc-4 { color:'#ffffff'; background-color:'#f58231'; }
-.dc-5 { color:'#911eb4'; } .dbc-5 { color:'#ffffff'; background-color:'#911eb4'; }
-.dc-6 { color:'#42d4f4'; } .dbc-6 { color:'#ffffff'; background-color:'#42d4f4'; }
-.dc-7 { color:'#f032e6'; } .dbc-7 { color:'#ffffff'; background-color:'#f032e6'; }
-.dc-8 { color:'#bfef45'; } .dbc-8 { color:'#000000'; background-color:'#bfef45'; }
-.dc-9 { color:'#fabed4'; } .dbc-9 { color:'#000000'; background-color:'#fabed4'; }
-.dc-10 { color:'#469990'; } .dbc-10 { color:'#ffffff'; background-color:'#469990'; }
-.dc-11 { color:'#dcbeff'; } .dbc-11 { color:'#000000'; background-color:'#dcbeff'; }
-.dc-12 { color:'#9A6324'; } .dbc-12 { color:'#ffffff'; background-color:'#9A6324'; }
-.dc-13 { color:'#fffac8'; } .dbc-13 { color:'#000000'; background-color:'#fffac8'; }
-.dc-14 { color:'#800000'; } .dbc-14 { color:'#ffffff'; background-color:'#800000'; }
-.dc-15 { color:'#aaffc3'; } .dbc-15 { color:'#000000'; background-color:'#aaffc3'; }
-.dc-16 { color:'#808000'; } .dbc-16 { color:'#ffffff'; background-color:'#808000'; }
-.dc-17 { color:'#ffd8b1'; } .dbc-17 { color:'#000000'; background-color:'#ffd8b1'; }
-.dc-18 { color:'#000075'; } .dbc-18 { color:'#ffffff'; background-color:'#000075'; }
-.dc-19 { color:'#a9a9a9'; } .dbc-19 { color:'#ffffff'; background-color:'#a9a9a9'; }
-.dc-20 { color:'#ffffff'; } .dbc-20 { color:'#000000'; background-color:'#ffffff'; }
-.dc-21 { color:'#000000'; } .dbc-21 { color:'#ffffff'; background-color:'#000000'; }
-</code></pre> <p>簡單寫個網頁測試效果：<a href="https://output.jsbin.com/gajasum">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;style&gt;
-.dc-0 { color:#e6194B; } .dbc-0 { color:#ffffff; background-color:#e6194B; }
-.dc-1 { color:#3cb44b; } .dbc-1 { color:#ffffff; background-color:#3cb44b; }
-.dc-2 { color:#ffe119; } .dbc-2 { color:#000000; background-color:#ffe119; }
-.dc-3 { color:#4363d8; } .dbc-3 { color:#ffffff; background-color:#4363d8; }
-.dc-4 { color:#f58231; } .dbc-4 { color:#ffffff; background-color:#f58231; }
-.dc-5 { color:#911eb4; } .dbc-5 { color:#ffffff; background-color:#911eb4; }
-.dc-6 { color:#42d4f4; } .dbc-6 { color:#ffffff; background-color:#42d4f4; }
-.dc-7 { color:#f032e6; } .dbc-7 { color:#ffffff; background-color:#f032e6; }
-.dc-8 { color:#bfef45; } .dbc-8 { color:#000000; background-color:#bfef45; }
-.dc-9 { color:#fabed4; } .dbc-9 { color:#000000; background-color:#fabed4; }
-.dc-10 { color:#469990; } .dbc-10 { color:#ffffff; background-color:#469990; }
-.dc-11 { color:#dcbeff; } .dbc-11 { color:#000000; background-color:#dcbeff; }
-.dc-12 { color:#9A6324; } .dbc-12 { color:#ffffff; background-color:#9A6324; }
-.dc-13 { color:#fffac8; } .dbc-13 { color:#000000; background-color:#fffac8; }
-.dc-14 { color:#800000; } .dbc-14 { color:#ffffff; background-color:#800000; }
-.dc-15 { color:#aaffc3; } .dbc-15 { color:#000000; background-color:#aaffc3; }
-.dc-16 { color:#808000; } .dbc-16 { color:#ffffff; background-color:#808000; }
-.dc-17 { color:#ffd8b1; } .dbc-17 { color:#000000; background-color:#ffd8b1; }
-.dc-18 { color:#000075; } .dbc-18 { color:#ffffff; background-color:#000075; }
-.dc-19 { color:#a9a9a9; } .dbc-19 { color:#ffffff; background-color:#a9a9a9; }
-.dc-20 { color:#ffffff; } .dbc-20 { color:#000000; background-color:#ffffff; }
-.dc-21 { color:#000000; } .dbc-21 { color:#ffffff; background-color:#000000; }
-&lt;/style&gt;
-&lt;style&gt;
-input[type="number"] {
-width: 4em;
-}
-.blocks {
-display: flex;
-flex-direction: row;
-flex-wrap: wrap;
-padding: 6px;
-}
-.blocks &gt; span {
-width: 2em; text-align: center;
-margin: 2px;
-border: 1px solid #ccc;
-}
-&lt;/style&gt;
-&lt;script src="https://unpkg.com/vue@next"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="colorCount" min="4" max="22" /&gt; Colors
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="number" v-model="blockCount" min="10" max="255" /&gt; Blocks
-&lt;/label&gt;
-&lt;label&gt;
-&lt;input type="checkbox" v-model="bgcolor" /&gt; Background
-&lt;/label&gt;
-&lt;div class="blocks"&gt;
-&lt;span v-for="item in items" :class="item.css"&gt;
-{{item.seq}}
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const app = Vue.createApp({
-data: function () {
-return {
-colorCount: 20,
-blockCount: 100,
-bgcolor: false
-};
-},
-computed: {
-items: function () {
-const items = [];
-for (let i = 0; i &lt; this.blockCount; i++) {
-items.push({
-seq: i + 1,
-css: (this.bgcolor ? 'dbc-' : 'dc-') + (parseInt(Math.random() * this.colorCount) % this.colorCount)
-});
-}
-items.sort(() =&gt; Math.random() - 0.5);
-return items;
-}
-},
-});
-app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638398894080392622.gif"></p> <p>收入 UI 設計錦囊!</p> <p data-slug="20-distinct-colors" data-title-en="20 distinct colors for UI design" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2018/05/31/23/23/watercolor-3445376_1280.jpg#1280#720">The suggestion of 20 distinct colors in same UI, this article shows a easy way to use them in HTML.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638398894075441030.gif" medium="image"/>
-    <pubDate>Wed, 03 Jan 2024 14:28:51 GMT</pubDate>
   </item></channel>
 </rss>
