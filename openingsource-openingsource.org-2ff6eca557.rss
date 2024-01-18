@@ -30,6 +30,615 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></title>
+    <link>https://openingsource.org/11544/</link>
+    <itunes:title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月18日，开源日报第1078期：<br>
+今日推荐开源项目：《fish-shell》<br>
+今日推荐英文原文：《React — Each and Of Pattern》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
+<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
+<p>官网直达：fishshell.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
+<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
+<hr>
+<h1>React — Each and Of Pattern</h1>
+<h1>Each and Of in React</h1>
+<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
+<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
+<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
+<h2>Each and Or Pattern</h2>
+<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
+<p><strong>Use Map</strong></p>
+<pre><code>{
+customers.map((customer) =&gt; {
+return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
+})
+}</code></pre>
+<p><strong>Use For loop and variations</strong></p>
+<pre><code>// before render
+const renderCustomers = () =&gt; {
+const cards = []
+for(let i = 0; i &lt; customers.length; i++){
+cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
+}
+return cards;
+}
+// inside render
+{
+renderCustomers()
+}</code></pre>
+<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
+<pre><code>// in render
+&lt;Each of={customers} render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}} /&gt;</code></pre>
+<p><em>Question — What is the benefit of this approach?</em></p>
+<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
+<ul>
+<li>No need to worry about <code>key</code> property of rendering your cards</li>
+<li>Pass additional list-specific features like sort or filter callback</li>
+<li>Give a search functionality that will be generic to all of your list</li>
+</ul>
+<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
+<h2>Implementation</h2>
+<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of }) =&gt; {
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}</code></pre>
+<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
+<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of, options }) =&gt; {
+if(options.filter){
+return Children.toArray(
+of.filter(options.filter)
+.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+// Usage
+&lt;Each of={customers}
+options = {
+{
+filter: (customer) =&gt; !customer.isBlocked
+}
+}
+render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}}
+/&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月18日，开源日报第1078期：<br>
+今日推荐开源项目：《fish-shell》<br>
+今日推荐英文原文：《React — Each and Of Pattern》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
+<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
+<p>官网直达：fishshell.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
+<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
+<hr>
+<h1>React — Each and Of Pattern</h1>
+<h1>Each and Of in React</h1>
+<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
+<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
+<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
+<h2>Each and Or Pattern</h2>
+<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
+<p><strong>Use Map</strong></p>
+<pre><code>{
+customers.map((customer) =&gt; {
+return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
+})
+}</code></pre>
+<p><strong>Use For loop and variations</strong></p>
+<pre><code>// before render
+const renderCustomers = () =&gt; {
+const cards = []
+for(let i = 0; i &lt; customers.length; i++){
+cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
+}
+return cards;
+}
+// inside render
+{
+renderCustomers()
+}</code></pre>
+<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
+<pre><code>// in render
+&lt;Each of={customers} render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}} /&gt;</code></pre>
+<p><em>Question — What is the benefit of this approach?</em></p>
+<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
+<ul>
+<li>No need to worry about <code>key</code> property of rendering your cards</li>
+<li>Pass additional list-specific features like sort or filter callback</li>
+<li>Give a search functionality that will be generic to all of your list</li>
+</ul>
+<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
+<h2>Implementation</h2>
+<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of }) =&gt; {
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}</code></pre>
+<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
+<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of, options }) =&gt; {
+if(options.filter){
+return Children.toArray(
+of.filter(options.filter)
+.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+// Usage
+&lt;Each of={customers}
+options = {
+{
+filter: (customer) =&gt; !customer.isBlocked
+}
+}
+render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}}
+/&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月18日，开源日报第1078期：<br>
+今日推荐开源项目：《fish-shell》<br>
+今日推荐英文原文：《React — Each and Of Pattern》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
+<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
+<p>官网直达：fishshell.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
+<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
+<hr>
+<h1>React — Each and Of Pattern</h1>
+<h1>Each and Of in React</h1>
+<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
+<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
+<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
+<h2>Each and Or Pattern</h2>
+<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
+<p><strong>Use Map</strong></p>
+<pre><code>{
+customers.map((customer) =&gt; {
+return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
+})
+}</code></pre>
+<p><strong>Use For loop and variations</strong></p>
+<pre><code>// before render
+const renderCustomers = () =&gt; {
+const cards = []
+for(let i = 0; i &lt; customers.length; i++){
+cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
+}
+return cards;
+}
+// inside render
+{
+renderCustomers()
+}</code></pre>
+<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
+<pre><code>// in render
+&lt;Each of={customers} render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}} /&gt;</code></pre>
+<p><em>Question — What is the benefit of this approach?</em></p>
+<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
+<ul>
+<li>No need to worry about <code>key</code> property of rendering your cards</li>
+<li>Pass additional list-specific features like sort or filter callback</li>
+<li>Give a search functionality that will be generic to all of your list</li>
+</ul>
+<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
+<h2>Implementation</h2>
+<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of }) =&gt; {
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}</code></pre>
+<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
+<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
+<pre><code>import { Children } from 'react';
+export const Each = ({ render, of, options }) =&gt; {
+if(options.filter){
+return Children.toArray(
+of.filter(options.filter)
+.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+return Children.toArray(
+of.map((item, index) =&gt; {
+return render(item, index)
+})
+)
+}
+// Usage
+&lt;Each of={customers}
+options = {
+{
+filter: (customer) =&gt; !customer.isBlocked
+}
+}
+render={(customer) =&gt; {
+return &lt;CustomerCard customer={customer} /&gt;
+}}
+/&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg" medium="image"/>
+    <pubDate>Thu, 18 Jan 2024 12:10:32 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1077期：一套ui全搞定：《chatgpt-web-midjourney-proxy》]]></title>
+    <link>https://openingsource.org/11541/</link>
+    <itunes:title><![CDATA[开源日报第1077期：一套ui全搞定：《chatgpt-web-midjourney-proxy》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月17日，开源日报第1077期：<br>
+今日推荐开源项目：《chatgpt-web-midjourney-proxy》<br>
+今日推荐英文原文：《Nuxt 3.9》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240117.jpg.pagespeed.ic.NRhn-LspTH.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《chatgpt-web-midjourney-proxy 》传送门：<a href="https://github.com/Dooy/chatgpt-web-midjourney-proxy" target="_blank">项目链接</a> </p>
+<p>推荐理由： chatgpt-web-midjourney-proxy chatgpt web, midjourney, gpts,tts, whisper 一套ui全搞定</p>
+<p>官网直达：vercel.ddaiai.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://nuxt.com/blog/v3-9" target="_blank">Nuxt 3.9</a></p>
+<p>推荐理由：Nuxt 3.9发布，引入了Vite 5、交互式服务器组件、新的组合式API等功能, 支持Vite 5和Rollup 4，需要检查vite插件的兼容性，使用新的AST-aware 'define'进行自动服务器优化， 同时新增钩子和工具，如Granular Loading API和callOnce</p>
+<hr>
+<h1>Nuxt 3.9</h1>
+<p>Nuxt 3.9 is out - a Christmas gift from the Nuxt team bringing Vite 5, interactive server components, new composables, a new loading API and more.</p>
+<p>A very merry Christmas to you and yours from all Nuxters involved in this release! 🎁🎄</p>
+<p>We have lots of features packed into v3.9 and can't wait for you to try them out.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#️-vite-5" target="_blank">⚡️ Vite 5</a></h3>
+<p>This release comes with Vite 5 and Rollup 4 support. Module authors may need to check to ensure that any vite plugins you're creating are compatible with these latest releases.</p>
+<p>This comes with a whole host of great improvements and bug fixes - check out <a href="https://vitejs.dev/guide/migration.html#migration-from-v4" target="_blank">the Vite changelog</a> for more info.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#vue-34-ready" target="_blank">✨ Vue 3.4 ready</a></h3>
+<p>This release is tested with the latest Vue 3.4 release candidate, and has the necessary configuration to take advantage of <a href="https://blog.vuejs.org/posts/vue-3-4" target="_blank">new features in Vue 3.4</a>, including debugging hydration errors in production (just set <code>debug: true</code>) in your Nuxt config.</p>
+<p>👉 To take advantage, just update your <code>vue</code> version once v3.4 is released, or try out the release candidate today:</p>
+<p>package.json</p>
+<pre><code>{
+"dependencies": {
+"nuxt": "3.9.0",
+"vue": "3.4.0-rc.1",
+"vue-router": "latest"
+}
+}</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#️-interactive-server-components" target="_blank">🏝️ Interactive Server Components</a></h3>
+<p>This is a highly-experimental update, but it's now possible to play around with interactive components within Nuxt server components. You'll need to enable this new feature additionally to component islands:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+experimental: {
+componentIslands: {
+selectiveClient: true
+}
+}
+})</code></pre>
+<p>Now, within a server component, you can specify components to hydrate by using the <code>nuxt-client</code> directive:</p>
+<p>components/SomeComponent.server.vue</p>
+<pre><code>&lt;NuxtLink :to="/" nuxt-client /&gt;</code></pre>
+<p>We're pretty excited about this one - so do let us know how you're using it! 🙏</p>
+<h3><a href="https://nuxt.com/blog/v3-9#automatic-server-optimisations" target="_blank">🔥 Automatic Server Optimisations</a></h3>
+<p>We now use Vite's new AST-aware 'define' to perform more accurate replacements on server-side code, meaning code like this will no longer throw an error:</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup lang="ts"&gt;
+if (document) {
+console.log(document.querySelector('div'))
+}
+&lt;/script&gt;</code></pre>
+<p>This hasn't been possible until now because we haven't wanted to run the risk of accidentally replacing normal words like <code>document</code> within non-JS parts of your apps. But Vite's new <code>define</code> functionality is powered by <code>esbuild</code> and is syntax-aware, so we feel confident in enabling this functionality. Nevertheless, you can opt out if you need to:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+hooks: {
+'vite:extendConfig' (config) {
+delete config.define!.document
+}
+}
+})</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#granular-loading-api" target="_blank">🚦 Granular Loading API</a></h3>
+<p>We now have a new hook-based system for [<code><code>](https://nuxt.com/docs/api/components/nuxt-loading-indicator), including a </code>useLoadingIndicator<code> composable that lets you control/stop/start the loading state. You can also hook into </code>page:loading:start<code> and </code>page:loading:end</code> if you prefer.</p>
+<p>You can read more <a href="https://nuxt.com/docs/api/composables/use-loading-indicator" target="_blank">in the docs</a> and in the original PR (<a href="https://github.com/nuxt/nuxt/pull/24010" target="_blank">#24010</a>).</p>
+<h3><a href="https://nuxt.com/blog/v3-9#run-single-events-in-callonce" target="_blank">🏁 Run single events in <code>callOnce</code></a></h3>
+<p>Sometimes you only want to run code once, no matter how many times you load a page - and you don't want to run it again on the client if it ran on the server.</p>
+<p>For this, we have a new utility: <a href="https://nuxt.com/docs/api/utils/call-once" target="_blank"><code>callOnce</code></a> (<a href="https://github.com/nuxt/nuxt/pull/24787" target="_blank">#24787</a>).</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup&gt;
+const websiteConfig = useState('config')
+await callOnce(async () =&gt; {
+console.log('This will only be logged once')
+websiteConfig.value = await $fetch('https://my-cms.com/api/website-config')
+})
+&lt;/script&gt;</code></pre>
+<p>Note that this utility is context-aware so it <em>must</em> be called in component setup function or Nuxt plugin, as with other Nuxt composables.</p>
+<p>Read more in <strong>Docs &gt; API &gt; Utils &gt; Call Once</strong>.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#error-types" target="_blank">🚨 Error Types</a></h3>
+<p>For a while now, errors returned by <code>useAsyncData</code> and <code>useFetch</code> have been typed pretty generically as <code>Error</code>. We've significantly improved the type possibilities for them to make them more accurate in terms of what you'll actually receive. (We normalise errors with the <code>h3</code> <code>createError</code> utility under the hood, so they can be serialised from server to client, for example.)</p>
+<p>We've tried to implement the type change in a backwards compatible way, but you might notice that you need to update the generic if you're manually configuring the generics for these composables. See (<a href="https://github.com/nuxt/nuxt/pull/24396" target="_blank">#24396</a>) for more information, and do let us know if you experience any issues.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#schema-performance" target="_blank">🔥 Schema Performance</a></h3>
+<p>We've taken some time in this release to make some minor performance improvements, so you should notice some things are a bit faster. This is an ongoing project and we have ideas for improving initial load time of the Nuxt dev server.</p>
+<h2><a href="https://nuxt.com/blog/v3-9#upgrading" target="_blank">✅ Upgrading</a></h2>
+<p>As usual, our recommendation for upgrading is to run:</p>
+<pre><code>nuxi upgrade</code></pre>
+<h2><a href="https://nuxt.com/blog/v3-9#full-release-notes" target="_blank">Full Release Notes</a></h2>
+<p>Read the full release notes of Nuxt <code>v3.9.0</code>.</p>
+<p>Thank you for reading this far! We hope you enjoy the new release. Please do let us know if you have any feedback or issues.</p>
+<p><strong>Happy Nuxting ✨</strong></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月17日，开源日报第1077期：<br>
+今日推荐开源项目：《chatgpt-web-midjourney-proxy》<br>
+今日推荐英文原文：《Nuxt 3.9》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240117.jpg.pagespeed.ic.NRhn-LspTH.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《chatgpt-web-midjourney-proxy 》传送门：<a href="https://github.com/Dooy/chatgpt-web-midjourney-proxy" target="_blank">项目链接</a> </p>
+<p>推荐理由： chatgpt-web-midjourney-proxy chatgpt web, midjourney, gpts,tts, whisper 一套ui全搞定</p>
+<p>官网直达：vercel.ddaiai.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://nuxt.com/blog/v3-9" target="_blank">Nuxt 3.9</a></p>
+<p>推荐理由：Nuxt 3.9发布，引入了Vite 5、交互式服务器组件、新的组合式API等功能, 支持Vite 5和Rollup 4，需要检查vite插件的兼容性，使用新的AST-aware 'define'进行自动服务器优化， 同时新增钩子和工具，如Granular Loading API和callOnce</p>
+<hr>
+<h1>Nuxt 3.9</h1>
+<p>Nuxt 3.9 is out - a Christmas gift from the Nuxt team bringing Vite 5, interactive server components, new composables, a new loading API and more.</p>
+<p>A very merry Christmas to you and yours from all Nuxters involved in this release! 🎁🎄</p>
+<p>We have lots of features packed into v3.9 and can't wait for you to try them out.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#️-vite-5" target="_blank">⚡️ Vite 5</a></h3>
+<p>This release comes with Vite 5 and Rollup 4 support. Module authors may need to check to ensure that any vite plugins you're creating are compatible with these latest releases.</p>
+<p>This comes with a whole host of great improvements and bug fixes - check out <a href="https://vitejs.dev/guide/migration.html#migration-from-v4" target="_blank">the Vite changelog</a> for more info.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#vue-34-ready" target="_blank">✨ Vue 3.4 ready</a></h3>
+<p>This release is tested with the latest Vue 3.4 release candidate, and has the necessary configuration to take advantage of <a href="https://blog.vuejs.org/posts/vue-3-4" target="_blank">new features in Vue 3.4</a>, including debugging hydration errors in production (just set <code>debug: true</code>) in your Nuxt config.</p>
+<p>👉 To take advantage, just update your <code>vue</code> version once v3.4 is released, or try out the release candidate today:</p>
+<p>package.json</p>
+<pre><code>{
+"dependencies": {
+"nuxt": "3.9.0",
+"vue": "3.4.0-rc.1",
+"vue-router": "latest"
+}
+}</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#️-interactive-server-components" target="_blank">🏝️ Interactive Server Components</a></h3>
+<p>This is a highly-experimental update, but it's now possible to play around with interactive components within Nuxt server components. You'll need to enable this new feature additionally to component islands:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+experimental: {
+componentIslands: {
+selectiveClient: true
+}
+}
+})</code></pre>
+<p>Now, within a server component, you can specify components to hydrate by using the <code>nuxt-client</code> directive:</p>
+<p>components/SomeComponent.server.vue</p>
+<pre><code>&lt;NuxtLink :to="/" nuxt-client /&gt;</code></pre>
+<p>We're pretty excited about this one - so do let us know how you're using it! 🙏</p>
+<h3><a href="https://nuxt.com/blog/v3-9#automatic-server-optimisations" target="_blank">🔥 Automatic Server Optimisations</a></h3>
+<p>We now use Vite's new AST-aware 'define' to perform more accurate replacements on server-side code, meaning code like this will no longer throw an error:</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup lang="ts"&gt;
+if (document) {
+console.log(document.querySelector('div'))
+}
+&lt;/script&gt;</code></pre>
+<p>This hasn't been possible until now because we haven't wanted to run the risk of accidentally replacing normal words like <code>document</code> within non-JS parts of your apps. But Vite's new <code>define</code> functionality is powered by <code>esbuild</code> and is syntax-aware, so we feel confident in enabling this functionality. Nevertheless, you can opt out if you need to:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+hooks: {
+'vite:extendConfig' (config) {
+delete config.define!.document
+}
+}
+})</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#granular-loading-api" target="_blank">🚦 Granular Loading API</a></h3>
+<p>We now have a new hook-based system for [<code><code>](https://nuxt.com/docs/api/components/nuxt-loading-indicator), including a </code>useLoadingIndicator<code> composable that lets you control/stop/start the loading state. You can also hook into </code>page:loading:start<code> and </code>page:loading:end</code> if you prefer.</p>
+<p>You can read more <a href="https://nuxt.com/docs/api/composables/use-loading-indicator" target="_blank">in the docs</a> and in the original PR (<a href="https://github.com/nuxt/nuxt/pull/24010" target="_blank">#24010</a>).</p>
+<h3><a href="https://nuxt.com/blog/v3-9#run-single-events-in-callonce" target="_blank">🏁 Run single events in <code>callOnce</code></a></h3>
+<p>Sometimes you only want to run code once, no matter how many times you load a page - and you don't want to run it again on the client if it ran on the server.</p>
+<p>For this, we have a new utility: <a href="https://nuxt.com/docs/api/utils/call-once" target="_blank"><code>callOnce</code></a> (<a href="https://github.com/nuxt/nuxt/pull/24787" target="_blank">#24787</a>).</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup&gt;
+const websiteConfig = useState('config')
+await callOnce(async () =&gt; {
+console.log('This will only be logged once')
+websiteConfig.value = await $fetch('https://my-cms.com/api/website-config')
+})
+&lt;/script&gt;</code></pre>
+<p>Note that this utility is context-aware so it <em>must</em> be called in component setup function or Nuxt plugin, as with other Nuxt composables.</p>
+<p>Read more in <strong>Docs &gt; API &gt; Utils &gt; Call Once</strong>.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#error-types" target="_blank">🚨 Error Types</a></h3>
+<p>For a while now, errors returned by <code>useAsyncData</code> and <code>useFetch</code> have been typed pretty generically as <code>Error</code>. We've significantly improved the type possibilities for them to make them more accurate in terms of what you'll actually receive. (We normalise errors with the <code>h3</code> <code>createError</code> utility under the hood, so they can be serialised from server to client, for example.)</p>
+<p>We've tried to implement the type change in a backwards compatible way, but you might notice that you need to update the generic if you're manually configuring the generics for these composables. See (<a href="https://github.com/nuxt/nuxt/pull/24396" target="_blank">#24396</a>) for more information, and do let us know if you experience any issues.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#schema-performance" target="_blank">🔥 Schema Performance</a></h3>
+<p>We've taken some time in this release to make some minor performance improvements, so you should notice some things are a bit faster. This is an ongoing project and we have ideas for improving initial load time of the Nuxt dev server.</p>
+<h2><a href="https://nuxt.com/blog/v3-9#upgrading" target="_blank">✅ Upgrading</a></h2>
+<p>As usual, our recommendation for upgrading is to run:</p>
+<pre><code>nuxi upgrade</code></pre>
+<h2><a href="https://nuxt.com/blog/v3-9#full-release-notes" target="_blank">Full Release Notes</a></h2>
+<p>Read the full release notes of Nuxt <code>v3.9.0</code>.</p>
+<p>Thank you for reading this far! We hope you enjoy the new release. Please do let us know if you have any feedback or issues.</p>
+<p><strong>Happy Nuxting ✨</strong></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月17日，开源日报第1077期：<br>
+今日推荐开源项目：《chatgpt-web-midjourney-proxy》<br>
+今日推荐英文原文：《Nuxt 3.9》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240117.jpg.pagespeed.ic.NRhn-LspTH.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《chatgpt-web-midjourney-proxy 》传送门：<a href="https://github.com/Dooy/chatgpt-web-midjourney-proxy" target="_blank">项目链接</a> </p>
+<p>推荐理由： chatgpt-web-midjourney-proxy chatgpt web, midjourney, gpts,tts, whisper 一套ui全搞定</p>
+<p>官网直达：vercel.ddaiai.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://nuxt.com/blog/v3-9" target="_blank">Nuxt 3.9</a></p>
+<p>推荐理由：Nuxt 3.9发布，引入了Vite 5、交互式服务器组件、新的组合式API等功能, 支持Vite 5和Rollup 4，需要检查vite插件的兼容性，使用新的AST-aware 'define'进行自动服务器优化， 同时新增钩子和工具，如Granular Loading API和callOnce</p>
+<hr>
+<h1>Nuxt 3.9</h1>
+<p>Nuxt 3.9 is out - a Christmas gift from the Nuxt team bringing Vite 5, interactive server components, new composables, a new loading API and more.</p>
+<p>A very merry Christmas to you and yours from all Nuxters involved in this release! 🎁🎄</p>
+<p>We have lots of features packed into v3.9 and can't wait for you to try them out.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#️-vite-5" target="_blank">⚡️ Vite 5</a></h3>
+<p>This release comes with Vite 5 and Rollup 4 support. Module authors may need to check to ensure that any vite plugins you're creating are compatible with these latest releases.</p>
+<p>This comes with a whole host of great improvements and bug fixes - check out <a href="https://vitejs.dev/guide/migration.html#migration-from-v4" target="_blank">the Vite changelog</a> for more info.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#vue-34-ready" target="_blank">✨ Vue 3.4 ready</a></h3>
+<p>This release is tested with the latest Vue 3.4 release candidate, and has the necessary configuration to take advantage of <a href="https://blog.vuejs.org/posts/vue-3-4" target="_blank">new features in Vue 3.4</a>, including debugging hydration errors in production (just set <code>debug: true</code>) in your Nuxt config.</p>
+<p>👉 To take advantage, just update your <code>vue</code> version once v3.4 is released, or try out the release candidate today:</p>
+<p>package.json</p>
+<pre><code>{
+"dependencies": {
+"nuxt": "3.9.0",
+"vue": "3.4.0-rc.1",
+"vue-router": "latest"
+}
+}</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#️-interactive-server-components" target="_blank">🏝️ Interactive Server Components</a></h3>
+<p>This is a highly-experimental update, but it's now possible to play around with interactive components within Nuxt server components. You'll need to enable this new feature additionally to component islands:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+experimental: {
+componentIslands: {
+selectiveClient: true
+}
+}
+})</code></pre>
+<p>Now, within a server component, you can specify components to hydrate by using the <code>nuxt-client</code> directive:</p>
+<p>components/SomeComponent.server.vue</p>
+<pre><code>&lt;NuxtLink :to="/" nuxt-client /&gt;</code></pre>
+<p>We're pretty excited about this one - so do let us know how you're using it! 🙏</p>
+<h3><a href="https://nuxt.com/blog/v3-9#automatic-server-optimisations" target="_blank">🔥 Automatic Server Optimisations</a></h3>
+<p>We now use Vite's new AST-aware 'define' to perform more accurate replacements on server-side code, meaning code like this will no longer throw an error:</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup lang="ts"&gt;
+if (document) {
+console.log(document.querySelector('div'))
+}
+&lt;/script&gt;</code></pre>
+<p>This hasn't been possible until now because we haven't wanted to run the risk of accidentally replacing normal words like <code>document</code> within non-JS parts of your apps. But Vite's new <code>define</code> functionality is powered by <code>esbuild</code> and is syntax-aware, so we feel confident in enabling this functionality. Nevertheless, you can opt out if you need to:</p>
+<p>nuxt.config.ts</p>
+<pre><code>export default defineNuxtConfig({
+hooks: {
+'vite:extendConfig' (config) {
+delete config.define!.document
+}
+}
+})</code></pre>
+<h3><a href="https://nuxt.com/blog/v3-9#granular-loading-api" target="_blank">🚦 Granular Loading API</a></h3>
+<p>We now have a new hook-based system for [<code><code>](https://nuxt.com/docs/api/components/nuxt-loading-indicator), including a </code>useLoadingIndicator<code> composable that lets you control/stop/start the loading state. You can also hook into </code>page:loading:start<code> and </code>page:loading:end</code> if you prefer.</p>
+<p>You can read more <a href="https://nuxt.com/docs/api/composables/use-loading-indicator" target="_blank">in the docs</a> and in the original PR (<a href="https://github.com/nuxt/nuxt/pull/24010" target="_blank">#24010</a>).</p>
+<h3><a href="https://nuxt.com/blog/v3-9#run-single-events-in-callonce" target="_blank">🏁 Run single events in <code>callOnce</code></a></h3>
+<p>Sometimes you only want to run code once, no matter how many times you load a page - and you don't want to run it again on the client if it ran on the server.</p>
+<p>For this, we have a new utility: <a href="https://nuxt.com/docs/api/utils/call-once" target="_blank"><code>callOnce</code></a> (<a href="https://github.com/nuxt/nuxt/pull/24787" target="_blank">#24787</a>).</p>
+<p>app.vue</p>
+<pre><code>&lt;script setup&gt;
+const websiteConfig = useState('config')
+await callOnce(async () =&gt; {
+console.log('This will only be logged once')
+websiteConfig.value = await $fetch('https://my-cms.com/api/website-config')
+})
+&lt;/script&gt;</code></pre>
+<p>Note that this utility is context-aware so it <em>must</em> be called in component setup function or Nuxt plugin, as with other Nuxt composables.</p>
+<p>Read more in <strong>Docs &gt; API &gt; Utils &gt; Call Once</strong>.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#error-types" target="_blank">🚨 Error Types</a></h3>
+<p>For a while now, errors returned by <code>useAsyncData</code> and <code>useFetch</code> have been typed pretty generically as <code>Error</code>. We've significantly improved the type possibilities for them to make them more accurate in terms of what you'll actually receive. (We normalise errors with the <code>h3</code> <code>createError</code> utility under the hood, so they can be serialised from server to client, for example.)</p>
+<p>We've tried to implement the type change in a backwards compatible way, but you might notice that you need to update the generic if you're manually configuring the generics for these composables. See (<a href="https://github.com/nuxt/nuxt/pull/24396" target="_blank">#24396</a>) for more information, and do let us know if you experience any issues.</p>
+<h3><a href="https://nuxt.com/blog/v3-9#schema-performance" target="_blank">🔥 Schema Performance</a></h3>
+<p>We've taken some time in this release to make some minor performance improvements, so you should notice some things are a bit faster. This is an ongoing project and we have ideas for improving initial load time of the Nuxt dev server.</p>
+<h2><a href="https://nuxt.com/blog/v3-9#upgrading" target="_blank">✅ Upgrading</a></h2>
+<p>As usual, our recommendation for upgrading is to run:</p>
+<pre><code>nuxi upgrade</code></pre>
+<h2><a href="https://nuxt.com/blog/v3-9#full-release-notes" target="_blank">Full Release Notes</a></h2>
+<p>Read the full release notes of Nuxt <code>v3.9.0</code>.</p>
+<p>Thank you for reading this far! We hope you enjoy the new release. Please do let us know if you have any feedback or issues.</p>
+<p><strong>Happy Nuxting ✨</strong></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240117.jpg.pagespeed.ic.NRhn-LspTH.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240117.jpg.pagespeed.ic.NRhn-LspTH.jpg" medium="image"/>
+    <pubDate>Wed, 17 Jan 2024 14:42:05 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1076期：OpenAI扩展模型：《danswer》]]></title>
     <link>https://openingsource.org/11521/</link>
     <itunes:title><![CDATA[开源日报第1076期：OpenAI扩展模型：《danswer》]]></itunes:title>
@@ -1829,407 +2438,5 @@ return (
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg" medium="image"/>
     <pubDate>Fri, 12 Jan 2024 12:22:02 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1071期：无服务器框架：《serverless》]]></title>
-    <link>https://openingsource.org/11500/</link>
-    <itunes:title><![CDATA[开源日报第1071期：无服务器框架：《serverless》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月11日，开源日报第1071期：<br>
-今日推荐开源项目：《serverless》<br>
-今日推荐英文原文：《Code Splitting in React: Optimize Performance by Splitting your Code》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240111.jpg.pagespeed.ic.nLka81c2fM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《serverless》传送门：<a href="https://github.com/serverless/serverless" target="_blank">项目链接</a> </p>
-<p>推荐理由：⚡severless框架-使用AWS Lambda、Azure Functions、Google CloudFunctions等构建具有无服务器架构的Web、移动和物联网应用程序！</p>
-<p>官网直达：serverless.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shriharim006/code-splitting-in-react-optimize-performance-by-splitting-your-code-e3e70d0c3d91" target="_blank">Code Splitting in React: Optimize Performance by Splitting your Code</a></p>
-<p>推荐理由：Code Splitting是现代Web开发中优化React项目是比较关键的，使组件捆绑包拆分为较小的块，只在特定上下文中加载所需的代码，从而减少初始加载时间<br>
-本文主要介绍了两种常用的实现方法：React.lazy()和Suspense，以及利用Webpack的动态导入功能</p>
-<hr>
-<h1>Code Splitting in React: Optimize Performance by Splitting your Code</h1>
-<p>Code splitting is an essential technique in modern web development to optimize the performance of React applications. It allows you to split your JavaScript bundle into smaller chunks. With code splitting, you can only load the code that is needed in a particular context, reducing the initial load time and improving the overall user experience. In this blog, we will explore code splitting in React and learn how to implement it in our applications.</p>
-<h2><strong>Why is Code Splitting important?</strong></h2>
-<p>By default, when you build a React application, all the JavaScript code is bundled into a single file. While this approach simplifies the development process, it can result in larger bundle sizes. A large bundle takes longer to load, especially on slower networks or mobile devices, leading to increased load times.</p>
-<p>On the other hand, code splitting allows you to split your code into smaller chunks, which are loaded on-demand. This enables users to only download the necessary code when they navigate to a specific route or interact with a particular feature. As a result, the initial load time is significantly reduced, boosting the performance and user experience of the application.</p>
-<h2><strong>Implementing Code Splitting in React</strong></h2>
-<p>There are several ways to implement code splitting in a React application. Let’s explore two commonly used methods:</p>
-<h2><strong>Method 1: React.lazy() with Suspense</strong></h2>
-<p>The React.lazy() function allows you to load a component lazily, which means it is loaded only when needed. Combined with the Suspense component, you can provide a smooth loading experience while waiting for the lazily loaded component to be fetched and rendered.</p>
-<p>Here’s an example:</p>
-<pre><code>import React, { lazy, Suspense } from 'react';
-const LazyComponent = lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<p>In this example, the <strong>LazyComponent</strong> is loaded lazily using <strong>React.lazy()</strong>. The <strong>Suspense</strong> component provides a fallback UI (e.g., a loading spinner or a message) while the component is being loaded.</p>
-<p><strong>Method 2: Dynamic Import with Webpack</strong></p>
-<p>If you are using Webpack as your build tool, you can leverage its dynamic import feature to achieve code splitting.</p>
-<pre><code>import React, { Component } from 'react';
-class App extends Component {
-handleClick = async () =&gt; {
-const module = await import('./DynamicComponent');
-// Do something with the dynamically imported module
-};
-render() {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;button onClick={this.handleClick}&gt;Load Dynamic Component&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-}
-export default App;</code></pre>
-<p>In this example, the <strong>DynamicComponent</strong> is imported dynamically using the <strong>import()</strong> syntax. When the button is clicked, the component is loaded dynamically, giving you control over when and where to load it.</p>
-<h1><strong>Conclusion</strong></h1>
-<p>Code splitting is a powerful technique to optimize the performance of React applications. By splitting your code into smaller chunks and loading them on-demand, you can significantly reduce load times and provide a better user experience. React provides built-in tools like React.lazy() and Suspense, along with the support of tools like Webpack, to make code splitting easy to implement. So, start applying code splitting to your React applications and boost their performance now!</p>
-<p>Enjoyed reading this ? Please share it with others.</p>
-<p>Please hit 👏 button below as many times as possible to show your support!<br>
-Thanks for the read. <strong>Cheers!!!.</strong> You are <strong>Awesome</strong> !</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月11日，开源日报第1071期：<br>
-今日推荐开源项目：《serverless》<br>
-今日推荐英文原文：《Code Splitting in React: Optimize Performance by Splitting your Code》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240111.jpg.pagespeed.ic.nLka81c2fM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《serverless》传送门：<a href="https://github.com/serverless/serverless" target="_blank">项目链接</a> </p>
-<p>推荐理由：⚡severless框架-使用AWS Lambda、Azure Functions、Google CloudFunctions等构建具有无服务器架构的Web、移动和物联网应用程序！</p>
-<p>官网直达：serverless.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shriharim006/code-splitting-in-react-optimize-performance-by-splitting-your-code-e3e70d0c3d91" target="_blank">Code Splitting in React: Optimize Performance by Splitting your Code</a></p>
-<p>推荐理由：Code Splitting是现代Web开发中优化React项目是比较关键的，使组件捆绑包拆分为较小的块，只在特定上下文中加载所需的代码，从而减少初始加载时间<br>
-本文主要介绍了两种常用的实现方法：React.lazy()和Suspense，以及利用Webpack的动态导入功能</p>
-<hr>
-<h1>Code Splitting in React: Optimize Performance by Splitting your Code</h1>
-<p>Code splitting is an essential technique in modern web development to optimize the performance of React applications. It allows you to split your JavaScript bundle into smaller chunks. With code splitting, you can only load the code that is needed in a particular context, reducing the initial load time and improving the overall user experience. In this blog, we will explore code splitting in React and learn how to implement it in our applications.</p>
-<h2><strong>Why is Code Splitting important?</strong></h2>
-<p>By default, when you build a React application, all the JavaScript code is bundled into a single file. While this approach simplifies the development process, it can result in larger bundle sizes. A large bundle takes longer to load, especially on slower networks or mobile devices, leading to increased load times.</p>
-<p>On the other hand, code splitting allows you to split your code into smaller chunks, which are loaded on-demand. This enables users to only download the necessary code when they navigate to a specific route or interact with a particular feature. As a result, the initial load time is significantly reduced, boosting the performance and user experience of the application.</p>
-<h2><strong>Implementing Code Splitting in React</strong></h2>
-<p>There are several ways to implement code splitting in a React application. Let’s explore two commonly used methods:</p>
-<h2><strong>Method 1: React.lazy() with Suspense</strong></h2>
-<p>The React.lazy() function allows you to load a component lazily, which means it is loaded only when needed. Combined with the Suspense component, you can provide a smooth loading experience while waiting for the lazily loaded component to be fetched and rendered.</p>
-<p>Here’s an example:</p>
-<pre><code>import React, { lazy, Suspense } from 'react';
-const LazyComponent = lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<p>In this example, the <strong>LazyComponent</strong> is loaded lazily using <strong>React.lazy()</strong>. The <strong>Suspense</strong> component provides a fallback UI (e.g., a loading spinner or a message) while the component is being loaded.</p>
-<p><strong>Method 2: Dynamic Import with Webpack</strong></p>
-<p>If you are using Webpack as your build tool, you can leverage its dynamic import feature to achieve code splitting.</p>
-<pre><code>import React, { Component } from 'react';
-class App extends Component {
-handleClick = async () =&gt; {
-const module = await import('./DynamicComponent');
-// Do something with the dynamically imported module
-};
-render() {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;button onClick={this.handleClick}&gt;Load Dynamic Component&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-}
-export default App;</code></pre>
-<p>In this example, the <strong>DynamicComponent</strong> is imported dynamically using the <strong>import()</strong> syntax. When the button is clicked, the component is loaded dynamically, giving you control over when and where to load it.</p>
-<h1><strong>Conclusion</strong></h1>
-<p>Code splitting is a powerful technique to optimize the performance of React applications. By splitting your code into smaller chunks and loading them on-demand, you can significantly reduce load times and provide a better user experience. React provides built-in tools like React.lazy() and Suspense, along with the support of tools like Webpack, to make code splitting easy to implement. So, start applying code splitting to your React applications and boost their performance now!</p>
-<p>Enjoyed reading this ? Please share it with others.</p>
-<p>Please hit 👏 button below as many times as possible to show your support!<br>
-Thanks for the read. <strong>Cheers!!!.</strong> You are <strong>Awesome</strong> !</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月11日，开源日报第1071期：<br>
-今日推荐开源项目：《serverless》<br>
-今日推荐英文原文：《Code Splitting in React: Optimize Performance by Splitting your Code》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240111.jpg.pagespeed.ic.nLka81c2fM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《serverless》传送门：<a href="https://github.com/serverless/serverless" target="_blank">项目链接</a> </p>
-<p>推荐理由：⚡severless框架-使用AWS Lambda、Azure Functions、Google CloudFunctions等构建具有无服务器架构的Web、移动和物联网应用程序！</p>
-<p>官网直达：serverless.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shriharim006/code-splitting-in-react-optimize-performance-by-splitting-your-code-e3e70d0c3d91" target="_blank">Code Splitting in React: Optimize Performance by Splitting your Code</a></p>
-<p>推荐理由：Code Splitting是现代Web开发中优化React项目是比较关键的，使组件捆绑包拆分为较小的块，只在特定上下文中加载所需的代码，从而减少初始加载时间<br>
-本文主要介绍了两种常用的实现方法：React.lazy()和Suspense，以及利用Webpack的动态导入功能</p>
-<hr>
-<h1>Code Splitting in React: Optimize Performance by Splitting your Code</h1>
-<p>Code splitting is an essential technique in modern web development to optimize the performance of React applications. It allows you to split your JavaScript bundle into smaller chunks. With code splitting, you can only load the code that is needed in a particular context, reducing the initial load time and improving the overall user experience. In this blog, we will explore code splitting in React and learn how to implement it in our applications.</p>
-<h2><strong>Why is Code Splitting important?</strong></h2>
-<p>By default, when you build a React application, all the JavaScript code is bundled into a single file. While this approach simplifies the development process, it can result in larger bundle sizes. A large bundle takes longer to load, especially on slower networks or mobile devices, leading to increased load times.</p>
-<p>On the other hand, code splitting allows you to split your code into smaller chunks, which are loaded on-demand. This enables users to only download the necessary code when they navigate to a specific route or interact with a particular feature. As a result, the initial load time is significantly reduced, boosting the performance and user experience of the application.</p>
-<h2><strong>Implementing Code Splitting in React</strong></h2>
-<p>There are several ways to implement code splitting in a React application. Let’s explore two commonly used methods:</p>
-<h2><strong>Method 1: React.lazy() with Suspense</strong></h2>
-<p>The React.lazy() function allows you to load a component lazily, which means it is loaded only when needed. Combined with the Suspense component, you can provide a smooth loading experience while waiting for the lazily loaded component to be fetched and rendered.</p>
-<p>Here’s an example:</p>
-<pre><code>import React, { lazy, Suspense } from 'react';
-const LazyComponent = lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<p>In this example, the <strong>LazyComponent</strong> is loaded lazily using <strong>React.lazy()</strong>. The <strong>Suspense</strong> component provides a fallback UI (e.g., a loading spinner or a message) while the component is being loaded.</p>
-<p><strong>Method 2: Dynamic Import with Webpack</strong></p>
-<p>If you are using Webpack as your build tool, you can leverage its dynamic import feature to achieve code splitting.</p>
-<pre><code>import React, { Component } from 'react';
-class App extends Component {
-handleClick = async () =&gt; {
-const module = await import('./DynamicComponent');
-// Do something with the dynamically imported module
-};
-render() {
-return (
-&lt;div&gt;
-&lt;h1&gt;My React App&lt;/h1&gt;
-&lt;button onClick={this.handleClick}&gt;Load Dynamic Component&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-}
-export default App;</code></pre>
-<p>In this example, the <strong>DynamicComponent</strong> is imported dynamically using the <strong>import()</strong> syntax. When the button is clicked, the component is loaded dynamically, giving you control over when and where to load it.</p>
-<h1><strong>Conclusion</strong></h1>
-<p>Code splitting is a powerful technique to optimize the performance of React applications. By splitting your code into smaller chunks and loading them on-demand, you can significantly reduce load times and provide a better user experience. React provides built-in tools like React.lazy() and Suspense, along with the support of tools like Webpack, to make code splitting easy to implement. So, start applying code splitting to your React applications and boost their performance now!</p>
-<p>Enjoyed reading this ? Please share it with others.</p>
-<p>Please hit 👏 button below as many times as possible to show your support!<br>
-Thanks for the read. <strong>Cheers!!!.</strong> You are <strong>Awesome</strong> !</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240111.jpg.pagespeed.ic.nLka81c2fM.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240111.jpg.pagespeed.ic.nLka81c2fM.jpg" medium="image"/>
-    <pubDate>Thu, 11 Jan 2024 14:14:01 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1070期：绘制虚拟面板神器：《excalidraw》]]></title>
-    <link>https://openingsource.org/11497/</link>
-    <itunes:title><![CDATA[开源日报第1070期：绘制虚拟面板神器：《excalidraw》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月10日，开源日报第1070期：<br>
-今日推荐开源项目：《excalidraw》<br>
-今日推荐英文原文：《The Top Accessibility Errors Found in 2023》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240110.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《excalidraw》传送门：<a href="https://github.com/excalidraw/excalidraw" target="_blank">项目链接</a> </p>
-<p>推荐理由：用于绘制手绘类图表的虚拟白板：excalidraw可以使用excalidraw构建创建手绘图、线框或任何你想绘制的东西，excalidraw具有以下功能：</p>
-<ul>
-<li>📡 PWA支持（离线工作）</li>
-<li>🤼 实时协作</li>
-<li>🔒 端到端加密</li>
-<li>💾 本地优先支持（自动保存到浏览器）</li>
-<li>🔗 可共享链接（导出为只读链接，您可以与其他人共享）</li>
-</ul>
-<p>直达链接 excalidraw.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://www.tpgi.com/the-top-accessibility-errors-found-in-2023/" target="_blank">The Top Accessibility Errors Found in 2023</a></p>
-<p>推荐理由： 2023年发现的最常见无障碍错误总结：无按钮元素标签：按钮缺少可访问标签，使辅助技术用户无法理解按钮用途，无效aria-labelledby：aria-labelledby未正确引用文本元素的ID，使辅助技术无法连接控件和标签等等</p>
-<hr>
-<h1>The Top Accessibility Errors Found in 2023</h1>
-<p>TPGi’s accessibility experts have been busy this year, identifying thousands of accessibility errors through manual and automated testing. From all those results, the following 10 issues were the most commonly found by our ARC automation tools. We hope this list helps guide your team to avoid some of this year’s most common barriers. Cheers to another year of making things accessible!</p>
-<h2>1. No link text</h2>
-<p>The <code>&lt;a&gt;</code> element is HTML’s way of specifying links to other web pages, or locations within the same webpage, providing the foundation for the web’s purpose as a connected set of pages. But developers sometimes use the <code>&lt;a&gt;</code> element to provide other interactive functionality, and often this is done in a way that omits any link text. The result is that assistive technologies such as screen readers have no way to communicate the purpose of the link, leaving users unsure what will happen when they follow the link. That’s why every link must communicate its purpose in an accessible way.</p>
-<p><a href="https://wcag.com/blog/writing-meaningful-link-text/" target="_blank">Learn more about writing meaningful link text.</a></p>
-<h2>2. Non-active element in tab order</h2>
-<p>This error occurs when a non-interactive element has been placed in the tab order using <code>tabindex="0"</code>, which means it becomes focusable using the keyboard when it doesn’t need to be, reducing efficiency and increasing effort for keyboard users. Generally, only elements that are interactive, such as links, buttons and form input fields, should be included in focus order. Screen reader users have access to a wide range of additional keyboard commands to allow quick navigation through content, so there’s no need to include static text and images in the focus order. <strong>Edit:</strong> In fact, all users who rely on keyboard navigation are negatively affected by this common error.</p>
-<p><a href="https://webaim.org/techniques/keyboard/" target="_blank">Learn more about keyboard interaction.</a></p>
-<h2>3. Missing link alt attribute</h2>
-<p>Closely related to item #1 in our list, often links are labeled with an icon or other graphic that visually indicates the purpose of the link. A common error is to provide this graphic without any text alternative. When an image link has no alternative text, assistive technology users will be unaware of the link’s purpose. For that reason, it’s essential to provide alternative text for image links, that describes the purpose of the link.</p>
-<p><a href="https://webaim.org/techniques/alttext/" target="_blank">Learn more about all things ‘alt’.</a></p>
-<h2>4. No alt text</h2>
-<p>Related to item #3, an image’s <a href="https://webaim.org/techniques/alttext/" target="_blank">alternative text</a>, provides a text description of the image content. When an <code>&lt;img&gt;</code> element lacks a text alternative, screen reader users have no way of knowing what the image is for. Providing a text alternative that communicates the same information as the image is one of the most fundamental accessibility requirements; but exactly what the alternative text should be would depend on the image’s purpose.</p>
-<p><a href="https://abilitynet.org.uk/news-blogs/five-golden-rules-compliant-alt-text" target="_blank">Learn about the five golden rules of compliant alt text.</a></p>
-<h2>5. List not nested correctly</h2>
-<p>Using markup to identify lists helps communicate the structure of page content in an accessible way. When a list item has a nested list, it’s important to use markup in the correct way to make the nesting relationships clear. This helps avoid confusion when the list structure is described by screen readers.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/page-structure/content/" target="_blank">Learn more about HTML lists as a way to structure content.</a></p>
-<h2>6. Duplicate labels used</h2>
-<p>Another accessibility issue commonly detected by automated tools is form fields that have multiple identical labels. Having more than one label with exactly the same text can make it harder for some users to understand the form’s structure, and decide what content to enter in a particular field, increasing the chances of input errors. If your form has multiple labels with the same text, that’s a sign you might want to reconsider the design of the form or change the labeling of each input field.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/forms/labels/" target="_blank">Learn more about accessibility and labeling.</a></p>
-<h2>7. Positive tabindex value</h2>
-<p>The <code>tabindex</code> attribute is a way to control which elements on a web page receive keyboard focus. In the past, developers would use different values of <code>tabindex</code> to try to control the focus order through a page. However, this approach is very brittle and difficult to maintain, and today, the only values of the <code>tabindex</code> attribute that should be used are either <code>0</code> (see item #2 in this list for more on that topic) or, in specific situations where focus is managed using scripting, <code>-1</code>. To optimize keyboard usability, don’t try to control focus order using positive <code>tabindex</code> values.</p>
-<p><a href="https://webaim.org/techniques/keyboard/tabindex" target="_blank">Learn more about using the tabindex attribute.</a></p>
-<h2>8. Invalid aria-describedby</h2>
-<p>Sometimes, a control may need a description as well as a label, when users might need to know more details about the state or purpose of the control. The <code>aria-describedby</code> attribute can be used to provide a connection between a control and some descriptive text elsewhere on the page. But the ID value defined by <code>aria-describedby</code> must match an element on the page with the same ID, otherwise the connection between those elements will not be conveyed by assistive technologies.</p>
-<p><a href="https://benmyers.dev/blog/aria-labels-and-descriptions/" target="_blank">Learn more about using ARIA attributes for labels and descriptions.</a></p>
-<h2>9. No label for button element</h2>
-<p>Similar to links without link text (item #1), a button without an accessible label does not convey its purpose to assistive technology users. Unfortunately, many buttons are implemented in a way that relies on visual icons, which means the user has to be able to see that icon in order to understand the button’s purpose. To avoid this problem, provide each control with an accessible label that clearly communicates its purpose to assistive technologies.</p>
-<p><a href="https://www.tpgi.com/labeling-the-point-scenarios-of-label-misuse-in-wcag/" target="_blank">Learn more about label use in WCAG.</a></p>
-<h2>10. Invalid aria-labelledby</h2>
-<p>Very similar to item #8 on this list, in specific situations a control may be provided with an accessible label by connecting the control to some text elsewhere on a page. The <code>aria-labelledby</code> attribute can provide this connection, but it needs to correctly reference the text element’s ID, otherwise the connection between the control and its label is lost to assistive technology users.</p>
-<p><a href="https://www.w3.org/TR/html-aria/" target="_blank">Learn more about using ARIA in HTML correctly.</a></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月10日，开源日报第1070期：<br>
-今日推荐开源项目：《excalidraw》<br>
-今日推荐英文原文：《The Top Accessibility Errors Found in 2023》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240110.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《excalidraw》传送门：<a href="https://github.com/excalidraw/excalidraw" target="_blank">项目链接</a> </p>
-<p>推荐理由：用于绘制手绘类图表的虚拟白板：excalidraw可以使用excalidraw构建创建手绘图、线框或任何你想绘制的东西，excalidraw具有以下功能：</p>
-<ul>
-<li>📡 PWA支持（离线工作）</li>
-<li>🤼 实时协作</li>
-<li>🔒 端到端加密</li>
-<li>💾 本地优先支持（自动保存到浏览器）</li>
-<li>🔗 可共享链接（导出为只读链接，您可以与其他人共享）</li>
-</ul>
-<p>直达链接 excalidraw.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://www.tpgi.com/the-top-accessibility-errors-found-in-2023/" target="_blank">The Top Accessibility Errors Found in 2023</a></p>
-<p>推荐理由： 2023年发现的最常见无障碍错误总结：无按钮元素标签：按钮缺少可访问标签，使辅助技术用户无法理解按钮用途，无效aria-labelledby：aria-labelledby未正确引用文本元素的ID，使辅助技术无法连接控件和标签等等</p>
-<hr>
-<h1>The Top Accessibility Errors Found in 2023</h1>
-<p>TPGi’s accessibility experts have been busy this year, identifying thousands of accessibility errors through manual and automated testing. From all those results, the following 10 issues were the most commonly found by our ARC automation tools. We hope this list helps guide your team to avoid some of this year’s most common barriers. Cheers to another year of making things accessible!</p>
-<h2>1. No link text</h2>
-<p>The <code>&lt;a&gt;</code> element is HTML’s way of specifying links to other web pages, or locations within the same webpage, providing the foundation for the web’s purpose as a connected set of pages. But developers sometimes use the <code>&lt;a&gt;</code> element to provide other interactive functionality, and often this is done in a way that omits any link text. The result is that assistive technologies such as screen readers have no way to communicate the purpose of the link, leaving users unsure what will happen when they follow the link. That’s why every link must communicate its purpose in an accessible way.</p>
-<p><a href="https://wcag.com/blog/writing-meaningful-link-text/" target="_blank">Learn more about writing meaningful link text.</a></p>
-<h2>2. Non-active element in tab order</h2>
-<p>This error occurs when a non-interactive element has been placed in the tab order using <code>tabindex="0"</code>, which means it becomes focusable using the keyboard when it doesn’t need to be, reducing efficiency and increasing effort for keyboard users. Generally, only elements that are interactive, such as links, buttons and form input fields, should be included in focus order. Screen reader users have access to a wide range of additional keyboard commands to allow quick navigation through content, so there’s no need to include static text and images in the focus order. <strong>Edit:</strong> In fact, all users who rely on keyboard navigation are negatively affected by this common error.</p>
-<p><a href="https://webaim.org/techniques/keyboard/" target="_blank">Learn more about keyboard interaction.</a></p>
-<h2>3. Missing link alt attribute</h2>
-<p>Closely related to item #1 in our list, often links are labeled with an icon or other graphic that visually indicates the purpose of the link. A common error is to provide this graphic without any text alternative. When an image link has no alternative text, assistive technology users will be unaware of the link’s purpose. For that reason, it’s essential to provide alternative text for image links, that describes the purpose of the link.</p>
-<p><a href="https://webaim.org/techniques/alttext/" target="_blank">Learn more about all things ‘alt’.</a></p>
-<h2>4. No alt text</h2>
-<p>Related to item #3, an image’s <a href="https://webaim.org/techniques/alttext/" target="_blank">alternative text</a>, provides a text description of the image content. When an <code>&lt;img&gt;</code> element lacks a text alternative, screen reader users have no way of knowing what the image is for. Providing a text alternative that communicates the same information as the image is one of the most fundamental accessibility requirements; but exactly what the alternative text should be would depend on the image’s purpose.</p>
-<p><a href="https://abilitynet.org.uk/news-blogs/five-golden-rules-compliant-alt-text" target="_blank">Learn about the five golden rules of compliant alt text.</a></p>
-<h2>5. List not nested correctly</h2>
-<p>Using markup to identify lists helps communicate the structure of page content in an accessible way. When a list item has a nested list, it’s important to use markup in the correct way to make the nesting relationships clear. This helps avoid confusion when the list structure is described by screen readers.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/page-structure/content/" target="_blank">Learn more about HTML lists as a way to structure content.</a></p>
-<h2>6. Duplicate labels used</h2>
-<p>Another accessibility issue commonly detected by automated tools is form fields that have multiple identical labels. Having more than one label with exactly the same text can make it harder for some users to understand the form’s structure, and decide what content to enter in a particular field, increasing the chances of input errors. If your form has multiple labels with the same text, that’s a sign you might want to reconsider the design of the form or change the labeling of each input field.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/forms/labels/" target="_blank">Learn more about accessibility and labeling.</a></p>
-<h2>7. Positive tabindex value</h2>
-<p>The <code>tabindex</code> attribute is a way to control which elements on a web page receive keyboard focus. In the past, developers would use different values of <code>tabindex</code> to try to control the focus order through a page. However, this approach is very brittle and difficult to maintain, and today, the only values of the <code>tabindex</code> attribute that should be used are either <code>0</code> (see item #2 in this list for more on that topic) or, in specific situations where focus is managed using scripting, <code>-1</code>. To optimize keyboard usability, don’t try to control focus order using positive <code>tabindex</code> values.</p>
-<p><a href="https://webaim.org/techniques/keyboard/tabindex" target="_blank">Learn more about using the tabindex attribute.</a></p>
-<h2>8. Invalid aria-describedby</h2>
-<p>Sometimes, a control may need a description as well as a label, when users might need to know more details about the state or purpose of the control. The <code>aria-describedby</code> attribute can be used to provide a connection between a control and some descriptive text elsewhere on the page. But the ID value defined by <code>aria-describedby</code> must match an element on the page with the same ID, otherwise the connection between those elements will not be conveyed by assistive technologies.</p>
-<p><a href="https://benmyers.dev/blog/aria-labels-and-descriptions/" target="_blank">Learn more about using ARIA attributes for labels and descriptions.</a></p>
-<h2>9. No label for button element</h2>
-<p>Similar to links without link text (item #1), a button without an accessible label does not convey its purpose to assistive technology users. Unfortunately, many buttons are implemented in a way that relies on visual icons, which means the user has to be able to see that icon in order to understand the button’s purpose. To avoid this problem, provide each control with an accessible label that clearly communicates its purpose to assistive technologies.</p>
-<p><a href="https://www.tpgi.com/labeling-the-point-scenarios-of-label-misuse-in-wcag/" target="_blank">Learn more about label use in WCAG.</a></p>
-<h2>10. Invalid aria-labelledby</h2>
-<p>Very similar to item #8 on this list, in specific situations a control may be provided with an accessible label by connecting the control to some text elsewhere on a page. The <code>aria-labelledby</code> attribute can provide this connection, but it needs to correctly reference the text element’s ID, otherwise the connection between the control and its label is lost to assistive technology users.</p>
-<p><a href="https://www.w3.org/TR/html-aria/" target="_blank">Learn more about using ARIA in HTML correctly.</a></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月10日，开源日报第1070期：<br>
-今日推荐开源项目：《excalidraw》<br>
-今日推荐英文原文：《The Top Accessibility Errors Found in 2023》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240110.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《excalidraw》传送门：<a href="https://github.com/excalidraw/excalidraw" target="_blank">项目链接</a> </p>
-<p>推荐理由：用于绘制手绘类图表的虚拟白板：excalidraw可以使用excalidraw构建创建手绘图、线框或任何你想绘制的东西，excalidraw具有以下功能：</p>
-<ul>
-<li>📡 PWA支持（离线工作）</li>
-<li>🤼 实时协作</li>
-<li>🔒 端到端加密</li>
-<li>💾 本地优先支持（自动保存到浏览器）</li>
-<li>🔗 可共享链接（导出为只读链接，您可以与其他人共享）</li>
-</ul>
-<p>直达链接 excalidraw.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://www.tpgi.com/the-top-accessibility-errors-found-in-2023/" target="_blank">The Top Accessibility Errors Found in 2023</a></p>
-<p>推荐理由： 2023年发现的最常见无障碍错误总结：无按钮元素标签：按钮缺少可访问标签，使辅助技术用户无法理解按钮用途，无效aria-labelledby：aria-labelledby未正确引用文本元素的ID，使辅助技术无法连接控件和标签等等</p>
-<hr>
-<h1>The Top Accessibility Errors Found in 2023</h1>
-<p>TPGi’s accessibility experts have been busy this year, identifying thousands of accessibility errors through manual and automated testing. From all those results, the following 10 issues were the most commonly found by our ARC automation tools. We hope this list helps guide your team to avoid some of this year’s most common barriers. Cheers to another year of making things accessible!</p>
-<h2>1. No link text</h2>
-<p>The <code>&lt;a&gt;</code> element is HTML’s way of specifying links to other web pages, or locations within the same webpage, providing the foundation for the web’s purpose as a connected set of pages. But developers sometimes use the <code>&lt;a&gt;</code> element to provide other interactive functionality, and often this is done in a way that omits any link text. The result is that assistive technologies such as screen readers have no way to communicate the purpose of the link, leaving users unsure what will happen when they follow the link. That’s why every link must communicate its purpose in an accessible way.</p>
-<p><a href="https://wcag.com/blog/writing-meaningful-link-text/" target="_blank">Learn more about writing meaningful link text.</a></p>
-<h2>2. Non-active element in tab order</h2>
-<p>This error occurs when a non-interactive element has been placed in the tab order using <code>tabindex="0"</code>, which means it becomes focusable using the keyboard when it doesn’t need to be, reducing efficiency and increasing effort for keyboard users. Generally, only elements that are interactive, such as links, buttons and form input fields, should be included in focus order. Screen reader users have access to a wide range of additional keyboard commands to allow quick navigation through content, so there’s no need to include static text and images in the focus order. <strong>Edit:</strong> In fact, all users who rely on keyboard navigation are negatively affected by this common error.</p>
-<p><a href="https://webaim.org/techniques/keyboard/" target="_blank">Learn more about keyboard interaction.</a></p>
-<h2>3. Missing link alt attribute</h2>
-<p>Closely related to item #1 in our list, often links are labeled with an icon or other graphic that visually indicates the purpose of the link. A common error is to provide this graphic without any text alternative. When an image link has no alternative text, assistive technology users will be unaware of the link’s purpose. For that reason, it’s essential to provide alternative text for image links, that describes the purpose of the link.</p>
-<p><a href="https://webaim.org/techniques/alttext/" target="_blank">Learn more about all things ‘alt’.</a></p>
-<h2>4. No alt text</h2>
-<p>Related to item #3, an image’s <a href="https://webaim.org/techniques/alttext/" target="_blank">alternative text</a>, provides a text description of the image content. When an <code>&lt;img&gt;</code> element lacks a text alternative, screen reader users have no way of knowing what the image is for. Providing a text alternative that communicates the same information as the image is one of the most fundamental accessibility requirements; but exactly what the alternative text should be would depend on the image’s purpose.</p>
-<p><a href="https://abilitynet.org.uk/news-blogs/five-golden-rules-compliant-alt-text" target="_blank">Learn about the five golden rules of compliant alt text.</a></p>
-<h2>5. List not nested correctly</h2>
-<p>Using markup to identify lists helps communicate the structure of page content in an accessible way. When a list item has a nested list, it’s important to use markup in the correct way to make the nesting relationships clear. This helps avoid confusion when the list structure is described by screen readers.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/page-structure/content/" target="_blank">Learn more about HTML lists as a way to structure content.</a></p>
-<h2>6. Duplicate labels used</h2>
-<p>Another accessibility issue commonly detected by automated tools is form fields that have multiple identical labels. Having more than one label with exactly the same text can make it harder for some users to understand the form’s structure, and decide what content to enter in a particular field, increasing the chances of input errors. If your form has multiple labels with the same text, that’s a sign you might want to reconsider the design of the form or change the labeling of each input field.</p>
-<p><a href="https://www.w3.org/WAI/tutorials/forms/labels/" target="_blank">Learn more about accessibility and labeling.</a></p>
-<h2>7. Positive tabindex value</h2>
-<p>The <code>tabindex</code> attribute is a way to control which elements on a web page receive keyboard focus. In the past, developers would use different values of <code>tabindex</code> to try to control the focus order through a page. However, this approach is very brittle and difficult to maintain, and today, the only values of the <code>tabindex</code> attribute that should be used are either <code>0</code> (see item #2 in this list for more on that topic) or, in specific situations where focus is managed using scripting, <code>-1</code>. To optimize keyboard usability, don’t try to control focus order using positive <code>tabindex</code> values.</p>
-<p><a href="https://webaim.org/techniques/keyboard/tabindex" target="_blank">Learn more about using the tabindex attribute.</a></p>
-<h2>8. Invalid aria-describedby</h2>
-<p>Sometimes, a control may need a description as well as a label, when users might need to know more details about the state or purpose of the control. The <code>aria-describedby</code> attribute can be used to provide a connection between a control and some descriptive text elsewhere on the page. But the ID value defined by <code>aria-describedby</code> must match an element on the page with the same ID, otherwise the connection between those elements will not be conveyed by assistive technologies.</p>
-<p><a href="https://benmyers.dev/blog/aria-labels-and-descriptions/" target="_blank">Learn more about using ARIA attributes for labels and descriptions.</a></p>
-<h2>9. No label for button element</h2>
-<p>Similar to links without link text (item #1), a button without an accessible label does not convey its purpose to assistive technology users. Unfortunately, many buttons are implemented in a way that relies on visual icons, which means the user has to be able to see that icon in order to understand the button’s purpose. To avoid this problem, provide each control with an accessible label that clearly communicates its purpose to assistive technologies.</p>
-<p><a href="https://www.tpgi.com/labeling-the-point-scenarios-of-label-misuse-in-wcag/" target="_blank">Learn more about label use in WCAG.</a></p>
-<h2>10. Invalid aria-labelledby</h2>
-<p>Very similar to item #8 on this list, in specific situations a control may be provided with an accessible label by connecting the control to some text elsewhere on a page. The <code>aria-labelledby</code> attribute can provide this connection, but it needs to correctly reference the text element’s ID, otherwise the connection between the control and its label is lost to assistive technology users.</p>
-<p><a href="https://www.w3.org/TR/html-aria/" target="_blank">Learn more about using ARIA in HTML correctly.</a></p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240110.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240110.jpg" medium="image"/>
-    <pubDate>Wed, 10 Jan 2024 03:42:56 +0000</pubDate>
   </item></channel>
 </rss>
