@@ -30,6 +30,2533 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[回顾 2023，NebulaGraph 的这一年的变化]]></title>
+    <link>https://my.oschina.net/u/4169309/blog/10887454</link>
+    <itunes:title><![CDATA[回顾 2023，NebulaGraph 的这一年的变化]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/nebula-website-cn.oss-cn-hangzhou.aliyuncs.com-da6a59d5ac.jpg"></p>
+<p>一年又过去了，感谢你和 NebulaGraph 一起又走过一个春夏秋冬。在这 365 天里，我们一起见证了 214 个 commit 带来的 NebulaGraph 3 个中版本的上线，它们分别是 v3.4.0、v3.5.0 和 v 3.6.0；除了内核经历了 3 个中版本的迭代之外，NebulaGraph 在 2023 年也迎来一大波新周边工具，以及已有周边工具的大更新。</p>
+<p>由于篇幅的关系，现在我们来相对克制地了解下这 3 个版本和周边工具。</p>
+<h2>2023 年 NebulaGraph 的内核变更</h2>
+<p>一直以来，稳定性和高性能在 NebulaGraph 的产品规划中都是重中之重。今年，NebulaGraph 更是把<strong>稳定性</strong>作为第一优先级：在功能上，引入了 Memory Tracker 功能（该功能开发者分享了一篇从原理讲起的文章<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss.nebula-graph.com.cn%2Ft%2Ftopic%2F13128" target="_blank">《内存管理实践之 Memory Tracker》</a>）；在测试上，进行了多轮的覆盖测试，同时引入了 fuzzer 等测试工具及方法，对 NebulaGraph 做了一次彻底的“全身体检"，也纠正和限制了一些不符合预期的行为。</p>
+<p>在整体上，从 v3.3.0 到 v3.6.0，NebulaGraph 的稳定性有了明显的提升；而最新的发行版 v3.6.0 版本，在性能上，针对图上常用的路径查询、多跳查询上，均有不同程度的性能提升，最高提升了 6 倍。</p>
+<p>以下罗列了一些大家不可错过的新特性：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.nebula-graph.com.cn%2F3.4.0%2F3.ngql-guide%2F17.query-tuning-statements%2F2.kill-session%2F" target="_blank"><code>KILL SESSION</code></a> 可终止执行过慢的查询语句；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5146" target="_blank"><code>#pr5146</code></a></li>
+<li>支持在返回语句中使用像 <code>v.tag</code> 这样的表达式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5440" target="_blank"><code>#pr5440</code></a></li>
+<li>支持 <code>UPDATE</code> 语句中的<code>json_extract</code>函数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5457" target="_blank"><code>#pr5457</code></a></li>
+<li>支持在 <code>EXPLAIN</code> 输出中使用 TCK 格式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5414" target="_blank"><code>#pr5414</code></a></li>
+<li>DML 支持参数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5328" target="_blank"><code>#pr5328</code></a></li>
+<li>支持使用 <code>MATCH</code> 子句检索 VID 或属性索引时使用变量；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5486" target="_blank"><code>pr#5486</code></a> <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5553" target="_blank">#5553</a></li>
+<li>优化 <code>MATCH</code> 语句查询不存在的属性时的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5634" target="_blank"><code>pr#5634</code></a></li>
+<li>增强了聚合函数中的属性裁剪功能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5301" target="_blank"><code>pr#5301</code></a></li>
+<li>提高了遍历执行器的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5308" target="_blank"><code>pr#5308</code></a></li>
+<li>优化了 <code>FIND ALL PATH</code> 性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5409" target="_blank"><code>pr#5409</code></a></li>
+<li><code>MATCH</code> 支持 ID 集合；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5360" target="_blank"><code>pr#5360</code></a></li>
+<li>重构了 <code>GO</code> planner；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5369" target="_blank"><code>pr#5369</code></a></li>
+<li>graphd 配置文件中添加了部分性能选项；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5463" target="_blank"><code>pr#5463</code></a></li>
+</ul>
+<p>如果你对各个 NebulaGraph 版本的具体的 release note 有兴趣，可以前往 GitHub 页面阅读各个版本的信息：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Freleases" target="_blank">https://github.com/vesoft-inc/nebula/releases</a></p>
+<h2>2023 年新晋周边工具</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/docs-cdn.nebula-graph.com.cn-c406e52f0e.png" alt="image"></p>
+<p>除了官方出品的周边工具之外，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib" target="_blank">nebula-contrib</a> 组织下收录了大量社区用户贡献的实用工具。而今年，这个组织下又有了新动态：</p>
+<ul>
+<li>2 月新增 10s 拉起 NebulaGraph Docker 服务的 nebulagraph-docker-ext：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fnebulagraph-docker-ext" target="_blank">https://github.com/nebula-contrib/nebulagraph-docker-ext</a></li>
+<li>4 月新增支持 GraphQL 查询的 NebulaGraphQL：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaGraphQL" target="_blank">https://github.com/nebula-contrib/NebulaGraphQL</a>、将查询结果转为 JSON 格式的 NebulaResultSetBoot：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaResultSetBoot" target="_blank">https://github.com/nebula-contrib/NebulaResultSetBoot</a></li>
+<li>9 月新增 Scala 客户端 zio-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fzio-nebula" target="_blank">https://github.com/nebula-contrib/zio-nebula</a></li>
+<li>10 月新增可用来做容器化测试的 testcontainers-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Ftestcontainers-nebula" target="_blank">https://github.com/nebula-contrib/testcontainers-nebula</a>、基于 Plato 实现 PersonalizedPageRank、TrustRank、BeliefPropagation 三个图算法的 analytics：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fanalytics" target="_blank">https://github.com/nebula-contrib/analytics</a>、NebulaGraph Operator 的 CLI 工具 operator-cli：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Foperator-cli" target="_blank">https://github.com/nebula-contrib/operator-cli</a>、采用游戏引擎 CoCos 实现的可视化图探索工具 graph-player：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fgraph-player" target="_blank">https://github.com/nebula-contrib/graph-player</a></li>
+</ul>
+<h2>2023 年周边工具重大变化</h2>
+<p>不像 nebula-contrib 组织下的项目从零到一，下面这些大家熟悉的周边工具在 2023 年也迎来了大的功能迭代：</p>
+<ul>
+<li>可视化工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio" target="_blank">nebula-studio</a>，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Freleases%2Ftag%2Fv3.7.0" target="_blank"><code>nebula-studio v3.7.0</code></a> 版本中对 ARM 架构进行了适配，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Fpull%2F667" target="_blank"><code>pr#667</code></a> 中优化了执行计划的可视化；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-importer" target="_blank">nebula-importer</a>在 v4.0.0 版本中进行了重构，极大地提高了导入性能和导入配置文件的可读性；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-exchange" target="_blank">nebula-exchange</a>在 v3.4.0 版本支持了对 HDFS 配置文件的读取，在 v3.5.0 中支持了对数据源做预处理，v3.6.0 的 nebula-exchange 则支持了批量的删除和更新操作，最新的 v3.7.0 中 nebula-exchange 支持根据数据源获取模板配置文件；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-spark-connector</a> 在 v3.6.0 对 Spark 3 进行了支持；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-flink-connector</a> 在 3.5.0 对动态表 Sink 的增删改进行了支持；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-go" target="_blank">nebula-go</a> 在 v3.4.0 支持了 JSON 格式的执行计划数据返回，在 v3.6.0 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-java" target="_blank">nebula-java</a> 在 v3.4.0 支持了 Session ID 的获取以及可 <code>Ping</code> 指定 Session，在 v3.5.0 支持配置 <code>SessionPoolConfig.setReconnect()</code> 来设定客户端是否进行现有可用服务的重连接，在 v3.6.1 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-console" target="_blank">nebula-console</a> 在 v3.4.0 支持了 ARM 架构下的 Docker 镜像，在 v3.6.0 支持了 HTTP/2；</li>
+<li>K8s 运维工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-operator" target="_blank">nebula-operator</a> 在 v1.4.0 支持了备份恢复（将在 v1.9.0 发布定时备份），在 v1.5.0 支持了 mTLS、日志定时清理、init-container 等特性，在 v1.6.0 支持了 Zone 可用在云上多个可用区场景，在 v1.7.0 支持了 HPA、存储卷扩容；</li>
+<li>由 @CurvusY 维护的 NebulaGraph + Spring Boot 的数据库 ORM 框架 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fngbatis" target="_blank">ngbatis</a> 在 1.1.2 中支持了 nebula-java 的 session pool 以及使用 java 的继承关系实现数据库多标签的操作，而 v1.2.0 在 XML 中支持 <code>ngql + include</code> 的用法，拓展了 NebulaDaoBasic 的多个接口，v1.2.0-jdk17 中支持了 Spring Boot 3.x。</li>
+</ul>
+<h2>2023 年的 NebulaGraph 和 Doris 以及 KubeBlocks</h2>
+<p>2023 年的 NebulaGrpah 不只是专注自身的发展，也同其他的开源项目紧密合作，比如：高性能实时分析数据库 Apache Doris 和云原生数据基础设施管理平台 KubeBlocks。</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdoris%2Fpull%2F19209" target="_blank">Doris#19209</a> 在这个 PR 中，知乎技术团队对 Doris 扩充图引擎 NebulaGraph，在多维分析和全文检索的基础上实现与图引擎的结合。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3944" target="_blank">KubeBlocks#3944</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3981" target="_blank">KubeBlocks#3981</a> 两个 PR 完成 KubeBlocks 和 NebulaGraph 的集成，让更多的 K8s 爱好者们可以有更多的数据库部署选择。</li>
+</ul>
+<hr>
+<p>感谢你对 NebulaGraph 的关注 (///▽///)</p>
+<p>如果你有什么需求社区还未安排上，来和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss-cdn.nebula-graph.com.cn%2Fuploads%2Fdefault%2Foriginal%2F3X%2Fc%2Ff%2Fcf5821e2e14fbd7f3ccf998852a0e3555a7c4db2.jpeg" target="_blank">星云小姐姐</a> 说道说道。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/nebula-website-cn.oss-cn-hangzhou.aliyuncs.com-da6a59d5ac.jpg"></p>
+<p>一年又过去了，感谢你和 NebulaGraph 一起又走过一个春夏秋冬。在这 365 天里，我们一起见证了 214 个 commit 带来的 NebulaGraph 3 个中版本的上线，它们分别是 v3.4.0、v3.5.0 和 v 3.6.0；除了内核经历了 3 个中版本的迭代之外，NebulaGraph 在 2023 年也迎来一大波新周边工具，以及已有周边工具的大更新。</p>
+<p>由于篇幅的关系，现在我们来相对克制地了解下这 3 个版本和周边工具。</p>
+<h2>2023 年 NebulaGraph 的内核变更</h2>
+<p>一直以来，稳定性和高性能在 NebulaGraph 的产品规划中都是重中之重。今年，NebulaGraph 更是把<strong>稳定性</strong>作为第一优先级：在功能上，引入了 Memory Tracker 功能（该功能开发者分享了一篇从原理讲起的文章<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss.nebula-graph.com.cn%2Ft%2Ftopic%2F13128" target="_blank">《内存管理实践之 Memory Tracker》</a>）；在测试上，进行了多轮的覆盖测试，同时引入了 fuzzer 等测试工具及方法，对 NebulaGraph 做了一次彻底的“全身体检"，也纠正和限制了一些不符合预期的行为。</p>
+<p>在整体上，从 v3.3.0 到 v3.6.0，NebulaGraph 的稳定性有了明显的提升；而最新的发行版 v3.6.0 版本，在性能上，针对图上常用的路径查询、多跳查询上，均有不同程度的性能提升，最高提升了 6 倍。</p>
+<p>以下罗列了一些大家不可错过的新特性：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.nebula-graph.com.cn%2F3.4.0%2F3.ngql-guide%2F17.query-tuning-statements%2F2.kill-session%2F" target="_blank"><code>KILL SESSION</code></a> 可终止执行过慢的查询语句；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5146" target="_blank"><code>#pr5146</code></a></li>
+<li>支持在返回语句中使用像 <code>v.tag</code> 这样的表达式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5440" target="_blank"><code>#pr5440</code></a></li>
+<li>支持 <code>UPDATE</code> 语句中的<code>json_extract</code>函数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5457" target="_blank"><code>#pr5457</code></a></li>
+<li>支持在 <code>EXPLAIN</code> 输出中使用 TCK 格式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5414" target="_blank"><code>#pr5414</code></a></li>
+<li>DML 支持参数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5328" target="_blank"><code>#pr5328</code></a></li>
+<li>支持使用 <code>MATCH</code> 子句检索 VID 或属性索引时使用变量；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5486" target="_blank"><code>pr#5486</code></a> <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5553" target="_blank">#5553</a></li>
+<li>优化 <code>MATCH</code> 语句查询不存在的属性时的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5634" target="_blank"><code>pr#5634</code></a></li>
+<li>增强了聚合函数中的属性裁剪功能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5301" target="_blank"><code>pr#5301</code></a></li>
+<li>提高了遍历执行器的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5308" target="_blank"><code>pr#5308</code></a></li>
+<li>优化了 <code>FIND ALL PATH</code> 性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5409" target="_blank"><code>pr#5409</code></a></li>
+<li><code>MATCH</code> 支持 ID 集合；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5360" target="_blank"><code>pr#5360</code></a></li>
+<li>重构了 <code>GO</code> planner；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5369" target="_blank"><code>pr#5369</code></a></li>
+<li>graphd 配置文件中添加了部分性能选项；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5463" target="_blank"><code>pr#5463</code></a></li>
+</ul>
+<p>如果你对各个 NebulaGraph 版本的具体的 release note 有兴趣，可以前往 GitHub 页面阅读各个版本的信息：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Freleases" target="_blank">https://github.com/vesoft-inc/nebula/releases</a></p>
+<h2>2023 年新晋周边工具</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/docs-cdn.nebula-graph.com.cn-c406e52f0e.png" alt="image"></p>
+<p>除了官方出品的周边工具之外，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib" target="_blank">nebula-contrib</a> 组织下收录了大量社区用户贡献的实用工具。而今年，这个组织下又有了新动态：</p>
+<ul>
+<li>2 月新增 10s 拉起 NebulaGraph Docker 服务的 nebulagraph-docker-ext：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fnebulagraph-docker-ext" target="_blank">https://github.com/nebula-contrib/nebulagraph-docker-ext</a></li>
+<li>4 月新增支持 GraphQL 查询的 NebulaGraphQL：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaGraphQL" target="_blank">https://github.com/nebula-contrib/NebulaGraphQL</a>、将查询结果转为 JSON 格式的 NebulaResultSetBoot：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaResultSetBoot" target="_blank">https://github.com/nebula-contrib/NebulaResultSetBoot</a></li>
+<li>9 月新增 Scala 客户端 zio-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fzio-nebula" target="_blank">https://github.com/nebula-contrib/zio-nebula</a></li>
+<li>10 月新增可用来做容器化测试的 testcontainers-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Ftestcontainers-nebula" target="_blank">https://github.com/nebula-contrib/testcontainers-nebula</a>、基于 Plato 实现 PersonalizedPageRank、TrustRank、BeliefPropagation 三个图算法的 analytics：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fanalytics" target="_blank">https://github.com/nebula-contrib/analytics</a>、NebulaGraph Operator 的 CLI 工具 operator-cli：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Foperator-cli" target="_blank">https://github.com/nebula-contrib/operator-cli</a>、采用游戏引擎 CoCos 实现的可视化图探索工具 graph-player：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fgraph-player" target="_blank">https://github.com/nebula-contrib/graph-player</a></li>
+</ul>
+<h2>2023 年周边工具重大变化</h2>
+<p>不像 nebula-contrib 组织下的项目从零到一，下面这些大家熟悉的周边工具在 2023 年也迎来了大的功能迭代：</p>
+<ul>
+<li>可视化工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio" target="_blank">nebula-studio</a>，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Freleases%2Ftag%2Fv3.7.0" target="_blank"><code>nebula-studio v3.7.0</code></a> 版本中对 ARM 架构进行了适配，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Fpull%2F667" target="_blank"><code>pr#667</code></a> 中优化了执行计划的可视化；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-importer" target="_blank">nebula-importer</a>在 v4.0.0 版本中进行了重构，极大地提高了导入性能和导入配置文件的可读性；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-exchange" target="_blank">nebula-exchange</a>在 v3.4.0 版本支持了对 HDFS 配置文件的读取，在 v3.5.0 中支持了对数据源做预处理，v3.6.0 的 nebula-exchange 则支持了批量的删除和更新操作，最新的 v3.7.0 中 nebula-exchange 支持根据数据源获取模板配置文件；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-spark-connector</a> 在 v3.6.0 对 Spark 3 进行了支持；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-flink-connector</a> 在 3.5.0 对动态表 Sink 的增删改进行了支持；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-go" target="_blank">nebula-go</a> 在 v3.4.0 支持了 JSON 格式的执行计划数据返回，在 v3.6.0 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-java" target="_blank">nebula-java</a> 在 v3.4.0 支持了 Session ID 的获取以及可 <code>Ping</code> 指定 Session，在 v3.5.0 支持配置 <code>SessionPoolConfig.setReconnect()</code> 来设定客户端是否进行现有可用服务的重连接，在 v3.6.1 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-console" target="_blank">nebula-console</a> 在 v3.4.0 支持了 ARM 架构下的 Docker 镜像，在 v3.6.0 支持了 HTTP/2；</li>
+<li>K8s 运维工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-operator" target="_blank">nebula-operator</a> 在 v1.4.0 支持了备份恢复（将在 v1.9.0 发布定时备份），在 v1.5.0 支持了 mTLS、日志定时清理、init-container 等特性，在 v1.6.0 支持了 Zone 可用在云上多个可用区场景，在 v1.7.0 支持了 HPA、存储卷扩容；</li>
+<li>由 @CurvusY 维护的 NebulaGraph + Spring Boot 的数据库 ORM 框架 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fngbatis" target="_blank">ngbatis</a> 在 1.1.2 中支持了 nebula-java 的 session pool 以及使用 java 的继承关系实现数据库多标签的操作，而 v1.2.0 在 XML 中支持 <code>ngql + include</code> 的用法，拓展了 NebulaDaoBasic 的多个接口，v1.2.0-jdk17 中支持了 Spring Boot 3.x。</li>
+</ul>
+<h2>2023 年的 NebulaGraph 和 Doris 以及 KubeBlocks</h2>
+<p>2023 年的 NebulaGrpah 不只是专注自身的发展，也同其他的开源项目紧密合作，比如：高性能实时分析数据库 Apache Doris 和云原生数据基础设施管理平台 KubeBlocks。</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdoris%2Fpull%2F19209" target="_blank">Doris#19209</a> 在这个 PR 中，知乎技术团队对 Doris 扩充图引擎 NebulaGraph，在多维分析和全文检索的基础上实现与图引擎的结合。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3944" target="_blank">KubeBlocks#3944</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3981" target="_blank">KubeBlocks#3981</a> 两个 PR 完成 KubeBlocks 和 NebulaGraph 的集成，让更多的 K8s 爱好者们可以有更多的数据库部署选择。</li>
+</ul>
+<hr>
+<p>感谢你对 NebulaGraph 的关注 (///▽///)</p>
+<p>如果你有什么需求社区还未安排上，来和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss-cdn.nebula-graph.com.cn%2Fuploads%2Fdefault%2Foriginal%2F3X%2Fc%2Ff%2Fcf5821e2e14fbd7f3ccf998852a0e3555a7c4db2.jpeg" target="_blank">星云小姐姐</a> 说道说道。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/nebula-website-cn.oss-cn-hangzhou.aliyuncs.com-da6a59d5ac.jpg"></p>
+<p>一年又过去了，感谢你和 NebulaGraph 一起又走过一个春夏秋冬。在这 365 天里，我们一起见证了 214 个 commit 带来的 NebulaGraph 3 个中版本的上线，它们分别是 v3.4.0、v3.5.0 和 v 3.6.0；除了内核经历了 3 个中版本的迭代之外，NebulaGraph 在 2023 年也迎来一大波新周边工具，以及已有周边工具的大更新。</p>
+<p>由于篇幅的关系，现在我们来相对克制地了解下这 3 个版本和周边工具。</p>
+<h2>2023 年 NebulaGraph 的内核变更</h2>
+<p>一直以来，稳定性和高性能在 NebulaGraph 的产品规划中都是重中之重。今年，NebulaGraph 更是把<strong>稳定性</strong>作为第一优先级：在功能上，引入了 Memory Tracker 功能（该功能开发者分享了一篇从原理讲起的文章<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss.nebula-graph.com.cn%2Ft%2Ftopic%2F13128" target="_blank">《内存管理实践之 Memory Tracker》</a>）；在测试上，进行了多轮的覆盖测试，同时引入了 fuzzer 等测试工具及方法，对 NebulaGraph 做了一次彻底的“全身体检"，也纠正和限制了一些不符合预期的行为。</p>
+<p>在整体上，从 v3.3.0 到 v3.6.0，NebulaGraph 的稳定性有了明显的提升；而最新的发行版 v3.6.0 版本，在性能上，针对图上常用的路径查询、多跳查询上，均有不同程度的性能提升，最高提升了 6 倍。</p>
+<p>以下罗列了一些大家不可错过的新特性：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.nebula-graph.com.cn%2F3.4.0%2F3.ngql-guide%2F17.query-tuning-statements%2F2.kill-session%2F" target="_blank"><code>KILL SESSION</code></a> 可终止执行过慢的查询语句；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5146" target="_blank"><code>#pr5146</code></a></li>
+<li>支持在返回语句中使用像 <code>v.tag</code> 这样的表达式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5440" target="_blank"><code>#pr5440</code></a></li>
+<li>支持 <code>UPDATE</code> 语句中的<code>json_extract</code>函数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5457" target="_blank"><code>#pr5457</code></a></li>
+<li>支持在 <code>EXPLAIN</code> 输出中使用 TCK 格式；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5414" target="_blank"><code>#pr5414</code></a></li>
+<li>DML 支持参数；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5328" target="_blank"><code>#pr5328</code></a></li>
+<li>支持使用 <code>MATCH</code> 子句检索 VID 或属性索引时使用变量；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5486" target="_blank"><code>pr#5486</code></a> <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5553" target="_blank">#5553</a></li>
+<li>优化 <code>MATCH</code> 语句查询不存在的属性时的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5634" target="_blank"><code>pr#5634</code></a></li>
+<li>增强了聚合函数中的属性裁剪功能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5301" target="_blank"><code>pr#5301</code></a></li>
+<li>提高了遍历执行器的性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5308" target="_blank"><code>pr#5308</code></a></li>
+<li>优化了 <code>FIND ALL PATH</code> 性能；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5409" target="_blank"><code>pr#5409</code></a></li>
+<li><code>MATCH</code> 支持 ID 集合；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5360" target="_blank"><code>pr#5360</code></a></li>
+<li>重构了 <code>GO</code> planner；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5369" target="_blank"><code>pr#5369</code></a></li>
+<li>graphd 配置文件中添加了部分性能选项；<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Fpull%2F5463" target="_blank"><code>pr#5463</code></a></li>
+</ul>
+<p>如果你对各个 NebulaGraph 版本的具体的 release note 有兴趣，可以前往 GitHub 页面阅读各个版本的信息：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula%2Freleases" target="_blank">https://github.com/vesoft-inc/nebula/releases</a></p>
+<h2>2023 年新晋周边工具</h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/docs-cdn.nebula-graph.com.cn-c406e52f0e.png" alt="image"></p>
+<p>除了官方出品的周边工具之外，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib" target="_blank">nebula-contrib</a> 组织下收录了大量社区用户贡献的实用工具。而今年，这个组织下又有了新动态：</p>
+<ul>
+<li>2 月新增 10s 拉起 NebulaGraph Docker 服务的 nebulagraph-docker-ext：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fnebulagraph-docker-ext" target="_blank">https://github.com/nebula-contrib/nebulagraph-docker-ext</a></li>
+<li>4 月新增支持 GraphQL 查询的 NebulaGraphQL：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaGraphQL" target="_blank">https://github.com/nebula-contrib/NebulaGraphQL</a>、将查询结果转为 JSON 格式的 NebulaResultSetBoot：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2FNebulaResultSetBoot" target="_blank">https://github.com/nebula-contrib/NebulaResultSetBoot</a></li>
+<li>9 月新增 Scala 客户端 zio-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fzio-nebula" target="_blank">https://github.com/nebula-contrib/zio-nebula</a></li>
+<li>10 月新增可用来做容器化测试的 testcontainers-nebula：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Ftestcontainers-nebula" target="_blank">https://github.com/nebula-contrib/testcontainers-nebula</a>、基于 Plato 实现 PersonalizedPageRank、TrustRank、BeliefPropagation 三个图算法的 analytics：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fanalytics" target="_blank">https://github.com/nebula-contrib/analytics</a>、NebulaGraph Operator 的 CLI 工具 operator-cli：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Foperator-cli" target="_blank">https://github.com/nebula-contrib/operator-cli</a>、采用游戏引擎 CoCos 实现的可视化图探索工具 graph-player：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fgraph-player" target="_blank">https://github.com/nebula-contrib/graph-player</a></li>
+</ul>
+<h2>2023 年周边工具重大变化</h2>
+<p>不像 nebula-contrib 组织下的项目从零到一，下面这些大家熟悉的周边工具在 2023 年也迎来了大的功能迭代：</p>
+<ul>
+<li>可视化工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio" target="_blank">nebula-studio</a>，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Freleases%2Ftag%2Fv3.7.0" target="_blank"><code>nebula-studio v3.7.0</code></a> 版本中对 ARM 架构进行了适配，在 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-studio%2Fpull%2F667" target="_blank"><code>pr#667</code></a> 中优化了执行计划的可视化；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-importer" target="_blank">nebula-importer</a>在 v4.0.0 版本中进行了重构，极大地提高了导入性能和导入配置文件的可读性；</li>
+<li>数据导入工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-exchange" target="_blank">nebula-exchange</a>在 v3.4.0 版本支持了对 HDFS 配置文件的读取，在 v3.5.0 中支持了对数据源做预处理，v3.6.0 的 nebula-exchange 则支持了批量的删除和更新操作，最新的 v3.7.0 中 nebula-exchange 支持根据数据源获取模板配置文件；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-spark-connector</a> 在 v3.6.0 对 Spark 3 进行了支持；</li>
+<li>大数据工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-spark-connector" target="_blank">nebula-flink-connector</a> 在 3.5.0 对动态表 Sink 的增删改进行了支持；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-go" target="_blank">nebula-go</a> 在 v3.4.0 支持了 JSON 格式的执行计划数据返回，在 v3.6.0 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-java" target="_blank">nebula-java</a> 在 v3.4.0 支持了 Session ID 的获取以及可 <code>Ping</code> 指定 Session，在 v3.5.0 支持配置 <code>SessionPoolConfig.setReconnect()</code> 来设定客户端是否进行现有可用服务的重连接，在 v3.6.1 支持了 HTTP/2；</li>
+<li>客户端 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-console" target="_blank">nebula-console</a> 在 v3.4.0 支持了 ARM 架构下的 Docker 镜像，在 v3.6.0 支持了 HTTP/2；</li>
+<li>K8s 运维工具 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvesoft-inc%2Fnebula-operator" target="_blank">nebula-operator</a> 在 v1.4.0 支持了备份恢复（将在 v1.9.0 发布定时备份），在 v1.5.0 支持了 mTLS、日志定时清理、init-container 等特性，在 v1.6.0 支持了 Zone 可用在云上多个可用区场景，在 v1.7.0 支持了 HPA、存储卷扩容；</li>
+<li>由 @CurvusY 维护的 NebulaGraph + Spring Boot 的数据库 ORM 框架 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fnebula-contrib%2Fngbatis" target="_blank">ngbatis</a> 在 1.1.2 中支持了 nebula-java 的 session pool 以及使用 java 的继承关系实现数据库多标签的操作，而 v1.2.0 在 XML 中支持 <code>ngql + include</code> 的用法，拓展了 NebulaDaoBasic 的多个接口，v1.2.0-jdk17 中支持了 Spring Boot 3.x。</li>
+</ul>
+<h2>2023 年的 NebulaGraph 和 Doris 以及 KubeBlocks</h2>
+<p>2023 年的 NebulaGrpah 不只是专注自身的发展，也同其他的开源项目紧密合作，比如：高性能实时分析数据库 Apache Doris 和云原生数据基础设施管理平台 KubeBlocks。</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdoris%2Fpull%2F19209" target="_blank">Doris#19209</a> 在这个 PR 中，知乎技术团队对 Doris 扩充图引擎 NebulaGraph，在多维分析和全文检索的基础上实现与图引擎的结合。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3944" target="_blank">KubeBlocks#3944</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapecloud%2Fkubeblocks%2Fpull%2F3981" target="_blank">KubeBlocks#3981</a> 两个 PR 完成 KubeBlocks 和 NebulaGraph 的集成，让更多的 K8s 爱好者们可以有更多的数据库部署选择。</li>
+</ul>
+<hr>
+<p>感谢你对 NebulaGraph 的关注 (///▽///)</p>
+<p>如果你有什么需求社区还未安排上，来和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdiscuss-cdn.nebula-graph.com.cn%2Fuploads%2Fdefault%2Foriginal%2F3X%2Fc%2Ff%2Fcf5821e2e14fbd7f3ccf998852a0e3555a7c4db2.jpeg" target="_blank">星云小姐姐</a> 说道说道。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/nebula-website-cn.oss-cn-hangzhou.aliyuncs.com-da6a59d5ac.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/nebula-website-cn.oss-cn-hangzhou.aliyuncs.com-da6a59d5ac.jpg" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 18:28:18 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[奔图加入 openKylin，助力社区打印生态建设]]></title>
+    <link>https://www.oschina.net/news/276175</link>
+    <itunes:title><![CDATA[奔图加入 openKylin，助力社区打印生态建设]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>近日，珠海奔图电子有限公司（以下简称“奔图”）签署了openKylin社区 CLA（Contributor License Agreement 贡献者许可协议），正式加入openKylin开源社区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f0e3cbc5ac.png"></p>
+<p><span>奔图是一家掌握打印机核心技术和自主知识产权，集研发、设计、生产、销售打印机、耗材及文印输出解决方案为一体的中国打印企业。所属的纳思达集团位列中国上市公司500强，年产值超过200亿元。</span></p>
+<p><span>2010年第一台奔图打印机在中国人民大会堂成功发布，至今已全面构建“关键零部件—打印机—打印管理服务”一体化的全产业链布局，完成了从A4到A3、黑白到彩色、单功能到多功能、硬件到解决方案全产品线覆盖，销售网络遍及全球100多个国家及地区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b056cb969.png"></p>
+<p><span>加入openKylin社区后，奔图将利用在打印领域的优势，积极推动和社区版本的生态适配及优化，积极参加社区活动和技术方面的交流，共同建设社区打印生态，提升用户使用满意度，为打造中国领先的开源操作系统根社区贡献自己的力量。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>近日，珠海奔图电子有限公司（以下简称“奔图”）签署了openKylin社区 CLA（Contributor License Agreement 贡献者许可协议），正式加入openKylin开源社区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f0e3cbc5ac.png"></p>
+<p><span>奔图是一家掌握打印机核心技术和自主知识产权，集研发、设计、生产、销售打印机、耗材及文印输出解决方案为一体的中国打印企业。所属的纳思达集团位列中国上市公司500强，年产值超过200亿元。</span></p>
+<p><span>2010年第一台奔图打印机在中国人民大会堂成功发布，至今已全面构建“关键零部件—打印机—打印管理服务”一体化的全产业链布局，完成了从A4到A3、黑白到彩色、单功能到多功能、硬件到解决方案全产品线覆盖，销售网络遍及全球100多个国家及地区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b056cb969.png"></p>
+<p><span>加入openKylin社区后，奔图将利用在打印领域的优势，积极推动和社区版本的生态适配及优化，积极参加社区活动和技术方面的交流，共同建设社区打印生态，提升用户使用满意度，为打造中国领先的开源操作系统根社区贡献自己的力量。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>近日，珠海奔图电子有限公司（以下简称“奔图”）签署了openKylin社区 CLA（Contributor License Agreement 贡献者许可协议），正式加入openKylin开源社区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f0e3cbc5ac.png"></p>
+<p><span>奔图是一家掌握打印机核心技术和自主知识产权，集研发、设计、生产、销售打印机、耗材及文印输出解决方案为一体的中国打印企业。所属的纳思达集团位列中国上市公司500强，年产值超过200亿元。</span></p>
+<p><span>2010年第一台奔图打印机在中国人民大会堂成功发布，至今已全面构建“关键零部件—打印机—打印管理服务”一体化的全产业链布局，完成了从A4到A3、黑白到彩色、单功能到多功能、硬件到解决方案全产品线覆盖，销售网络遍及全球100多个国家及地区。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b056cb969.png"></p>
+<p><span>加入openKylin社区后，奔图将利用在打印领域的优势，积极推动和社区版本的生态适配及优化，积极参加社区活动和技术方面的交流，共同建设社区打印生态，提升用户使用满意度，为打造中国领先的开源操作系统根社区贡献自己的力量。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f0e3cbc5ac.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f0e3cbc5ac.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 17:35:41 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[给科研人的 ML 开源发布工具包]]></title>
+    <link>https://my.oschina.net/HuggingFace/blog/10860913</link>
+    <itunes:title><![CDATA[给科研人的 ML 开源发布工具包]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<section data-tool="mdnice编辑器" data-website="https://www.mdnice.com">
+<p data-tool="mdnice编辑器"><strong>什么是开源发布工具包？</strong></p>
+<p data-tool="mdnice编辑器">恭喜你的论文成功发表，这是一个巨大的成就！你的研究成果将为学界做出贡献。</p>
+<p data-tool="mdnice编辑器">其实除了发表论文之外，你还可以通过发布研究的其他部分，如代码、数据集、模型等，来增加研究的可见度和采用率。这将使更多人能够使用你的研究，并推动研究成果的应用。我们整理了这份文件，让你可以更好的了解和实践开源。希望这份文件对你有所帮助！</p>
+<p data-tool="mdnice编辑器"><strong>什么是开源？</strong></p>
+<p data-tool="mdnice编辑器">公开研究 - 不仅仅是论文，还包括相关的所有成果，如代码、模型、数据集或在线演示。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要开源？</strong></p>
+<p data-tool="mdnice编辑器">进行开放获取研究<span>[^1]</span>，可以让更多的人了解和使用你的研究或项目成果，促进社区研究人员之间的合作。通过共享机器学习的知识和资源以及社区协作，来推动机器学习领域的发展。</p>
+<p data-tool="mdnice编辑器"><span><span><span>[^1]:&nbsp;</span></span><span>开放获取意味着一个成果是公开可访问的。例如，你可以公开发布一个模型，同时拥有一个不完全符合开源倡议组织 (OSI) 对开源所设定的确切标准的许可证。例如，如果许可证限制了</span></span><span>模型的使用方式，它就不被视为开源。不过，它仍然是对社区有价值的开放获取成果！</span></p>
+<p data-tool="mdnice编辑器"><strong>如何开源？</strong></p>
+<p data-tool="mdnice编辑器">机器学习发布有很多的形式和规模。你可以根据你的时间线、优先级、内部政策或者其他因素来决定如何开源和开源哪些内容。比如：你可以只公布代码，也可以公布模型等其他成果。</p>
+<p data-tool="mdnice编辑器">以下是开源的步骤概览：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+论文
+</section></li>
+<li>
+<section>
+代码仓库
+</section></li>
+<li>
+<section>
+数据集
+</section></li>
+<li>
+<section>
+模型
+</section></li>
+<li>
+<section>
+构建在线演示 demo
+</section></li>
+<li>
+<section>
+推广应用
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器"><strong>你可以自由定义想要发布的内容、如何发布以及什么时间进行发布</strong>；本文档会详细介绍上述每项内容的具体步骤和指导。</p>
+<p data-tool="mdnice编辑器"><strong>你会用到什么工具？</strong></p>
+<p data-tool="mdnice编辑器">分享论文可以使用<strong>arXiv</strong> ：这是一个免费的可以公开发表论文的平台，在机器学习领域中被广泛使用。</p>
+<p data-tool="mdnice编辑器">分享代码可以使用 <strong>GitHub</strong> ：这是一个代码版本控制平台。在 GitHub 上，你可以分享训练代码、如何加载模型或数据集的示例等。</p>
+<p data-tool="mdnice编辑器">分享模型权重，数据集及演示则可以使用 <strong>Hugging Face Hub</strong> ：HF 是一个协作式机器学习平台，人们可以在其中轻松地探索、体验并共同创建机器学习。此外它还提供一定的社交功能，如论文讨论。</p>
+<p data-tool="mdnice编辑器"><strong>如何使用这份文档？</strong></p>
+<p data-tool="mdnice编辑器">这份文档提供了具体的项目和步骤指导，你可以选择按照步骤完成所有项目成果的发布，也可以根据自己的需求来选择想要发布的项目成果。步骤看似很多，但是每一步仅需不到一分钟的时间即可完成。我们建议你复制这份文档，以便随时查阅。文档末尾会有一个核对清单，帮助你核对每一步，为开源你的项目成果做好充分的准备。</p>
+<p data-tool="mdnice编辑器"><strong>热门开源发布示例</strong></p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+Meta 的 Llama 2 (论文, 代码库, 模型, 演示)
+</section></li>
+<li>
+<section>
+EPFL 的 Meditron (论文, 代码库, 模型, 数据)
+</section></li>
+<li>
+<section>
+Adept 的 Fuyu (博客, 模型, 演示)
+</section></li>
+<li>
+<section>
+Meta 的 Seamless (论文, 代码库, 合集)
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">GitHub 仓库：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://github.com/facebookresearch/seamless_communication
+</section></li>
+<li>
+<section>
+https://github.com/CompVis/stable-diffusion
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究模型：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/microsoft/phi-2
+</section></li>
+<li>
+<section>
+https://huggingface.co/meta-llama/Llama-2-7b
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究数据集：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/datasets/epfl-llm/guidelines
+</section></li>
+<li>
+<section>
+https://huggingface.co/datasets/princeton-nlp/SWE-bench
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">在线演示：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/spaces/facebook/seamless_m4t
+</section></li>
+<li>
+<section>
+https://huggingface.co/spaces/andreped/AeroPath
+</section></li>
+</ul>
+<h2 data-tool="mdnice编辑器"><span>发布论文</span></h2>
+<p data-tool="mdnice编辑器">可以通过 arXiv 来 上传并与社区分享你的论文。这是一个免费平台，并且不需要同行评审。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>撰写并准备论文</p>
+<p>第一步是撰写论文。一个常用的协作论文撰写工具是 Overleaf（用于 LaTeX 工作）。如果向会议提交论文，<strong>请遵循它们的官方模板和风格指南</strong>。</p>
+<p>查阅 arXiv 官方的指南，包括格式期望和授权许可。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006477" data-ratio="0.687037037037037" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf64f0dfe9.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>提交论文</p>
+<p>访问你的 用户页面 并点击“提交”即可提交可能需要一些时间来处理，并且只在周日至周四开放。</p>
+<p><strong>注意：</strong> 首次提交到某个类别时，需要社区中的某人认可它才能发布。但请注意，这不是同行评审！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006473" data-ratio="0.8224489795918367" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b52a2d6fa8.png" data-w="980">
+<h2 data-tool="mdnice编辑器"><span>发布代码库</span></h2>
+<p data-tool="mdnice编辑器">可以使用 GitHub 来发布和分享代码。GitHub 是一个代码版本控制平台。在 GitHub 上，你可以分享你的代码库（包括推理/建模代码、训练代码等）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://github.com/new 创建一个带有 README 和你选择的许可证的仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006476" data-ratio="1.1598951507208388" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe66cf3331.png" data-w="763">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>编写 README。</p>
+<p>README 是描述项目的文件，一般使用 markdown 编写，这是一种用于文本格式化的相当简单的语言。建议在README中添加描述、成果链接（如你的论文）以及一些代码示例。</p>
+<p>示例</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006475" data-ratio="1.3799392097264438" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f956a4b849.png" data-w="658">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>上传代码</p>
+<p>接下来就是要上传你的代码了！你可以上传包括运行模型的代码、训练脚本或者更多内容！</p>
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想同时将你的模型集成到 Hugging Face 库中，以实现即时集成。请随时联系 open-source@huggingface.co，我们会尽快评估并反馈。</p>
+<h2 data-tool="mdnice编辑器"><span>发布数据集</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 提供数据集的托管、发现和社交功能。HF 还有一个名为 datasets 的开源库，可用于以编程方式加载数据集，并在大型数据集上有效地进行流式处理。此外，HF 还提供查看器，可让用户在浏览器中直接探索数据。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new-dataset 创建一个仓库，可以在你的账户或在组织名下进行创建。
+</section></li>
+</ol>
+<img data-imgfileid="100006474" data-ratio="0.5842592592592593" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-aff81f7f9e.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的 <strong>文件和版本</strong> 选项卡并点击“上传文件”。支持拖放文件/文件夹或直接上传。</p>
+<img data-imgfileid="100006480" data-ratio="0.29814814814814816" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6d6d947f1a.png" data-w="1080">
+<img data-imgfileid="100006481" data-ratio="0.36018518518518516" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9df874e91f.png" data-w="1080">
+<p><strong>注意：</strong>Hub 支持不同的文件格式。这些格式将在浏览器中获得查看器，并自动在 datasets 库中获得支持。对于其他格式，你可以编写自己的加载脚本。查看官方文档。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;datasets&nbsp;import&nbsp;load_dataset<br>&nbsp;&nbsp;&nbsp;dataset&nbsp;=&nbsp;load_dataset(<span>"stevhliu/demo"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器"><strong>注意：</strong> Hugging Face 使用 Git 作为数据和代码的存储库。如果熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI。更多详情见指南。你还可以使用datasets 库来推送仓库。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建数据集卡片</p>
+<p>数据集卡片是包含数据集相关信息的文件，通常与数据集一起发布，用于帮助用户更好地理解和使用数据集。数据集卡片对于促进数据集的可发现性、可重复性和共享具有重要作用。</p>
+<p>除了主要内容之外，数据集卡片还包含顶部的元数据，例如许可证类型、任务类别等。这些元数据可以帮助用户快速了解数据集的相关信息，从而更好地选择合适的数据集进行研究或开发。</p>
+<p>我们强烈建议定义数据集的许可证类型，以便用户了解数据集的使用权限和限制。同时，明确定义数据集的任务类别，可以帮助用户更准确地找到与其研究或开发相关的数据集。数据的可发现性和使用都是数据集的重要属性，数据集卡片可以有效地促进这两项属性的提升。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006482" data-ratio="0.46296296296296297" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d640405e22.png" data-w="1080">
+<p data-tool="mdnice编辑器">我们建议在数据集卡片内容中添加指向你的 arXiv 论文的链接。HF 会自动将它们链接在一起。你可以在其官方文档中阅读有关数据集卡片的更多信息。</p>
+<h2 data-tool="mdnice编辑器"><span>发布模型权重</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为模型提供托管、发现和社交功能。它不局限于 HF 官方库，你可以<strong>分享任何 ML 库的模型权重</strong>（或分享自己的代码库）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new 创建一个仓库，可以在你的账户或组织名下创建仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006479" data-ratio="0.8759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3366b0ca30.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的文件选项卡并点击“上传文件”。可以拖放文件/文件夹或直接上传。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006478" data-ratio="0.2759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a17512f8cb.png" data-w="1080">
+<img data-imgfileid="100006485" data-ratio="0.7277777777777777" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e764b02979.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意：</strong>Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建模型卡片</p>
+<p>模型卡片是随模型一起提供的文件，主要包含关于模型的实用信息。模型卡片对于发现、可重现性和共享模型来说至关重要！你可以在任何模型仓库中找到名为README.md 的模型卡片。我们强烈建议在其中添加一个代码片段，展示如何加载和使用模型。</p>
+<p>除了以上内容外，模型卡片还可以包含顶部的有用元数据。UI 提供了一些工具来帮助你创建。我们强烈建议你指定<strong>许可证</strong>和<strong>管道标签</strong>（用于指定模型的任务，如文本到图像）。这两者是发现和使用模型的关键。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006483" data-ratio="0.24444444444444444" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-76f3f9e498.png" data-w="1080">
+<p data-tool="mdnice编辑器">还有其他值得添加的内容。你可以在这里了解更多。比如：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+<strong>language 语言：</strong>模型支持的语言列表
+</section></li>
+<li>
+<section>
+<strong>tags 标签：</strong>帮助发现模型标签
+</section></li>
+<li>
+<section>
+<strong>datasets 数据集：</strong>用于训练模型的数据集
+</section></li>
+<li>
+<section>
+<strong>base_model 基础模型：</strong>如果是微调模型的话使用的基础模型是什么？
+</section></li>
+<li>
+<section>
+<strong>library_name 库名称：</strong>用来加载模型的库
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">我们建议在模型卡片内容中添加相关的 arXiv 论文链接。HF 会自动将两者链接在一起。</p>
+<p data-tool="mdnice编辑器">你可以在其官方文档中了解更多关于模型卡片的信息。</p>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 添加 TensorBoard 跟踪</p>
+<p>TensorBoard 是一个提供用于可视化指标工具的工具。如果你将 TensorBoard 跟踪推送到 Hub，则会自动显示出一个 TensorBoard 实例的” Metrics”选项卡。请在此处阅读更多相关信息这里信息。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006486" data-ratio="0.5527777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-88d5df64da.png" data-w="1080">
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 编程访问</p>
+<p>如果你想在代码库或在线演示中从 Hugging Face 下载模型，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">以下代码将下载库中的所有文件：</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<h2 data-tool="mdnice编辑器"><span>创建在线演示</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为在线演示提供托管、发现和社交功能 - 称为 Spaces。Spaces 可以轻松创建和部署ML驱动的在线演示，只需几分钟即可完成。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要做在线演示？</strong></p>
+<p data-tool="mdnice编辑器">创建在线演示可以让你的研究或项目成果更易于理解和使用，有助于其推广。任何拥有浏览器的人都可以体验你的研究成果，甚至可以让成果一日爆红！</p>
+<p data-tool="mdnice编辑器"><strong>在线演示的展现形式</strong></p>
+<p data-tool="mdnice编辑器">你可以自由选择在线演示的展现形式！我们在这里提供一些热门在线演示作为参考并分享如何创建在线演示 Spaces。</p>
+<p data-tool="mdnice编辑器">Stability 的 Stable Diffusion（文本到图像）</p>
+<img data-imgfileid="100006487" data-ratio="0.9022265246853823" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6f05bd71d.png" data-w="1033">
+<p data-tool="mdnice编辑器">Meta 的 MusicGen（文本到音乐生成）</p>
+<img data-imgfileid="100006484" data-ratio="0.41388888888888886" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c383de201.png" data-w="1080">
+<p data-tool="mdnice编辑器">jbilcke 的 AI Comic Factory（漫画生成）</p>
+<img data-imgfileid="100006493" data-ratio="0.49166666666666664" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4732c3a3a2.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：Spaces 在 CPU 上运行时是免费的。如果需要使用 GPU 运行，你可以申请社区资助（在 <strong>设置</strong> 选项卡中）或购买 T4、A10G 及 A100。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>在 https://huggingface.co/new-space 创建一个仓库，可以在你的账户或在组织名下创建。</p>
+<p>Spaces 可以使用开源 Python 库（例如：Gradio或Streamlit）创建，也可以使用 Docker 或静态 HTML 页面。我们建议使用 Gradio 进行快速原型制作，当然也可以使用你喜欢的其他工具！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006490" data-ratio="1.0689655172413792" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a4b3f4ccb4.png" data-w="638">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建应用程序文件</p>
+<p>假设你正在创建一个 Gradio 演示。请随意查阅 Gradio Spaces 文档。可以在仓库的”文件”选项卡点击”上传文件”或”创建新文件”。主 Python 脚本应命名为 <strong>app.py</strong>。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006491" data-ratio="0.3861111111111111" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-951229329a.png" data-w="1080">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+编写你的应用代码
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想要加载模型或数据集，你可以使用huggingface_hub Python库</p>
+<pre data-tool="mdnice编辑器"><code>import&nbsp;gradio&nbsp;as&nbsp;gr<br><br>def&nbsp;greet(name):<br>&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;f<span>"Hello&nbsp;{name}"</span>}<br><br>demo&nbsp;=&nbsp;gr.Interface(<br>&nbsp;&nbsp;&nbsp;&nbsp;fn=greet,<br>&nbsp;&nbsp;&nbsp;&nbsp;inputs=[<span>"text"</span>],<br>&nbsp;&nbsp;&nbsp;&nbsp;outputs=[<span>"text"</span>],<br>)<br><br>demo.launch()<br></code></pre>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>体验应用！</p>
+<p>你的应用已经创建成功！建议在创建之后操作即使体验以保证其运行顺利。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006489" data-ratio="0.14722222222222223" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d19c5695e.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：</p>
+<p data-tool="mdnice编辑器">Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<p data-tool="mdnice编辑器"><strong>Spaces 常见问题汇总</strong></p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以使用哪些模型库？</p>
+<p>你可以使用任何你喜欢的库，可以在 requirements.txt 文件中定义你的依赖项。</p>
+</section></li>
+<li>
+<section>
+<p>如何加载模型？</p>
+<p>如果你想从 Hub 下载模型到你的Spaces，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载某个指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">而以下代码将下载仓库中的所有文件。</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以用 Gradio 做什么？</p>
+<p>随时查看 Gradio 文档和指南。Gradio 提供了一个简单的 API 来创建在线演示，并可以让你自由定义在线演示的展现方式。</p>
+<p>例如添加音频、文本、带注释的图像、聊天机器人、代码、文件、图像画廊、3D 对象、视频等组件，甚至可以创建符合你需求的组件。</p>
+</section></li>
+<li>
+<section>
+<p>热门 Spaces 制作小贴士？</p>
+</section></li>
+<ul>
+<li>
+<section>
+简单的演示更受欢迎。
+</section></li>
+<li>
+<section>
+有标题、描述和简要说明演示的内容。
+</section></li>
+<li>
+<section>
+有模型或论文的链接。
+</section></li>
+<li>
+<section>
+添加偏见和内容认可（参见 SD 演示 作为示例）。
+</section></li>
+</ul>
+</ol>
+<h2 data-tool="mdnice编辑器"><span>推广宣传：</span></h2>
+<p data-tool="mdnice编辑器">在公布论文、模型/数据集、GitHub 仓库和在线演示之后，就是要确保你的研究能尽快被社区熟知！这里有一些方法可以帮助提高在社区中推广和宣传你的研究成果。</p>
+<h3 data-tool="mdnice编辑器"><span>【加分项】Collections</span></h3>
+<p data-tool="mdnice编辑器">你可以为项目成果（包括模型、数据集、演示、论文）在 Hub 上创建一个合集，你创建的合集会直接显示在个人账户中。更多详情请查看文档。</p>
+<img data-imgfileid="100006492" data-ratio="0.4740740740740741" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3e197e20b0.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Paper Space</span></h3>
+<p data-tool="mdnice编辑器">通过GitHub Pages 或 Hugging Face Spaces，你可以将所有的项目成果和应用都集中在一个网页中。（例如：(https://nerfies.github.io/)）如果你选择使用Spaces, 可以从 Nerfies/Paper Project 模板 中选择喜欢的模版，或者自创模版进行展示。</p>
+<img data-imgfileid="100006498" data-ratio="0.5370370370370371" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d01b46662.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Hugging Face Paper 页面</span></h3>
+<p data-tool="mdnice编辑器">在 HF 论文页面 ，你可以发现和探索与研究论文相关的所有成果（包括：模型，数据集和在线演示demo）。你还可以在喜欢的论文页面和作者或社区一起来进行讨论。论文在 arXiv 上发表之后，你可以在 HF 上进行索引作为作者认领论文，认领之后论文将直接链接到你的账户并在账户中展示。更多详情请查看 文档。</p>
+<img data-imgfileid="100006497" data-ratio="0.5685185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0175f4c926.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>推广</span></h3>
+<p data-tool="mdnice编辑器">如果你已经完成了以上的步骤，那么恭喜你已经成功发布了你的项目成果！接下来也是最重要的一个环节是要进行推广。使用推特或 Reddit 等社交平台来撰写博客文章，或进行发布公告来为研究的推广助力。</p>
+<p data-tool="mdnice编辑器">建议你与其他研究人员或开源贡献者等合作伙伴联合发布，这样可以有效的扩大推广受众覆盖率。在开始推广之后，你还需要和与社区进行互动！最好的推广不仅仅是宣传你的项目成果，也需要和你项目的受众建立良好的互动关系。关系和与你的受众互动。</p>
+<h2 data-tool="mdnice编辑器"><span>如何使用这份文档？</span></h2>
+<p data-tool="mdnice编辑器">我们建议复制这份文档，并使用下面的步骤来跟踪进度。每步的操作时间基本只需 1 分钟。，它们会在 <strong>你决定做什么时</strong> 指导你，并且可以快速完成！下面有文档解释如何做不同的项目。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+发布论文
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+准备好论文并进行排版
+</section></li>
+<li>
+<section>
+在 ArXiv 上发布
+</section></li>
+<li>
+<section>
+在 HF 上索引论文
+</section></li>
+</ul>
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+发布代码库
+</section></li>
+<li>
+<section>
+发布数据集
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将数据集上传到 Hub（例如 HF、Kaggle、Zenodo）
+</section></li>
+<li>
+<section>
+创建数据集卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、语言等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接等）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+</ul>
+</ul>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+发布模型
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将模型上传到 Hub
+</section></li>
+<li>
+<section>
+创建模型卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、数据集等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+<li>
+<section>
+添加展示如何使用模型的代码片段
+</section></li>
+</ul>
+</ul>
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+构建演示
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+编写 Colab 或脚本
+</section></li>
+<li>
+<section>
+创建在线演示 Space
+</section></li>
+</ul>
+<ol start="6" data-tool="mdnice编辑器">
+<li>
+<section>
+准备发布
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+确保你的项目成果之间相互关联
+</section></li>
+<li>
+<section>
+创建论文页面
+</section></li>
+<li>
+<section>
+构建成果合集
+</section></li>
+<li>
+<section>
+推广宣传
+</section></li>
+</ul>
+<ol start="7" data-tool="mdnice编辑器">
+<li>
+<section>
+庆祝🎉
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器"></p>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - Hugging Face（gh_504339124f0f）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<section data-tool="mdnice编辑器" data-website="https://www.mdnice.com">
+<p data-tool="mdnice编辑器"><strong>什么是开源发布工具包？</strong></p>
+<p data-tool="mdnice编辑器">恭喜你的论文成功发表，这是一个巨大的成就！你的研究成果将为学界做出贡献。</p>
+<p data-tool="mdnice编辑器">其实除了发表论文之外，你还可以通过发布研究的其他部分，如代码、数据集、模型等，来增加研究的可见度和采用率。这将使更多人能够使用你的研究，并推动研究成果的应用。我们整理了这份文件，让你可以更好的了解和实践开源。希望这份文件对你有所帮助！</p>
+<p data-tool="mdnice编辑器"><strong>什么是开源？</strong></p>
+<p data-tool="mdnice编辑器">公开研究 - 不仅仅是论文，还包括相关的所有成果，如代码、模型、数据集或在线演示。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要开源？</strong></p>
+<p data-tool="mdnice编辑器">进行开放获取研究<span>[^1]</span>，可以让更多的人了解和使用你的研究或项目成果，促进社区研究人员之间的合作。通过共享机器学习的知识和资源以及社区协作，来推动机器学习领域的发展。</p>
+<p data-tool="mdnice编辑器"><span><span><span>[^1]:&nbsp;</span></span><span>开放获取意味着一个成果是公开可访问的。例如，你可以公开发布一个模型，同时拥有一个不完全符合开源倡议组织 (OSI) 对开源所设定的确切标准的许可证。例如，如果许可证限制了</span></span><span>模型的使用方式，它就不被视为开源。不过，它仍然是对社区有价值的开放获取成果！</span></p>
+<p data-tool="mdnice编辑器"><strong>如何开源？</strong></p>
+<p data-tool="mdnice编辑器">机器学习发布有很多的形式和规模。你可以根据你的时间线、优先级、内部政策或者其他因素来决定如何开源和开源哪些内容。比如：你可以只公布代码，也可以公布模型等其他成果。</p>
+<p data-tool="mdnice编辑器">以下是开源的步骤概览：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+论文
+</section></li>
+<li>
+<section>
+代码仓库
+</section></li>
+<li>
+<section>
+数据集
+</section></li>
+<li>
+<section>
+模型
+</section></li>
+<li>
+<section>
+构建在线演示 demo
+</section></li>
+<li>
+<section>
+推广应用
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器"><strong>你可以自由定义想要发布的内容、如何发布以及什么时间进行发布</strong>；本文档会详细介绍上述每项内容的具体步骤和指导。</p>
+<p data-tool="mdnice编辑器"><strong>你会用到什么工具？</strong></p>
+<p data-tool="mdnice编辑器">分享论文可以使用<strong>arXiv</strong> ：这是一个免费的可以公开发表论文的平台，在机器学习领域中被广泛使用。</p>
+<p data-tool="mdnice编辑器">分享代码可以使用 <strong>GitHub</strong> ：这是一个代码版本控制平台。在 GitHub 上，你可以分享训练代码、如何加载模型或数据集的示例等。</p>
+<p data-tool="mdnice编辑器">分享模型权重，数据集及演示则可以使用 <strong>Hugging Face Hub</strong> ：HF 是一个协作式机器学习平台，人们可以在其中轻松地探索、体验并共同创建机器学习。此外它还提供一定的社交功能，如论文讨论。</p>
+<p data-tool="mdnice编辑器"><strong>如何使用这份文档？</strong></p>
+<p data-tool="mdnice编辑器">这份文档提供了具体的项目和步骤指导，你可以选择按照步骤完成所有项目成果的发布，也可以根据自己的需求来选择想要发布的项目成果。步骤看似很多，但是每一步仅需不到一分钟的时间即可完成。我们建议你复制这份文档，以便随时查阅。文档末尾会有一个核对清单，帮助你核对每一步，为开源你的项目成果做好充分的准备。</p>
+<p data-tool="mdnice编辑器"><strong>热门开源发布示例</strong></p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+Meta 的 Llama 2 (论文, 代码库, 模型, 演示)
+</section></li>
+<li>
+<section>
+EPFL 的 Meditron (论文, 代码库, 模型, 数据)
+</section></li>
+<li>
+<section>
+Adept 的 Fuyu (博客, 模型, 演示)
+</section></li>
+<li>
+<section>
+Meta 的 Seamless (论文, 代码库, 合集)
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">GitHub 仓库：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://github.com/facebookresearch/seamless_communication
+</section></li>
+<li>
+<section>
+https://github.com/CompVis/stable-diffusion
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究模型：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/microsoft/phi-2
+</section></li>
+<li>
+<section>
+https://huggingface.co/meta-llama/Llama-2-7b
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究数据集：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/datasets/epfl-llm/guidelines
+</section></li>
+<li>
+<section>
+https://huggingface.co/datasets/princeton-nlp/SWE-bench
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">在线演示：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/spaces/facebook/seamless_m4t
+</section></li>
+<li>
+<section>
+https://huggingface.co/spaces/andreped/AeroPath
+</section></li>
+</ul>
+<h2 data-tool="mdnice编辑器"><span>发布论文</span></h2>
+<p data-tool="mdnice编辑器">可以通过 arXiv 来 上传并与社区分享你的论文。这是一个免费平台，并且不需要同行评审。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>撰写并准备论文</p>
+<p>第一步是撰写论文。一个常用的协作论文撰写工具是 Overleaf（用于 LaTeX 工作）。如果向会议提交论文，<strong>请遵循它们的官方模板和风格指南</strong>。</p>
+<p>查阅 arXiv 官方的指南，包括格式期望和授权许可。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006477" data-ratio="0.687037037037037" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf64f0dfe9.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>提交论文</p>
+<p>访问你的 用户页面 并点击“提交”即可提交可能需要一些时间来处理，并且只在周日至周四开放。</p>
+<p><strong>注意：</strong> 首次提交到某个类别时，需要社区中的某人认可它才能发布。但请注意，这不是同行评审！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006473" data-ratio="0.8224489795918367" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b52a2d6fa8.png" data-w="980">
+<h2 data-tool="mdnice编辑器"><span>发布代码库</span></h2>
+<p data-tool="mdnice编辑器">可以使用 GitHub 来发布和分享代码。GitHub 是一个代码版本控制平台。在 GitHub 上，你可以分享你的代码库（包括推理/建模代码、训练代码等）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://github.com/new 创建一个带有 README 和你选择的许可证的仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006476" data-ratio="1.1598951507208388" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe66cf3331.png" data-w="763">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>编写 README。</p>
+<p>README 是描述项目的文件，一般使用 markdown 编写，这是一种用于文本格式化的相当简单的语言。建议在README中添加描述、成果链接（如你的论文）以及一些代码示例。</p>
+<p>示例</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006475" data-ratio="1.3799392097264438" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f956a4b849.png" data-w="658">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>上传代码</p>
+<p>接下来就是要上传你的代码了！你可以上传包括运行模型的代码、训练脚本或者更多内容！</p>
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想同时将你的模型集成到 Hugging Face 库中，以实现即时集成。请随时联系 open-source@huggingface.co，我们会尽快评估并反馈。</p>
+<h2 data-tool="mdnice编辑器"><span>发布数据集</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 提供数据集的托管、发现和社交功能。HF 还有一个名为 datasets 的开源库，可用于以编程方式加载数据集，并在大型数据集上有效地进行流式处理。此外，HF 还提供查看器，可让用户在浏览器中直接探索数据。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new-dataset 创建一个仓库，可以在你的账户或在组织名下进行创建。
+</section></li>
+</ol>
+<img data-imgfileid="100006474" data-ratio="0.5842592592592593" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-aff81f7f9e.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的 <strong>文件和版本</strong> 选项卡并点击“上传文件”。支持拖放文件/文件夹或直接上传。</p>
+<img data-imgfileid="100006480" data-ratio="0.29814814814814816" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6d6d947f1a.png" data-w="1080">
+<img data-imgfileid="100006481" data-ratio="0.36018518518518516" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9df874e91f.png" data-w="1080">
+<p><strong>注意：</strong>Hub 支持不同的文件格式。这些格式将在浏览器中获得查看器，并自动在 datasets 库中获得支持。对于其他格式，你可以编写自己的加载脚本。查看官方文档。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;datasets&nbsp;import&nbsp;load_dataset<br>&nbsp;&nbsp;&nbsp;dataset&nbsp;=&nbsp;load_dataset(<span>"stevhliu/demo"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器"><strong>注意：</strong> Hugging Face 使用 Git 作为数据和代码的存储库。如果熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI。更多详情见指南。你还可以使用datasets 库来推送仓库。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建数据集卡片</p>
+<p>数据集卡片是包含数据集相关信息的文件，通常与数据集一起发布，用于帮助用户更好地理解和使用数据集。数据集卡片对于促进数据集的可发现性、可重复性和共享具有重要作用。</p>
+<p>除了主要内容之外，数据集卡片还包含顶部的元数据，例如许可证类型、任务类别等。这些元数据可以帮助用户快速了解数据集的相关信息，从而更好地选择合适的数据集进行研究或开发。</p>
+<p>我们强烈建议定义数据集的许可证类型，以便用户了解数据集的使用权限和限制。同时，明确定义数据集的任务类别，可以帮助用户更准确地找到与其研究或开发相关的数据集。数据的可发现性和使用都是数据集的重要属性，数据集卡片可以有效地促进这两项属性的提升。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006482" data-ratio="0.46296296296296297" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d640405e22.png" data-w="1080">
+<p data-tool="mdnice编辑器">我们建议在数据集卡片内容中添加指向你的 arXiv 论文的链接。HF 会自动将它们链接在一起。你可以在其官方文档中阅读有关数据集卡片的更多信息。</p>
+<h2 data-tool="mdnice编辑器"><span>发布模型权重</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为模型提供托管、发现和社交功能。它不局限于 HF 官方库，你可以<strong>分享任何 ML 库的模型权重</strong>（或分享自己的代码库）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new 创建一个仓库，可以在你的账户或组织名下创建仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006479" data-ratio="0.8759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3366b0ca30.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的文件选项卡并点击“上传文件”。可以拖放文件/文件夹或直接上传。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006478" data-ratio="0.2759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a17512f8cb.png" data-w="1080">
+<img data-imgfileid="100006485" data-ratio="0.7277777777777777" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e764b02979.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意：</strong>Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建模型卡片</p>
+<p>模型卡片是随模型一起提供的文件，主要包含关于模型的实用信息。模型卡片对于发现、可重现性和共享模型来说至关重要！你可以在任何模型仓库中找到名为README.md 的模型卡片。我们强烈建议在其中添加一个代码片段，展示如何加载和使用模型。</p>
+<p>除了以上内容外，模型卡片还可以包含顶部的有用元数据。UI 提供了一些工具来帮助你创建。我们强烈建议你指定<strong>许可证</strong>和<strong>管道标签</strong>（用于指定模型的任务，如文本到图像）。这两者是发现和使用模型的关键。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006483" data-ratio="0.24444444444444444" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-76f3f9e498.png" data-w="1080">
+<p data-tool="mdnice编辑器">还有其他值得添加的内容。你可以在这里了解更多。比如：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+<strong>language 语言：</strong>模型支持的语言列表
+</section></li>
+<li>
+<section>
+<strong>tags 标签：</strong>帮助发现模型标签
+</section></li>
+<li>
+<section>
+<strong>datasets 数据集：</strong>用于训练模型的数据集
+</section></li>
+<li>
+<section>
+<strong>base_model 基础模型：</strong>如果是微调模型的话使用的基础模型是什么？
+</section></li>
+<li>
+<section>
+<strong>library_name 库名称：</strong>用来加载模型的库
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">我们建议在模型卡片内容中添加相关的 arXiv 论文链接。HF 会自动将两者链接在一起。</p>
+<p data-tool="mdnice编辑器">你可以在其官方文档中了解更多关于模型卡片的信息。</p>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 添加 TensorBoard 跟踪</p>
+<p>TensorBoard 是一个提供用于可视化指标工具的工具。如果你将 TensorBoard 跟踪推送到 Hub，则会自动显示出一个 TensorBoard 实例的” Metrics”选项卡。请在此处阅读更多相关信息这里信息。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006486" data-ratio="0.5527777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-88d5df64da.png" data-w="1080">
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 编程访问</p>
+<p>如果你想在代码库或在线演示中从 Hugging Face 下载模型，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">以下代码将下载库中的所有文件：</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<h2 data-tool="mdnice编辑器"><span>创建在线演示</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为在线演示提供托管、发现和社交功能 - 称为 Spaces。Spaces 可以轻松创建和部署ML驱动的在线演示，只需几分钟即可完成。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要做在线演示？</strong></p>
+<p data-tool="mdnice编辑器">创建在线演示可以让你的研究或项目成果更易于理解和使用，有助于其推广。任何拥有浏览器的人都可以体验你的研究成果，甚至可以让成果一日爆红！</p>
+<p data-tool="mdnice编辑器"><strong>在线演示的展现形式</strong></p>
+<p data-tool="mdnice编辑器">你可以自由选择在线演示的展现形式！我们在这里提供一些热门在线演示作为参考并分享如何创建在线演示 Spaces。</p>
+<p data-tool="mdnice编辑器">Stability 的 Stable Diffusion（文本到图像）</p>
+<img data-imgfileid="100006487" data-ratio="0.9022265246853823" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6f05bd71d.png" data-w="1033">
+<p data-tool="mdnice编辑器">Meta 的 MusicGen（文本到音乐生成）</p>
+<img data-imgfileid="100006484" data-ratio="0.41388888888888886" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c383de201.png" data-w="1080">
+<p data-tool="mdnice编辑器">jbilcke 的 AI Comic Factory（漫画生成）</p>
+<img data-imgfileid="100006493" data-ratio="0.49166666666666664" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4732c3a3a2.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：Spaces 在 CPU 上运行时是免费的。如果需要使用 GPU 运行，你可以申请社区资助（在 <strong>设置</strong> 选项卡中）或购买 T4、A10G 及 A100。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>在 https://huggingface.co/new-space 创建一个仓库，可以在你的账户或在组织名下创建。</p>
+<p>Spaces 可以使用开源 Python 库（例如：Gradio或Streamlit）创建，也可以使用 Docker 或静态 HTML 页面。我们建议使用 Gradio 进行快速原型制作，当然也可以使用你喜欢的其他工具！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006490" data-ratio="1.0689655172413792" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a4b3f4ccb4.png" data-w="638">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建应用程序文件</p>
+<p>假设你正在创建一个 Gradio 演示。请随意查阅 Gradio Spaces 文档。可以在仓库的”文件”选项卡点击”上传文件”或”创建新文件”。主 Python 脚本应命名为 <strong>app.py</strong>。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006491" data-ratio="0.3861111111111111" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-951229329a.png" data-w="1080">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+编写你的应用代码
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想要加载模型或数据集，你可以使用huggingface_hub Python库</p>
+<pre data-tool="mdnice编辑器"><code>import&nbsp;gradio&nbsp;as&nbsp;gr<br><br>def&nbsp;greet(name):<br>&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;f<span>"Hello&nbsp;{name}"</span>}<br><br>demo&nbsp;=&nbsp;gr.Interface(<br>&nbsp;&nbsp;&nbsp;&nbsp;fn=greet,<br>&nbsp;&nbsp;&nbsp;&nbsp;inputs=[<span>"text"</span>],<br>&nbsp;&nbsp;&nbsp;&nbsp;outputs=[<span>"text"</span>],<br>)<br><br>demo.launch()<br></code></pre>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>体验应用！</p>
+<p>你的应用已经创建成功！建议在创建之后操作即使体验以保证其运行顺利。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006489" data-ratio="0.14722222222222223" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d19c5695e.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：</p>
+<p data-tool="mdnice编辑器">Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<p data-tool="mdnice编辑器"><strong>Spaces 常见问题汇总</strong></p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以使用哪些模型库？</p>
+<p>你可以使用任何你喜欢的库，可以在 requirements.txt 文件中定义你的依赖项。</p>
+</section></li>
+<li>
+<section>
+<p>如何加载模型？</p>
+<p>如果你想从 Hub 下载模型到你的Spaces，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载某个指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">而以下代码将下载仓库中的所有文件。</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以用 Gradio 做什么？</p>
+<p>随时查看 Gradio 文档和指南。Gradio 提供了一个简单的 API 来创建在线演示，并可以让你自由定义在线演示的展现方式。</p>
+<p>例如添加音频、文本、带注释的图像、聊天机器人、代码、文件、图像画廊、3D 对象、视频等组件，甚至可以创建符合你需求的组件。</p>
+</section></li>
+<li>
+<section>
+<p>热门 Spaces 制作小贴士？</p>
+</section></li>
+<ul>
+<li>
+<section>
+简单的演示更受欢迎。
+</section></li>
+<li>
+<section>
+有标题、描述和简要说明演示的内容。
+</section></li>
+<li>
+<section>
+有模型或论文的链接。
+</section></li>
+<li>
+<section>
+添加偏见和内容认可（参见 SD 演示 作为示例）。
+</section></li>
+</ul>
+</ol>
+<h2 data-tool="mdnice编辑器"><span>推广宣传：</span></h2>
+<p data-tool="mdnice编辑器">在公布论文、模型/数据集、GitHub 仓库和在线演示之后，就是要确保你的研究能尽快被社区熟知！这里有一些方法可以帮助提高在社区中推广和宣传你的研究成果。</p>
+<h3 data-tool="mdnice编辑器"><span>【加分项】Collections</span></h3>
+<p data-tool="mdnice编辑器">你可以为项目成果（包括模型、数据集、演示、论文）在 Hub 上创建一个合集，你创建的合集会直接显示在个人账户中。更多详情请查看文档。</p>
+<img data-imgfileid="100006492" data-ratio="0.4740740740740741" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3e197e20b0.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Paper Space</span></h3>
+<p data-tool="mdnice编辑器">通过GitHub Pages 或 Hugging Face Spaces，你可以将所有的项目成果和应用都集中在一个网页中。（例如：(https://nerfies.github.io/)）如果你选择使用Spaces, 可以从 Nerfies/Paper Project 模板 中选择喜欢的模版，或者自创模版进行展示。</p>
+<img data-imgfileid="100006498" data-ratio="0.5370370370370371" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d01b46662.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Hugging Face Paper 页面</span></h3>
+<p data-tool="mdnice编辑器">在 HF 论文页面 ，你可以发现和探索与研究论文相关的所有成果（包括：模型，数据集和在线演示demo）。你还可以在喜欢的论文页面和作者或社区一起来进行讨论。论文在 arXiv 上发表之后，你可以在 HF 上进行索引作为作者认领论文，认领之后论文将直接链接到你的账户并在账户中展示。更多详情请查看 文档。</p>
+<img data-imgfileid="100006497" data-ratio="0.5685185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0175f4c926.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>推广</span></h3>
+<p data-tool="mdnice编辑器">如果你已经完成了以上的步骤，那么恭喜你已经成功发布了你的项目成果！接下来也是最重要的一个环节是要进行推广。使用推特或 Reddit 等社交平台来撰写博客文章，或进行发布公告来为研究的推广助力。</p>
+<p data-tool="mdnice编辑器">建议你与其他研究人员或开源贡献者等合作伙伴联合发布，这样可以有效的扩大推广受众覆盖率。在开始推广之后，你还需要和与社区进行互动！最好的推广不仅仅是宣传你的项目成果，也需要和你项目的受众建立良好的互动关系。关系和与你的受众互动。</p>
+<h2 data-tool="mdnice编辑器"><span>如何使用这份文档？</span></h2>
+<p data-tool="mdnice编辑器">我们建议复制这份文档，并使用下面的步骤来跟踪进度。每步的操作时间基本只需 1 分钟。，它们会在 <strong>你决定做什么时</strong> 指导你，并且可以快速完成！下面有文档解释如何做不同的项目。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+发布论文
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+准备好论文并进行排版
+</section></li>
+<li>
+<section>
+在 ArXiv 上发布
+</section></li>
+<li>
+<section>
+在 HF 上索引论文
+</section></li>
+</ul>
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+发布代码库
+</section></li>
+<li>
+<section>
+发布数据集
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将数据集上传到 Hub（例如 HF、Kaggle、Zenodo）
+</section></li>
+<li>
+<section>
+创建数据集卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、语言等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接等）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+</ul>
+</ul>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+发布模型
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将模型上传到 Hub
+</section></li>
+<li>
+<section>
+创建模型卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、数据集等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+<li>
+<section>
+添加展示如何使用模型的代码片段
+</section></li>
+</ul>
+</ul>
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+构建演示
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+编写 Colab 或脚本
+</section></li>
+<li>
+<section>
+创建在线演示 Space
+</section></li>
+</ul>
+<ol start="6" data-tool="mdnice编辑器">
+<li>
+<section>
+准备发布
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+确保你的项目成果之间相互关联
+</section></li>
+<li>
+<section>
+创建论文页面
+</section></li>
+<li>
+<section>
+构建成果合集
+</section></li>
+<li>
+<section>
+推广宣传
+</section></li>
+</ul>
+<ol start="7" data-tool="mdnice编辑器">
+<li>
+<section>
+庆祝🎉
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器"></p>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - Hugging Face（gh_504339124f0f）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<section data-tool="mdnice编辑器" data-website="https://www.mdnice.com">
+<p data-tool="mdnice编辑器"><strong>什么是开源发布工具包？</strong></p>
+<p data-tool="mdnice编辑器">恭喜你的论文成功发表，这是一个巨大的成就！你的研究成果将为学界做出贡献。</p>
+<p data-tool="mdnice编辑器">其实除了发表论文之外，你还可以通过发布研究的其他部分，如代码、数据集、模型等，来增加研究的可见度和采用率。这将使更多人能够使用你的研究，并推动研究成果的应用。我们整理了这份文件，让你可以更好的了解和实践开源。希望这份文件对你有所帮助！</p>
+<p data-tool="mdnice编辑器"><strong>什么是开源？</strong></p>
+<p data-tool="mdnice编辑器">公开研究 - 不仅仅是论文，还包括相关的所有成果，如代码、模型、数据集或在线演示。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要开源？</strong></p>
+<p data-tool="mdnice编辑器">进行开放获取研究<span>[^1]</span>，可以让更多的人了解和使用你的研究或项目成果，促进社区研究人员之间的合作。通过共享机器学习的知识和资源以及社区协作，来推动机器学习领域的发展。</p>
+<p data-tool="mdnice编辑器"><span><span><span>[^1]:&nbsp;</span></span><span>开放获取意味着一个成果是公开可访问的。例如，你可以公开发布一个模型，同时拥有一个不完全符合开源倡议组织 (OSI) 对开源所设定的确切标准的许可证。例如，如果许可证限制了</span></span><span>模型的使用方式，它就不被视为开源。不过，它仍然是对社区有价值的开放获取成果！</span></p>
+<p data-tool="mdnice编辑器"><strong>如何开源？</strong></p>
+<p data-tool="mdnice编辑器">机器学习发布有很多的形式和规模。你可以根据你的时间线、优先级、内部政策或者其他因素来决定如何开源和开源哪些内容。比如：你可以只公布代码，也可以公布模型等其他成果。</p>
+<p data-tool="mdnice编辑器">以下是开源的步骤概览：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+论文
+</section></li>
+<li>
+<section>
+代码仓库
+</section></li>
+<li>
+<section>
+数据集
+</section></li>
+<li>
+<section>
+模型
+</section></li>
+<li>
+<section>
+构建在线演示 demo
+</section></li>
+<li>
+<section>
+推广应用
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器"><strong>你可以自由定义想要发布的内容、如何发布以及什么时间进行发布</strong>；本文档会详细介绍上述每项内容的具体步骤和指导。</p>
+<p data-tool="mdnice编辑器"><strong>你会用到什么工具？</strong></p>
+<p data-tool="mdnice编辑器">分享论文可以使用<strong>arXiv</strong> ：这是一个免费的可以公开发表论文的平台，在机器学习领域中被广泛使用。</p>
+<p data-tool="mdnice编辑器">分享代码可以使用 <strong>GitHub</strong> ：这是一个代码版本控制平台。在 GitHub 上，你可以分享训练代码、如何加载模型或数据集的示例等。</p>
+<p data-tool="mdnice编辑器">分享模型权重，数据集及演示则可以使用 <strong>Hugging Face Hub</strong> ：HF 是一个协作式机器学习平台，人们可以在其中轻松地探索、体验并共同创建机器学习。此外它还提供一定的社交功能，如论文讨论。</p>
+<p data-tool="mdnice编辑器"><strong>如何使用这份文档？</strong></p>
+<p data-tool="mdnice编辑器">这份文档提供了具体的项目和步骤指导，你可以选择按照步骤完成所有项目成果的发布，也可以根据自己的需求来选择想要发布的项目成果。步骤看似很多，但是每一步仅需不到一分钟的时间即可完成。我们建议你复制这份文档，以便随时查阅。文档末尾会有一个核对清单，帮助你核对每一步，为开源你的项目成果做好充分的准备。</p>
+<p data-tool="mdnice编辑器"><strong>热门开源发布示例</strong></p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+Meta 的 Llama 2 (论文, 代码库, 模型, 演示)
+</section></li>
+<li>
+<section>
+EPFL 的 Meditron (论文, 代码库, 模型, 数据)
+</section></li>
+<li>
+<section>
+Adept 的 Fuyu (博客, 模型, 演示)
+</section></li>
+<li>
+<section>
+Meta 的 Seamless (论文, 代码库, 合集)
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">GitHub 仓库：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://github.com/facebookresearch/seamless_communication
+</section></li>
+<li>
+<section>
+https://github.com/CompVis/stable-diffusion
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究模型：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/microsoft/phi-2
+</section></li>
+<li>
+<section>
+https://huggingface.co/meta-llama/Llama-2-7b
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">研究数据集：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/datasets/epfl-llm/guidelines
+</section></li>
+<li>
+<section>
+https://huggingface.co/datasets/princeton-nlp/SWE-bench
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">在线演示：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+https://huggingface.co/spaces/facebook/seamless_m4t
+</section></li>
+<li>
+<section>
+https://huggingface.co/spaces/andreped/AeroPath
+</section></li>
+</ul>
+<h2 data-tool="mdnice编辑器"><span>发布论文</span></h2>
+<p data-tool="mdnice编辑器">可以通过 arXiv 来 上传并与社区分享你的论文。这是一个免费平台，并且不需要同行评审。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>撰写并准备论文</p>
+<p>第一步是撰写论文。一个常用的协作论文撰写工具是 Overleaf（用于 LaTeX 工作）。如果向会议提交论文，<strong>请遵循它们的官方模板和风格指南</strong>。</p>
+<p>查阅 arXiv 官方的指南，包括格式期望和授权许可。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006477" data-ratio="0.687037037037037" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf64f0dfe9.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>提交论文</p>
+<p>访问你的 用户页面 并点击“提交”即可提交可能需要一些时间来处理，并且只在周日至周四开放。</p>
+<p><strong>注意：</strong> 首次提交到某个类别时，需要社区中的某人认可它才能发布。但请注意，这不是同行评审！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006473" data-ratio="0.8224489795918367" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b52a2d6fa8.png" data-w="980">
+<h2 data-tool="mdnice编辑器"><span>发布代码库</span></h2>
+<p data-tool="mdnice编辑器">可以使用 GitHub 来发布和分享代码。GitHub 是一个代码版本控制平台。在 GitHub 上，你可以分享你的代码库（包括推理/建模代码、训练代码等）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://github.com/new 创建一个带有 README 和你选择的许可证的仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006476" data-ratio="1.1598951507208388" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe66cf3331.png" data-w="763">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>编写 README。</p>
+<p>README 是描述项目的文件，一般使用 markdown 编写，这是一种用于文本格式化的相当简单的语言。建议在README中添加描述、成果链接（如你的论文）以及一些代码示例。</p>
+<p>示例</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006475" data-ratio="1.3799392097264438" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f956a4b849.png" data-w="658">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>上传代码</p>
+<p>接下来就是要上传你的代码了！你可以上传包括运行模型的代码、训练脚本或者更多内容！</p>
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想同时将你的模型集成到 Hugging Face 库中，以实现即时集成。请随时联系 open-source@huggingface.co，我们会尽快评估并反馈。</p>
+<h2 data-tool="mdnice编辑器"><span>发布数据集</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 提供数据集的托管、发现和社交功能。HF 还有一个名为 datasets 的开源库，可用于以编程方式加载数据集，并在大型数据集上有效地进行流式处理。此外，HF 还提供查看器，可让用户在浏览器中直接探索数据。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new-dataset 创建一个仓库，可以在你的账户或在组织名下进行创建。
+</section></li>
+</ol>
+<img data-imgfileid="100006474" data-ratio="0.5842592592592593" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-aff81f7f9e.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的 <strong>文件和版本</strong> 选项卡并点击“上传文件”。支持拖放文件/文件夹或直接上传。</p>
+<img data-imgfileid="100006480" data-ratio="0.29814814814814816" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6d6d947f1a.png" data-w="1080">
+<img data-imgfileid="100006481" data-ratio="0.36018518518518516" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9df874e91f.png" data-w="1080">
+<p><strong>注意：</strong>Hub 支持不同的文件格式。这些格式将在浏览器中获得查看器，并自动在 datasets 库中获得支持。对于其他格式，你可以编写自己的加载脚本。查看官方文档。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;datasets&nbsp;import&nbsp;load_dataset<br>&nbsp;&nbsp;&nbsp;dataset&nbsp;=&nbsp;load_dataset(<span>"stevhliu/demo"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器"><strong>注意：</strong> Hugging Face 使用 Git 作为数据和代码的存储库。如果熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI。更多详情见指南。你还可以使用datasets 库来推送仓库。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建数据集卡片</p>
+<p>数据集卡片是包含数据集相关信息的文件，通常与数据集一起发布，用于帮助用户更好地理解和使用数据集。数据集卡片对于促进数据集的可发现性、可重复性和共享具有重要作用。</p>
+<p>除了主要内容之外，数据集卡片还包含顶部的元数据，例如许可证类型、任务类别等。这些元数据可以帮助用户快速了解数据集的相关信息，从而更好地选择合适的数据集进行研究或开发。</p>
+<p>我们强烈建议定义数据集的许可证类型，以便用户了解数据集的使用权限和限制。同时，明确定义数据集的任务类别，可以帮助用户更准确地找到与其研究或开发相关的数据集。数据的可发现性和使用都是数据集的重要属性，数据集卡片可以有效地促进这两项属性的提升。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006482" data-ratio="0.46296296296296297" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d640405e22.png" data-w="1080">
+<p data-tool="mdnice编辑器">我们建议在数据集卡片内容中添加指向你的 arXiv 论文的链接。HF 会自动将它们链接在一起。你可以在其官方文档中阅读有关数据集卡片的更多信息。</p>
+<h2 data-tool="mdnice编辑器"><span>发布模型权重</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为模型提供托管、发现和社交功能。它不局限于 HF 官方库，你可以<strong>分享任何 ML 库的模型权重</strong>（或分享自己的代码库）。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+在 https://huggingface.co/new 创建一个仓库，可以在你的账户或组织名下创建仓库。
+</section></li>
+</ol>
+<img data-imgfileid="100006479" data-ratio="0.8759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3366b0ca30.png" data-w="1080">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>向仓库添加文件。</p>
+<p>在仓库的文件选项卡并点击“上传文件”。可以拖放文件/文件夹或直接上传。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006478" data-ratio="0.2759259259259259" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a17512f8cb.png" data-w="1080">
+<img data-imgfileid="100006485" data-ratio="0.7277777777777777" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e764b02979.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意：</strong>Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建模型卡片</p>
+<p>模型卡片是随模型一起提供的文件，主要包含关于模型的实用信息。模型卡片对于发现、可重现性和共享模型来说至关重要！你可以在任何模型仓库中找到名为README.md 的模型卡片。我们强烈建议在其中添加一个代码片段，展示如何加载和使用模型。</p>
+<p>除了以上内容外，模型卡片还可以包含顶部的有用元数据。UI 提供了一些工具来帮助你创建。我们强烈建议你指定<strong>许可证</strong>和<strong>管道标签</strong>（用于指定模型的任务，如文本到图像）。这两者是发现和使用模型的关键。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006483" data-ratio="0.24444444444444444" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-76f3f9e498.png" data-w="1080">
+<p data-tool="mdnice编辑器">还有其他值得添加的内容。你可以在这里了解更多。比如：</p>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+<strong>language 语言：</strong>模型支持的语言列表
+</section></li>
+<li>
+<section>
+<strong>tags 标签：</strong>帮助发现模型标签
+</section></li>
+<li>
+<section>
+<strong>datasets 数据集：</strong>用于训练模型的数据集
+</section></li>
+<li>
+<section>
+<strong>base_model 基础模型：</strong>如果是微调模型的话使用的基础模型是什么？
+</section></li>
+<li>
+<section>
+<strong>library_name 库名称：</strong>用来加载模型的库
+</section></li>
+</ul>
+<p data-tool="mdnice编辑器">我们建议在模型卡片内容中添加相关的 arXiv 论文链接。HF 会自动将两者链接在一起。</p>
+<p data-tool="mdnice编辑器">你可以在其官方文档中了解更多关于模型卡片的信息。</p>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 添加 TensorBoard 跟踪</p>
+<p>TensorBoard 是一个提供用于可视化指标工具的工具。如果你将 TensorBoard 跟踪推送到 Hub，则会自动显示出一个 TensorBoard 实例的” Metrics”选项卡。请在此处阅读更多相关信息这里信息。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006486" data-ratio="0.5527777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-88d5df64da.png" data-w="1080">
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>[可选] 编程访问</p>
+<p>如果你想在代码库或在线演示中从 Hugging Face 下载模型，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">以下代码将下载库中的所有文件：</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<h2 data-tool="mdnice编辑器"><span>创建在线演示</span></h2>
+<p data-tool="mdnice编辑器">Hugging Face Hub 为在线演示提供托管、发现和社交功能 - 称为 Spaces。Spaces 可以轻松创建和部署ML驱动的在线演示，只需几分钟即可完成。</p>
+<p data-tool="mdnice编辑器"><strong>为什么要做在线演示？</strong></p>
+<p data-tool="mdnice编辑器">创建在线演示可以让你的研究或项目成果更易于理解和使用，有助于其推广。任何拥有浏览器的人都可以体验你的研究成果，甚至可以让成果一日爆红！</p>
+<p data-tool="mdnice编辑器"><strong>在线演示的展现形式</strong></p>
+<p data-tool="mdnice编辑器">你可以自由选择在线演示的展现形式！我们在这里提供一些热门在线演示作为参考并分享如何创建在线演示 Spaces。</p>
+<p data-tool="mdnice编辑器">Stability 的 Stable Diffusion（文本到图像）</p>
+<img data-imgfileid="100006487" data-ratio="0.9022265246853823" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6f05bd71d.png" data-w="1033">
+<p data-tool="mdnice编辑器">Meta 的 MusicGen（文本到音乐生成）</p>
+<img data-imgfileid="100006484" data-ratio="0.41388888888888886" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c383de201.png" data-w="1080">
+<p data-tool="mdnice编辑器">jbilcke 的 AI Comic Factory（漫画生成）</p>
+<img data-imgfileid="100006493" data-ratio="0.49166666666666664" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4732c3a3a2.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：Spaces 在 CPU 上运行时是免费的。如果需要使用 GPU 运行，你可以申请社区资助（在 <strong>设置</strong> 选项卡中）或购买 T4、A10G 及 A100。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>在 https://huggingface.co/new-space 创建一个仓库，可以在你的账户或在组织名下创建。</p>
+<p>Spaces 可以使用开源 Python 库（例如：Gradio或Streamlit）创建，也可以使用 Docker 或静态 HTML 页面。我们建议使用 Gradio 进行快速原型制作，当然也可以使用你喜欢的其他工具！</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006490" data-ratio="1.0689655172413792" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a4b3f4ccb4.png" data-w="638">
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>创建应用程序文件</p>
+<p>假设你正在创建一个 Gradio 演示。请随意查阅 Gradio Spaces 文档。可以在仓库的”文件”选项卡点击”上传文件”或”创建新文件”。主 Python 脚本应命名为 <strong>app.py</strong>。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006491" data-ratio="0.3861111111111111" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-951229329a.png" data-w="1080">
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+编写你的应用代码
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器">如果你想要加载模型或数据集，你可以使用huggingface_hub Python库</p>
+<pre data-tool="mdnice编辑器"><code>import&nbsp;gradio&nbsp;as&nbsp;gr<br><br>def&nbsp;greet(name):<br>&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;f<span>"Hello&nbsp;{name}"</span>}<br><br>demo&nbsp;=&nbsp;gr.Interface(<br>&nbsp;&nbsp;&nbsp;&nbsp;fn=greet,<br>&nbsp;&nbsp;&nbsp;&nbsp;inputs=[<span>"text"</span>],<br>&nbsp;&nbsp;&nbsp;&nbsp;outputs=[<span>"text"</span>],<br>)<br><br>demo.launch()<br></code></pre>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>体验应用！</p>
+<p>你的应用已经创建成功！建议在创建之后操作即使体验以保证其运行顺利。</p>
+</section></li>
+</ol>
+<img data-imgfileid="100006489" data-ratio="0.14722222222222223" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d19c5695e.png" data-w="1080">
+<p data-tool="mdnice编辑器"><strong>注意</strong>：</p>
+<p data-tool="mdnice编辑器">Hugging Face 使用 Git 作为数据和代码的存储库。如果你熟悉 Git（例如，如果你使用 GitHub 或 GitLab），你可以使用类似的工作流程，而无需使用 UI可以使用与 UI 不同的类似工作流程。更多详情见指南。</p>
+<p data-tool="mdnice编辑器"><strong>Spaces 常见问题汇总</strong></p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以使用哪些模型库？</p>
+<p>你可以使用任何你喜欢的库，可以在 requirements.txt 文件中定义你的依赖项。</p>
+</section></li>
+<li>
+<section>
+<p>如何加载模型？</p>
+<p>如果你想从 Hub 下载模型到你的Spaces，可以使用 huggingface_hub Python 库进行编程访问。例如，以下代码将下载某个指定文件。</p>
+</section></li>
+</ol>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;hf_hub_download<br>&nbsp;&nbsp;&nbsp;hf_hub_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;filename=<span>"config.json"</span>)<br></code></pre>
+<p data-tool="mdnice编辑器">而以下代码将下载仓库中的所有文件。</p>
+<pre data-tool="mdnice编辑器"><code>&nbsp;&nbsp;&nbsp;from&nbsp;huggingface_hub&nbsp;import&nbsp;snapshot_download<br>&nbsp;&nbsp;&nbsp;snapshot_download(repo_id=<span>"lysandre/arxiv-nlp"</span>,&nbsp;revision=<span>"refs/pr/1"</span>)<br></code></pre>
+<ol start="3" data-tool="mdnice编辑器">
+<li>
+<section>
+<p>我可以用 Gradio 做什么？</p>
+<p>随时查看 Gradio 文档和指南。Gradio 提供了一个简单的 API 来创建在线演示，并可以让你自由定义在线演示的展现方式。</p>
+<p>例如添加音频、文本、带注释的图像、聊天机器人、代码、文件、图像画廊、3D 对象、视频等组件，甚至可以创建符合你需求的组件。</p>
+</section></li>
+<li>
+<section>
+<p>热门 Spaces 制作小贴士？</p>
+</section></li>
+<ul>
+<li>
+<section>
+简单的演示更受欢迎。
+</section></li>
+<li>
+<section>
+有标题、描述和简要说明演示的内容。
+</section></li>
+<li>
+<section>
+有模型或论文的链接。
+</section></li>
+<li>
+<section>
+添加偏见和内容认可（参见 SD 演示 作为示例）。
+</section></li>
+</ul>
+</ol>
+<h2 data-tool="mdnice编辑器"><span>推广宣传：</span></h2>
+<p data-tool="mdnice编辑器">在公布论文、模型/数据集、GitHub 仓库和在线演示之后，就是要确保你的研究能尽快被社区熟知！这里有一些方法可以帮助提高在社区中推广和宣传你的研究成果。</p>
+<h3 data-tool="mdnice编辑器"><span>【加分项】Collections</span></h3>
+<p data-tool="mdnice编辑器">你可以为项目成果（包括模型、数据集、演示、论文）在 Hub 上创建一个合集，你创建的合集会直接显示在个人账户中。更多详情请查看文档。</p>
+<img data-imgfileid="100006492" data-ratio="0.4740740740740741" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3e197e20b0.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Paper Space</span></h3>
+<p data-tool="mdnice编辑器">通过GitHub Pages 或 Hugging Face Spaces，你可以将所有的项目成果和应用都集中在一个网页中。（例如：(https://nerfies.github.io/)）如果你选择使用Spaces, 可以从 Nerfies/Paper Project 模板 中选择喜欢的模版，或者自创模版进行展示。</p>
+<img data-imgfileid="100006498" data-ratio="0.5370370370370371" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d01b46662.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>【加分项】Hugging Face Paper 页面</span></h3>
+<p data-tool="mdnice编辑器">在 HF 论文页面 ，你可以发现和探索与研究论文相关的所有成果（包括：模型，数据集和在线演示demo）。你还可以在喜欢的论文页面和作者或社区一起来进行讨论。论文在 arXiv 上发表之后，你可以在 HF 上进行索引作为作者认领论文，认领之后论文将直接链接到你的账户并在账户中展示。更多详情请查看 文档。</p>
+<img data-imgfileid="100006497" data-ratio="0.5685185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0175f4c926.png" data-w="1080">
+<h3 data-tool="mdnice编辑器"><span>推广</span></h3>
+<p data-tool="mdnice编辑器">如果你已经完成了以上的步骤，那么恭喜你已经成功发布了你的项目成果！接下来也是最重要的一个环节是要进行推广。使用推特或 Reddit 等社交平台来撰写博客文章，或进行发布公告来为研究的推广助力。</p>
+<p data-tool="mdnice编辑器">建议你与其他研究人员或开源贡献者等合作伙伴联合发布，这样可以有效的扩大推广受众覆盖率。在开始推广之后，你还需要和与社区进行互动！最好的推广不仅仅是宣传你的项目成果，也需要和你项目的受众建立良好的互动关系。关系和与你的受众互动。</p>
+<h2 data-tool="mdnice编辑器"><span>如何使用这份文档？</span></h2>
+<p data-tool="mdnice编辑器">我们建议复制这份文档，并使用下面的步骤来跟踪进度。每步的操作时间基本只需 1 分钟。，它们会在 <strong>你决定做什么时</strong> 指导你，并且可以快速完成！下面有文档解释如何做不同的项目。</p>
+<ol data-tool="mdnice编辑器">
+<li>
+<section>
+发布论文
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+准备好论文并进行排版
+</section></li>
+<li>
+<section>
+在 ArXiv 上发布
+</section></li>
+<li>
+<section>
+在 HF 上索引论文
+</section></li>
+</ul>
+<ol start="2" data-tool="mdnice编辑器">
+<li>
+<section>
+发布代码库
+</section></li>
+<li>
+<section>
+发布数据集
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将数据集上传到 Hub（例如 HF、Kaggle、Zenodo）
+</section></li>
+<li>
+<section>
+创建数据集卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、语言等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接等）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+</ul>
+</ul>
+<ol start="4" data-tool="mdnice编辑器">
+<li>
+<section>
+发布模型
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+选择许可证
+</section></li>
+<li>
+<section>
+将模型上传到 Hub
+</section></li>
+<li>
+<section>
+创建模型卡片
+</section></li>
+<ul>
+<li>
+<section>
+添加元数据（任务、许可证、数据集等）
+</section></li>
+<li>
+<section>
+添加其他成果的链接（arxiv 链接）
+</section></li>
+<li>
+<section>
+编写卡片内容
+</section></li>
+<li>
+<section>
+添加展示如何使用模型的代码片段
+</section></li>
+</ul>
+</ul>
+<ol start="5" data-tool="mdnice编辑器">
+<li>
+<section>
+构建演示
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+编写 Colab 或脚本
+</section></li>
+<li>
+<section>
+创建在线演示 Space
+</section></li>
+</ul>
+<ol start="6" data-tool="mdnice编辑器">
+<li>
+<section>
+准备发布
+</section></li>
+</ol>
+<ul data-tool="mdnice编辑器">
+<li>
+<section>
+确保你的项目成果之间相互关联
+</section></li>
+<li>
+<section>
+创建论文页面
+</section></li>
+<li>
+<section>
+构建成果合集
+</section></li>
+<li>
+<section>
+推广宣传
+</section></li>
+</ul>
+<ol start="7" data-tool="mdnice编辑器">
+<li>
+<section>
+庆祝🎉
+</section></li>
+</ol>
+<p data-tool="mdnice编辑器"></p>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - Hugging Face（gh_504339124f0f）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf64f0dfe9.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf64f0dfe9.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 17:21:00 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[curl 项目已被接受为 CVE 编号机构 (CNA)]]></title>
+    <link>https://www.oschina.net/news/276167/curl-is-a-cna</link>
+    <itunes:title><![CDATA[curl 项目已被接受为 CVE 编号机构 (CNA)]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>curl 项目已被<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdaniel.haxx.se%2Fblog%2F2024%2F01%2F16%2Fcurl-is-a-cna%2F" target="_blank">接受</a></u>为 CVE 编号机构&nbsp;(CNA)，这意味着他们将直接管理自己产品（包括 curl, libcurl 和 trurl）的 CVE。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e90ed411d5.png"></p>
+<p>CNA（CVE Numbering Authority，CVE 编号机构）是 CVE 编号的分发机构，主要职能是在授权范围内颁发和管理 CVE 编号。</p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cve.org%2FMedia%2FNews%2Fitem%2Fnews%2F2024%2F01%2F16%2Fcurl-Added-as-CNA" target="_blank">https://www.cve.org/Media/News/item/news/2024/01/16/curl-Added-as-CNA</a></u></em></p>
+</blockquote>
+<p>curl 作者表示，未来将直接针对 CVE 数据库保留和管理他们自己的 CVE，无需中间人。而且在没有他们参与的情况下，其他人都无法为他们的产品注册 CVE。不过会有一个上诉流程，即使被拒绝，别人实际上仍然可以针对问题提交 CVE，因此有一个双方可以争论自己观点的流程。</p>
+<p>curl 项目此举主要是为了应对虚假的CVE问题，以确保CVE的准确性和有效性。因为不久前 curl 作者表示，用户利用 LLM 生成虚假漏洞报告，这些报告看似专业，但实际上并不存在安全问题，这浪费了 curl 项目开发人员的时间和精力，也增加了安全评估的工作量。</p>
+<ul>
+<li>延伸阅读：<em><u><a href="https://www.oschina.net/news/273974/the-i-in-llm-stands-for-intelligence" target="_blank">大模型 LLM 对 curl 项目的安全工作造成了困扰</a></u></em></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>curl 项目已被<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdaniel.haxx.se%2Fblog%2F2024%2F01%2F16%2Fcurl-is-a-cna%2F" target="_blank">接受</a></u>为 CVE 编号机构&nbsp;(CNA)，这意味着他们将直接管理自己产品（包括 curl, libcurl 和 trurl）的 CVE。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e90ed411d5.png"></p>
+<p>CNA（CVE Numbering Authority，CVE 编号机构）是 CVE 编号的分发机构，主要职能是在授权范围内颁发和管理 CVE 编号。</p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cve.org%2FMedia%2FNews%2Fitem%2Fnews%2F2024%2F01%2F16%2Fcurl-Added-as-CNA" target="_blank">https://www.cve.org/Media/News/item/news/2024/01/16/curl-Added-as-CNA</a></u></em></p>
+</blockquote>
+<p>curl 作者表示，未来将直接针对 CVE 数据库保留和管理他们自己的 CVE，无需中间人。而且在没有他们参与的情况下，其他人都无法为他们的产品注册 CVE。不过会有一个上诉流程，即使被拒绝，别人实际上仍然可以针对问题提交 CVE，因此有一个双方可以争论自己观点的流程。</p>
+<p>curl 项目此举主要是为了应对虚假的CVE问题，以确保CVE的准确性和有效性。因为不久前 curl 作者表示，用户利用 LLM 生成虚假漏洞报告，这些报告看似专业，但实际上并不存在安全问题，这浪费了 curl 项目开发人员的时间和精力，也增加了安全评估的工作量。</p>
+<ul>
+<li>延伸阅读：<em><u><a href="https://www.oschina.net/news/273974/the-i-in-llm-stands-for-intelligence" target="_blank">大模型 LLM 对 curl 项目的安全工作造成了困扰</a></u></em></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>curl 项目已被<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdaniel.haxx.se%2Fblog%2F2024%2F01%2F16%2Fcurl-is-a-cna%2F" target="_blank">接受</a></u>为 CVE 编号机构&nbsp;(CNA)，这意味着他们将直接管理自己产品（包括 curl, libcurl 和 trurl）的 CVE。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e90ed411d5.png"></p>
+<p>CNA（CVE Numbering Authority，CVE 编号机构）是 CVE 编号的分发机构，主要职能是在授权范围内颁发和管理 CVE 编号。</p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cve.org%2FMedia%2FNews%2Fitem%2Fnews%2F2024%2F01%2F16%2Fcurl-Added-as-CNA" target="_blank">https://www.cve.org/Media/News/item/news/2024/01/16/curl-Added-as-CNA</a></u></em></p>
+</blockquote>
+<p>curl 作者表示，未来将直接针对 CVE 数据库保留和管理他们自己的 CVE，无需中间人。而且在没有他们参与的情况下，其他人都无法为他们的产品注册 CVE。不过会有一个上诉流程，即使被拒绝，别人实际上仍然可以针对问题提交 CVE，因此有一个双方可以争论自己观点的流程。</p>
+<p>curl 项目此举主要是为了应对虚假的CVE问题，以确保CVE的准确性和有效性。因为不久前 curl 作者表示，用户利用 LLM 生成虚假漏洞报告，这些报告看似专业，但实际上并不存在安全问题，这浪费了 curl 项目开发人员的时间和精力，也增加了安全评估的工作量。</p>
+<ul>
+<li>延伸阅读：<em><u><a href="https://www.oschina.net/news/273974/the-i-in-llm-stands-for-intelligence" target="_blank">大模型 LLM 对 curl 项目的安全工作造成了困扰</a></u></em></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e90ed411d5.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e90ed411d5.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 16:36:22 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[NTP（网络时间协议）设计者 David L. Mills 去世]]></title>
+    <link>https://www.oschina.net/news/276162/dave-mills-passed-away</link>
+    <itunes:title><![CDATA[NTP（网络时间协议）设计者 David L. Mills 去世]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>NTP 协议设计者 David L. Mills&nbsp;<span>已于 2024 年 1 月 17 日去世。他曾参与设计早期 NSFNET 的 Fuzzball 路由，担任 INARG</span>&nbsp;工作组负责人。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f9edc17722.png"></p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Felists.isoc.org%2Fpipermail%2Finternet-history%2F2024-January%2F009265.html" target="_blank">https://elists.isoc.org/pipermail/internet-history/2024-January/009265.html</a></u></em></p>
+</blockquote>
+<p>网络时间协议（Network Time Protocol，缩写：NTP）是在数据网络潜伏时间可变的计算机系统之间通过分组交换进行时钟同步的一个网络协议，位于 OSI 模型的应用层。自 1985 年以来，NTP 是目前仍在使用的最古老的互联网协议之一。</p>
+<p><span>尽管 NTP 是&nbsp;</span>David L. Mills&nbsp;<span>最为著名的工作之一，但他的贡献不仅限于此。</span>David L. Mills 发明了基于 DEC LSI-11 的 Fuzzball 路由，用于 56 kbit/s NSFNET，这项技术启发了 ping for BSD 的作者，并实现了第一个 FTP。他还撰写了大量 RFC。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4cd977b1be.png"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>NTP 协议设计者 David L. Mills&nbsp;<span>已于 2024 年 1 月 17 日去世。他曾参与设计早期 NSFNET 的 Fuzzball 路由，担任 INARG</span>&nbsp;工作组负责人。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f9edc17722.png"></p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Felists.isoc.org%2Fpipermail%2Finternet-history%2F2024-January%2F009265.html" target="_blank">https://elists.isoc.org/pipermail/internet-history/2024-January/009265.html</a></u></em></p>
+</blockquote>
+<p>网络时间协议（Network Time Protocol，缩写：NTP）是在数据网络潜伏时间可变的计算机系统之间通过分组交换进行时钟同步的一个网络协议，位于 OSI 模型的应用层。自 1985 年以来，NTP 是目前仍在使用的最古老的互联网协议之一。</p>
+<p><span>尽管 NTP 是&nbsp;</span>David L. Mills&nbsp;<span>最为著名的工作之一，但他的贡献不仅限于此。</span>David L. Mills 发明了基于 DEC LSI-11 的 Fuzzball 路由，用于 56 kbit/s NSFNET，这项技术启发了 ping for BSD 的作者，并实现了第一个 FTP。他还撰写了大量 RFC。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4cd977b1be.png"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>NTP 协议设计者 David L. Mills&nbsp;<span>已于 2024 年 1 月 17 日去世。他曾参与设计早期 NSFNET 的 Fuzzball 路由，担任 INARG</span>&nbsp;工作组负责人。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f9edc17722.png"></p>
+<p>via&nbsp;<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Felists.isoc.org%2Fpipermail%2Finternet-history%2F2024-January%2F009265.html" target="_blank">https://elists.isoc.org/pipermail/internet-history/2024-January/009265.html</a></u></em></p>
+</blockquote>
+<p>网络时间协议（Network Time Protocol，缩写：NTP）是在数据网络潜伏时间可变的计算机系统之间通过分组交换进行时钟同步的一个网络协议，位于 OSI 模型的应用层。自 1985 年以来，NTP 是目前仍在使用的最古老的互联网协议之一。</p>
+<p><span>尽管 NTP 是&nbsp;</span>David L. Mills&nbsp;<span>最为著名的工作之一，但他的贡献不仅限于此。</span>David L. Mills 发明了基于 DEC LSI-11 的 Fuzzball 路由，用于 56 kbit/s NSFNET，这项技术启发了 ping for BSD 的作者，并实现了第一个 FTP。他还撰写了大量 RFC。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4cd977b1be.png"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f9edc17722.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f9edc17722.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 15:38:30 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[韩国 Kakao 开源多模态大语言模型 Honeybee]]></title>
+    <link>https://www.oschina.net/news/276160/kakao-honeybee</link>
+    <itunes:title><![CDATA[韩国 Kakao 开源多模态大语言模型 Honeybee]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>韩国科技巨头 Kakao 日前<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.koreatimes.co.kr%2Fwww%2Ftech%2F2024%2F01%2F419_367229.html" target="_blank">表示</a>，它已经开发了一种名为 Honeybee 的多模态大语言模型（MLLM），以扩大该公司在 AI 市场的影响力。</span></p>
+<p><span>根据介绍，这个升级版的大型语言模型超越了传统的文本理解能力，融入了视觉和图像理解能力。Kakao 表示，Honeybee 构建在 MLLM 基础上，能够同时理解图像和文本，从而能够响应与混合图像和文本内容相关的查询。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-792b22a111.png"></span></p>
+<p><span>为了促进 MLLM 在全球范围内的广泛推广，Kakao 目前已经开源了 Honeybee 及其推理代码。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>韩国科技巨头 Kakao 日前<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.koreatimes.co.kr%2Fwww%2Ftech%2F2024%2F01%2F419_367229.html" target="_blank">表示</a>，它已经开发了一种名为 Honeybee 的多模态大语言模型（MLLM），以扩大该公司在 AI 市场的影响力。</span></p>
+<p><span>根据介绍，这个升级版的大型语言模型超越了传统的文本理解能力，融入了视觉和图像理解能力。Kakao 表示，Honeybee 构建在 MLLM 基础上，能够同时理解图像和文本，从而能够响应与混合图像和文本内容相关的查询。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-792b22a111.png"></span></p>
+<p><span>为了促进 MLLM 在全球范围内的广泛推广，Kakao 目前已经开源了 Honeybee 及其推理代码。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>韩国科技巨头 Kakao 日前<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.koreatimes.co.kr%2Fwww%2Ftech%2F2024%2F01%2F419_367229.html" target="_blank">表示</a>，它已经开发了一种名为 Honeybee 的多模态大语言模型（MLLM），以扩大该公司在 AI 市场的影响力。</span></p>
+<p><span>根据介绍，这个升级版的大型语言模型超越了传统的文本理解能力，融入了视觉和图像理解能力。Kakao 表示，Honeybee 构建在 MLLM 基础上，能够同时理解图像和文本，从而能够响应与混合图像和文本内容相关的查询。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-792b22a111.png"></span></p>
+<p><span>为了促进 MLLM 在全球范围内的广泛推广，Kakao 目前已经开源了 Honeybee 及其推理代码。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-792b22a111.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-792b22a111.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 15:29:19 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[ICLR 2024 Oral | MetaGPT: LLM Agent 领域第一高分论文，全网 Star 数最高的多智能体框架]]></title>
+    <link></link>
+    <itunes:title><![CDATA[ICLR 2024 Oral | MetaGPT: LLM Agent 领域第一高分论文，全网 Star 数最高的多智能体框架]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[ICLR 2024 录用结果公布：今年共 7000 多篇投稿论文，录用率 31%。其中，MetaGPT 的论文 《MetaGPT: Meta Programming for Multi-Agent Collaborative Framework》将被展示为 Oral（口头报告）。这一荣誉仅占全部提交论文中的 1.2%，并且位列 LLM-based Agent 关键字第一。...]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[ICLR 2024 录用结果公布：今年共 7000 多篇投稿论文，录用率 31%。其中，MetaGPT 的论文 《MetaGPT: Meta Programming for Multi-Agent Collaborative Framework》将被展示为 Oral（口头报告）。这一荣誉仅占全部提交论文中的 1.2%，并且位列 LLM-based Agent 关键字第一。...]]>
+    </description>
+    <content:encoded><![CDATA[ICLR 2024 录用结果公布：今年共 7000 多篇投稿论文，录用率 31%。其中，MetaGPT 的论文 《MetaGPT: Meta Programming for Multi-Agent Collaborative Framework》将被展示为 Oral（口头报告）。这一荣誉仅占全部提交论文中的 1.2%，并且位列 LLM-based Agent 关键字第一。...]]></content:encoded>
+    
+    <pubDate>Fri, 19 Jan 2024 15:13:48 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[OurBMC 首个版本 1.0.0 正式发布！]]></title>
+    <link>https://www.oschina.net/news/276152/ourbmc-1-0-0-released</link>
+    <itunes:title><![CDATA[OurBMC 首个版本 1.0.0 正式发布！]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>2023 年 12 月 29 日，经过社区开发者的共同努力，OurBMC 首个版本 1.0.0 正式发布。OurBMC 1.0.0 提供从 host 端到 BMC 端的全栈 BMC 技术实现，适配多种软硬件场景，并为开发者提供全面、高效的 BMC 全栈解决方案。</span></p>
+<h4><span><span>发布内容</span></span></h4>
+<p>OurBMC 1.0.0 发布内容包含了 bmc-uboot、bmc-linux、bmc-openbmc、bmc-web、host-UEFI 以及 host-linux 6 大模块。</p>
+<ul>
+<li>bmc-uboot</li>
+</ul>
+<p>Bmc-uboot v1.0.0基于U-Boot v2019.04开发，在支持业界主流BMC芯片的基础上，使能飞腾腾珑E2000S BMC芯片，包括运行状态心跳灯、多级复位、pinctrl配置等功能。</p>
+<ul>
+<li>bmc-linux</li>
+</ul>
+<p>Bmc-linux v1.0.0 基于openbmc Linux dev-5.15新增飞腾腾珑E2000S BMC功能支持，主要功能包括IPMI通信、虚拟串口、JPEG、USB vHub、JTAG。</p>
+<ul>
+<li>bmc-openbmc</li>
+</ul>
+<p>Bmc-openbmc 基于 OpenBMC v2.11.0 完善 ARM aarch64 支持，实现 SOL、KVM、Virtual Media，温度、电压、风扇等模块的分组分区智能调节，cpld、bios、bmc 三类固件在线更新等功能。通过 JPEG 压缩的 VNC 协议、网络深度适配等优化，提供流畅的 KVM over IP 用户操作体验。</p>
+<ul>
+<li>bmc-web</li>
+</ul>
+<p>（1）Bmc-web 参考 OpenBMC webui-vue 前端布局，自主研发 OurBMC Web 前端，使用拥有类型检查的语言 TS 编码，对变量类型严格管理，目录层级分明，管理界面简洁明了。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e21b0b58c5.png"></p>
+<p><span>（2）OurBMC/web 拥有告警显示功能，可以进行 SNMP 和远程服务器管理</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-809954d93c.png"></p>
+<p>（3）OurBMC/web 散热风扇管理页面，实现服务器风扇转速的分区智能调控。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5cd5df6179.png">
+</div>
+<ul>
+<li>host-UEFI</li>
+</ul>
+<p>Host-UEFI 遵循上游 tianocore 社区的开源规则，并在此基础上进行了完善和特性增强。总体分为 edk2 包，edk2-platforms 包及 edk2-non-osi 包。<br> （1）edk2 是基础开发环境，提供通用基础功能支持，OurBMC 1.0.0 版本在上游社区 stable202205 版本基础上进行完善，特别是对动态ACPI功能的增强。</p>
+<p>（2）edk2-platforms 提供各个芯片和平台的软件支持，OurBMC 1.0.0 版本对飞腾服务器芯片和 sapota 平台进行了使能。</p>
+<p>（3）edk2-non-osi 提供需要满足特殊开源要求的模块支持，OurBMC 1.0.0 版本使能飞腾不开源的部分模块。</p>
+<ul>
+<li>host-linux</li>
+</ul>
+<p>Host-linux 基于 Linux 社区各主线稳定版（4.19、5.10、5.15、6.1）打造，增强服务器平台硬件支持，为生态合作伙伴及个人开发者提供全面的内核技术服务, 更好地支撑和扩展上层业务应用。</p>
+<div>
+<h4><span><strong>感谢</strong></span></h4>
+</div>
+<p>最后，衷心地感谢每一位参与和协助 OurBMC 工作的社区贡献者，成功的保障了本次版本发布，并为 OurBMC 的未来发展提供了无限的可能性。社区贡献者的专业素养和奉献精神，是社区不断进步的重要动力，期待与大家共同推动 OurBMC 社区发展，创造更加美好的未来！</p>
+<p><strong>OurBMC 1.0.0版本如约而至，它所带来的一系列新特性和功能，让人眼前一亮、心生期待。<br> 欢迎大家积极下载尝试，获取链接请见下方：</strong></p>
+<p><strong>下载地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn%2F%23%2FDownloadProduct%C2%A0" target="_blank">https://www.ourbmc.cn/#/DownloadProduct&nbsp;</a></p>
+<p><strong>社区官网地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn" target="_blank">https://www.ourbmc.cn</a></p>
+<p><strong>社区仓库地址：</strong></p>
+<p><a href="https://gitee.com/ourbmc">https://gitee.com/ourbmc</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.xplaza.cn%2FOurBMC" target="_blank">https://www.xplaza.cn/OurBMC</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>2023 年 12 月 29 日，经过社区开发者的共同努力，OurBMC 首个版本 1.0.0 正式发布。OurBMC 1.0.0 提供从 host 端到 BMC 端的全栈 BMC 技术实现，适配多种软硬件场景，并为开发者提供全面、高效的 BMC 全栈解决方案。</span></p>
+<h4><span><span>发布内容</span></span></h4>
+<p>OurBMC 1.0.0 发布内容包含了 bmc-uboot、bmc-linux、bmc-openbmc、bmc-web、host-UEFI 以及 host-linux 6 大模块。</p>
+<ul>
+<li>bmc-uboot</li>
+</ul>
+<p>Bmc-uboot v1.0.0基于U-Boot v2019.04开发，在支持业界主流BMC芯片的基础上，使能飞腾腾珑E2000S BMC芯片，包括运行状态心跳灯、多级复位、pinctrl配置等功能。</p>
+<ul>
+<li>bmc-linux</li>
+</ul>
+<p>Bmc-linux v1.0.0 基于openbmc Linux dev-5.15新增飞腾腾珑E2000S BMC功能支持，主要功能包括IPMI通信、虚拟串口、JPEG、USB vHub、JTAG。</p>
+<ul>
+<li>bmc-openbmc</li>
+</ul>
+<p>Bmc-openbmc 基于 OpenBMC v2.11.0 完善 ARM aarch64 支持，实现 SOL、KVM、Virtual Media，温度、电压、风扇等模块的分组分区智能调节，cpld、bios、bmc 三类固件在线更新等功能。通过 JPEG 压缩的 VNC 协议、网络深度适配等优化，提供流畅的 KVM over IP 用户操作体验。</p>
+<ul>
+<li>bmc-web</li>
+</ul>
+<p>（1）Bmc-web 参考 OpenBMC webui-vue 前端布局，自主研发 OurBMC Web 前端，使用拥有类型检查的语言 TS 编码，对变量类型严格管理，目录层级分明，管理界面简洁明了。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e21b0b58c5.png"></p>
+<p><span>（2）OurBMC/web 拥有告警显示功能，可以进行 SNMP 和远程服务器管理</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-809954d93c.png"></p>
+<p>（3）OurBMC/web 散热风扇管理页面，实现服务器风扇转速的分区智能调控。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5cd5df6179.png">
+</div>
+<ul>
+<li>host-UEFI</li>
+</ul>
+<p>Host-UEFI 遵循上游 tianocore 社区的开源规则，并在此基础上进行了完善和特性增强。总体分为 edk2 包，edk2-platforms 包及 edk2-non-osi 包。<br> （1）edk2 是基础开发环境，提供通用基础功能支持，OurBMC 1.0.0 版本在上游社区 stable202205 版本基础上进行完善，特别是对动态ACPI功能的增强。</p>
+<p>（2）edk2-platforms 提供各个芯片和平台的软件支持，OurBMC 1.0.0 版本对飞腾服务器芯片和 sapota 平台进行了使能。</p>
+<p>（3）edk2-non-osi 提供需要满足特殊开源要求的模块支持，OurBMC 1.0.0 版本使能飞腾不开源的部分模块。</p>
+<ul>
+<li>host-linux</li>
+</ul>
+<p>Host-linux 基于 Linux 社区各主线稳定版（4.19、5.10、5.15、6.1）打造，增强服务器平台硬件支持，为生态合作伙伴及个人开发者提供全面的内核技术服务, 更好地支撑和扩展上层业务应用。</p>
+<div>
+<h4><span><strong>感谢</strong></span></h4>
+</div>
+<p>最后，衷心地感谢每一位参与和协助 OurBMC 工作的社区贡献者，成功的保障了本次版本发布，并为 OurBMC 的未来发展提供了无限的可能性。社区贡献者的专业素养和奉献精神，是社区不断进步的重要动力，期待与大家共同推动 OurBMC 社区发展，创造更加美好的未来！</p>
+<p><strong>OurBMC 1.0.0版本如约而至，它所带来的一系列新特性和功能，让人眼前一亮、心生期待。<br> 欢迎大家积极下载尝试，获取链接请见下方：</strong></p>
+<p><strong>下载地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn%2F%23%2FDownloadProduct%C2%A0" target="_blank">https://www.ourbmc.cn/#/DownloadProduct&nbsp;</a></p>
+<p><strong>社区官网地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn" target="_blank">https://www.ourbmc.cn</a></p>
+<p><strong>社区仓库地址：</strong></p>
+<p><a href="https://gitee.com/ourbmc">https://gitee.com/ourbmc</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.xplaza.cn%2FOurBMC" target="_blank">https://www.xplaza.cn/OurBMC</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>2023 年 12 月 29 日，经过社区开发者的共同努力，OurBMC 首个版本 1.0.0 正式发布。OurBMC 1.0.0 提供从 host 端到 BMC 端的全栈 BMC 技术实现，适配多种软硬件场景，并为开发者提供全面、高效的 BMC 全栈解决方案。</span></p>
+<h4><span><span>发布内容</span></span></h4>
+<p>OurBMC 1.0.0 发布内容包含了 bmc-uboot、bmc-linux、bmc-openbmc、bmc-web、host-UEFI 以及 host-linux 6 大模块。</p>
+<ul>
+<li>bmc-uboot</li>
+</ul>
+<p>Bmc-uboot v1.0.0基于U-Boot v2019.04开发，在支持业界主流BMC芯片的基础上，使能飞腾腾珑E2000S BMC芯片，包括运行状态心跳灯、多级复位、pinctrl配置等功能。</p>
+<ul>
+<li>bmc-linux</li>
+</ul>
+<p>Bmc-linux v1.0.0 基于openbmc Linux dev-5.15新增飞腾腾珑E2000S BMC功能支持，主要功能包括IPMI通信、虚拟串口、JPEG、USB vHub、JTAG。</p>
+<ul>
+<li>bmc-openbmc</li>
+</ul>
+<p>Bmc-openbmc 基于 OpenBMC v2.11.0 完善 ARM aarch64 支持，实现 SOL、KVM、Virtual Media，温度、电压、风扇等模块的分组分区智能调节，cpld、bios、bmc 三类固件在线更新等功能。通过 JPEG 压缩的 VNC 协议、网络深度适配等优化，提供流畅的 KVM over IP 用户操作体验。</p>
+<ul>
+<li>bmc-web</li>
+</ul>
+<p>（1）Bmc-web 参考 OpenBMC webui-vue 前端布局，自主研发 OurBMC Web 前端，使用拥有类型检查的语言 TS 编码，对变量类型严格管理，目录层级分明，管理界面简洁明了。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e21b0b58c5.png"></p>
+<p><span>（2）OurBMC/web 拥有告警显示功能，可以进行 SNMP 和远程服务器管理</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-809954d93c.png"></p>
+<p>（3）OurBMC/web 散热风扇管理页面，实现服务器风扇转速的分区智能调控。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5cd5df6179.png">
+</div>
+<ul>
+<li>host-UEFI</li>
+</ul>
+<p>Host-UEFI 遵循上游 tianocore 社区的开源规则，并在此基础上进行了完善和特性增强。总体分为 edk2 包，edk2-platforms 包及 edk2-non-osi 包。<br> （1）edk2 是基础开发环境，提供通用基础功能支持，OurBMC 1.0.0 版本在上游社区 stable202205 版本基础上进行完善，特别是对动态ACPI功能的增强。</p>
+<p>（2）edk2-platforms 提供各个芯片和平台的软件支持，OurBMC 1.0.0 版本对飞腾服务器芯片和 sapota 平台进行了使能。</p>
+<p>（3）edk2-non-osi 提供需要满足特殊开源要求的模块支持，OurBMC 1.0.0 版本使能飞腾不开源的部分模块。</p>
+<ul>
+<li>host-linux</li>
+</ul>
+<p>Host-linux 基于 Linux 社区各主线稳定版（4.19、5.10、5.15、6.1）打造，增强服务器平台硬件支持，为生态合作伙伴及个人开发者提供全面的内核技术服务, 更好地支撑和扩展上层业务应用。</p>
+<div>
+<h4><span><strong>感谢</strong></span></h4>
+</div>
+<p>最后，衷心地感谢每一位参与和协助 OurBMC 工作的社区贡献者，成功的保障了本次版本发布，并为 OurBMC 的未来发展提供了无限的可能性。社区贡献者的专业素养和奉献精神，是社区不断进步的重要动力，期待与大家共同推动 OurBMC 社区发展，创造更加美好的未来！</p>
+<p><strong>OurBMC 1.0.0版本如约而至，它所带来的一系列新特性和功能，让人眼前一亮、心生期待。<br> 欢迎大家积极下载尝试，获取链接请见下方：</strong></p>
+<p><strong>下载地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn%2F%23%2FDownloadProduct%C2%A0" target="_blank">https://www.ourbmc.cn/#/DownloadProduct&nbsp;</a></p>
+<p><strong>社区官网地址：</strong></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.ourbmc.cn" target="_blank">https://www.ourbmc.cn</a></p>
+<p><strong>社区仓库地址：</strong></p>
+<p><a href="https://gitee.com/ourbmc">https://gitee.com/ourbmc</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.xplaza.cn%2FOurBMC" target="_blank">https://www.xplaza.cn/OurBMC</a></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e21b0b58c5.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e21b0b58c5.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 14:40:01 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[对标 LangChain，一个使用 Java 开发的  LLM（大语言模型）应用开发框架]]></title>
+    <link>https://www.oschina.net/news/276149/agents-flex</link>
+    <itunes:title><![CDATA[对标 LangChain，一个使用 Java 开发的  LLM（大语言模型）应用开发框架]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h1>Agents-Flex： 一个优雅的 LLM（大语言模型） 应用开发框架</h1>
+<h2>基础能力</h2>
+<ul>
+<li>LLM 的访问能力</li>
+<li>Prompt、Prompt Template 定义加载的能力</li>
+<li>Function Calling 定义、调用和执行等能力</li>
+<li>Embedding</li>
+<li>Vector Storage</li>
+<li>丰富的内容加载器</li>
+<li>丰富的文本分割器</li>
+<li>LLM Chain</li>
+<li>Agents Chain</li>
+</ul>
+<h2>简单对话</h2>
+<p>使用 OpenAi 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “通义千问” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>QwenLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>QwenLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-28a6be3236****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setModel</span><span>(</span><span>"qwen-turbo"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>QwenLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “讯飞星火” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>历史对话示例</h2>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>// 创建一个大模型</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <span>//创建一个历史对话的 prompt</span></span>
+<span>    <strong>HistoriesPrompt</strong> <span>prompt</span> <span>=</span> <strong>new</strong> <strong>HistoriesPrompt</strong><span>();</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"您想问什么？"</span><span>);</span></span>
+<span>    <strong>Scanner</strong> <span>scanner</span> <span>=</span> <strong>new</strong> <strong>Scanner</strong><span>(</span><strong>System</strong><span>.</span><span>in</span><span>);</span></span>
+<span>    <span>//等待用户从控制台输入问题</span></span>
+<span>    <strong>String</strong> <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <strong>while</strong> <span>(</span><span>userInput</span> <span>!=</span> <strong>null</strong><span>){</span></span>
+<span>        <span>prompt</span><span>.</span><span>addMessage</span><span>(</span><strong>new</strong> <strong>HumanMessage</strong><span>(</span><span>userInput</span><span>));</span></span>
+<span>        <span>//向大模型提问</span></span>
+<span>        <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>instance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>            <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"&gt;&gt;&gt;&gt; "</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>        <span>});</span></span>
+<span>        <span>//继续等待用户从控制台输入内容</span></span>
+<span>        <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Function Calling</h2>
+<ul>
+<li>第一步: 通过注解定义本地方法</li>
+</ul>
+<div>
+<div>
+<pre><span><strong>public</strong> <strong>class</strong> <strong>WeatherUtil</strong> <span>{</span></span>
+<span>    <span>@FunctionDef</span><span>(</span><span>name</span> <span>=</span> <span>"get_the_weather_info"</span><span>,</span> <span>description</span> <span>=</span> <span>"get the weather info"</span><span>)</span></span>
+<span>    <strong>public</strong> <strong>static</strong> <strong>String</strong> <strong>getWeatherInfo</strong><span>(</span></span>
+<span>        <span>@FunctionParam</span><span>(</span><span>name</span> <span>=</span> <span>"city"</span><span>,</span> <span>description</span> <span>=</span> <span>"the city name"</span><span>)</span> <strong>String</strong> <span>name</span></span>
+<span>    <span>)</span> <span>{
+&nbsp;       //这里应该是通过接口去调用获得天气信息</span></span>
+<span>        <strong>return</strong> <span>name</span> <span>+</span> <span>"的天气是阴转多云。 "</span><span>;</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<ul>
+<li>第二步: 通过 Prompt、Functions 传入给大模型，然后得到结果</li>
+</ul>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>OpenAiLlm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Functions</strong><span>&lt;</span><strong>String</strong><span>&gt;</span> <span>functions</span> <span>=</span> <strong>Functions</strong><span>.</span><span>from</span><span>(</span><strong>WeatherUtil</strong><span>.</span><span>class</span><span>,</span> <strong>String</strong><span>.</span><span>class</span><span>);</span></span>
+<span>    <strong>String</strong> <span>result</span> <span>=</span> <span>llm</span><span>.</span><span>call</span><span>(</span><strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"今天的天气如何"</span><span>),</span> <span>functions</span><span>);</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>result</span><span>);</span></span>
+<span>    <span>// "北京的天气是阴转多云。 ";</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+</div>
+</div>
+<p>注意：当前版本为 v1.0.0-alpha.1 ，请暂时勿使用于与正式的商业产品中。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h1>Agents-Flex： 一个优雅的 LLM（大语言模型） 应用开发框架</h1>
+<h2>基础能力</h2>
+<ul>
+<li>LLM 的访问能力</li>
+<li>Prompt、Prompt Template 定义加载的能力</li>
+<li>Function Calling 定义、调用和执行等能力</li>
+<li>Embedding</li>
+<li>Vector Storage</li>
+<li>丰富的内容加载器</li>
+<li>丰富的文本分割器</li>
+<li>LLM Chain</li>
+<li>Agents Chain</li>
+</ul>
+<h2>简单对话</h2>
+<p>使用 OpenAi 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “通义千问” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>QwenLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>QwenLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-28a6be3236****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setModel</span><span>(</span><span>"qwen-turbo"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>QwenLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “讯飞星火” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>历史对话示例</h2>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>// 创建一个大模型</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <span>//创建一个历史对话的 prompt</span></span>
+<span>    <strong>HistoriesPrompt</strong> <span>prompt</span> <span>=</span> <strong>new</strong> <strong>HistoriesPrompt</strong><span>();</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"您想问什么？"</span><span>);</span></span>
+<span>    <strong>Scanner</strong> <span>scanner</span> <span>=</span> <strong>new</strong> <strong>Scanner</strong><span>(</span><strong>System</strong><span>.</span><span>in</span><span>);</span></span>
+<span>    <span>//等待用户从控制台输入问题</span></span>
+<span>    <strong>String</strong> <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <strong>while</strong> <span>(</span><span>userInput</span> <span>!=</span> <strong>null</strong><span>){</span></span>
+<span>        <span>prompt</span><span>.</span><span>addMessage</span><span>(</span><strong>new</strong> <strong>HumanMessage</strong><span>(</span><span>userInput</span><span>));</span></span>
+<span>        <span>//向大模型提问</span></span>
+<span>        <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>instance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>            <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"&gt;&gt;&gt;&gt; "</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>        <span>});</span></span>
+<span>        <span>//继续等待用户从控制台输入内容</span></span>
+<span>        <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Function Calling</h2>
+<ul>
+<li>第一步: 通过注解定义本地方法</li>
+</ul>
+<div>
+<div>
+<pre><span><strong>public</strong> <strong>class</strong> <strong>WeatherUtil</strong> <span>{</span></span>
+<span>    <span>@FunctionDef</span><span>(</span><span>name</span> <span>=</span> <span>"get_the_weather_info"</span><span>,</span> <span>description</span> <span>=</span> <span>"get the weather info"</span><span>)</span></span>
+<span>    <strong>public</strong> <strong>static</strong> <strong>String</strong> <strong>getWeatherInfo</strong><span>(</span></span>
+<span>        <span>@FunctionParam</span><span>(</span><span>name</span> <span>=</span> <span>"city"</span><span>,</span> <span>description</span> <span>=</span> <span>"the city name"</span><span>)</span> <strong>String</strong> <span>name</span></span>
+<span>    <span>)</span> <span>{
+&nbsp;       //这里应该是通过接口去调用获得天气信息</span></span>
+<span>        <strong>return</strong> <span>name</span> <span>+</span> <span>"的天气是阴转多云。 "</span><span>;</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<ul>
+<li>第二步: 通过 Prompt、Functions 传入给大模型，然后得到结果</li>
+</ul>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>OpenAiLlm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Functions</strong><span>&lt;</span><strong>String</strong><span>&gt;</span> <span>functions</span> <span>=</span> <strong>Functions</strong><span>.</span><span>from</span><span>(</span><strong>WeatherUtil</strong><span>.</span><span>class</span><span>,</span> <strong>String</strong><span>.</span><span>class</span><span>);</span></span>
+<span>    <strong>String</strong> <span>result</span> <span>=</span> <span>llm</span><span>.</span><span>call</span><span>(</span><strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"今天的天气如何"</span><span>),</span> <span>functions</span><span>);</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>result</span><span>);</span></span>
+<span>    <span>// "北京的天气是阴转多云。 ";</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+</div>
+</div>
+<p>注意：当前版本为 v1.0.0-alpha.1 ，请暂时勿使用于与正式的商业产品中。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<h1>Agents-Flex： 一个优雅的 LLM（大语言模型） 应用开发框架</h1>
+<h2>基础能力</h2>
+<ul>
+<li>LLM 的访问能力</li>
+<li>Prompt、Prompt Template 定义加载的能力</li>
+<li>Function Calling 定义、调用和执行等能力</li>
+<li>Embedding</li>
+<li>Vector Storage</li>
+<li>丰富的内容加载器</li>
+<li>丰富的文本分割器</li>
+<li>LLM Chain</li>
+<li>Agents Chain</li>
+</ul>
+<h2>简单对话</h2>
+<p>使用 OpenAi 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “通义千问” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>QwenLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>QwenLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-28a6be3236****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setModel</span><span>(</span><span>"qwen-turbo"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>QwenLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>使用 “讯飞星火” 大语言模型:</p>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Prompt</strong>  <span>prompt</span> <span>=</span> <strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"请写一个关于小兔子战胜大灰狼的故事。"</span><span>);</span></span>
+<span>    <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>llmInstance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>        <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"---&gt;"</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>    <span>});</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>历史对话示例</h2>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>SparkLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>SparkLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setAppId</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>config</span><span>.</span><span>setApiSecret</span><span>(</span><span>"****"</span><span>);</span></span>
+<span>    <span>// 创建一个大模型</span></span>
+<span>    <strong>Llm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>SparkLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <span>//创建一个历史对话的 prompt</span></span>
+<span>    <strong>HistoriesPrompt</strong> <span>prompt</span> <span>=</span> <strong>new</strong> <strong>HistoriesPrompt</strong><span>();</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"您想问什么？"</span><span>);</span></span>
+<span>    <strong>Scanner</strong> <span>scanner</span> <span>=</span> <strong>new</strong> <strong>Scanner</strong><span>(</span><strong>System</strong><span>.</span><span>in</span><span>);</span></span>
+<span>    <span>//等待用户从控制台输入问题</span></span>
+<span>    <strong>String</strong> <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <strong>while</strong> <span>(</span><span>userInput</span> <span>!=</span> <strong>null</strong><span>){</span></span>
+<span>        <span>prompt</span><span>.</span><span>addMessage</span><span>(</span><strong>new</strong> <strong>HumanMessage</strong><span>(</span><span>userInput</span><span>));</span></span>
+<span>        <span>//向大模型提问</span></span>
+<span>        <span>llm</span><span>.</span><span>chat</span><span>(</span><span>prompt</span><span>,</span> <span>(</span><span>instance</span><span>,</span> <span>message</span><span>)</span> <span>-&gt;</span> <span>{</span></span>
+<span>            <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>"&gt;&gt;&gt;&gt; "</span> <span>+</span> <span>message</span><span>.</span><span>getContent</span><span>());</span></span>
+<span>        <span>});</span></span>
+<span>        <span>//继续等待用户从控制台输入内容</span></span>
+<span>        <span>userInput</span> <span>=</span> <span>scanner</span><span>.</span><span>nextLine</span><span>();</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Function Calling</h2>
+<ul>
+<li>第一步: 通过注解定义本地方法</li>
+</ul>
+<div>
+<div>
+<pre><span><strong>public</strong> <strong>class</strong> <strong>WeatherUtil</strong> <span>{</span></span>
+<span>    <span>@FunctionDef</span><span>(</span><span>name</span> <span>=</span> <span>"get_the_weather_info"</span><span>,</span> <span>description</span> <span>=</span> <span>"get the weather info"</span><span>)</span></span>
+<span>    <strong>public</strong> <strong>static</strong> <strong>String</strong> <strong>getWeatherInfo</strong><span>(</span></span>
+<span>        <span>@FunctionParam</span><span>(</span><span>name</span> <span>=</span> <span>"city"</span><span>,</span> <span>description</span> <span>=</span> <span>"the city name"</span><span>)</span> <strong>String</strong> <span>name</span></span>
+<span>    <span>)</span> <span>{
+&nbsp;       //这里应该是通过接口去调用获得天气信息</span></span>
+<span>        <strong>return</strong> <span>name</span> <span>+</span> <span>"的天气是阴转多云。 "</span><span>;</span></span>
+<span>    <span>}</span></span>
+<span><span>}</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<ul>
+<li>第二步: 通过 Prompt、Functions 传入给大模型，然后得到结果</li>
+</ul>
+<div>
+<div>
+<pre><span> <strong>public</strong> <strong>static</strong> <strong>void</strong> <strong>main</strong><span>(</span><strong>String</strong><span>[]</span> <span>args</span><span>)</span> <strong>throws</strong> <strong>InterruptedException</strong> <span>{</span></span>
+<span>    <strong>OpenAiLlmConfig</strong> <span>config</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlmConfig</strong><span>();</span></span>
+<span>    <span>config</span><span>.</span><span>setApiKey</span><span>(</span><span>"sk-rts5NF6n*******"</span><span>);</span></span>
+<span>    <strong>OpenAiLlm</strong> <span>llm</span> <span>=</span> <strong>new</strong> <strong>OpenAiLlm</strong><span>(</span><span>config</span><span>);</span></span>
+<span>    <strong>Functions</strong><span>&lt;</span><strong>String</strong><span>&gt;</span> <span>functions</span> <span>=</span> <strong>Functions</strong><span>.</span><span>from</span><span>(</span><strong>WeatherUtil</strong><span>.</span><span>class</span><span>,</span> <strong>String</strong><span>.</span><span>class</span><span>);</span></span>
+<span>    <strong>String</strong> <span>result</span> <span>=</span> <span>llm</span><span>.</span><span>call</span><span>(</span><strong>new</strong> <strong>SimplePrompt</strong><span>(</span><span>"今天的天气如何"</span><span>),</span> <span>functions</span><span>);</span></span>
+<span>    <strong>System</strong><span>.</span><span>out</span><span>.</span><span>println</span><span>(</span><span>result</span><span>);</span></span>
+<span>    <span>// "北京的天气是阴转多云。 ";</span></span>
+<span>    <strong>Thread</strong><span>.</span><span>sleep</span><span>(</span><span>10000</span><span>);</span></span>
+<span><span>}</span></span></pre>
+</div>
+</div>
+<p>注意：当前版本为 v1.0.0-alpha.1 ，请暂时勿使用于与正式的商业产品中。</p>]]></content:encoded>
+    
+    <pubDate>Fri, 19 Jan 2024 14:34:30 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Python 3.13 Alpha 3]]></title>
+    <link>https://www.oschina.net/news/276148/python-3-13-0-alpha-3</link>
+    <itunes:title><![CDATA[Python 3.13 Alpha 3]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Python 3.13.0 第 3 个 alpha&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpythoninsider.blogspot.com%2F2024%2F01%2Fpython-3130-alpha-3-is-now-available.html" target="_blank">已发布</a></u>，开发团队表示目前仍在积极删除全局解释器锁 (GIL)，并增强整体性能。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1814891995.png"></p>
+</blockquote>
+<p><strong>其他变化</strong></p>
+<ul>
+<li>Python 的交互式解释器模式现在默认提供彩色异常回溯</li>
+<li>文档字符串现在已删除其前导缩进，从而减少了内存使用和 .pyc 文件的大小</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpeps.python.org%2Fpep-0594%2F" target="_blank">PEP 594</a>（从标准库中删除已弃用的模块）：aifc、audioop、chunk、cgi、cgitb、crypt、imghdr、mailcap、msilib、nis、nntplib、ossaudiodev、pipes、sndhdr、spwd、sunau、 telnetlib、uu、xdrlib、lib2to3。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23removed" target="_blank">删除</a>多个标准库模块中已被弃用的类、函数和方法</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23deprecated" target="_blank">新的弃用内容</a>，其中大部分计划从 Python 3.15 或 3.16 中删除</li>
+<li>针对 C API 的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id10" target="_blank">删除</a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id9" target="_blank">弃用</a>（alpha 1 中存在的一些删除已在 alpha 2 中恢复，因为此时删除被认为过于破坏兼容性）</li>
+</ul>
+<p>Python 3.13 的下一个更新是 3.13.0a4，目前计划于 2024 年 2 月 13 日发布。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Python 3.13.0 第 3 个 alpha&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpythoninsider.blogspot.com%2F2024%2F01%2Fpython-3130-alpha-3-is-now-available.html" target="_blank">已发布</a></u>，开发团队表示目前仍在积极删除全局解释器锁 (GIL)，并增强整体性能。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1814891995.png"></p>
+</blockquote>
+<p><strong>其他变化</strong></p>
+<ul>
+<li>Python 的交互式解释器模式现在默认提供彩色异常回溯</li>
+<li>文档字符串现在已删除其前导缩进，从而减少了内存使用和 .pyc 文件的大小</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpeps.python.org%2Fpep-0594%2F" target="_blank">PEP 594</a>（从标准库中删除已弃用的模块）：aifc、audioop、chunk、cgi、cgitb、crypt、imghdr、mailcap、msilib、nis、nntplib、ossaudiodev、pipes、sndhdr、spwd、sunau、 telnetlib、uu、xdrlib、lib2to3。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23removed" target="_blank">删除</a>多个标准库模块中已被弃用的类、函数和方法</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23deprecated" target="_blank">新的弃用内容</a>，其中大部分计划从 Python 3.15 或 3.16 中删除</li>
+<li>针对 C API 的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id10" target="_blank">删除</a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id9" target="_blank">弃用</a>（alpha 1 中存在的一些删除已在 alpha 2 中恢复，因为此时删除被认为过于破坏兼容性）</li>
+</ul>
+<p>Python 3.13 的下一个更新是 3.13.0a4，目前计划于 2024 年 2 月 13 日发布。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Python 3.13.0 第 3 个 alpha&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpythoninsider.blogspot.com%2F2024%2F01%2Fpython-3130-alpha-3-is-now-available.html" target="_blank">已发布</a></u>，开发团队表示目前仍在积极删除全局解释器锁 (GIL)，并增强整体性能。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1814891995.png"></p>
+</blockquote>
+<p><strong>其他变化</strong></p>
+<ul>
+<li>Python 的交互式解释器模式现在默认提供彩色异常回溯</li>
+<li>文档字符串现在已删除其前导缩进，从而减少了内存使用和 .pyc 文件的大小</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fpeps.python.org%2Fpep-0594%2F" target="_blank">PEP 594</a>（从标准库中删除已弃用的模块）：aifc、audioop、chunk、cgi、cgitb、crypt、imghdr、mailcap、msilib、nis、nntplib、ossaudiodev、pipes、sndhdr、spwd、sunau、 telnetlib、uu、xdrlib、lib2to3。</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23removed" target="_blank">删除</a>多个标准库模块中已被弃用的类、函数和方法</li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23deprecated" target="_blank">新的弃用内容</a>，其中大部分计划从 Python 3.15 或 3.16 中删除</li>
+<li>针对 C API 的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id10" target="_blank">删除</a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.python.org%2Fdev%2Fwhatsnew%2F3.13.html%23id9" target="_blank">弃用</a>（alpha 1 中存在的一些删除已在 alpha 2 中恢复，因为此时删除被认为过于破坏兼容性）</li>
+</ul>
+<p>Python 3.13 的下一个更新是 3.13.0a4，目前计划于 2024 年 2 月 13 日发布。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1814891995.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1814891995.png" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 14:30:36 +0800</pubDate>
+  </item><item>
     <title><![CDATA[SecBench：首个网络安全大模型评测平台发布]]></title>
     <link>https://www.oschina.net/news/276138</link>
     <itunes:title><![CDATA[SecBench：首个网络安全大模型评测平台发布]]></itunes:title>
