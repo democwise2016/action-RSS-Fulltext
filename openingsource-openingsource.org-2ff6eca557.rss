@@ -30,6 +30,864 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1081期：前端打包工具：《Bun》]]></title>
+    <link>https://openingsource.org/11553/</link>
+    <itunes:title><![CDATA[开源日报第1081期：前端打包工具：《Bun》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月21日，开源日报第1081期：<br>
+今日推荐开源项目：《Bun》<br>
+今日推荐英文原文：《What is Ref and Ref Callback in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Bun》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Bun 是一个令人难以置信的快速JavaScript运行时、捆绑器、测试运行器和包管理器 - 一体化，其核心是Bun运行时，这是一个快速的JavaScript运行时，旨在作为Node.js的即插即用替代品，它由Zig编写，并由底层驱动JavaScriptCore，在启动时间和内存使用方面大大减少了消耗量</p>
+<p>官网直达：bun.sh</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@kabildeveloper/what-is-ref-and-ref-callback-in-react-da09d375948f" target="_blank">What is Ref and Ref Callback in React?</a></p>
+<p>推荐理由：非常详细，Ref在React中是一个对象，用于引用React元素，手动操作DOM，通常用于添加动画、管理表单元素和第三方库，示例中使用useRef创建userNameRef，在组件挂载后将焦点设置在用户名输入框，而Ref Callback是另一种使用ref的方式，通过直接将函数传递给JSX元素的ref属性，回调函数接受HTMLElement作为参数，文中有更加细致的说明</p>
+<hr>
+<h1>What is Ref and Ref Callback in React?</h1>
+<blockquote>
+<p>Disclaimer: All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<p>Hi there, I hope you have at-least basic knowledge in React JS.</p>
+<h1><strong>What is Ref ?</strong></h1>
+<p>In React <code>ref</code> is an object, which have reference to a React element, which is used to manipulate the DOM elements manually. <code>Refs</code> are most commonly used to add animations, managing values in form elements and in some third party libraries.</p>
+<p>Before deep diving into ref, let’s see how a basic implementation in react looks like.</p>
+<pre><code>import {useRef, useEffect} from "react";
+function App() {
+const userNameRef = useRef&lt;HTMLInputElement&gt;(null);
+useEffect(() =&gt; {
+if(userNameRef.current) {
+userNameRef.current.focus()
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={userNameRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<p>This React code defines a functional component named <code>App</code> representing a simple form with username and password inputs. The <code>useRef</code> hook creates a <code>ref</code> object named as <code>userNameRef</code> with initial value as <code>null</code>. Then we pass that <code>userNameRef</code> to <code>ref</code> prop of the username input element, which creates a reference to it.</p>
+<p>The <code>useEffect</code> is triggered when the component mounts (empty dependency array <code>[]</code>). It checks if <code>userNameRef.current</code> is not null (i.e., if the username input element exists), and if so, it sets the focus on that input element using <code>userNameRef.current.focus()</code> .</p>
+<h1><strong>Ref Callback</strong></h1>
+<p>There is an another way to use <code>ref</code> in React, that is using Ref Callback Funtion. Instead of using <code>useRef()</code> hook, we can directly pass a function to the <code>ref</code> prop of the JSX element, in which the function takes the HTMLElement as the parameter. So that we can access the element directly from the parameter inside the callback function. Usually this callback method of creating a ref is used where we often add or remove elements dynamically in React.</p>
+<blockquote>
+<p><strong>Note:</strong> This function will be called twice because, initally react assigns <code>null</code> to the ref element, then after mounting it will assigns the element to it. So there is no need of useEffect hook to execute the focus functionality.</p>
+</blockquote>
+<p>Look at the code example below, it’s just the same logic that what we seen before on the top, but implemented using <code>ref callback</code> instead of using <code>useRef</code> hook.</p>
+<pre><code>function App() {
+function handleRef(element: HTMLInputElement) {
+if(element) {
+element.focus();
+}
+}
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={handleRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<h1><strong>Summary</strong></h1>
+<p><strong><code>Refs</code></strong> are very powerful tool in React, which enables us to easily attach animations, accessing values and triggering events etc just like we normally did in Plain JS.</p>
+<p>Overuse of <code>**refs</code>** causes performance issues. So it is recommended to use state based controls over the elements.</p>
+<p>Still it is encouraged to use ref for form elements, technically called as uncontrolled forms, which in contrast improves the performance of the application.</p>
+<p>There is a library called <a href="https://react-hook-form.com/" target="_blank"><em>React Hook Form</em></a>, which is a great way for creating uncontrolled forms.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月21日，开源日报第1081期：<br>
+今日推荐开源项目：《Bun》<br>
+今日推荐英文原文：《What is Ref and Ref Callback in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Bun》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Bun 是一个令人难以置信的快速JavaScript运行时、捆绑器、测试运行器和包管理器 - 一体化，其核心是Bun运行时，这是一个快速的JavaScript运行时，旨在作为Node.js的即插即用替代品，它由Zig编写，并由底层驱动JavaScriptCore，在启动时间和内存使用方面大大减少了消耗量</p>
+<p>官网直达：bun.sh</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@kabildeveloper/what-is-ref-and-ref-callback-in-react-da09d375948f" target="_blank">What is Ref and Ref Callback in React?</a></p>
+<p>推荐理由：非常详细，Ref在React中是一个对象，用于引用React元素，手动操作DOM，通常用于添加动画、管理表单元素和第三方库，示例中使用useRef创建userNameRef，在组件挂载后将焦点设置在用户名输入框，而Ref Callback是另一种使用ref的方式，通过直接将函数传递给JSX元素的ref属性，回调函数接受HTMLElement作为参数，文中有更加细致的说明</p>
+<hr>
+<h1>What is Ref and Ref Callback in React?</h1>
+<blockquote>
+<p>Disclaimer: All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<p>Hi there, I hope you have at-least basic knowledge in React JS.</p>
+<h1><strong>What is Ref ?</strong></h1>
+<p>In React <code>ref</code> is an object, which have reference to a React element, which is used to manipulate the DOM elements manually. <code>Refs</code> are most commonly used to add animations, managing values in form elements and in some third party libraries.</p>
+<p>Before deep diving into ref, let’s see how a basic implementation in react looks like.</p>
+<pre><code>import {useRef, useEffect} from "react";
+function App() {
+const userNameRef = useRef&lt;HTMLInputElement&gt;(null);
+useEffect(() =&gt; {
+if(userNameRef.current) {
+userNameRef.current.focus()
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={userNameRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<p>This React code defines a functional component named <code>App</code> representing a simple form with username and password inputs. The <code>useRef</code> hook creates a <code>ref</code> object named as <code>userNameRef</code> with initial value as <code>null</code>. Then we pass that <code>userNameRef</code> to <code>ref</code> prop of the username input element, which creates a reference to it.</p>
+<p>The <code>useEffect</code> is triggered when the component mounts (empty dependency array <code>[]</code>). It checks if <code>userNameRef.current</code> is not null (i.e., if the username input element exists), and if so, it sets the focus on that input element using <code>userNameRef.current.focus()</code> .</p>
+<h1><strong>Ref Callback</strong></h1>
+<p>There is an another way to use <code>ref</code> in React, that is using Ref Callback Funtion. Instead of using <code>useRef()</code> hook, we can directly pass a function to the <code>ref</code> prop of the JSX element, in which the function takes the HTMLElement as the parameter. So that we can access the element directly from the parameter inside the callback function. Usually this callback method of creating a ref is used where we often add or remove elements dynamically in React.</p>
+<blockquote>
+<p><strong>Note:</strong> This function will be called twice because, initally react assigns <code>null</code> to the ref element, then after mounting it will assigns the element to it. So there is no need of useEffect hook to execute the focus functionality.</p>
+</blockquote>
+<p>Look at the code example below, it’s just the same logic that what we seen before on the top, but implemented using <code>ref callback</code> instead of using <code>useRef</code> hook.</p>
+<pre><code>function App() {
+function handleRef(element: HTMLInputElement) {
+if(element) {
+element.focus();
+}
+}
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={handleRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<h1><strong>Summary</strong></h1>
+<p><strong><code>Refs</code></strong> are very powerful tool in React, which enables us to easily attach animations, accessing values and triggering events etc just like we normally did in Plain JS.</p>
+<p>Overuse of <code>**refs</code>** causes performance issues. So it is recommended to use state based controls over the elements.</p>
+<p>Still it is encouraged to use ref for form elements, technically called as uncontrolled forms, which in contrast improves the performance of the application.</p>
+<p>There is a library called <a href="https://react-hook-form.com/" target="_blank"><em>React Hook Form</em></a>, which is a great way for creating uncontrolled forms.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月21日，开源日报第1081期：<br>
+今日推荐开源项目：《Bun》<br>
+今日推荐英文原文：《What is Ref and Ref Callback in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Bun》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Bun 是一个令人难以置信的快速JavaScript运行时、捆绑器、测试运行器和包管理器 - 一体化，其核心是Bun运行时，这是一个快速的JavaScript运行时，旨在作为Node.js的即插即用替代品，它由Zig编写，并由底层驱动JavaScriptCore，在启动时间和内存使用方面大大减少了消耗量</p>
+<p>官网直达：bun.sh</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@kabildeveloper/what-is-ref-and-ref-callback-in-react-da09d375948f" target="_blank">What is Ref and Ref Callback in React?</a></p>
+<p>推荐理由：非常详细，Ref在React中是一个对象，用于引用React元素，手动操作DOM，通常用于添加动画、管理表单元素和第三方库，示例中使用useRef创建userNameRef，在组件挂载后将焦点设置在用户名输入框，而Ref Callback是另一种使用ref的方式，通过直接将函数传递给JSX元素的ref属性，回调函数接受HTMLElement作为参数，文中有更加细致的说明</p>
+<hr>
+<h1>What is Ref and Ref Callback in React?</h1>
+<blockquote>
+<p>Disclaimer: All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<p>Hi there, I hope you have at-least basic knowledge in React JS.</p>
+<h1><strong>What is Ref ?</strong></h1>
+<p>In React <code>ref</code> is an object, which have reference to a React element, which is used to manipulate the DOM elements manually. <code>Refs</code> are most commonly used to add animations, managing values in form elements and in some third party libraries.</p>
+<p>Before deep diving into ref, let’s see how a basic implementation in react looks like.</p>
+<pre><code>import {useRef, useEffect} from "react";
+function App() {
+const userNameRef = useRef&lt;HTMLInputElement&gt;(null);
+useEffect(() =&gt; {
+if(userNameRef.current) {
+userNameRef.current.focus()
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={userNameRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<p>This React code defines a functional component named <code>App</code> representing a simple form with username and password inputs. The <code>useRef</code> hook creates a <code>ref</code> object named as <code>userNameRef</code> with initial value as <code>null</code>. Then we pass that <code>userNameRef</code> to <code>ref</code> prop of the username input element, which creates a reference to it.</p>
+<p>The <code>useEffect</code> is triggered when the component mounts (empty dependency array <code>[]</code>). It checks if <code>userNameRef.current</code> is not null (i.e., if the username input element exists), and if so, it sets the focus on that input element using <code>userNameRef.current.focus()</code> .</p>
+<h1><strong>Ref Callback</strong></h1>
+<p>There is an another way to use <code>ref</code> in React, that is using Ref Callback Funtion. Instead of using <code>useRef()</code> hook, we can directly pass a function to the <code>ref</code> prop of the JSX element, in which the function takes the HTMLElement as the parameter. So that we can access the element directly from the parameter inside the callback function. Usually this callback method of creating a ref is used where we often add or remove elements dynamically in React.</p>
+<blockquote>
+<p><strong>Note:</strong> This function will be called twice because, initally react assigns <code>null</code> to the ref element, then after mounting it will assigns the element to it. So there is no need of useEffect hook to execute the focus functionality.</p>
+</blockquote>
+<p>Look at the code example below, it’s just the same logic that what we seen before on the top, but implemented using <code>ref callback</code> instead of using <code>useRef</code> hook.</p>
+<pre><code>function App() {
+function handleRef(element: HTMLInputElement) {
+if(element) {
+element.focus();
+}
+}
+return (
+&lt;div&gt;
+&lt;form&gt;
+&lt;div&gt;
+&lt;label htmlFor='username'&gt;Username&lt;/label&gt;
+&lt;input ref={handleRef} id='username' type='text'/&gt;
+&lt;/div&gt;
+&lt;div&gt;
+&lt;label htmlFor='password'&gt;Password&lt;/label&gt;
+&lt;input id='password' type='password'/&gt;
+&lt;/div&gt;
+&lt;button&gt;
+Submit
+&lt;/button&gt;
+&lt;/form&gt;
+&lt;/div&gt;
+)
+}
+export default App</code></pre>
+<h1><strong>Summary</strong></h1>
+<p><strong><code>Refs</code></strong> are very powerful tool in React, which enables us to easily attach animations, accessing values and triggering events etc just like we normally did in Plain JS.</p>
+<p>Overuse of <code>**refs</code>** causes performance issues. So it is recommended to use state based controls over the elements.</p>
+<p>Still it is encouraged to use ref for form elements, technically called as uncontrolled forms, which in contrast improves the performance of the application.</p>
+<p>There is a library called <a href="https://react-hook-form.com/" target="_blank"><em>React Hook Form</em></a>, which is a great way for creating uncontrolled forms.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg" medium="image"/>
+    <pubDate>Sun, 21 Jan 2024 15:33:35 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1080期：React框架：《refine》]]></title>
+    <link>https://openingsource.org/11550/</link>
+    <itunes:title><![CDATA[开源日报第1080期：React框架：《refine》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月20日，开源日报第1080期：<br>
+今日推荐开源项目：《refine》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
+<p>什么是 refine？（来自仓库 README文件翻译）<br>
+Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
+Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
+Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
+<p>官网直达：refine.dev</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
+</a></p>
+<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
+<hr>
+<h1>The Context API in React</h1>
+<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
+<p>Here’s an example to illustrate how Context API works</p>
+<h2><strong>Step1: Create the context:</strong></h2>
+<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
+<pre><code>import React from "react";
+// Create the context
+const UserContext = React.createContext();
+export default UserContext
+OR
+import React, { createContext, useState } from 'react';
+// Create the context
+const ThemeContext = createContext();</code></pre>
+<h2><strong>Step 2: Set up a Provider</strong></h2>
+<ol>
+<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
+<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
+<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
+</ol>
+<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
+<ol>
+<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
+<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
+</ol>
+<pre><code>import React, { useContext } from "react";
+import UserContext from "./UserContext";
+export const useUser = () =&gt; {
+const user = useContext(UserContext);
+return user;
+}
+const UserContextProvider = ({children}) =&gt;{
+const name ="This is example of Context Api"
+return (
+&lt;UserContext.Provider value={name}&gt;
+{children}
+&lt;/UserContext.Provider&gt;
+)
+}
+export default UserContextProvider</code></pre>
+<h2>Step 4: Wrap the App with the Provider</h2>
+<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
+<pre><code>import "./App.css";
+import { Outlet } from "react-router-dom";
+import Header from "./components/Common/Header/Header";
+import Footer from "./components/Common/Footer/Footer";
+import Home from "./components/Home";
+import Test from "./components/Test";
+import UserContextProvider from "./context/UserContextProvider";
+function App() {
+return (
+&lt;UserContextProvider&gt;
+&lt;div className="App"&gt;
+&lt;Header /&gt;
+&lt;Home /&gt;
+&lt;Test /&gt;
+&lt;Footer /&gt;
+&lt;/div&gt;
+&lt;/UserContextProvider&gt;
+);
+}
+export default App;</code></pre>
+<h2>Step 5: Use the Context in Components</h2>
+<ol>
+<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
+<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
+</ol>
+<h2>Example -1</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Home = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Home;</code></pre>
+<h2>Example -2</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Test = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Test;</code></pre>
+<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月20日，开源日报第1080期：<br>
+今日推荐开源项目：《refine》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
+<p>什么是 refine？（来自仓库 README文件翻译）<br>
+Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
+Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
+Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
+<p>官网直达：refine.dev</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
+</a></p>
+<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
+<hr>
+<h1>The Context API in React</h1>
+<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
+<p>Here’s an example to illustrate how Context API works</p>
+<h2><strong>Step1: Create the context:</strong></h2>
+<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
+<pre><code>import React from "react";
+// Create the context
+const UserContext = React.createContext();
+export default UserContext
+OR
+import React, { createContext, useState } from 'react';
+// Create the context
+const ThemeContext = createContext();</code></pre>
+<h2><strong>Step 2: Set up a Provider</strong></h2>
+<ol>
+<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
+<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
+<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
+</ol>
+<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
+<ol>
+<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
+<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
+</ol>
+<pre><code>import React, { useContext } from "react";
+import UserContext from "./UserContext";
+export const useUser = () =&gt; {
+const user = useContext(UserContext);
+return user;
+}
+const UserContextProvider = ({children}) =&gt;{
+const name ="This is example of Context Api"
+return (
+&lt;UserContext.Provider value={name}&gt;
+{children}
+&lt;/UserContext.Provider&gt;
+)
+}
+export default UserContextProvider</code></pre>
+<h2>Step 4: Wrap the App with the Provider</h2>
+<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
+<pre><code>import "./App.css";
+import { Outlet } from "react-router-dom";
+import Header from "./components/Common/Header/Header";
+import Footer from "./components/Common/Footer/Footer";
+import Home from "./components/Home";
+import Test from "./components/Test";
+import UserContextProvider from "./context/UserContextProvider";
+function App() {
+return (
+&lt;UserContextProvider&gt;
+&lt;div className="App"&gt;
+&lt;Header /&gt;
+&lt;Home /&gt;
+&lt;Test /&gt;
+&lt;Footer /&gt;
+&lt;/div&gt;
+&lt;/UserContextProvider&gt;
+);
+}
+export default App;</code></pre>
+<h2>Step 5: Use the Context in Components</h2>
+<ol>
+<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
+<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
+</ol>
+<h2>Example -1</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Home = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Home;</code></pre>
+<h2>Example -2</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Test = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Test;</code></pre>
+<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月20日，开源日报第1080期：<br>
+今日推荐开源项目：《refine》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
+<p>什么是 refine？（来自仓库 README文件翻译）<br>
+Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
+Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
+Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
+<p>官网直达：refine.dev</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
+</a></p>
+<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
+<hr>
+<h1>The Context API in React</h1>
+<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
+<p>Here’s an example to illustrate how Context API works</p>
+<h2><strong>Step1: Create the context:</strong></h2>
+<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
+<pre><code>import React from "react";
+// Create the context
+const UserContext = React.createContext();
+export default UserContext
+OR
+import React, { createContext, useState } from 'react';
+// Create the context
+const ThemeContext = createContext();</code></pre>
+<h2><strong>Step 2: Set up a Provider</strong></h2>
+<ol>
+<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
+<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
+<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
+</ol>
+<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
+<ol>
+<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
+<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
+</ol>
+<pre><code>import React, { useContext } from "react";
+import UserContext from "./UserContext";
+export const useUser = () =&gt; {
+const user = useContext(UserContext);
+return user;
+}
+const UserContextProvider = ({children}) =&gt;{
+const name ="This is example of Context Api"
+return (
+&lt;UserContext.Provider value={name}&gt;
+{children}
+&lt;/UserContext.Provider&gt;
+)
+}
+export default UserContextProvider</code></pre>
+<h2>Step 4: Wrap the App with the Provider</h2>
+<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
+<pre><code>import "./App.css";
+import { Outlet } from "react-router-dom";
+import Header from "./components/Common/Header/Header";
+import Footer from "./components/Common/Footer/Footer";
+import Home from "./components/Home";
+import Test from "./components/Test";
+import UserContextProvider from "./context/UserContextProvider";
+function App() {
+return (
+&lt;UserContextProvider&gt;
+&lt;div className="App"&gt;
+&lt;Header /&gt;
+&lt;Home /&gt;
+&lt;Test /&gt;
+&lt;Footer /&gt;
+&lt;/div&gt;
+&lt;/UserContextProvider&gt;
+);
+}
+export default App;</code></pre>
+<h2>Step 5: Use the Context in Components</h2>
+<ol>
+<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
+<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
+</ol>
+<h2>Example -1</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Home = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Home;</code></pre>
+<h2>Example -2</h2>
+<pre><code>import React, {useContext} from "react";
+import UserContext from "../../context/UserContext";
+const Test = () =&gt; {
+const value = useContext(UserContext);
+return (
+&lt;div className="container"&gt;
+&lt;h1&gt;{value}&lt;/h1&gt;
+&lt;/div&gt;
+);
+};
+export default Test;</code></pre>
+<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg" medium="image"/>
+    <pubDate>Sat, 20 Jan 2024 14:23:03 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1079期：TeamViewer替代品：《rustdesk》]]></title>
+    <link>https://openingsource.org/11547/</link>
+    <itunes:title><![CDATA[开源日报第1079期：TeamViewer替代品：《rustdesk》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月19日，开源日报第1079期：<br>
+今日推荐开源项目：《rustdesk》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
+<p>官网直达：rustdesk.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
+<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
+<hr>
+<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
+<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
+<h1>Understanding the Landscape</h1>
+<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
+<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
+<h1>Essential Interview Questions and Answers</h1>
+<h1>1. What is ReactJS, and what are its key features?</h1>
+<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
+<h1>2. What is JSX, and why is it used in React?</h1>
+<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
+<h1>3. Explain the concept of “props” in React.</h1>
+<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
+<h1>4. What is state in React, and how is it different from props?</h1>
+<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
+<h1>5. What are React hooks, and how do they differ from class components?</h1>
+<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
+<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
+<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
+<h1>7. What is the purpose of the “key” prop in React lists?</h1>
+<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
+<h1>8. How does Redux work, and when would you use it?</h1>
+<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
+<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
+<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
+<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
+<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
+<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
+<h1>Showcasing Your Expertise</h1>
+<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
+<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
+<h1>Tips for Excelling in a ReactJS Interview</h1>
+<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
+<ol>
+<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
+<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
+<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
+<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
+<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
+<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
+<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
+<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
+<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
+<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
+</ol>
+<h1>Conclusion</h1>
+<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
+<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月19日，开源日报第1079期：<br>
+今日推荐开源项目：《rustdesk》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
+<p>官网直达：rustdesk.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
+<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
+<hr>
+<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
+<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
+<h1>Understanding the Landscape</h1>
+<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
+<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
+<h1>Essential Interview Questions and Answers</h1>
+<h1>1. What is ReactJS, and what are its key features?</h1>
+<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
+<h1>2. What is JSX, and why is it used in React?</h1>
+<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
+<h1>3. Explain the concept of “props” in React.</h1>
+<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
+<h1>4. What is state in React, and how is it different from props?</h1>
+<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
+<h1>5. What are React hooks, and how do they differ from class components?</h1>
+<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
+<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
+<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
+<h1>7. What is the purpose of the “key” prop in React lists?</h1>
+<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
+<h1>8. How does Redux work, and when would you use it?</h1>
+<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
+<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
+<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
+<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
+<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
+<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
+<h1>Showcasing Your Expertise</h1>
+<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
+<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
+<h1>Tips for Excelling in a ReactJS Interview</h1>
+<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
+<ol>
+<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
+<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
+<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
+<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
+<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
+<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
+<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
+<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
+<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
+<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
+</ol>
+<h1>Conclusion</h1>
+<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
+<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月19日，开源日报第1079期：<br>
+今日推荐开源项目：《rustdesk》<br>
+今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
+<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
+<p>官网直达：rustdesk.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
+<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
+<hr>
+<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
+<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
+<h1>Understanding the Landscape</h1>
+<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
+<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
+<h1>Essential Interview Questions and Answers</h1>
+<h1>1. What is ReactJS, and what are its key features?</h1>
+<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
+<h1>2. What is JSX, and why is it used in React?</h1>
+<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
+<h1>3. Explain the concept of “props” in React.</h1>
+<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
+<h1>4. What is state in React, and how is it different from props?</h1>
+<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
+<h1>5. What are React hooks, and how do they differ from class components?</h1>
+<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
+<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
+<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
+<h1>7. What is the purpose of the “key” prop in React lists?</h1>
+<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
+<h1>8. How does Redux work, and when would you use it?</h1>
+<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
+<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
+<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
+<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
+<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
+<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
+<h1>Showcasing Your Expertise</h1>
+<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
+<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
+<h1>Tips for Excelling in a ReactJS Interview</h1>
+<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
+<ol>
+<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
+<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
+<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
+<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
+<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
+<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
+<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
+<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
+<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
+<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
+</ol>
+<h1>Conclusion</h1>
+<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
+<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg" medium="image"/>
+    <pubDate>Fri, 19 Jan 2024 13:03:52 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></title>
     <link>https://openingsource.org/11544/</link>
     <itunes:title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></itunes:title>
@@ -1508,935 +2366,5 @@ export default HoverExample;</code></pre>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg" medium="image"/>
     <pubDate>Mon, 15 Jan 2024 13:39:42 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1074期：前端框架：《htmx》]]></title>
-    <link>https://openingsource.org/11511/</link>
-    <itunes:title><![CDATA[开源日报第1074期：前端框架：《htmx》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月14日，开源日报第1074期：<br>
-今日推荐开源项目：《htmx》<br>
-今日推荐英文原文：《Dynamic Imports in React》<br>
-<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
-htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
-htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
-<p>官方直达 htmx.org</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
-<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
-<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
-文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
-<hr>
-<h1>Dynamic Imports in React</h1>
-<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
-<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
-<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
-<pre><code>import React from 'react';
-const AnotherComponent = () =&gt; {
-return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
-};
-export default AnotherComponent;
-const MyComponent = () =&gt; {
-const [importedComponent, setImportedComponent] = useState(null);
-useEffect(() =&gt; {
-const importComponent = async () =&gt; {
-const module = await import('./AnotherComponent');
-const AnotherComponent = module.default;
-setImportedComponent(&lt;AnotherComponent /&gt;);
-};
-importComponent();
-}, []);
-return (
-&lt;div&gt;
-{importedComponent}
-&lt;div&gt;This is my functional component!&lt;/div&gt;
-&lt;/div&gt;
-);
-};
-///Another Way is ...///
-const MyComponent = async () =&gt; {
-const module = import('./AnotherComponent');
-const {AnotherComponent} = await module;
-return &lt;AnotherComponent /&gt;;
-};
-export default MyComponent;
-// when u console the export module { default: ""} is contains the all the
-// key value pair of the functions name as the key and the value as the
-// definition, with a default key if something is imported as default it
-// will be it's value else it will be undefined</code></pre>
-<h2>When To Use Dynamic Imports?</h2>
-<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
-<ul>
-<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
-<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
-<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
-</ul>
-<h2>React.lazy()</h2>
-<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
-<pre><code>import React, { lazy } from "react";
-const Blog = React.lazy(() =&gt;
-import('./Pages/Blog'));</code></pre>
-<h1>React.Suspense()</h1>
-<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
-<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
-<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
-<pre><code>import React, { Suspense } from 'react';
-const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月14日，开源日报第1074期：<br>
-今日推荐开源项目：《htmx》<br>
-今日推荐英文原文：《Dynamic Imports in React》<br>
-<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
-htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
-htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
-<p>官方直达 htmx.org</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
-<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
-<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
-文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
-<hr>
-<h1>Dynamic Imports in React</h1>
-<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
-<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
-<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
-<pre><code>import React from 'react';
-const AnotherComponent = () =&gt; {
-return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
-};
-export default AnotherComponent;
-const MyComponent = () =&gt; {
-const [importedComponent, setImportedComponent] = useState(null);
-useEffect(() =&gt; {
-const importComponent = async () =&gt; {
-const module = await import('./AnotherComponent');
-const AnotherComponent = module.default;
-setImportedComponent(&lt;AnotherComponent /&gt;);
-};
-importComponent();
-}, []);
-return (
-&lt;div&gt;
-{importedComponent}
-&lt;div&gt;This is my functional component!&lt;/div&gt;
-&lt;/div&gt;
-);
-};
-///Another Way is ...///
-const MyComponent = async () =&gt; {
-const module = import('./AnotherComponent');
-const {AnotherComponent} = await module;
-return &lt;AnotherComponent /&gt;;
-};
-export default MyComponent;
-// when u console the export module { default: ""} is contains the all the
-// key value pair of the functions name as the key and the value as the
-// definition, with a default key if something is imported as default it
-// will be it's value else it will be undefined</code></pre>
-<h2>When To Use Dynamic Imports?</h2>
-<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
-<ul>
-<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
-<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
-<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
-</ul>
-<h2>React.lazy()</h2>
-<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
-<pre><code>import React, { lazy } from "react";
-const Blog = React.lazy(() =&gt;
-import('./Pages/Blog'));</code></pre>
-<h1>React.Suspense()</h1>
-<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
-<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
-<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
-<pre><code>import React, { Suspense } from 'react';
-const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月14日，开源日报第1074期：<br>
-今日推荐开源项目：《htmx》<br>
-今日推荐英文原文：《Dynamic Imports in React》<br>
-<img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《htmx》传送门：<a href="https://github.com/bigskysoftware/htmx?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：htmx在2023年JavaScript Rising Stars“前端框架”类别中获得第二名，仅次于React；<br>
-htmx使您可以直接在HTML中使用属性访问AJAX、CSS过渡、WebSockets和服务器发送事件；<br>
-htmx非常小巧（~14k min.gz'd），无需依赖，可扩展，兼容IE11，并且与React相比减少了67%的代码基大小</p>
-<p>官方直达 htmx.org</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@shubham3480/dynamic-imports-in-react-3e3e7ad1d210" target="_blank">Dynamic Imports in React</a></p>
-<p>推荐理由：该文章讨论了在React中的动态导入，允许在运行时加载JavaScript模块，从而提高应用程序的性能和加载速度</p>
-<p>import()函数返回一个Promise，允许异步加载模块，使用在例如代码拆分和懒加载，确保只在需要时加载必要的代码<br>
-文章还介绍了React.lazy()，用于将动态导入呈现为常规组件，以及React.Suspense()，用于在加载完成之前有条件地暂停组件的呈现，通过示例和用例说明了实际实现的方法</p>
-<hr>
-<h1>Dynamic Imports in React</h1>
-<p>Dynamic imports in React allow you to dynamically load JavaScript modules at runtime, which can significantly improve your application’s performance and load times. This technique is particularly useful for code splitting and lazy loading, ensuring that only the necessary code is loaded when needed.</p>
-<p><strong><em>The\</em></strong> <code>***import()\***</code> <strong><em>function returns a Promise that resolves to the module you want to use dynamic import.\</em></strong></p>
-<p><strong><em>A normal import in JavaScript (using the\</em></strong> <code>***import\***</code> <strong><em>statement) does not return a Promise. It's a synchronous operation and returns the exported values from the imported module.\</em></strong></p>
-<pre><code>import React from 'react';
-const AnotherComponent = () =&gt; {
-return &lt;div&gt;Another component loaded dynamically!&lt;/div&gt;;
-};
-export default AnotherComponent;
-const MyComponent = () =&gt; {
-const [importedComponent, setImportedComponent] = useState(null);
-useEffect(() =&gt; {
-const importComponent = async () =&gt; {
-const module = await import('./AnotherComponent');
-const AnotherComponent = module.default;
-setImportedComponent(&lt;AnotherComponent /&gt;);
-};
-importComponent();
-}, []);
-return (
-&lt;div&gt;
-{importedComponent}
-&lt;div&gt;This is my functional component!&lt;/div&gt;
-&lt;/div&gt;
-);
-};
-///Another Way is ...///
-const MyComponent = async () =&gt; {
-const module = import('./AnotherComponent');
-const {AnotherComponent} = await module;
-return &lt;AnotherComponent /&gt;;
-};
-export default MyComponent;
-// when u console the export module { default: ""} is contains the all the
-// key value pair of the functions name as the key and the value as the
-// definition, with a default key if something is imported as default it
-// will be it's value else it will be undefined</code></pre>
-<h2>When To Use Dynamic Imports?</h2>
-<p>Although dynamic imports are a great way to improve the performance of your React applications, there are better use cases for using dynamic imports in React apps.</p>
-<ul>
-<li>Code Modulation: Dynamic imports can be used when there’s a need for code modulation and fetching data from a server. An example can be found in server-side rendered applications.</li>
-<li>Dynamic imports can be used when components are not needed when an application is still loading.</li>
-<li>Conditional imports are an excellent use case for dynamic imports; here, a module or component is only imported on pages where they’re needed and when needed in an application.</li>
-</ul>
-<h2>React.lazy()</h2>
-<p>The React.lazy() function allows you to render a dynamic import as a regular component. Basically, React.lazy() makes a call to a dynamic import and returns a promise.</p>
-<pre><code>import React, { lazy } from "react";
-const Blog = React.lazy(() =&gt;
-import('./Pages/Blog'));</code></pre>
-<h1>React.Suspense()</h1>
-<p>React.Suspense allows React developers to conditionally suspend the rendering of a React component until it is loaded. React.Suspense provides a fallback prop that accepts a React element which either is a JSX snippet or a React component.</p>
-<p>When users visit a page using React dynamic imports, oftentimes they experience a blank page screen, this is done while the application loads the module, this can also cause errors as a result of slow internet connectivity for some users. React.lazy() and React.Suspense when combined solves this issue for users.</p>
-<p>To do this, use React.Suspense to suspend the rendering of a component until all dependencies are lazy-loaded, React.Suspense will also display your fallback UI for the user.</p>
-<pre><code>import React, { Suspense } from 'react';
-const LazyComponent = React.lazy(() =&gt; import('./LazyComponent'));
-const App = () =&gt; {
-return (
-&lt;div&gt;
-&lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
-&lt;LazyComponent /&gt;
-&lt;/Suspense&gt;
-&lt;/div&gt;
-);
-};
-export default App;</code></pre>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240114.jpg" medium="image"/>
-    <pubDate>Sun, 14 Jan 2024 12:01:36 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》]]></title>
-    <link>https://openingsource.org/11508/</link>
-    <itunes:title><![CDATA[开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
-开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》<br>
-2024年1月13日，开源日报第1073期：<br>
-今日推荐开源项目：《meteor》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240113.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meteor》传送门：<a href="https://github.com/meteor/meteor?tab=readme-ov-file" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meteor.js是一个用于构建Web、移动和桌面应用程序的开源平台，api文档非常详细</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：该文章强调了在React中使用useEffect()钩子时常见的陷阱，useEffect()钩子经常被错误使用，导致代码效率低下且难以阅读，举了一些例子详细解释</p>
-<hr>
-<h1>React: You are Using useEffect() Wrong, Do This Instead</h1>
-<p>Once one decides to move forward with learning <strong>React</strong>, hooks are among the first things to learn (and to be frustrated with). Hooks are essential parts of <strong>React</strong>, as they were created to solve several problems that appeared in the first couple of versions of <strong>React</strong>, when every rendering was done inside the component’s lifecycle functions, such as <strong>componentDidMount()</strong>, <strong>componentWillMout(),</strong> <strong>componentDidUpdate()</strong>.</p>
-<p>That said, the first hooks everyone starts touching are <strong>useState()</strong> and <strong>useEffect()</strong>. The first is used for state management and control when the component should be rendered again, while the second behaves somewhat similarly to the lifecycle functions stated above.</p>
-<p>The <strong>useEffect()</strong> hook can receive two outputs: the first is a callback function, while the second is optional and defines when this hook should be called.</p>
-<pre><code>  useEffect((prevProps) =&gt; { //prevProps are optional and has some specific uses. Compare with what happens with the lifecycle functions.
-//Custom function content….
-custom function content…
-return () =&gt; {
-// Code to run when the component is unmounted or when dependencies change
-// It helps in avoiding memory leaks and unexpected behavior
-};
-}, [dependencies in array form]);</code></pre>
-<p>One caveat that gets a lot of beginners is how the second parameter works. Here is a resume:</p>
-<blockquote>
-<p>Case A: If nothing is added, then <strong>useEffect</strong> will run at every change of state inside the current component.</p>
-<p>Case B: If an empty array is added ([]), then the <strong>useEffect</strong> will run only once when the component is mounted.</p>
-<p>Case C: If some array is provided ([state]), then <strong>useEffect</strong> will run every time the state changes</p>
-<p>Case C*: If some array is provided ([state1, state2, ….], <strong>useEffect</strong> will run every time <strong>ANY</strong> of these states changes.</p>
-</blockquote>
-<p>Now that we recalled how <strong>useEffect</strong> works, it’s time to state some of the drawbacks of using it as most people do.</p>
-<p>The main idea of the <strong>useEffect</strong> hook is to synchronize data transfer with external <strong>APIs</strong> or another system, like when you are accessing a database, or waiting for an <strong>HTTP</strong> request to complete. The trouble is that we tend to use this hook in every situation possible inside our code, especially <strong>Case A</strong> and C* listed above, and the code can become incredibly unreadable with just a couple of lines of code, including triggering a loop if you change one of the states in the dependency array during the process.</p>
-<p>This can make your code inefficient too, as useEffect works as if you were stepping aside to run some code and then coming back to the main thread. This is inefficient.</p>
-<p>Great, now you know why to avoid it. But how?</p>
-<p>Let’s talk about each one of the Cases in detail:</p>
-<blockquote>
-<p>Case A — No dependency array: This one should be abolished from your code, as it will certainly trigger unnecessary calculations every time a state changes. In this case, you should specify which states really should trigger this function using a dependency array.</p>
-<p>Case B — Empty dependency array: This is one of the good ones, the only recommendation that I can provide is to keep just one of these for each component and wrap its content into a function.</p>
-<p>Case C — One dependency state only. It’s ok to use if you are processing external data. Otherwise, you should change it to the solution I will provide below.</p>
-<p>Case C* — Multiple dependency states in the same <strong>useEffect</strong>. This is the one I consider the most troublesome. I recommend you try to untangle the states into different useEffect hooks before anything, as it makes your code very unreadable.</p>
-</blockquote>
-<p>Now for the solution that I promised. Let’s consider these two Components (Parent and Child):</p>
-<pre><code>// ParentComponent.js
-import React, { useState, useEffect } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-useEffect(() =&gt; {
-setMessage(`Button clicked ${count} times!`);
-},[count]}
-return (
-&lt;ChildComponent count={count} message={message} setCount={setCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, setCount }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={() =&gt; {setCount(count+1)}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>Now let’s explain what is happening here:</p>
-<blockquote>
-<p>1 — Once the user clicks the button on the <strong>ChildComponent</strong>, we change the state “count” by incrementing 1. It will take one render loop to happen and change the state.</p>
-<p>2 — Once the state “count” changes, the child component will be rendered again and it will also trigger the <strong>useEffect</strong> hook on both components, which will trigger the change in the “message” state. Again, it will only happen in the next render.</p>
-<p>3 — When the “message” state changes, then another render happens in the components changing the message.</p>
-<p>In this case, we ended up having two renders. It may now seem much, but it can grow at a large scale once you have more states at play.</p>
-<p>Now look what happens when we make the following changes in the components:</p>
-</blockquote>
-<pre><code>// ParentComponent.js
-import React, { useState } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-const incrementCount = () =&gt; {
-setCount(count + 1);
-setMessage(`Button clicked ${count + 1} times!`);
-}
-return (
-&lt;ChildComponent count={count} message={message}
-callbackFunction={incrementCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, callbackFunction }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={callbackFunction}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>We changed the code to pass a <strong>Callback Function</strong> to the Child Component. You may notice that:</p>
-<blockquote>
-<p>· We don’t have a <strong>useEffect</strong> anymore defined on the Parent Component. This makes the code easier to read, as we can understand our code as, let’s say, more linear and single-threaded than the original.</p>
-<p>· We don’t have to wait for two render cycles to display our final message, or worse, render both components two times.</p>
-<p>· We can separate concerns between components, making them more reusable and easier to read or adapt, as we can put whatever we want in the callback function.</p>
-<p>· Both the state changes at the same time, avoiding the chaining of <strong>useEffect</strong> statements.</p>
-</blockquote>
-<p>And that’s it for today. Thank you for reading!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
-开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》<br>
-2024年1月13日，开源日报第1073期：<br>
-今日推荐开源项目：《meteor》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240113.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meteor》传送门：<a href="https://github.com/meteor/meteor?tab=readme-ov-file" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meteor.js是一个用于构建Web、移动和桌面应用程序的开源平台，api文档非常详细</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：该文章强调了在React中使用useEffect()钩子时常见的陷阱，useEffect()钩子经常被错误使用，导致代码效率低下且难以阅读，举了一些例子详细解释</p>
-<hr>
-<h1>React: You are Using useEffect() Wrong, Do This Instead</h1>
-<p>Once one decides to move forward with learning <strong>React</strong>, hooks are among the first things to learn (and to be frustrated with). Hooks are essential parts of <strong>React</strong>, as they were created to solve several problems that appeared in the first couple of versions of <strong>React</strong>, when every rendering was done inside the component’s lifecycle functions, such as <strong>componentDidMount()</strong>, <strong>componentWillMout(),</strong> <strong>componentDidUpdate()</strong>.</p>
-<p>That said, the first hooks everyone starts touching are <strong>useState()</strong> and <strong>useEffect()</strong>. The first is used for state management and control when the component should be rendered again, while the second behaves somewhat similarly to the lifecycle functions stated above.</p>
-<p>The <strong>useEffect()</strong> hook can receive two outputs: the first is a callback function, while the second is optional and defines when this hook should be called.</p>
-<pre><code>  useEffect((prevProps) =&gt; { //prevProps are optional and has some specific uses. Compare with what happens with the lifecycle functions.
-//Custom function content….
-custom function content…
-return () =&gt; {
-// Code to run when the component is unmounted or when dependencies change
-// It helps in avoiding memory leaks and unexpected behavior
-};
-}, [dependencies in array form]);</code></pre>
-<p>One caveat that gets a lot of beginners is how the second parameter works. Here is a resume:</p>
-<blockquote>
-<p>Case A: If nothing is added, then <strong>useEffect</strong> will run at every change of state inside the current component.</p>
-<p>Case B: If an empty array is added ([]), then the <strong>useEffect</strong> will run only once when the component is mounted.</p>
-<p>Case C: If some array is provided ([state]), then <strong>useEffect</strong> will run every time the state changes</p>
-<p>Case C*: If some array is provided ([state1, state2, ….], <strong>useEffect</strong> will run every time <strong>ANY</strong> of these states changes.</p>
-</blockquote>
-<p>Now that we recalled how <strong>useEffect</strong> works, it’s time to state some of the drawbacks of using it as most people do.</p>
-<p>The main idea of the <strong>useEffect</strong> hook is to synchronize data transfer with external <strong>APIs</strong> or another system, like when you are accessing a database, or waiting for an <strong>HTTP</strong> request to complete. The trouble is that we tend to use this hook in every situation possible inside our code, especially <strong>Case A</strong> and C* listed above, and the code can become incredibly unreadable with just a couple of lines of code, including triggering a loop if you change one of the states in the dependency array during the process.</p>
-<p>This can make your code inefficient too, as useEffect works as if you were stepping aside to run some code and then coming back to the main thread. This is inefficient.</p>
-<p>Great, now you know why to avoid it. But how?</p>
-<p>Let’s talk about each one of the Cases in detail:</p>
-<blockquote>
-<p>Case A — No dependency array: This one should be abolished from your code, as it will certainly trigger unnecessary calculations every time a state changes. In this case, you should specify which states really should trigger this function using a dependency array.</p>
-<p>Case B — Empty dependency array: This is one of the good ones, the only recommendation that I can provide is to keep just one of these for each component and wrap its content into a function.</p>
-<p>Case C — One dependency state only. It’s ok to use if you are processing external data. Otherwise, you should change it to the solution I will provide below.</p>
-<p>Case C* — Multiple dependency states in the same <strong>useEffect</strong>. This is the one I consider the most troublesome. I recommend you try to untangle the states into different useEffect hooks before anything, as it makes your code very unreadable.</p>
-</blockquote>
-<p>Now for the solution that I promised. Let’s consider these two Components (Parent and Child):</p>
-<pre><code>// ParentComponent.js
-import React, { useState, useEffect } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-useEffect(() =&gt; {
-setMessage(`Button clicked ${count} times!`);
-},[count]}
-return (
-&lt;ChildComponent count={count} message={message} setCount={setCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, setCount }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={() =&gt; {setCount(count+1)}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>Now let’s explain what is happening here:</p>
-<blockquote>
-<p>1 — Once the user clicks the button on the <strong>ChildComponent</strong>, we change the state “count” by incrementing 1. It will take one render loop to happen and change the state.</p>
-<p>2 — Once the state “count” changes, the child component will be rendered again and it will also trigger the <strong>useEffect</strong> hook on both components, which will trigger the change in the “message” state. Again, it will only happen in the next render.</p>
-<p>3 — When the “message” state changes, then another render happens in the components changing the message.</p>
-<p>In this case, we ended up having two renders. It may now seem much, but it can grow at a large scale once you have more states at play.</p>
-<p>Now look what happens when we make the following changes in the components:</p>
-</blockquote>
-<pre><code>// ParentComponent.js
-import React, { useState } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-const incrementCount = () =&gt; {
-setCount(count + 1);
-setMessage(`Button clicked ${count + 1} times!`);
-}
-return (
-&lt;ChildComponent count={count} message={message}
-callbackFunction={incrementCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, callbackFunction }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={callbackFunction}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>We changed the code to pass a <strong>Callback Function</strong> to the Child Component. You may notice that:</p>
-<blockquote>
-<p>· We don’t have a <strong>useEffect</strong> anymore defined on the Parent Component. This makes the code easier to read, as we can understand our code as, let’s say, more linear and single-threaded than the original.</p>
-<p>· We don’t have to wait for two render cycles to display our final message, or worse, render both components two times.</p>
-<p>· We can separate concerns between components, making them more reusable and easier to read or adapt, as we can put whatever we want in the callback function.</p>
-<p>· Both the state changes at the same time, avoiding the chaining of <strong>useEffect</strong> statements.</p>
-</blockquote>
-<p>And that’s it for today. Thank you for reading!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
-开源日报第1073期：构建Web、移动和桌面应用程序：《meteor》<br>
-2024年1月13日，开源日报第1073期：<br>
-今日推荐开源项目：《meteor》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240113.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meteor》传送门：<a href="https://github.com/meteor/meteor?tab=readme-ov-file" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meteor.js是一个用于构建Web、移动和桌面应用程序的开源平台，api文档非常详细</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：该文章强调了在React中使用useEffect()钩子时常见的陷阱，useEffect()钩子经常被错误使用，导致代码效率低下且难以阅读，举了一些例子详细解释</p>
-<hr>
-<h1>React: You are Using useEffect() Wrong, Do This Instead</h1>
-<p>Once one decides to move forward with learning <strong>React</strong>, hooks are among the first things to learn (and to be frustrated with). Hooks are essential parts of <strong>React</strong>, as they were created to solve several problems that appeared in the first couple of versions of <strong>React</strong>, when every rendering was done inside the component’s lifecycle functions, such as <strong>componentDidMount()</strong>, <strong>componentWillMout(),</strong> <strong>componentDidUpdate()</strong>.</p>
-<p>That said, the first hooks everyone starts touching are <strong>useState()</strong> and <strong>useEffect()</strong>. The first is used for state management and control when the component should be rendered again, while the second behaves somewhat similarly to the lifecycle functions stated above.</p>
-<p>The <strong>useEffect()</strong> hook can receive two outputs: the first is a callback function, while the second is optional and defines when this hook should be called.</p>
-<pre><code>  useEffect((prevProps) =&gt; { //prevProps are optional and has some specific uses. Compare with what happens with the lifecycle functions.
-//Custom function content….
-custom function content…
-return () =&gt; {
-// Code to run when the component is unmounted or when dependencies change
-// It helps in avoiding memory leaks and unexpected behavior
-};
-}, [dependencies in array form]);</code></pre>
-<p>One caveat that gets a lot of beginners is how the second parameter works. Here is a resume:</p>
-<blockquote>
-<p>Case A: If nothing is added, then <strong>useEffect</strong> will run at every change of state inside the current component.</p>
-<p>Case B: If an empty array is added ([]), then the <strong>useEffect</strong> will run only once when the component is mounted.</p>
-<p>Case C: If some array is provided ([state]), then <strong>useEffect</strong> will run every time the state changes</p>
-<p>Case C*: If some array is provided ([state1, state2, ….], <strong>useEffect</strong> will run every time <strong>ANY</strong> of these states changes.</p>
-</blockquote>
-<p>Now that we recalled how <strong>useEffect</strong> works, it’s time to state some of the drawbacks of using it as most people do.</p>
-<p>The main idea of the <strong>useEffect</strong> hook is to synchronize data transfer with external <strong>APIs</strong> or another system, like when you are accessing a database, or waiting for an <strong>HTTP</strong> request to complete. The trouble is that we tend to use this hook in every situation possible inside our code, especially <strong>Case A</strong> and C* listed above, and the code can become incredibly unreadable with just a couple of lines of code, including triggering a loop if you change one of the states in the dependency array during the process.</p>
-<p>This can make your code inefficient too, as useEffect works as if you were stepping aside to run some code and then coming back to the main thread. This is inefficient.</p>
-<p>Great, now you know why to avoid it. But how?</p>
-<p>Let’s talk about each one of the Cases in detail:</p>
-<blockquote>
-<p>Case A — No dependency array: This one should be abolished from your code, as it will certainly trigger unnecessary calculations every time a state changes. In this case, you should specify which states really should trigger this function using a dependency array.</p>
-<p>Case B — Empty dependency array: This is one of the good ones, the only recommendation that I can provide is to keep just one of these for each component and wrap its content into a function.</p>
-<p>Case C — One dependency state only. It’s ok to use if you are processing external data. Otherwise, you should change it to the solution I will provide below.</p>
-<p>Case C* — Multiple dependency states in the same <strong>useEffect</strong>. This is the one I consider the most troublesome. I recommend you try to untangle the states into different useEffect hooks before anything, as it makes your code very unreadable.</p>
-</blockquote>
-<p>Now for the solution that I promised. Let’s consider these two Components (Parent and Child):</p>
-<pre><code>// ParentComponent.js
-import React, { useState, useEffect } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-useEffect(() =&gt; {
-setMessage(`Button clicked ${count} times!`);
-},[count]}
-return (
-&lt;ChildComponent count={count} message={message} setCount={setCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, setCount }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={() =&gt; {setCount(count+1)}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>Now let’s explain what is happening here:</p>
-<blockquote>
-<p>1 — Once the user clicks the button on the <strong>ChildComponent</strong>, we change the state “count” by incrementing 1. It will take one render loop to happen and change the state.</p>
-<p>2 — Once the state “count” changes, the child component will be rendered again and it will also trigger the <strong>useEffect</strong> hook on both components, which will trigger the change in the “message” state. Again, it will only happen in the next render.</p>
-<p>3 — When the “message” state changes, then another render happens in the components changing the message.</p>
-<p>In this case, we ended up having two renders. It may now seem much, but it can grow at a large scale once you have more states at play.</p>
-<p>Now look what happens when we make the following changes in the components:</p>
-</blockquote>
-<pre><code>// ParentComponent.js
-import React, { useState } from 'react';
-import ChildComponent from './ChildComponent';
-function ParentComponent() {
-const [count, setCount] = useState(0);
-const [message, setMessage] = useState('Hello from Parent!');
-const incrementCount = () =&gt; {
-setCount(count + 1);
-setMessage(`Button clicked ${count + 1} times!`);
-}
-return (
-&lt;ChildComponent count={count} message={message}
-callbackFunction={incrementCount} /&gt;
-);
-}
-export default ParentComponent;
-// ChildComponent.js
-import React from 'react';
-function ChildComponent({ count, message, callbackFunction }) {
-return (
-&lt;div&gt;
-&lt;h3&gt;Child Component&lt;/h3&gt;
-&lt;p&gt;Received Count from Parent: {count}&lt;/p&gt;
-&lt;p&gt;Received Message from Parent: {message}&lt;/p&gt;
-&lt;button onClick={callbackFunction}&gt;Click Me&lt;/button&gt;
-&lt;/div&gt;
-);
-}
-export default ChildComponent;</code></pre>
-<p>We changed the code to pass a <strong>Callback Function</strong> to the Child Component. You may notice that:</p>
-<blockquote>
-<p>· We don’t have a <strong>useEffect</strong> anymore defined on the Parent Component. This makes the code easier to read, as we can understand our code as, let’s say, more linear and single-threaded than the original.</p>
-<p>· We don’t have to wait for two render cycles to display our final message, or worse, render both components two times.</p>
-<p>· We can separate concerns between components, making them more reusable and easier to read or adapt, as we can put whatever we want in the callback function.</p>
-<p>· Both the state changes at the same time, avoiding the chaining of <strong>useEffect</strong> statements.</p>
-</blockquote>
-<p>And that’s it for today. Thank you for reading!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240113.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240113.jpg" medium="image"/>
-    <pubDate>Sat, 13 Jan 2024 13:23:16 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1072期：自助工程平台：《meshery》]]></title>
-    <link>https://openingsource.org/11504/</link>
-    <itunes:title><![CDATA[开源日报第1072期：自助工程平台：《meshery》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月12日，开源日报第1072期：<br>
-今日推荐开源项目：《meshery》<br>
-今日推荐英文原文：《How I Have Mastered Closures in React 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meshery》传送门：<a href="https://github.com/meshery/meshery" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meshery是一个自助工程平台，是开源的、云原生的管理器，可以实现基于K8s的所有基础设施和应用程序的设计和管理。除了其他功能外，作为一个可扩展的平台，Meshery提供了可视化和协作式GitOps，在管理K8s多集群部署时摆脱了YAML文件的束缚</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@techsuneel99/how-i-have-mastered-closures-in-react-a6b121095a92" target="_blank">How I Have Mastered Closures in React 🚀</a></p>
-<p>推荐理由：文章解释了JavaScript中闭包的概念，通过示例说明展示了一种更清晰、更模块化处理状态逻辑的方法，也强调的好处包括封装、私有作用域、更清晰的代码以及减少全局作用域污染</p>
-<hr>
-<h1>How I Have Mastered Closures in React 🚀</h1>
-<p>React, a powerful and widely-used JavaScript library for building user interfaces, offers developers a flexible and efficient way to create interactive web applications. One of the key concepts in React that can greatly enhance your programming skills is the use of closures. In this article, we’ll explore how closures work and how I have leveraged them to write cleaner and more maintainable React code.</p>
-<h1>Understanding Closures in JavaScript</h1>
-<p>Before diving into React-specific examples, let’s ensure we have a solid understanding of closures in JavaScript. A closure is formed when a function is defined inside another function, allowing the inner function to access the outer function’s variables and parameters. This encapsulation of variables creates a private scope for the inner function, even after the outer function has finished executing.</p>
-<pre><code>function outerFunction() {
-let outerVariable = 'I am from the outer function';
-function innerFunction() {
-console.log(outerVariable);
-}
-return innerFunction;
-}
-const closureExample = outerFunction();
-closureExample(); // Output: "I am from the outer function"</code></pre>
-<p>In the example above, <code>innerFunction</code> forms a closure by referencing <code>outerVariable</code>, even though the outer function <code>outerFunction</code> has completed execution. This ability to "remember" variables from the outer scope is crucial for various programming scenarios.</p>
-<h1>Applying Closures in React Components</h1>
-<p>Now, let’s see how closures can be applied in the context of React components. Consider a common scenario where you want to create a reusable component that handles state logic internally.</p>
-<pre><code>import React, { useState } from 'react';
-const Counter = () =&gt; {
-// State is declared inside the component
-const [count, setCount] = useState(0);
-const increment = () =&gt; {
-setCount(count + 1);
-};
-const decrement = () =&gt; {
-setCount(count - 1);
-};
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {count}&lt;/p&gt;
-&lt;button onClick={increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the state (<code>count</code>) and the state updater function (<code>setCount</code>) are declared using the <code>useState</code> hook. The <code>increment</code> and <code>decrement</code> functions use these state-related variables. However, what if you want to encapsulate the state logic and provide an external function to handle the state updates?</p>
-<p>This is where closures come into play:</p>
-<pre><code>import React from 'react';
-const Counter = () =&gt; {
-// State is declared inside the closure
-const createCounter = () =&gt; {
-let count = 0;
-const increment = () =&gt; {
-count += 1;
-console.log('Incremented! Current count:', count);
-};
-const decrement = () =&gt; {
-count -= 1;
-console.log('Decremented! Current count:', count);
-};
-const getCount = () =&gt; count;
-return { increment, decrement, getCount };
-};
-const counterInstance = createCounter();
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {counterInstance.getCount()}&lt;/p&gt;
-&lt;button onClick={counterInstance.increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={counterInstance.decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the <code>createCounter</code> function serves as a closure, encapsulating the state (<code>count</code>) and state manipulation functions (<code>increment</code> and <code>decrement</code>). The returned object from <code>createCounter</code> provides access to the internal state and functions, creating a more modular and reusable component.</p>
-<h1>Benefits of Using Closures in React</h1>
-<ol>
-<li><strong>Encapsulation and Modularity:</strong> Closures allow you to encapsulate state and behavior within a component, promoting a modular and reusable code structure.</li>
-<li><strong>Private Scoping</strong>: The variables inside the closure are not accessible from outside, providing a level of privacy and preventing unintended manipulation.</li>
-<li><strong>Cleaner Code:</strong> By encapsulating logic within closures, your component code becomes cleaner and more focused, making it easier to understand and maintain.</li>
-<li><strong>Reduced Global Scope Pollution:</strong> Closures help in minimizing the use of global variables, reducing the risk of naming conflicts and unintended side effects.</li>
-</ol>
-<p>In conclusion, mastering closures in React can significantly enhance your ability to write efficient and maintainable code. By understanding how closures work and applying them judiciously, you can create more module.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月12日，开源日报第1072期：<br>
-今日推荐开源项目：《meshery》<br>
-今日推荐英文原文：《How I Have Mastered Closures in React 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meshery》传送门：<a href="https://github.com/meshery/meshery" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meshery是一个自助工程平台，是开源的、云原生的管理器，可以实现基于K8s的所有基础设施和应用程序的设计和管理。除了其他功能外，作为一个可扩展的平台，Meshery提供了可视化和协作式GitOps，在管理K8s多集群部署时摆脱了YAML文件的束缚</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@techsuneel99/how-i-have-mastered-closures-in-react-a6b121095a92" target="_blank">How I Have Mastered Closures in React 🚀</a></p>
-<p>推荐理由：文章解释了JavaScript中闭包的概念，通过示例说明展示了一种更清晰、更模块化处理状态逻辑的方法，也强调的好处包括封装、私有作用域、更清晰的代码以及减少全局作用域污染</p>
-<hr>
-<h1>How I Have Mastered Closures in React 🚀</h1>
-<p>React, a powerful and widely-used JavaScript library for building user interfaces, offers developers a flexible and efficient way to create interactive web applications. One of the key concepts in React that can greatly enhance your programming skills is the use of closures. In this article, we’ll explore how closures work and how I have leveraged them to write cleaner and more maintainable React code.</p>
-<h1>Understanding Closures in JavaScript</h1>
-<p>Before diving into React-specific examples, let’s ensure we have a solid understanding of closures in JavaScript. A closure is formed when a function is defined inside another function, allowing the inner function to access the outer function’s variables and parameters. This encapsulation of variables creates a private scope for the inner function, even after the outer function has finished executing.</p>
-<pre><code>function outerFunction() {
-let outerVariable = 'I am from the outer function';
-function innerFunction() {
-console.log(outerVariable);
-}
-return innerFunction;
-}
-const closureExample = outerFunction();
-closureExample(); // Output: "I am from the outer function"</code></pre>
-<p>In the example above, <code>innerFunction</code> forms a closure by referencing <code>outerVariable</code>, even though the outer function <code>outerFunction</code> has completed execution. This ability to "remember" variables from the outer scope is crucial for various programming scenarios.</p>
-<h1>Applying Closures in React Components</h1>
-<p>Now, let’s see how closures can be applied in the context of React components. Consider a common scenario where you want to create a reusable component that handles state logic internally.</p>
-<pre><code>import React, { useState } from 'react';
-const Counter = () =&gt; {
-// State is declared inside the component
-const [count, setCount] = useState(0);
-const increment = () =&gt; {
-setCount(count + 1);
-};
-const decrement = () =&gt; {
-setCount(count - 1);
-};
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {count}&lt;/p&gt;
-&lt;button onClick={increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the state (<code>count</code>) and the state updater function (<code>setCount</code>) are declared using the <code>useState</code> hook. The <code>increment</code> and <code>decrement</code> functions use these state-related variables. However, what if you want to encapsulate the state logic and provide an external function to handle the state updates?</p>
-<p>This is where closures come into play:</p>
-<pre><code>import React from 'react';
-const Counter = () =&gt; {
-// State is declared inside the closure
-const createCounter = () =&gt; {
-let count = 0;
-const increment = () =&gt; {
-count += 1;
-console.log('Incremented! Current count:', count);
-};
-const decrement = () =&gt; {
-count -= 1;
-console.log('Decremented! Current count:', count);
-};
-const getCount = () =&gt; count;
-return { increment, decrement, getCount };
-};
-const counterInstance = createCounter();
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {counterInstance.getCount()}&lt;/p&gt;
-&lt;button onClick={counterInstance.increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={counterInstance.decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the <code>createCounter</code> function serves as a closure, encapsulating the state (<code>count</code>) and state manipulation functions (<code>increment</code> and <code>decrement</code>). The returned object from <code>createCounter</code> provides access to the internal state and functions, creating a more modular and reusable component.</p>
-<h1>Benefits of Using Closures in React</h1>
-<ol>
-<li><strong>Encapsulation and Modularity:</strong> Closures allow you to encapsulate state and behavior within a component, promoting a modular and reusable code structure.</li>
-<li><strong>Private Scoping</strong>: The variables inside the closure are not accessible from outside, providing a level of privacy and preventing unintended manipulation.</li>
-<li><strong>Cleaner Code:</strong> By encapsulating logic within closures, your component code becomes cleaner and more focused, making it easier to understand and maintain.</li>
-<li><strong>Reduced Global Scope Pollution:</strong> Closures help in minimizing the use of global variables, reducing the risk of naming conflicts and unintended side effects.</li>
-</ol>
-<p>In conclusion, mastering closures in React can significantly enhance your ability to write efficient and maintainable code. By understanding how closures work and applying them judiciously, you can create more module.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月12日，开源日报第1072期：<br>
-今日推荐开源项目：《meshery》<br>
-今日推荐英文原文：《How I Have Mastered Closures in React 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《meshery》传送门：<a href="https://github.com/meshery/meshery" target="_blank">项目链接</a> </p>
-<p>推荐理由：Meshery是一个自助工程平台，是开源的、云原生的管理器，可以实现基于K8s的所有基础设施和应用程序的设计和管理。除了其他功能外，作为一个可扩展的平台，Meshery提供了可视化和协作式GitOps，在管理K8s多集群部署时摆脱了YAML文件的束缚</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@techsuneel99/how-i-have-mastered-closures-in-react-a6b121095a92" target="_blank">How I Have Mastered Closures in React 🚀</a></p>
-<p>推荐理由：文章解释了JavaScript中闭包的概念，通过示例说明展示了一种更清晰、更模块化处理状态逻辑的方法，也强调的好处包括封装、私有作用域、更清晰的代码以及减少全局作用域污染</p>
-<hr>
-<h1>How I Have Mastered Closures in React 🚀</h1>
-<p>React, a powerful and widely-used JavaScript library for building user interfaces, offers developers a flexible and efficient way to create interactive web applications. One of the key concepts in React that can greatly enhance your programming skills is the use of closures. In this article, we’ll explore how closures work and how I have leveraged them to write cleaner and more maintainable React code.</p>
-<h1>Understanding Closures in JavaScript</h1>
-<p>Before diving into React-specific examples, let’s ensure we have a solid understanding of closures in JavaScript. A closure is formed when a function is defined inside another function, allowing the inner function to access the outer function’s variables and parameters. This encapsulation of variables creates a private scope for the inner function, even after the outer function has finished executing.</p>
-<pre><code>function outerFunction() {
-let outerVariable = 'I am from the outer function';
-function innerFunction() {
-console.log(outerVariable);
-}
-return innerFunction;
-}
-const closureExample = outerFunction();
-closureExample(); // Output: "I am from the outer function"</code></pre>
-<p>In the example above, <code>innerFunction</code> forms a closure by referencing <code>outerVariable</code>, even though the outer function <code>outerFunction</code> has completed execution. This ability to "remember" variables from the outer scope is crucial for various programming scenarios.</p>
-<h1>Applying Closures in React Components</h1>
-<p>Now, let’s see how closures can be applied in the context of React components. Consider a common scenario where you want to create a reusable component that handles state logic internally.</p>
-<pre><code>import React, { useState } from 'react';
-const Counter = () =&gt; {
-// State is declared inside the component
-const [count, setCount] = useState(0);
-const increment = () =&gt; {
-setCount(count + 1);
-};
-const decrement = () =&gt; {
-setCount(count - 1);
-};
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {count}&lt;/p&gt;
-&lt;button onClick={increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the state (<code>count</code>) and the state updater function (<code>setCount</code>) are declared using the <code>useState</code> hook. The <code>increment</code> and <code>decrement</code> functions use these state-related variables. However, what if you want to encapsulate the state logic and provide an external function to handle the state updates?</p>
-<p>This is where closures come into play:</p>
-<pre><code>import React from 'react';
-const Counter = () =&gt; {
-// State is declared inside the closure
-const createCounter = () =&gt; {
-let count = 0;
-const increment = () =&gt; {
-count += 1;
-console.log('Incremented! Current count:', count);
-};
-const decrement = () =&gt; {
-count -= 1;
-console.log('Decremented! Current count:', count);
-};
-const getCount = () =&gt; count;
-return { increment, decrement, getCount };
-};
-const counterInstance = createCounter();
-return (
-&lt;div&gt;
-&lt;p&gt;Count: {counterInstance.getCount()}&lt;/p&gt;
-&lt;button onClick={counterInstance.increment}&gt;Increment&lt;/button&gt;
-&lt;button onClick={counterInstance.decrement}&gt;Decrement&lt;/button&gt;
-&lt;/div&gt;
-);
-};</code></pre>
-<p>In this example, the <code>createCounter</code> function serves as a closure, encapsulating the state (<code>count</code>) and state manipulation functions (<code>increment</code> and <code>decrement</code>). The returned object from <code>createCounter</code> provides access to the internal state and functions, creating a more modular and reusable component.</p>
-<h1>Benefits of Using Closures in React</h1>
-<ol>
-<li><strong>Encapsulation and Modularity:</strong> Closures allow you to encapsulate state and behavior within a component, promoting a modular and reusable code structure.</li>
-<li><strong>Private Scoping</strong>: The variables inside the closure are not accessible from outside, providing a level of privacy and preventing unintended manipulation.</li>
-<li><strong>Cleaner Code:</strong> By encapsulating logic within closures, your component code becomes cleaner and more focused, making it easier to understand and maintain.</li>
-<li><strong>Reduced Global Scope Pollution:</strong> Closures help in minimizing the use of global variables, reducing the risk of naming conflicts and unintended side effects.</li>
-</ol>
-<p>In conclusion, mastering closures in React can significantly enhance your ability to write efficient and maintainable code. By understanding how closures work and applying them judiciously, you can create more module.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240112.jpg" medium="image"/>
-    <pubDate>Fri, 12 Jan 2024 12:22:02 +0000</pubDate>
   </item></channel>
 </rss>
