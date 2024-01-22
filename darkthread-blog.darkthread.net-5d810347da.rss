@@ -30,6 +30,146 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Semantic Kernel 講座筆記 - 使用 .NET 輕鬆開發 ChatGPT 應用程式]]></title>
+    <link>https://blog.darkthread.net/blog/sk-seminar-notes/</link>
+    <itunes:title><![CDATA[Semantic Kernel 講座筆記 - 使用 .NET 輕鬆開發 ChatGPT 應用程式]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>月初試玩微軟的 RAG 範例，還弄了個 <a href="/blog/rag/">ChatGPT 版行車駕駛知識庫</a>，修改範例過程認識一堆新名詞，Azure AI Search Service、Semantic Kernal、<a href="/blog/text-embedding-ada-002-lab/">Embedding</a>... 但見樹不見林，對整體概念還有點模糊。</p> <p>前幾天保哥辦了場<a href="https://www.facebook.com/events/896393898843995">線上講座</a>，請來 MVP <a href="http://codeian.idv.tw/">Ian</a> 介紹 Semantic Kernel 這個 LLM 整合框架。看完<a href="https://www.youtube.com/watch?v=fM9MrxqgbU4">講座錄影</a>，算是對 Semantic Kernel 有了清楚認識，收獲很多，寫篇筆記備忘。</p> <p>Semantic Kernel 跟 LangChain 都是 LLM 框架，目標是提供一套串接整合機制，以簡化 LLM 相關應用程式的開發複雜度。LangChain 歷史較久，Semantic Kernel 則是微軟推出的框架，支援 C#、Python、Java，各語言支援程度不一，C# 支援最完整。(補充：LangChain 則支援 Python、JavaScript、Java <a href="https://github.com/formulahendry/semantic-kernel-vs-langchain">補充參考</a>)</p> <p>Semantic Kernel 2023 年 12 月才剛發佈 1.0 (LangChain 也差不多，2024 年 1 月推出 1.0)，還很新，許多規格可能還會再變動，現階段投入要有心理準備。</p> <p>LLM 應用程式可分成兩類：一種是 No Code/Low Code 工具，像是 OpenAI GPTs、Copilot Builder... 等；另一種是自己寫程式控制，此時套用 LangChain、Semantic Kernel 等框架可省很多事。</p> <p>Semantic Kernel 框架(以下簡稱 SK)提供統一的連接器介面與外掛架構，並有現成連接器可以串接 OpenAI API、Azure AI Search... 等服務(亦可自行擴充實作自訂連接器)，只需提供 API Url、API Key，給設定檔即可引用 ChatGPT 等服務，少寫許多程式碼。如以下 AddAzureOpenAIChatCompletion() 可透過內建連結器使用 OpenAI ChatGPT 模型，運用它的生成功能寫出聊天功能：</p> <pre><code>Kernel kernel = Kernel.CreateBuilder()
+.AddAzureOpenAIChatCompletion(
+deploymentName: Gpt4DeploymentName,
+endpoint: AzureOpenAIEndpoint,
+apiKey: AzureOpenAIApiKey,
+modelId: Gpt4ModelId)
+.Build();
+</code></pre> <p>在 SK 裡，服務或功能要包成 Function，Function 分為 Semantic Function (LLM 本身就會的，例如理解某段話的意思)、Native Function (LLM 不會，要自己寫程式，例如取得今天日期)。Plugin 則為相關 Function 的集合，單一 Function 亦可視為一個 Plugin。</p> <p>Native Function 長得像以下這樣，KernelFunction 指定名稱與 Description 用途說明很重要，LLM 會依據其名稱及說明，在必要時呼叫它，取回資料融合進生成內容。</p> <pre><code>internal class DataTimePlugin
+{
+[KernelFunction("GetCurrentDateTime")]
+[Description("Get the current date and time.'")]
+public string GetCurrentDateTime()
+{
+return DateTime.Now.ToString();
+}
+}
+</code></pre> <p>將上述 Native Funnction 註冊到 SK 後，若使用者問到 "今天幾號？"，LLM 會自動查詢它並回答 "今天是 2024 年 1 月 21 號"，很神奇。</p> <p>一般我們用 SK 開發 LLM 應用時，需設計執行步驟及順序，以上次駕駛人手冊查詢為例，程式先讀取使用者輸入，轉成向量後查詢向量索引找出相關文件，將文容內容轉為 Prompt 請 ChatGPT 生成回答內容。SK 提供另一種 Planner 規劃器模式，我們只需提供 Embbeding 向量化、查向量資料庫... 等 Plugin/Function，不需設計執行步驟，SK Planner 將自動判斷先做什麼再做什麼，該呼叫哪些 Function，充分展現人工智慧的威力。但 Planner 模式現階段穩定性欠佳，出錯率偏高，還不算可用的解決方案。</p> <p>聊天功能還可用 YAML 定義 Prompt、溫度、Token 上限等，讓程式更簡潔，YAML 範例如下：</p> <pre><code>name: Chat
+template: |
+&lt;message role="system"&gt;你是一位萬事通助理，根據使用者的提問來回答問題，請一律使用 #zh-tw 回答&lt;/message&gt;
+{{#each messages}}
+&lt;message role="{{Role}}"&gt;{{~Content~}}&lt;/message&gt;
+{{/each}}
+template_format: handlebars
+description: 使用聊天歷史來回應用戶的功能
+input_variables:
+- name: messages
+description: 聊天歷史
+is_required: true
+execution_settings:
+service1:
+model_id: gpt-4
+temperature: 0.6
+service2:
+model_id: gpt-3
+temperature: 0.4
+default:
+temperature: 0.5
+</code></pre> <p>程式端則用 <code>KernelFunction prompt = kernel.CreateFunctionFromPromptYaml(yamlContent, promptTemplateFactory: new HandlebarsPromptTemplateFactory());</code> 依據 YAML 設定建立聊天功能，之後呼叫 InvokeStreamingAsync 傳入 prompt 即可生成回答。</p> <pre><code>var result = kernel.InvokeStreamingAsync&lt;StreamingChatMessageContent&gt;(
+prompt,
+arguments: new(openAIPromptExecutionSettings) {
+{ "messages", chatMessages }
+});
+</code></pre> <p>影片還介紹了幾個實用的應用範例：</p> <ul><li>生成 FB 英文貼文：兩段 Prompt，第一段依標題產生 FB 貼文、第二段將貼文翻成英文版。</li> <li>歸納旅館客戶評論：透過 Prompt 指定解讀並總結客人意見，指定輸出 JSON。(技巧：Prompt 要用範例引導結果確保輸出 JSON)</li> <li>RAG 範例：將法條內容轉為 Embedding 向量，搜尋後依搜尋結果生成回答。(技巧：Prompt 要囑咐搜尋沒結果就直覺說找不到，要給沒參考資料的明確範例引導)</li></ul> <p>註：Azure AI Search 服務很貴，早期版本支援 Embedding 存本機記憶體的做法，但 1.0 拿掉了。</p> <p>Ian 補充：講座的範例程式碼(v1.0)已經放上 <a href="https://github.com/iangithub/sklearn/tree/main/skv1_start">Github</a> 了，想實際玩看看的同學可參考。</p> <p data-slug="sk-seminar-notes" data-title-en="Semantic Kernel seminar notes" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/09/12/13/23/new-home-1664272_960_720.jpg#960#720">Intrudocution to LLM framework - Semantic Kernel and some examples.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>月初試玩微軟的 RAG 範例，還弄了個 <a href="/blog/rag/">ChatGPT 版行車駕駛知識庫</a>，修改範例過程認識一堆新名詞，Azure AI Search Service、Semantic Kernal、<a href="/blog/text-embedding-ada-002-lab/">Embedding</a>... 但見樹不見林，對整體概念還有點模糊。</p> <p>前幾天保哥辦了場<a href="https://www.facebook.com/events/896393898843995">線上講座</a>，請來 MVP <a href="http://codeian.idv.tw/">Ian</a> 介紹 Semantic Kernel 這個 LLM 整合框架。看完<a href="https://www.youtube.com/watch?v=fM9MrxqgbU4">講座錄影</a>，算是對 Semantic Kernel 有了清楚認識，收獲很多，寫篇筆記備忘。</p> <p>Semantic Kernel 跟 LangChain 都是 LLM 框架，目標是提供一套串接整合機制，以簡化 LLM 相關應用程式的開發複雜度。LangChain 歷史較久，Semantic Kernel 則是微軟推出的框架，支援 C#、Python、Java，各語言支援程度不一，C# 支援最完整。(補充：LangChain 則支援 Python、JavaScript、Java <a href="https://github.com/formulahendry/semantic-kernel-vs-langchain">補充參考</a>)</p> <p>Semantic Kernel 2023 年 12 月才剛發佈 1.0 (LangChain 也差不多，2024 年 1 月推出 1.0)，還很新，許多規格可能還會再變動，現階段投入要有心理準備。</p> <p>LLM 應用程式可分成兩類：一種是 No Code/Low Code 工具，像是 OpenAI GPTs、Copilot Builder... 等；另一種是自己寫程式控制，此時套用 LangChain、Semantic Kernel 等框架可省很多事。</p> <p>Semantic Kernel 框架(以下簡稱 SK)提供統一的連接器介面與外掛架構，並有現成連接器可以串接 OpenAI API、Azure AI Search... 等服務(亦可自行擴充實作自訂連接器)，只需提供 API Url、API Key，給設定檔即可引用 ChatGPT 等服務，少寫許多程式碼。如以下 AddAzureOpenAIChatCompletion() 可透過內建連結器使用 OpenAI ChatGPT 模型，運用它的生成功能寫出聊天功能：</p> <pre><code>Kernel kernel = Kernel.CreateBuilder()
+.AddAzureOpenAIChatCompletion(
+deploymentName: Gpt4DeploymentName,
+endpoint: AzureOpenAIEndpoint,
+apiKey: AzureOpenAIApiKey,
+modelId: Gpt4ModelId)
+.Build();
+</code></pre> <p>在 SK 裡，服務或功能要包成 Function，Function 分為 Semantic Function (LLM 本身就會的，例如理解某段話的意思)、Native Function (LLM 不會，要自己寫程式，例如取得今天日期)。Plugin 則為相關 Function 的集合，單一 Function 亦可視為一個 Plugin。</p> <p>Native Function 長得像以下這樣，KernelFunction 指定名稱與 Description 用途說明很重要，LLM 會依據其名稱及說明，在必要時呼叫它，取回資料融合進生成內容。</p> <pre><code>internal class DataTimePlugin
+{
+[KernelFunction("GetCurrentDateTime")]
+[Description("Get the current date and time.'")]
+public string GetCurrentDateTime()
+{
+return DateTime.Now.ToString();
+}
+}
+</code></pre> <p>將上述 Native Funnction 註冊到 SK 後，若使用者問到 "今天幾號？"，LLM 會自動查詢它並回答 "今天是 2024 年 1 月 21 號"，很神奇。</p> <p>一般我們用 SK 開發 LLM 應用時，需設計執行步驟及順序，以上次駕駛人手冊查詢為例，程式先讀取使用者輸入，轉成向量後查詢向量索引找出相關文件，將文容內容轉為 Prompt 請 ChatGPT 生成回答內容。SK 提供另一種 Planner 規劃器模式，我們只需提供 Embbeding 向量化、查向量資料庫... 等 Plugin/Function，不需設計執行步驟，SK Planner 將自動判斷先做什麼再做什麼，該呼叫哪些 Function，充分展現人工智慧的威力。但 Planner 模式現階段穩定性欠佳，出錯率偏高，還不算可用的解決方案。</p> <p>聊天功能還可用 YAML 定義 Prompt、溫度、Token 上限等，讓程式更簡潔，YAML 範例如下：</p> <pre><code>name: Chat
+template: |
+&lt;message role="system"&gt;你是一位萬事通助理，根據使用者的提問來回答問題，請一律使用 #zh-tw 回答&lt;/message&gt;
+{{#each messages}}
+&lt;message role="{{Role}}"&gt;{{~Content~}}&lt;/message&gt;
+{{/each}}
+template_format: handlebars
+description: 使用聊天歷史來回應用戶的功能
+input_variables:
+- name: messages
+description: 聊天歷史
+is_required: true
+execution_settings:
+service1:
+model_id: gpt-4
+temperature: 0.6
+service2:
+model_id: gpt-3
+temperature: 0.4
+default:
+temperature: 0.5
+</code></pre> <p>程式端則用 <code>KernelFunction prompt = kernel.CreateFunctionFromPromptYaml(yamlContent, promptTemplateFactory: new HandlebarsPromptTemplateFactory());</code> 依據 YAML 設定建立聊天功能，之後呼叫 InvokeStreamingAsync 傳入 prompt 即可生成回答。</p> <pre><code>var result = kernel.InvokeStreamingAsync&lt;StreamingChatMessageContent&gt;(
+prompt,
+arguments: new(openAIPromptExecutionSettings) {
+{ "messages", chatMessages }
+});
+</code></pre> <p>影片還介紹了幾個實用的應用範例：</p> <ul><li>生成 FB 英文貼文：兩段 Prompt，第一段依標題產生 FB 貼文、第二段將貼文翻成英文版。</li> <li>歸納旅館客戶評論：透過 Prompt 指定解讀並總結客人意見，指定輸出 JSON。(技巧：Prompt 要用範例引導結果確保輸出 JSON)</li> <li>RAG 範例：將法條內容轉為 Embedding 向量，搜尋後依搜尋結果生成回答。(技巧：Prompt 要囑咐搜尋沒結果就直覺說找不到，要給沒參考資料的明確範例引導)</li></ul> <p>註：Azure AI Search 服務很貴，早期版本支援 Embedding 存本機記憶體的做法，但 1.0 拿掉了。</p> <p>Ian 補充：講座的範例程式碼(v1.0)已經放上 <a href="https://github.com/iangithub/sklearn/tree/main/skv1_start">Github</a> 了，想實際玩看看的同學可參考。</p> <p data-slug="sk-seminar-notes" data-title-en="Semantic Kernel seminar notes" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/09/12/13/23/new-home-1664272_960_720.jpg#960#720">Intrudocution to LLM framework - Semantic Kernel and some examples.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>月初試玩微軟的 RAG 範例，還弄了個 <a href="/blog/rag/">ChatGPT 版行車駕駛知識庫</a>，修改範例過程認識一堆新名詞，Azure AI Search Service、Semantic Kernal、<a href="/blog/text-embedding-ada-002-lab/">Embedding</a>... 但見樹不見林，對整體概念還有點模糊。</p> <p>前幾天保哥辦了場<a href="https://www.facebook.com/events/896393898843995">線上講座</a>，請來 MVP <a href="http://codeian.idv.tw/">Ian</a> 介紹 Semantic Kernel 這個 LLM 整合框架。看完<a href="https://www.youtube.com/watch?v=fM9MrxqgbU4">講座錄影</a>，算是對 Semantic Kernel 有了清楚認識，收獲很多，寫篇筆記備忘。</p> <p>Semantic Kernel 跟 LangChain 都是 LLM 框架，目標是提供一套串接整合機制，以簡化 LLM 相關應用程式的開發複雜度。LangChain 歷史較久，Semantic Kernel 則是微軟推出的框架，支援 C#、Python、Java，各語言支援程度不一，C# 支援最完整。(補充：LangChain 則支援 Python、JavaScript、Java <a href="https://github.com/formulahendry/semantic-kernel-vs-langchain">補充參考</a>)</p> <p>Semantic Kernel 2023 年 12 月才剛發佈 1.0 (LangChain 也差不多，2024 年 1 月推出 1.0)，還很新，許多規格可能還會再變動，現階段投入要有心理準備。</p> <p>LLM 應用程式可分成兩類：一種是 No Code/Low Code 工具，像是 OpenAI GPTs、Copilot Builder... 等；另一種是自己寫程式控制，此時套用 LangChain、Semantic Kernel 等框架可省很多事。</p> <p>Semantic Kernel 框架(以下簡稱 SK)提供統一的連接器介面與外掛架構，並有現成連接器可以串接 OpenAI API、Azure AI Search... 等服務(亦可自行擴充實作自訂連接器)，只需提供 API Url、API Key，給設定檔即可引用 ChatGPT 等服務，少寫許多程式碼。如以下 AddAzureOpenAIChatCompletion() 可透過內建連結器使用 OpenAI ChatGPT 模型，運用它的生成功能寫出聊天功能：</p> <pre><code>Kernel kernel = Kernel.CreateBuilder()
+.AddAzureOpenAIChatCompletion(
+deploymentName: Gpt4DeploymentName,
+endpoint: AzureOpenAIEndpoint,
+apiKey: AzureOpenAIApiKey,
+modelId: Gpt4ModelId)
+.Build();
+</code></pre> <p>在 SK 裡，服務或功能要包成 Function，Function 分為 Semantic Function (LLM 本身就會的，例如理解某段話的意思)、Native Function (LLM 不會，要自己寫程式，例如取得今天日期)。Plugin 則為相關 Function 的集合，單一 Function 亦可視為一個 Plugin。</p> <p>Native Function 長得像以下這樣，KernelFunction 指定名稱與 Description 用途說明很重要，LLM 會依據其名稱及說明，在必要時呼叫它，取回資料融合進生成內容。</p> <pre><code>internal class DataTimePlugin
+{
+[KernelFunction("GetCurrentDateTime")]
+[Description("Get the current date and time.'")]
+public string GetCurrentDateTime()
+{
+return DateTime.Now.ToString();
+}
+}
+</code></pre> <p>將上述 Native Funnction 註冊到 SK 後，若使用者問到 "今天幾號？"，LLM 會自動查詢它並回答 "今天是 2024 年 1 月 21 號"，很神奇。</p> <p>一般我們用 SK 開發 LLM 應用時，需設計執行步驟及順序，以上次駕駛人手冊查詢為例，程式先讀取使用者輸入，轉成向量後查詢向量索引找出相關文件，將文容內容轉為 Prompt 請 ChatGPT 生成回答內容。SK 提供另一種 Planner 規劃器模式，我們只需提供 Embbeding 向量化、查向量資料庫... 等 Plugin/Function，不需設計執行步驟，SK Planner 將自動判斷先做什麼再做什麼，該呼叫哪些 Function，充分展現人工智慧的威力。但 Planner 模式現階段穩定性欠佳，出錯率偏高，還不算可用的解決方案。</p> <p>聊天功能還可用 YAML 定義 Prompt、溫度、Token 上限等，讓程式更簡潔，YAML 範例如下：</p> <pre><code>name: Chat
+template: |
+&lt;message role="system"&gt;你是一位萬事通助理，根據使用者的提問來回答問題，請一律使用 #zh-tw 回答&lt;/message&gt;
+{{#each messages}}
+&lt;message role="{{Role}}"&gt;{{~Content~}}&lt;/message&gt;
+{{/each}}
+template_format: handlebars
+description: 使用聊天歷史來回應用戶的功能
+input_variables:
+- name: messages
+description: 聊天歷史
+is_required: true
+execution_settings:
+service1:
+model_id: gpt-4
+temperature: 0.6
+service2:
+model_id: gpt-3
+temperature: 0.4
+default:
+temperature: 0.5
+</code></pre> <p>程式端則用 <code>KernelFunction prompt = kernel.CreateFunctionFromPromptYaml(yamlContent, promptTemplateFactory: new HandlebarsPromptTemplateFactory());</code> 依據 YAML 設定建立聊天功能，之後呼叫 InvokeStreamingAsync 傳入 prompt 即可生成回答。</p> <pre><code>var result = kernel.InvokeStreamingAsync&lt;StreamingChatMessageContent&gt;(
+prompt,
+arguments: new(openAIPromptExecutionSettings) {
+{ "messages", chatMessages }
+});
+</code></pre> <p>影片還介紹了幾個實用的應用範例：</p> <ul><li>生成 FB 英文貼文：兩段 Prompt，第一段依標題產生 FB 貼文、第二段將貼文翻成英文版。</li> <li>歸納旅館客戶評論：透過 Prompt 指定解讀並總結客人意見，指定輸出 JSON。(技巧：Prompt 要用範例引導結果確保輸出 JSON)</li> <li>RAG 範例：將法條內容轉為 Embedding 向量，搜尋後依搜尋結果生成回答。(技巧：Prompt 要囑咐搜尋沒結果就直覺說找不到，要給沒參考資料的明確範例引導)</li></ul> <p>註：Azure AI Search 服務很貴，早期版本支援 Embedding 存本機記憶體的做法，但 1.0 拿掉了。</p> <p>Ian 補充：講座的範例程式碼(v1.0)已經放上 <a href="https://github.com/iangithub/sklearn/tree/main/skv1_start">Github</a> 了，想實際玩看看的同學可參考。</p> <p data-slug="sk-seminar-notes" data-title-en="Semantic Kernel seminar notes" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/09/12/13/23/new-home-1664272_960_720.jpg#960#720">Intrudocution to LLM framework - Semantic Kernel and some examples.</p>]]></content:encoded>
+    
+    <pubDate>Sun, 21 Jan 2024 22:30:00 GMT</pubDate>
+  </item><item>
     <title><![CDATA[筆記 - 在 Linux 平台使用 .NET Native AOT]]></title>
     <link>https://blog.darkthread.net/blog/publish-native-aot-on-linux/</link>
     <itunes:title><![CDATA[筆記 - 在 Linux 平台使用 .NET Native AOT]]></itunes:title>
@@ -1919,395 +2059,5 @@ captcha.SetHintText("Type red symbols only");
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png" medium="image"/>
     <pubDate>Thu, 11 Jan 2024 01:05:29 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[依背景色決定文字顏色的正確姿勢 - W3C 標準]]></title>
-    <link>https://blog.darkthread.net/blog/wcag-g18-color-contrast/</link>
-    <itunes:title><![CDATA[依背景色決定文字顏色的正確姿勢 - W3C 標準]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
-→ (L + 0.05)^2 / 0.05 &gt; 1.05
-→ (L + 0.05)^2 &gt; 1.05 * 0.05
-→ L + 0.05 &gt; sqrt(1.05 * 0.05)
-→ L &gt; sqrt(1.05 * 0.05) - 0.05
-→ L &gt; 0.179
-</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
-&lt;style&gt;
-.palette {
-display: flex; margin-bottom: 12px;
-flex-direction: row; flex-wrap: wrap;
-width: 900px; font-size: 10pt;
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-.palette&gt;div {
-position: relative; width: 72px; height: 150px;
-margin: 2px; padding: 6px;
-}
-.palette .chk {
-background-color: white; text-align: center;
-margin-top: 8px; margin-bottom: 8px;
-}
-.palette .chk span {
-color: red; text-decoration: line-through;
-margin-right: 4px;
-}
-.palette .chk span.pass {
-text-decoration: none; color: green;
-font-weight: bolder;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;div class="palette"&gt;
-&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
-&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
-&lt;div&gt;{{ color.bg }}&lt;/div&gt;
-&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
-&lt;div class="chk"&gt;
-&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
-&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const getTextColor186 = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-const colors = pool.map(hex =&gt;
-({
-bg: hex,
-fgColors:
-[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
-const ratio = calcContrastRatio(fg, hex);
-return {
-fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
-};
-})
-}));
-const app = Vue.createApp({
-data() {
-return {
-colors: colors
-}
-}
-});
-var vm = app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
-→ (L + 0.05)^2 / 0.05 &gt; 1.05
-→ (L + 0.05)^2 &gt; 1.05 * 0.05
-→ L + 0.05 &gt; sqrt(1.05 * 0.05)
-→ L &gt; sqrt(1.05 * 0.05) - 0.05
-→ L &gt; 0.179
-</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
-&lt;style&gt;
-.palette {
-display: flex; margin-bottom: 12px;
-flex-direction: row; flex-wrap: wrap;
-width: 900px; font-size: 10pt;
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-.palette&gt;div {
-position: relative; width: 72px; height: 150px;
-margin: 2px; padding: 6px;
-}
-.palette .chk {
-background-color: white; text-align: center;
-margin-top: 8px; margin-bottom: 8px;
-}
-.palette .chk span {
-color: red; text-decoration: line-through;
-margin-right: 4px;
-}
-.palette .chk span.pass {
-text-decoration: none; color: green;
-font-weight: bolder;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;div class="palette"&gt;
-&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
-&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
-&lt;div&gt;{{ color.bg }}&lt;/div&gt;
-&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
-&lt;div class="chk"&gt;
-&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
-&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const getTextColor186 = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-const colors = pool.map(hex =&gt;
-({
-bg: hex,
-fgColors:
-[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
-const ratio = calcContrastRatio(fg, hex);
-return {
-fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
-};
-})
-}));
-const app = Vue.createApp({
-data() {
-return {
-colors: colors
-}
-}
-});
-var vm = app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>再來聊聊「依據背景色切換黑字或白字，確保文字明顯容易閱讀」這檔事。</p> <p>過去我都用 Github Copilot 教我的<a href="https://www.facebook.com/darkthread.net/posts/pfbid02PXepN99eFUnXJCP9zbRczzdY1RETaBhtbeYf2jS5XD27JoJxywxYtCjVwCavQBQnl">186 魔術數字公式</a>：<code>complementary = (r * 0.299 + g * 0.587 + b * 0.114) &gt; 186 ? '#000000' : '#ffffff'</code>，但上回在 <a href="/blog/20-distinct-colors/">20 種差異鮮明色彩組合</a>用這招決定文字顏色，讀者 lke 提醒，我為 #42d4f4 配了白字，看起來不太明顯。對照原文網頁範例，同一顏色配了黑字，看起來的確比白字明顯許多。這讓我開始懷疑，莫非 186 公式有缺陷？</p> <p>剛好在 FB 留言看到李奎翰大大分享的重要情資：關於文字顏色對比，W3C 的 <a href="https://www.w3.org/TR/WCAG21/">WCAG 網站內容無障礙指南</a>其實已有明確標準 - <a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18: Ensuring that a contrast ratio of at least 4.5:1 exists between text (and images of text) and background behind the text</a>，而文字與背景色對比度有兩個認證等級：(貫徹無障礙網站的難度不亞於下油鍋，這裡淺嚐就好，恕不再深入)</p> <ul><li>AA - 文字與背景對比值需大於 4.5:1</li> <li>AAA - 文字與背景對比值需大於 7:1</li></ul> <p>我找到<a href="ttps://webaim.org/resources/contrastchecker/?fcolor=000000&amp;bcolor=42D4F4">檢查對比值是否符合 WCAG 標準的網站</a>，確認 #42d4f4 應該配黑字才是正解，配白字只對比只有 1.75:1，死當!!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"></p> <p><a href="https://www.w3.org/TR/WCAG20-TECHS/G18.html">G18 標準</a>有提供完整的 RGB 值換算相對亮度(Relative Luminance)及對比值的公式，我將公式轉成 JavaScript 函式：</p> <pre><code>const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-</code></pre> <p>成功算出 1.7565 跟 11.9553，與檢測網站的計算結果一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638404939662987293.png"></p> <p>再來便是在已知背景色時，決定該用 #000000 還是 #fffff。</p> <p>依 G18 文件，若有兩種顏色，其相對亮度分別為 L<sub>1</sub> 及 L<sub>2</sub>，則二者之對比值可表示為：</p> <blockquote> <p>(L<sub>1</sub> + 0.05) / (L<sub>2</sub> + 0.05)</p> </blockquote> <p>黑字的使用時機應為「黑字與背景色的對比值」大於「白字與背景色的對比值」，黑色與白色的相對亮度分別為 0、1，若背景色之相對亮度為 L，代入上方公式可得：</p> <blockquote> <p>(L + 0.05) / (0 + 0.05) &gt; (1 + 0.05) / (L + 0.05)</p> </blockquote> <p>化簡以上公式，會得到魔術數字 0.179：</p> <pre><code>  (L + 0.05) / 0.05 &gt; 1.05 / (L + 0.05)
-→ (L + 0.05)^2 / 0.05 &gt; 1.05
-→ (L + 0.05)^2 &gt; 1.05 * 0.05
-→ L + 0.05 &gt; sqrt(1.05 * 0.05)
-→ L &gt; sqrt(1.05 * 0.05) - 0.05
-→ L &gt; 0.179
-</code></pre> <p>寫成黑白字判斷函式：</p> <pre><code>const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-</code></pre> <p>最後，比對一下 186 版及 G18 版文字配色效果：<a href="https://output.jsbin.com/gisavit">線上展示</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;meta charset="utf-8" /&gt;
-&lt;script src="https://unpkg.com/vue@3"&gt;&lt;/script&gt;
-&lt;style&gt;
-.palette {
-display: flex; margin-bottom: 12px;
-flex-direction: row; flex-wrap: wrap;
-width: 900px; font-size: 10pt;
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-.palette&gt;div {
-position: relative; width: 72px; height: 150px;
-margin: 2px; padding: 6px;
-}
-.palette .chk {
-background-color: white; text-align: center;
-margin-top: 8px; margin-bottom: 8px;
-}
-.palette .chk span {
-color: red; text-decoration: line-through;
-margin-right: 4px;
-}
-.palette .chk span.pass {
-text-decoration: none; color: green;
-font-weight: bolder;
-}
-&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id="app"&gt;
-&lt;div class="palette"&gt;
-&lt;div v-for="(color,idx) in colors" :style="{ backgroundColor: color.bg }"&gt;
-&lt;div v-for="fg in color.fgColors" :style="{ color: fg.fg }"&gt;
-&lt;div&gt;{{ color.bg }}&lt;/div&gt;
-&lt;div&gt;{{ fg.ratio.toFixed(2) }}&lt;/div&gt;
-&lt;div class="chk"&gt;
-&lt;span :class="{'pass':fg.aa}"&gt;AA&lt;/span&gt;
-&lt;span :class="{'pass':fg.aaa}"&gt;AAA&lt;/span&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-const pool = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'];
-const getTextColor186 = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-return (parseInt(m[1], 16) * 0.299 + parseInt(m[2], 16) * 0.587 + parseInt(m[3], 16) * 0.114) &gt; 186 ? '#000000' : '#ffffff';
-}
-const calcLuminance = (hex) =&gt; {
-const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-const colors = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-const [r, g, b] = colors.map(c =&gt; {
-const r = c / 255.0;
-if (r &lt;= 0.03928) {
-return r / 12.92;
-} else {
-return Math.pow((r + 0.055) / 1.055, 2.4);
-}
-});
-return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const calcContrastRatio = (hex1, hex2) =&gt; {
-let L1 = calcLuminance(hex1);
-let L2 = calcLuminance(hex2);
-if (L1 &lt; L2) {
-[L1, L2] = [L2, L1];
-}
-return (L1 + 0.05) / (L2 + 0.05);
-}
-const getTextColorWcag = (hex) =&gt;
-calcLuminance(hex) &gt; 0.179 ? '#000000' : '#ffffff';
-const colors = pool.map(hex =&gt;
-({
-bg: hex,
-fgColors:
-[getTextColor186(hex), getTextColorWcag(hex)].map(fg =&gt; {
-const ratio = calcContrastRatio(fg, hex);
-return {
-fg, ratio, aa: ratio &gt;= 4.5, aaa: ratio &gt;= 7
-};
-})
-}));
-const app = Vue.createApp({
-data() {
-return {
-colors: colors
-}
-}
-});
-var vm = app.mount('#app');
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>每個背景色有兩組結果，上方為 186 公式計算結果(對比值、是否符合 AA、AAA 標準)，下方為 G18 公式計算結果，抓出 186 公式為草綠(Green)、橘色(Orange)、青色(Cyan)、品紅(Magenta)、青色(Teal)、橄欖(Olive)、灰(Gray)配了白色，對比值不符合 AA 標準。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638404939664926165.png"></p> <p>而 G18 公式計算結果全部符合 AA，但有七種未達 AAA 標準，實務應用應避免以提高網頁可讀性。</p> <p data-slug="wcag-g18-color-contrast" data-title-en="WCAG G18 text and background contrast ratio" data-catg="Web Development" data-fbimg="https://i.imgur.com/pTR5tyX.jpg#960#640">Knowledge of WCAG G18 guildeline to decide correct text color for different background color.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638404939661095048.png" medium="image"/>
-    <pubDate>Wed, 10 Jan 2024 14:07:32 GMT</pubDate>
   </item></channel>
 </rss>
