@@ -30,6 +30,228 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1082期：深度学习框架：《transformers.js》]]></title>
+    <link>https://openingsource.org/11556/</link>
+    <itunes:title><![CDATA[开源日报第1082期：深度学习框架：《transformers.js》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月22日，开源日报第1082期：<br>
+今日推荐开源项目：《transformers.js》<br>
+今日推荐英文原文：《Top Three Causes of Memory Leaks in JavaScript》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240123.jpg.pagespeed.ic.5C93aUsaX4.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《transformers.js》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Transformers.js使用ONNX Runtime在浏览器中运行模型，可以轻松地使用🤗 Optimum将预训练的PyTorch、TensorFlow或JAX模型转换为ONNX格式<br>
+官网直达：<a href="https://huggingface.co/docs/transformers.js/index" target="_blank">https://huggingface.co/docs/transformers.js/index</a></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@patrickkarsh/top-three-causes-of-memory-leaks-in-javascript-fd49f97238a9" target="_blank">Top Three Causes of Memory Leaks in JavaScript</a></p>
+<p>推荐理由：这篇文章主要讲 js 中内存泄漏的三个主要原因：未清除的定时器和计时器、悬挂的事件监听器以及闭包，还有 Chrome DevTools Memory Profiler的实用方法</p>
+<hr>
+<h1>Top Three Causes of Memory Leaks in JavaScript</h1>
+<h2>Memory Leaks in JavaScript: Top Causes and How to Address Them</h2>
+<p>One crucial aspect that often goes unnoticed is memory management. Memory leaks, while subtle, can accumulate over time, making applications sluggish and even leading to crashes. This article delves into the top three causes of memory leaks in modern JavaScript and how developers can mitigate them.</p>
+<h2>What is a Memory Leak?</h2>
+<p>In simple terms, a memory leak in JavaScript occurs when objects are allocated memory, but that memory isn’t released even after the objects are no longer required. Over time, these leaks accumulate, consuming more and more memory, thereby degrading application performance.</p>
+<h1>Uncleared Intervals and Timers</h1>
+<p>Modern web applications often use timers and intervals for tasks like updating UI, polling servers, or adding delays. These are set up using <code>setInterval</code> and <code>setTimeout</code>. However, if these timers aren't cleared when no longer needed, they can lead to significant memory leaks.</p>
+<p>Example:</p>
+<pre><code>const someData = fetchLatestData(); // A hypothetical function that fetches some data
+const intervalID = setInterval(() =&gt; {
+updateUI(someData);
+}, 1000);
+// Later in the code or in some cleanup routine, the interval needs to be cleared.
+// If not:
+// clearInterval(intervalID);</code></pre>
+<p>In this example, if <code>clearInterval</code> isn't called, the interval keeps running indefinitely, holding onto <code>someData</code> and whatever <code>updateUI</code> references.</p>
+<h2>How to address?</h2>
+<p>Always ensure that intervals and timeouts are cleared using <code>clearInterval</code> and <code>clearTimeout</code> respectively, especially when the associated tasks or components are destroyed or no longer in use.</p>
+<h1>Dangling Event Listeners</h1>
+<p>Event-driven programming is at the heart of JavaScript. However, a common oversight is not removing event listeners after they’ve served their purpose. When DOM elements attached to these listeners are removed, the listeners might still linger if not explicitly detached.</p>
+<p>Example:</p>
+<pre><code>const buttonElement = document.querySelector("#submit-button");
+const userPreferences = getUserPreferences(); // Hypothetical function
+buttonElement.addEventListener('click', () =&gt; {
+applyPreferences(userPreferences);
+});
+// Now, if for any reason, the button is removed from the DOM:
+// buttonElement.remove();
+// The listener is still in memory and so is the 'userPreferences' object.</code></pre>
+<h2>How to address?</h2>
+<p>Use the <code>removeEventListener</code> method to detach listeners when they're no longer required or when associated elements are removed from the DOM. Frameworks like React and Vue provide lifecycle methods or hooks to help with this.</p>
+<h1>Closures</h1>
+<p>Closures, one of JavaScript’s most powerful features, allow functions to ‘remember’ the environment in which they were created. While incredibly useful, closures can unintentionally hold onto references, leading to memory leaks.</p>
+<p>Example:</p>
+<pre><code>function createLogger(element) {
+const loggingInfo = getLoggingInfo(); // Hypothetical function fetching some logging data
+return function log() {
+console.log(element, loggingInfo);
+};
+}
+const someElement = document.querySelector("#info-box");
+const logger = createLogger(someElement);
+someElement.addEventListener('mouseover', logger);
+// If 'someElement' is removed from the DOM or no longer used, the closure 'logger' still retains references.</code></pre>
+<h2>How to address?</h2>
+<p>Awareness is the key. While using closures, be mindful of what they reference, especially if those references include large objects or DOM elements. If a closure is used as an event listener, ensure that it’s removed when no longer needed.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*_bOcqblaIDWuD0GFsvL1Yw.png" alt="img"></p>
+<h1>Tools and Best Practices</h1>
+<p>Modern browsers and JavaScript engines, like V8 used in Chrome, have made significant strides in garbage collection (an automated process to reclaim unused memory). However, relying solely on garbage collection isn’t foolproof.</p>
+<p>Chrome DevTools Memory Profiler is an invaluable tool for developers. It allows for tracking memory usage, spotting leaks, and understanding the overall memory footprint of web applications. Regularly profiling especially during the development phase, can preemptively address memory issues.</p>
+<p>In conclusion, while the modern JavaScript landscape has evolved with new frameworks and paradigms, the fundamental principles of good memory management remain. By being aware of common pitfalls like uncleared timers, dangling event listeners, and unintended closures, developers can ensure that their applications remain performant and resilient.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月22日，开源日报第1082期：<br>
+今日推荐开源项目：《transformers.js》<br>
+今日推荐英文原文：《Top Three Causes of Memory Leaks in JavaScript》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240123.jpg.pagespeed.ic.5C93aUsaX4.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《transformers.js》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Transformers.js使用ONNX Runtime在浏览器中运行模型，可以轻松地使用🤗 Optimum将预训练的PyTorch、TensorFlow或JAX模型转换为ONNX格式<br>
+官网直达：<a href="https://huggingface.co/docs/transformers.js/index" target="_blank">https://huggingface.co/docs/transformers.js/index</a></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@patrickkarsh/top-three-causes-of-memory-leaks-in-javascript-fd49f97238a9" target="_blank">Top Three Causes of Memory Leaks in JavaScript</a></p>
+<p>推荐理由：这篇文章主要讲 js 中内存泄漏的三个主要原因：未清除的定时器和计时器、悬挂的事件监听器以及闭包，还有 Chrome DevTools Memory Profiler的实用方法</p>
+<hr>
+<h1>Top Three Causes of Memory Leaks in JavaScript</h1>
+<h2>Memory Leaks in JavaScript: Top Causes and How to Address Them</h2>
+<p>One crucial aspect that often goes unnoticed is memory management. Memory leaks, while subtle, can accumulate over time, making applications sluggish and even leading to crashes. This article delves into the top three causes of memory leaks in modern JavaScript and how developers can mitigate them.</p>
+<h2>What is a Memory Leak?</h2>
+<p>In simple terms, a memory leak in JavaScript occurs when objects are allocated memory, but that memory isn’t released even after the objects are no longer required. Over time, these leaks accumulate, consuming more and more memory, thereby degrading application performance.</p>
+<h1>Uncleared Intervals and Timers</h1>
+<p>Modern web applications often use timers and intervals for tasks like updating UI, polling servers, or adding delays. These are set up using <code>setInterval</code> and <code>setTimeout</code>. However, if these timers aren't cleared when no longer needed, they can lead to significant memory leaks.</p>
+<p>Example:</p>
+<pre><code>const someData = fetchLatestData(); // A hypothetical function that fetches some data
+const intervalID = setInterval(() =&gt; {
+updateUI(someData);
+}, 1000);
+// Later in the code or in some cleanup routine, the interval needs to be cleared.
+// If not:
+// clearInterval(intervalID);</code></pre>
+<p>In this example, if <code>clearInterval</code> isn't called, the interval keeps running indefinitely, holding onto <code>someData</code> and whatever <code>updateUI</code> references.</p>
+<h2>How to address?</h2>
+<p>Always ensure that intervals and timeouts are cleared using <code>clearInterval</code> and <code>clearTimeout</code> respectively, especially when the associated tasks or components are destroyed or no longer in use.</p>
+<h1>Dangling Event Listeners</h1>
+<p>Event-driven programming is at the heart of JavaScript. However, a common oversight is not removing event listeners after they’ve served their purpose. When DOM elements attached to these listeners are removed, the listeners might still linger if not explicitly detached.</p>
+<p>Example:</p>
+<pre><code>const buttonElement = document.querySelector("#submit-button");
+const userPreferences = getUserPreferences(); // Hypothetical function
+buttonElement.addEventListener('click', () =&gt; {
+applyPreferences(userPreferences);
+});
+// Now, if for any reason, the button is removed from the DOM:
+// buttonElement.remove();
+// The listener is still in memory and so is the 'userPreferences' object.</code></pre>
+<h2>How to address?</h2>
+<p>Use the <code>removeEventListener</code> method to detach listeners when they're no longer required or when associated elements are removed from the DOM. Frameworks like React and Vue provide lifecycle methods or hooks to help with this.</p>
+<h1>Closures</h1>
+<p>Closures, one of JavaScript’s most powerful features, allow functions to ‘remember’ the environment in which they were created. While incredibly useful, closures can unintentionally hold onto references, leading to memory leaks.</p>
+<p>Example:</p>
+<pre><code>function createLogger(element) {
+const loggingInfo = getLoggingInfo(); // Hypothetical function fetching some logging data
+return function log() {
+console.log(element, loggingInfo);
+};
+}
+const someElement = document.querySelector("#info-box");
+const logger = createLogger(someElement);
+someElement.addEventListener('mouseover', logger);
+// If 'someElement' is removed from the DOM or no longer used, the closure 'logger' still retains references.</code></pre>
+<h2>How to address?</h2>
+<p>Awareness is the key. While using closures, be mindful of what they reference, especially if those references include large objects or DOM elements. If a closure is used as an event listener, ensure that it’s removed when no longer needed.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*_bOcqblaIDWuD0GFsvL1Yw.png" alt="img"></p>
+<h1>Tools and Best Practices</h1>
+<p>Modern browsers and JavaScript engines, like V8 used in Chrome, have made significant strides in garbage collection (an automated process to reclaim unused memory). However, relying solely on garbage collection isn’t foolproof.</p>
+<p>Chrome DevTools Memory Profiler is an invaluable tool for developers. It allows for tracking memory usage, spotting leaks, and understanding the overall memory footprint of web applications. Regularly profiling especially during the development phase, can preemptively address memory issues.</p>
+<p>In conclusion, while the modern JavaScript landscape has evolved with new frameworks and paradigms, the fundamental principles of good memory management remain. By being aware of common pitfalls like uncleared timers, dangling event listeners, and unintended closures, developers can ensure that their applications remain performant and resilient.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月22日，开源日报第1082期：<br>
+今日推荐开源项目：《transformers.js》<br>
+今日推荐英文原文：《Top Three Causes of Memory Leaks in JavaScript》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240123.jpg.pagespeed.ic.5C93aUsaX4.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《transformers.js》传送门：<a href="https://github.com/oven-sh/bun" target="_blank">项目链接</a> </p>
+<p>推荐理由： Transformers.js使用ONNX Runtime在浏览器中运行模型，可以轻松地使用🤗 Optimum将预训练的PyTorch、TensorFlow或JAX模型转换为ONNX格式<br>
+官网直达：<a href="https://huggingface.co/docs/transformers.js/index" target="_blank">https://huggingface.co/docs/transformers.js/index</a></p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@patrickkarsh/top-three-causes-of-memory-leaks-in-javascript-fd49f97238a9" target="_blank">Top Three Causes of Memory Leaks in JavaScript</a></p>
+<p>推荐理由：这篇文章主要讲 js 中内存泄漏的三个主要原因：未清除的定时器和计时器、悬挂的事件监听器以及闭包，还有 Chrome DevTools Memory Profiler的实用方法</p>
+<hr>
+<h1>Top Three Causes of Memory Leaks in JavaScript</h1>
+<h2>Memory Leaks in JavaScript: Top Causes and How to Address Them</h2>
+<p>One crucial aspect that often goes unnoticed is memory management. Memory leaks, while subtle, can accumulate over time, making applications sluggish and even leading to crashes. This article delves into the top three causes of memory leaks in modern JavaScript and how developers can mitigate them.</p>
+<h2>What is a Memory Leak?</h2>
+<p>In simple terms, a memory leak in JavaScript occurs when objects are allocated memory, but that memory isn’t released even after the objects are no longer required. Over time, these leaks accumulate, consuming more and more memory, thereby degrading application performance.</p>
+<h1>Uncleared Intervals and Timers</h1>
+<p>Modern web applications often use timers and intervals for tasks like updating UI, polling servers, or adding delays. These are set up using <code>setInterval</code> and <code>setTimeout</code>. However, if these timers aren't cleared when no longer needed, they can lead to significant memory leaks.</p>
+<p>Example:</p>
+<pre><code>const someData = fetchLatestData(); // A hypothetical function that fetches some data
+const intervalID = setInterval(() =&gt; {
+updateUI(someData);
+}, 1000);
+// Later in the code or in some cleanup routine, the interval needs to be cleared.
+// If not:
+// clearInterval(intervalID);</code></pre>
+<p>In this example, if <code>clearInterval</code> isn't called, the interval keeps running indefinitely, holding onto <code>someData</code> and whatever <code>updateUI</code> references.</p>
+<h2>How to address?</h2>
+<p>Always ensure that intervals and timeouts are cleared using <code>clearInterval</code> and <code>clearTimeout</code> respectively, especially when the associated tasks or components are destroyed or no longer in use.</p>
+<h1>Dangling Event Listeners</h1>
+<p>Event-driven programming is at the heart of JavaScript. However, a common oversight is not removing event listeners after they’ve served their purpose. When DOM elements attached to these listeners are removed, the listeners might still linger if not explicitly detached.</p>
+<p>Example:</p>
+<pre><code>const buttonElement = document.querySelector("#submit-button");
+const userPreferences = getUserPreferences(); // Hypothetical function
+buttonElement.addEventListener('click', () =&gt; {
+applyPreferences(userPreferences);
+});
+// Now, if for any reason, the button is removed from the DOM:
+// buttonElement.remove();
+// The listener is still in memory and so is the 'userPreferences' object.</code></pre>
+<h2>How to address?</h2>
+<p>Use the <code>removeEventListener</code> method to detach listeners when they're no longer required or when associated elements are removed from the DOM. Frameworks like React and Vue provide lifecycle methods or hooks to help with this.</p>
+<h1>Closures</h1>
+<p>Closures, one of JavaScript’s most powerful features, allow functions to ‘remember’ the environment in which they were created. While incredibly useful, closures can unintentionally hold onto references, leading to memory leaks.</p>
+<p>Example:</p>
+<pre><code>function createLogger(element) {
+const loggingInfo = getLoggingInfo(); // Hypothetical function fetching some logging data
+return function log() {
+console.log(element, loggingInfo);
+};
+}
+const someElement = document.querySelector("#info-box");
+const logger = createLogger(someElement);
+someElement.addEventListener('mouseover', logger);
+// If 'someElement' is removed from the DOM or no longer used, the closure 'logger' still retains references.</code></pre>
+<h2>How to address?</h2>
+<p>Awareness is the key. While using closures, be mindful of what they reference, especially if those references include large objects or DOM elements. If a closure is used as an event listener, ensure that it’s removed when no longer needed.</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*_bOcqblaIDWuD0GFsvL1Yw.png" alt="img"></p>
+<h1>Tools and Best Practices</h1>
+<p>Modern browsers and JavaScript engines, like V8 used in Chrome, have made significant strides in garbage collection (an automated process to reclaim unused memory). However, relying solely on garbage collection isn’t foolproof.</p>
+<p>Chrome DevTools Memory Profiler is an invaluable tool for developers. It allows for tracking memory usage, spotting leaks, and understanding the overall memory footprint of web applications. Regularly profiling especially during the development phase, can preemptively address memory issues.</p>
+<p>In conclusion, while the modern JavaScript landscape has evolved with new frameworks and paradigms, the fundamental principles of good memory management remain. By being aware of common pitfalls like uncleared timers, dangling event listeners, and unintended closures, developers can ensure that their applications remain performant and resilient.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240123.jpg.pagespeed.ic.5C93aUsaX4.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240123.jpg.pagespeed.ic.5C93aUsaX4.jpg" medium="image"/>
+    <pubDate>Mon, 22 Jan 2024 13:24:34 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1081期：前端打包工具：《Bun》]]></title>
     <link>https://openingsource.org/11553/</link>
     <itunes:title><![CDATA[开源日报第1081期：前端打包工具：《Bun》]]></itunes:title>
@@ -1865,506 +2087,5 @@ export default HoverExample;</code></pre>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp" medium="image"/>
     <pubDate>Mon, 15 Jan 2024 15:06:31 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1075期：单一源API 管理中心：《apihub》]]></title>
-    <link>https://openingsource.org/11515/</link>
-    <itunes:title><![CDATA[开源日报第1075期：单一源API 管理中心：《apihub》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月15日，开源日报第1075期：<br>
-今日推荐开源项目：《apihub》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《apihub》传送门：<a href="https://github.com/hiteshchoudhary/apihub?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由： freeapi是一个单一源API 管理中心，用于学习任何编程语言中的api处理， 也用freeapi在Web和移动应用程序中构建自己前端作品集</p>
-<p>官网直达：freeapi.app</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：React Native的新架构引入了重大变化 主要组件包括：</p>
-<ul>
-<li>
-<p>JavaScript Interface (JSI): 一个轻量级层，使得JavaScript能够直接调用本地方法。这有助于在线程之间实现互操作性，消除了JSON序列化的需求，提高了性能</p>
-</li>
-<li>
-<p>Fabric: 一种新的渲染系统，取代了UI Manager，实现了JS和UI线程之间的同步。它提升了用户交互（如滚动和手势）的性能，将同步执行重点放在面向用户的任务上</p>
-</li>
-<li>
-<p>Turbo Modules: 对旧的Native Modules的改进，Turbo Modules使JavaScript能够在需要时加载模块，减少了React Native应用的启动时间</p>
-</li>
-<li>
-<p>CodeGen: 一个静态类型检查器，确保JavaScript（动态类型）和C++（静态类型）之间的顺畅通信。它在构建时定义了Turbo Modules和Fabric使用的接口元素，而不是在运行时生成更多的本地代码</p>
-</li>
-</ul>
-<hr>
-<h1>ReactNative New vs. Old Architecture</h1>
-<p>ReactNative Multi platform application Development.</p>
-<p>This is a good time to understand what changes are taking place under the hood and how they might affect your React Native App.</p>
-<blockquote>
-<p>This article aims to cover the most important changes.</p>
-</blockquote>
-<ul>
-<li><strong>JavaScript Interface(JSI)</strong></li>
-<li><strong>Fabric</strong></li>
-<li><strong>Turbo Modules</strong></li>
-<li><strong>CodeGen</strong></li>
-</ul>
-<h1>Old Architecture</h1>
-<p>Before we get to the new architecture, let’s recap how the old one works.</p>
-<p>R<a href="https://reactnative.dev/" target="_blank">eact Native</a> is a JavaScript library that allows us to create mobile apps that will run on both Android and iOS. As they sell it, “Learn once, write anywhere.”</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1356/1*4p7zu_yWeTioHAhejneoCA.png" alt="img"></p>
-<h1>How the UI of a React Native app is rendered.</h1>
-<p>React Native allows you to build mobile apps using JavaScript and React, but the actual rendering of the user interface happens using native components of the respective platforms (iOS or Android).</p>
-<ul>
-<li><strong>Rendering with Native Views</strong>: React Native doesn’t directly translate your JavaScript code into native code (Java for Android or Objective C/Swift for iOS). Instead, it uses native views to render the UI. This is more efficient and provides a better user experience.</li>
-<li><strong>Communication between Components</strong>: In React Native, you build your UI using components. Components communicate with each other through properties (props) and callbacks. This follows a one-way flow, making it easier to manage data flow in your app.</li>
-<li><strong>Passing Data</strong>: If a parent component needs something from its child, it passes down a callback. Similarly, if a child component needs something from its parent, it receives a property. This unidirectional flow simplifies the design and maintenance of your app.</li>
-<li><strong>Native Code Integration</strong>: While React Native encourages building the UI using its components, if you need to use a native component (e.g., MapView), you can integrate it seamlessly. React Native provides a bridge for communication between the JavaScript code and native components.</li>
-<li><strong>How OS Understands JavaScript</strong>: The OS doesn’t directly understand JavaScript code. Instead, the React Native framework acts as an intermediary. It interprets and executes your JavaScript code, and through its bridge, it communicates with the native components to render the UI on the device.</li>
-</ul>
-<p>So far, so good. But how does the OS understand the JavaScript code?</p>
-<h1>The Bundling Process</h1>
-<p>A native mobile app will be developed using the programming language that is specific to that platform. When developing with React Native, you can pretty much get by without writing any Objective C/Java code — unless you are required to do something that is not covered by the library, such as integrating a payment provider that only offers SDKs for Android and iOS.</p>
-<p>However, any React Native project contains an <code>ios</code> directory and an <code>android</code> one. These directories act as the entry points for each platform — they basically bootstrap React Native. They contain code that is specific to each platform, and here’s where your JS code is bridged for each platform.</p>
-<p>In order to start your app, you’ll generally run <code>yarn android</code> or <code>yarn ios</code> and then you’ll wait until the app magically opens on your desired device. But what happens while you wait?</p>
-<p>As soon as you type in one of those commands (which are <code>react-native run-android</code> and <code>react native run-ios</code>, respectively) you start up the packager. One such packager is <a href="https://facebook.github.io/metro/" target="_blank">Metro</a>. The packager takes all your JS code and puts it into a single file: <code>main.bundle.js</code>. When your app finally opens on your phone, the phone will look in the place that’s familiar to it: either the <code>android</code> or the <code>ios</code> directory. That’s the native entry point that I mentioned above. This native entry point will start the JavaScript virtual machine in a thread. The bundled code that is contained in <code>main.bundle.js</code> will then be run on this thread.</p>
-<p>The code that’s now running within this JavaScript VM thread will communicate with the native thread using the React Native bridge.</p>
-<p>Before jumping to the RN bridge and then analyzing the performance of RN apps, let’s understand how your phone is able to run JavaScript code.</p>
-<h1>JavaScriptCore</h1>
-<p><a href="https://github.com/WebKit/webkit/tree/main/Source/JavaScriptCore" target="_blank">JavaScriptCore</a> is a framework that allows JavaScript code to be run on mobile devices, for instance. On iOS devices, this framework is directly provided by the OS. Android devices don’t have the framework, so React Native bundles it along with the app itself. This increases the app size just a little bit, but it’ll barely matter in the end.</p>
-<p>There’s one thing I want to point out that might save you some debugging time. JavaScriptCore is used for running JS code when the app is run on a device. However, if you choose to debug your app, the JS code is going to run inside Chrome. Chrome uses the V8 engine and uses WebSockets for communicating with the native code, so you’ll be able to see important info such as properly formatted logs and what network requests are being made. Just remember that there are differences between the V8 engine and JavaScriptCore — they are different environments and you might run into bugs that only happen when the debugger is attached but not when your app is run normally on your device!</p>
-<h1>The React Native Bridge</h1>
-<p>The RN bridge is written in Java/C++ and it allows the communication between the main thread of your app and the JavaScript thread. It uses a custom message-passing protocol to allow this communication to happen.</p>
-<p>The JavaScript thread will decide what must be rendered on the screen. It will say to the main thread, “Hey, I need you to render a button and a text. Thanks.” It will use the bridge to say this. The message will be sent as a serialized JSON. But apart from what needs to be rendered on the screen, the message must also state where it will be rendered. Here’s where the shadow thread comes into play. The shadow thread is launched along with the JavaScript thread, and it helps to compute the positions of the views. The results are passed along in the aforementioned message, sent by means of the bridge to the main thread.</p>
-<p>Any action that the user does on the UI will happen on the main thread. Tapping on a button, toggling a switch — any action must be serialized and sent by means of the bridge to the JavaScript thread. There’s where all the logic of your app happens.</p>
-<h1>How Performance Is Affected</h1>
-<p>Let’s review what we have covered so far. The user taps on a button. This action is understood by the main thread and passed as a message to the JavaScript thread. Here, some logic is handled, then the UI must change accordingly. The shadow thread decides where these changes happen, then the updates are sent as a message back to the native thread. Since the user won’t tap too rapidly on the screen, we won’t generally have any performance issues in normal usage scenarios — the bridge handles the communication pretty quickly.</p>
-<p>What is cool about React Native (in comparison to other platforms such as Cordova) is that it doesn’t run its code inside of a <code>WebView</code>. It uses native views.</p>
-<p>This advantage means that we’ll be able to develop smooth and fast apps that can run at 60 FPS. If you modify the state of a component that is very high in the tree (and you didn’t dedicate too much time to prevent useless re-renders), then the whole component tree will be re-rendered. This won’t be visible to the user in most cases. However, if those descendants are computationally expensive, then you’ll notice your app stuttering for a little bit.</p>
-<h1>In a nutshell:</h1>
-<p>When you run a RN app, all you JavaScript code is bundled together into a package called the JS Bundle. The Native Code is kept separately.</p>
-<p>The Execution of React Native apps happens over three threads:</p>
-<ul>
-<li>The JavaScript thread: used by the JS Engine, to run the JS Bundle</li>
-<li>The Native/UI thread: used to run the Native Modules and to handle operations like UI Rendering, user gesture events etc.</li>
-<li>Additionally there is a 3rd thread called the shadow thread, which is used to calculate the Layout of Elements before rendering them on the host screen</li>
-</ul>
-<p>The Communication between the JS and Native Threads is carried over an entity called the bridge. When sending data through the bridge it has to be batched(optimized) and serialized as JSON. This bridge can only handle asynchronous communication.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Sw5UOASq_phL4Z7W4tfnIQ.png" alt="img"></p>
-<p>Old Architecture in React native</p>
-<p>JavaScriptCore: <em>It is the name of a JavaScript Engine, which is used by React Native to execute JS code.</em></p>
-<p>Yoga: <em>It is the name of a Layout engine, which is used to calculate positions of UI elements for the user’s screen.</em></p>
-<h1>JavaScript Interface (JSI)</h1>
-<p>In the old architecture, React Native uses the Bridge Module to make communication possible between the JS and Native threads. Every time data is sent across the bridge, it has to be serialized as JSON. When the data is received on the other side it must be decoded as well.</p>
-<p>This means that the JavaScript and Native worlds are unaware of each other <em>(ie. the JS thread cannot directly call a method on the Native thread)</em></p>
-<p>Another important point to note is; messages send over the bridge are asynchronous in nature, which is a good thing for most use cases, but there are certain instances when JS code and native code needs to be in sync.</p>
-<h1>Let’s take an example to better understand the bridge:</h1>
-<p>If the JavaScript thread needs access to some native modules (eg. Bluetooth), it will need to send a message to the native thread. The JS thread will send a serialized JSON message to the bridge. The bridge will optimize this message and send it over to the native thread. The message will be decoded on the native thread, and eventually the required native code will be executed.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*g1NSRP7XNFK4H60hfTpiIQ.png" alt="img"></p>
-<ul>
-<li>JS thread prepares message for the Native Thread</li>
-<li>It is serizlized as JSON before sending across the bridge</li>
-<li>It is decoded when recieved on the other end of the bridge</li>
-<li>Then the native thread executes the required native code</li>
-</ul>
-<h1>New Architecture</h1>
-<p>However, in the New Architecture, the bridge is going to be replaced with a module called <strong><em>JavaScript Interface\</em></strong>, which is a lightweight, general-purpose layer, written in C++ that can be used by the JavaScript engine to directly invoke/call methods in the native realm.</p>
-<h1>What does general-purpose mean?</h1>
-<p>The current architecture uses the JavaScriptCore Engine. The bridge is only compatible with this particular engine. However, this is not the case for JSI. The JavaScript Interface will be decoupled from the Engine, which means that the new architecture enables the use of other JavaScript Engines like Chakra, v8, Hermes etc. Hence the term “<em>general-purpose”</em>.</p>
-<h1>How can JSI enable JavaScript to directly call native methods?</h1>
-<p>Through the JSI, Native methods will be exposed to JavaScript via C++ Host Objects. JavaScript can hold a reference to these objects. And can invoke the methods directly using that reference. This is similar to the web, where JavaScript code can hold a reference to any DOM element, and call methods on it. For Example: when you write:</p>
-<blockquote>
-<p><em>const container = document.createElement(‘div’);</em></p>
-</blockquote>
-<p>Here, the container is a JavaScript variable, but it holds a reference to a DOM element which was probably initialized in C++. If we call any method on the “container” variable, it will in turn call the method on the DOM element. The JSI will work similarly.</p>
-<p>Unlike the bridge, the JSI will allow JavaScript code to hold a reference to Native Modules. And through the JSI, JavaScript can call methods on this reference directly.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*2yQoZjBjJyXAB_TTK_wtWg.png" alt="img"></p>
-<ol>
-<li>JavaScript has a direct reference to a native module</li>
-<li>It calls a method on this native module, via the JavaScript Interface.</li>
-</ol>
-<p>To Sum it up, JSI will enable the use of other JavaScript Engines &amp; it will allow for complete interoperability between the threads, the JavaScript code could communicate with the native side directly from the JS thread. This will eliminate the need to serialize JSON messages and will fix the congestion and asynchronous issues on the bridge.</p>
-<p>Another big advantage of the JSI is that it is written in C++. With the power of C++ React Native can target large number of Systems like Smart TVs, Watches etc.</p>
-<h1>Fabric</h1>
-<p>Fabric is the rendering system, which will replace the current UI Manager.</p>
-<p>To understand the advantages of Fabric, first let’s look at how UI is currently rendered in React Native:</p>
-<p>When your app is run, React executes your code and creates a ReactElementTree in JavaScript. Based on this tree, the Renderer creates a ReactShadowTree in C++.</p>
-<p>This shadow Tree is used by the Layout Engine to calculate the positions of UI elements for the host screen. Once the results of the Layout calculation are available, the shadow tree is transformed into HostViewTree, which comprises of Native Elements. <em>(For example The ReactNative <view> element will be translated into ViewGroup in Android &amp; UIView in iOS respectively).</view></em></p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Pv-4VyvyhonoO7Jv7r7VJA.png" alt="img"></p>
-<p>ReactElementTree (JavaScript) -&gt; ReactShadowTree(C++) -&gt; HostViewTree(Native)</p>
-<h1>Problems with this approach:</h1>
-<p>As we know, all the communication between threads happens over the bridge. Which means slow transfer rates, and unnecessary copying of data.</p>
-<p>For Example: If a ReactElementTree Node happens to be an <img>, then the consequent node of the ReactShadowTree will also be an image. However, this data will have to be duplicated and stored separately in both the nodes.</p>
-<p>That’s not all. Since the JS and UI threads are not in sync, there are certain use cases when your app can seem laggy as it drops frames. (Example: Scrolling through a FlatList with a huge list of data)</p>
-<h1>What is Fabric?</h1>
-<p>According to the official <a href="https://reactnative.dev/docs/fabric-renderer" target="_blank">ReactNative documentation</a>,</p>
-<blockquote>
-<p><em>“Fabric is React Native’s new rendering system, a conceptual evolution of the legacy render system”</em></p>
-</blockquote>
-<p>As we have seen in the JSI section of this article, the JavaScript Interface will directly expose native methods to JavaScript, which also includes UI methods. As a result of this, the JS and UI threads can be in sync. This will improve performance for lists, navigation, gesture handling etc.</p>
-<h1>What are the benefits of Fabric?</h1>
-<p>With the new rendering system, user interactions such as scrolling, gestures, etc can be prioritized to be executed synchronously in the main thread or native thread. While other tasks such as API requests will be executed asynchronously.</p>
-<p>That’s not all. The new Shadow Tree will be immutable, and it will be shared between the JS and UI threads, to allow straight interaction from both ends.</p>
-<p>As we have seen, in the old architecture React Native has to maintain two hierarchies/DOM nodes. But since the shadow tree will now be shared among realms, it will help with reducing memory consumption as well.</p>
-<h1>3. Turbo Modules</h1>
-<p>In the old architecture, all the Native Modules used by JavaScript (e.g. Bluetooth, Geo Location, File Storage, etc) have to be initialized before the app is opened. This means, that even if the user doesn’t require a particular module, it still has to be initialized at start-up.</p>
-<p>Turbo Modules are an enhancement over these old Native modules. As we have seen in the previous part of this article, now JavaScript will be able to hold a reference to these modules, which will allow JS Code to load each module only when it is required. This will significantly improve start-up time for React Native apps.</p>
-<h1>4. CodeGen</h1>
-<p>All this talk of Turbo Modules and Fabric sounds promising, but JavaScript is a Dynamically typed language, and JSI is written in C++, which is a Statically Typed Language. Consequently, there is a need to ensure smooth communication between the two.</p>
-<p>That’s why the new architecture will also include a static type checker called CodeGen.</p>
-<p>By using the typed JavaScript as the source of truth CodeGen will define interface elements used by Turbo Modules and Fabric. It will also generate more native code at build time, instead of run time.</p>
-<h1>Summary</h1>
-<p>If we combine all the changes, the new architecture will look like this:</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*94FA1Tqj13GnwQXhV0WlPw.png" alt="img"></p>
-<p>Here the key highlights are:</p>
-<p>• Bridge will be replaced by JSI</p>
-<p>• Ability to swap the JavaScriptCore with other Engines</p>
-<p>• Complete Interoperability between all threads</p>
-<ul>
-<li>Web-like Rendering system</li>
-<li>Time-sensitive tasks can be executed synchronously</li>
-<li>Lazy Loading of Turbo Modules</li>
-<li>Static Type Checking for compatibility between JS and Native Side.</li>
-</ul>
-<p>this new structure will give React Native some powerful improvements.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月15日，开源日报第1075期：<br>
-今日推荐开源项目：《apihub》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《apihub》传送门：<a href="https://github.com/hiteshchoudhary/apihub?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由： freeapi是一个单一源API 管理中心，用于学习任何编程语言中的api处理， 也用freeapi在Web和移动应用程序中构建自己前端作品集</p>
-<p>官网直达：freeapi.app</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：React Native的新架构引入了重大变化 主要组件包括：</p>
-<ul>
-<li>
-<p>JavaScript Interface (JSI): 一个轻量级层，使得JavaScript能够直接调用本地方法。这有助于在线程之间实现互操作性，消除了JSON序列化的需求，提高了性能</p>
-</li>
-<li>
-<p>Fabric: 一种新的渲染系统，取代了UI Manager，实现了JS和UI线程之间的同步。它提升了用户交互（如滚动和手势）的性能，将同步执行重点放在面向用户的任务上</p>
-</li>
-<li>
-<p>Turbo Modules: 对旧的Native Modules的改进，Turbo Modules使JavaScript能够在需要时加载模块，减少了React Native应用的启动时间</p>
-</li>
-<li>
-<p>CodeGen: 一个静态类型检查器，确保JavaScript（动态类型）和C++（静态类型）之间的顺畅通信。它在构建时定义了Turbo Modules和Fabric使用的接口元素，而不是在运行时生成更多的本地代码</p>
-</li>
-</ul>
-<hr>
-<h1>ReactNative New vs. Old Architecture</h1>
-<p>ReactNative Multi platform application Development.</p>
-<p>This is a good time to understand what changes are taking place under the hood and how they might affect your React Native App.</p>
-<blockquote>
-<p>This article aims to cover the most important changes.</p>
-</blockquote>
-<ul>
-<li><strong>JavaScript Interface(JSI)</strong></li>
-<li><strong>Fabric</strong></li>
-<li><strong>Turbo Modules</strong></li>
-<li><strong>CodeGen</strong></li>
-</ul>
-<h1>Old Architecture</h1>
-<p>Before we get to the new architecture, let’s recap how the old one works.</p>
-<p>R<a href="https://reactnative.dev/" target="_blank">eact Native</a> is a JavaScript library that allows us to create mobile apps that will run on both Android and iOS. As they sell it, “Learn once, write anywhere.”</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1356/1*4p7zu_yWeTioHAhejneoCA.png" alt="img"></p>
-<h1>How the UI of a React Native app is rendered.</h1>
-<p>React Native allows you to build mobile apps using JavaScript and React, but the actual rendering of the user interface happens using native components of the respective platforms (iOS or Android).</p>
-<ul>
-<li><strong>Rendering with Native Views</strong>: React Native doesn’t directly translate your JavaScript code into native code (Java for Android or Objective C/Swift for iOS). Instead, it uses native views to render the UI. This is more efficient and provides a better user experience.</li>
-<li><strong>Communication between Components</strong>: In React Native, you build your UI using components. Components communicate with each other through properties (props) and callbacks. This follows a one-way flow, making it easier to manage data flow in your app.</li>
-<li><strong>Passing Data</strong>: If a parent component needs something from its child, it passes down a callback. Similarly, if a child component needs something from its parent, it receives a property. This unidirectional flow simplifies the design and maintenance of your app.</li>
-<li><strong>Native Code Integration</strong>: While React Native encourages building the UI using its components, if you need to use a native component (e.g., MapView), you can integrate it seamlessly. React Native provides a bridge for communication between the JavaScript code and native components.</li>
-<li><strong>How OS Understands JavaScript</strong>: The OS doesn’t directly understand JavaScript code. Instead, the React Native framework acts as an intermediary. It interprets and executes your JavaScript code, and through its bridge, it communicates with the native components to render the UI on the device.</li>
-</ul>
-<p>So far, so good. But how does the OS understand the JavaScript code?</p>
-<h1>The Bundling Process</h1>
-<p>A native mobile app will be developed using the programming language that is specific to that platform. When developing with React Native, you can pretty much get by without writing any Objective C/Java code — unless you are required to do something that is not covered by the library, such as integrating a payment provider that only offers SDKs for Android and iOS.</p>
-<p>However, any React Native project contains an <code>ios</code> directory and an <code>android</code> one. These directories act as the entry points for each platform — they basically bootstrap React Native. They contain code that is specific to each platform, and here’s where your JS code is bridged for each platform.</p>
-<p>In order to start your app, you’ll generally run <code>yarn android</code> or <code>yarn ios</code> and then you’ll wait until the app magically opens on your desired device. But what happens while you wait?</p>
-<p>As soon as you type in one of those commands (which are <code>react-native run-android</code> and <code>react native run-ios</code>, respectively) you start up the packager. One such packager is <a href="https://facebook.github.io/metro/" target="_blank">Metro</a>. The packager takes all your JS code and puts it into a single file: <code>main.bundle.js</code>. When your app finally opens on your phone, the phone will look in the place that’s familiar to it: either the <code>android</code> or the <code>ios</code> directory. That’s the native entry point that I mentioned above. This native entry point will start the JavaScript virtual machine in a thread. The bundled code that is contained in <code>main.bundle.js</code> will then be run on this thread.</p>
-<p>The code that’s now running within this JavaScript VM thread will communicate with the native thread using the React Native bridge.</p>
-<p>Before jumping to the RN bridge and then analyzing the performance of RN apps, let’s understand how your phone is able to run JavaScript code.</p>
-<h1>JavaScriptCore</h1>
-<p><a href="https://github.com/WebKit/webkit/tree/main/Source/JavaScriptCore" target="_blank">JavaScriptCore</a> is a framework that allows JavaScript code to be run on mobile devices, for instance. On iOS devices, this framework is directly provided by the OS. Android devices don’t have the framework, so React Native bundles it along with the app itself. This increases the app size just a little bit, but it’ll barely matter in the end.</p>
-<p>There’s one thing I want to point out that might save you some debugging time. JavaScriptCore is used for running JS code when the app is run on a device. However, if you choose to debug your app, the JS code is going to run inside Chrome. Chrome uses the V8 engine and uses WebSockets for communicating with the native code, so you’ll be able to see important info such as properly formatted logs and what network requests are being made. Just remember that there are differences between the V8 engine and JavaScriptCore — they are different environments and you might run into bugs that only happen when the debugger is attached but not when your app is run normally on your device!</p>
-<h1>The React Native Bridge</h1>
-<p>The RN bridge is written in Java/C++ and it allows the communication between the main thread of your app and the JavaScript thread. It uses a custom message-passing protocol to allow this communication to happen.</p>
-<p>The JavaScript thread will decide what must be rendered on the screen. It will say to the main thread, “Hey, I need you to render a button and a text. Thanks.” It will use the bridge to say this. The message will be sent as a serialized JSON. But apart from what needs to be rendered on the screen, the message must also state where it will be rendered. Here’s where the shadow thread comes into play. The shadow thread is launched along with the JavaScript thread, and it helps to compute the positions of the views. The results are passed along in the aforementioned message, sent by means of the bridge to the main thread.</p>
-<p>Any action that the user does on the UI will happen on the main thread. Tapping on a button, toggling a switch — any action must be serialized and sent by means of the bridge to the JavaScript thread. There’s where all the logic of your app happens.</p>
-<h1>How Performance Is Affected</h1>
-<p>Let’s review what we have covered so far. The user taps on a button. This action is understood by the main thread and passed as a message to the JavaScript thread. Here, some logic is handled, then the UI must change accordingly. The shadow thread decides where these changes happen, then the updates are sent as a message back to the native thread. Since the user won’t tap too rapidly on the screen, we won’t generally have any performance issues in normal usage scenarios — the bridge handles the communication pretty quickly.</p>
-<p>What is cool about React Native (in comparison to other platforms such as Cordova) is that it doesn’t run its code inside of a <code>WebView</code>. It uses native views.</p>
-<p>This advantage means that we’ll be able to develop smooth and fast apps that can run at 60 FPS. If you modify the state of a component that is very high in the tree (and you didn’t dedicate too much time to prevent useless re-renders), then the whole component tree will be re-rendered. This won’t be visible to the user in most cases. However, if those descendants are computationally expensive, then you’ll notice your app stuttering for a little bit.</p>
-<h1>In a nutshell:</h1>
-<p>When you run a RN app, all you JavaScript code is bundled together into a package called the JS Bundle. The Native Code is kept separately.</p>
-<p>The Execution of React Native apps happens over three threads:</p>
-<ul>
-<li>The JavaScript thread: used by the JS Engine, to run the JS Bundle</li>
-<li>The Native/UI thread: used to run the Native Modules and to handle operations like UI Rendering, user gesture events etc.</li>
-<li>Additionally there is a 3rd thread called the shadow thread, which is used to calculate the Layout of Elements before rendering them on the host screen</li>
-</ul>
-<p>The Communication between the JS and Native Threads is carried over an entity called the bridge. When sending data through the bridge it has to be batched(optimized) and serialized as JSON. This bridge can only handle asynchronous communication.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Sw5UOASq_phL4Z7W4tfnIQ.png" alt="img"></p>
-<p>Old Architecture in React native</p>
-<p>JavaScriptCore: <em>It is the name of a JavaScript Engine, which is used by React Native to execute JS code.</em></p>
-<p>Yoga: <em>It is the name of a Layout engine, which is used to calculate positions of UI elements for the user’s screen.</em></p>
-<h1>JavaScript Interface (JSI)</h1>
-<p>In the old architecture, React Native uses the Bridge Module to make communication possible between the JS and Native threads. Every time data is sent across the bridge, it has to be serialized as JSON. When the data is received on the other side it must be decoded as well.</p>
-<p>This means that the JavaScript and Native worlds are unaware of each other <em>(ie. the JS thread cannot directly call a method on the Native thread)</em></p>
-<p>Another important point to note is; messages send over the bridge are asynchronous in nature, which is a good thing for most use cases, but there are certain instances when JS code and native code needs to be in sync.</p>
-<h1>Let’s take an example to better understand the bridge:</h1>
-<p>If the JavaScript thread needs access to some native modules (eg. Bluetooth), it will need to send a message to the native thread. The JS thread will send a serialized JSON message to the bridge. The bridge will optimize this message and send it over to the native thread. The message will be decoded on the native thread, and eventually the required native code will be executed.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*g1NSRP7XNFK4H60hfTpiIQ.png" alt="img"></p>
-<ul>
-<li>JS thread prepares message for the Native Thread</li>
-<li>It is serizlized as JSON before sending across the bridge</li>
-<li>It is decoded when recieved on the other end of the bridge</li>
-<li>Then the native thread executes the required native code</li>
-</ul>
-<h1>New Architecture</h1>
-<p>However, in the New Architecture, the bridge is going to be replaced with a module called <strong><em>JavaScript Interface\</em></strong>, which is a lightweight, general-purpose layer, written in C++ that can be used by the JavaScript engine to directly invoke/call methods in the native realm.</p>
-<h1>What does general-purpose mean?</h1>
-<p>The current architecture uses the JavaScriptCore Engine. The bridge is only compatible with this particular engine. However, this is not the case for JSI. The JavaScript Interface will be decoupled from the Engine, which means that the new architecture enables the use of other JavaScript Engines like Chakra, v8, Hermes etc. Hence the term “<em>general-purpose”</em>.</p>
-<h1>How can JSI enable JavaScript to directly call native methods?</h1>
-<p>Through the JSI, Native methods will be exposed to JavaScript via C++ Host Objects. JavaScript can hold a reference to these objects. And can invoke the methods directly using that reference. This is similar to the web, where JavaScript code can hold a reference to any DOM element, and call methods on it. For Example: when you write:</p>
-<blockquote>
-<p><em>const container = document.createElement(‘div’);</em></p>
-</blockquote>
-<p>Here, the container is a JavaScript variable, but it holds a reference to a DOM element which was probably initialized in C++. If we call any method on the “container” variable, it will in turn call the method on the DOM element. The JSI will work similarly.</p>
-<p>Unlike the bridge, the JSI will allow JavaScript code to hold a reference to Native Modules. And through the JSI, JavaScript can call methods on this reference directly.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*2yQoZjBjJyXAB_TTK_wtWg.png" alt="img"></p>
-<ol>
-<li>JavaScript has a direct reference to a native module</li>
-<li>It calls a method on this native module, via the JavaScript Interface.</li>
-</ol>
-<p>To Sum it up, JSI will enable the use of other JavaScript Engines &amp; it will allow for complete interoperability between the threads, the JavaScript code could communicate with the native side directly from the JS thread. This will eliminate the need to serialize JSON messages and will fix the congestion and asynchronous issues on the bridge.</p>
-<p>Another big advantage of the JSI is that it is written in C++. With the power of C++ React Native can target large number of Systems like Smart TVs, Watches etc.</p>
-<h1>Fabric</h1>
-<p>Fabric is the rendering system, which will replace the current UI Manager.</p>
-<p>To understand the advantages of Fabric, first let’s look at how UI is currently rendered in React Native:</p>
-<p>When your app is run, React executes your code and creates a ReactElementTree in JavaScript. Based on this tree, the Renderer creates a ReactShadowTree in C++.</p>
-<p>This shadow Tree is used by the Layout Engine to calculate the positions of UI elements for the host screen. Once the results of the Layout calculation are available, the shadow tree is transformed into HostViewTree, which comprises of Native Elements. <em>(For example The ReactNative <view> element will be translated into ViewGroup in Android &amp; UIView in iOS respectively).</view></em></p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Pv-4VyvyhonoO7Jv7r7VJA.png" alt="img"></p>
-<p>ReactElementTree (JavaScript) -&gt; ReactShadowTree(C++) -&gt; HostViewTree(Native)</p>
-<h1>Problems with this approach:</h1>
-<p>As we know, all the communication between threads happens over the bridge. Which means slow transfer rates, and unnecessary copying of data.</p>
-<p>For Example: If a ReactElementTree Node happens to be an <img>, then the consequent node of the ReactShadowTree will also be an image. However, this data will have to be duplicated and stored separately in both the nodes.</p>
-<p>That’s not all. Since the JS and UI threads are not in sync, there are certain use cases when your app can seem laggy as it drops frames. (Example: Scrolling through a FlatList with a huge list of data)</p>
-<h1>What is Fabric?</h1>
-<p>According to the official <a href="https://reactnative.dev/docs/fabric-renderer" target="_blank">ReactNative documentation</a>,</p>
-<blockquote>
-<p><em>“Fabric is React Native’s new rendering system, a conceptual evolution of the legacy render system”</em></p>
-</blockquote>
-<p>As we have seen in the JSI section of this article, the JavaScript Interface will directly expose native methods to JavaScript, which also includes UI methods. As a result of this, the JS and UI threads can be in sync. This will improve performance for lists, navigation, gesture handling etc.</p>
-<h1>What are the benefits of Fabric?</h1>
-<p>With the new rendering system, user interactions such as scrolling, gestures, etc can be prioritized to be executed synchronously in the main thread or native thread. While other tasks such as API requests will be executed asynchronously.</p>
-<p>That’s not all. The new Shadow Tree will be immutable, and it will be shared between the JS and UI threads, to allow straight interaction from both ends.</p>
-<p>As we have seen, in the old architecture React Native has to maintain two hierarchies/DOM nodes. But since the shadow tree will now be shared among realms, it will help with reducing memory consumption as well.</p>
-<h1>3. Turbo Modules</h1>
-<p>In the old architecture, all the Native Modules used by JavaScript (e.g. Bluetooth, Geo Location, File Storage, etc) have to be initialized before the app is opened. This means, that even if the user doesn’t require a particular module, it still has to be initialized at start-up.</p>
-<p>Turbo Modules are an enhancement over these old Native modules. As we have seen in the previous part of this article, now JavaScript will be able to hold a reference to these modules, which will allow JS Code to load each module only when it is required. This will significantly improve start-up time for React Native apps.</p>
-<h1>4. CodeGen</h1>
-<p>All this talk of Turbo Modules and Fabric sounds promising, but JavaScript is a Dynamically typed language, and JSI is written in C++, which is a Statically Typed Language. Consequently, there is a need to ensure smooth communication between the two.</p>
-<p>That’s why the new architecture will also include a static type checker called CodeGen.</p>
-<p>By using the typed JavaScript as the source of truth CodeGen will define interface elements used by Turbo Modules and Fabric. It will also generate more native code at build time, instead of run time.</p>
-<h1>Summary</h1>
-<p>If we combine all the changes, the new architecture will look like this:</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*94FA1Tqj13GnwQXhV0WlPw.png" alt="img"></p>
-<p>Here the key highlights are:</p>
-<p>• Bridge will be replaced by JSI</p>
-<p>• Ability to swap the JavaScriptCore with other Engines</p>
-<p>• Complete Interoperability between all threads</p>
-<ul>
-<li>Web-like Rendering system</li>
-<li>Time-sensitive tasks can be executed synchronously</li>
-<li>Lazy Loading of Turbo Modules</li>
-<li>Static Type Checking for compatibility between JS and Native Side.</li>
-</ul>
-<p>this new structure will give React Native some powerful improvements.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月15日，开源日报第1075期：<br>
-今日推荐开源项目：《apihub》<br>
-今日推荐英文原文：《React: You are Using useEffect() Wrong, Do This Instead》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《apihub》传送门：<a href="https://github.com/hiteshchoudhary/apihub?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由： freeapi是一个单一源API 管理中心，用于学习任何编程语言中的api处理， 也用freeapi在Web和移动应用程序中构建自己前端作品集</p>
-<p>官网直达：freeapi.app</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/stackademic/why-you-should-avoid-using-useeffect-hook-in-react-and-what-to-do-instead-740660e33420" target="_blank">React: You are Using useEffect() Wrong, Do This Instead</a></p>
-<p>推荐理由：React Native的新架构引入了重大变化 主要组件包括：</p>
-<ul>
-<li>
-<p>JavaScript Interface (JSI): 一个轻量级层，使得JavaScript能够直接调用本地方法。这有助于在线程之间实现互操作性，消除了JSON序列化的需求，提高了性能</p>
-</li>
-<li>
-<p>Fabric: 一种新的渲染系统，取代了UI Manager，实现了JS和UI线程之间的同步。它提升了用户交互（如滚动和手势）的性能，将同步执行重点放在面向用户的任务上</p>
-</li>
-<li>
-<p>Turbo Modules: 对旧的Native Modules的改进，Turbo Modules使JavaScript能够在需要时加载模块，减少了React Native应用的启动时间</p>
-</li>
-<li>
-<p>CodeGen: 一个静态类型检查器，确保JavaScript（动态类型）和C++（静态类型）之间的顺畅通信。它在构建时定义了Turbo Modules和Fabric使用的接口元素，而不是在运行时生成更多的本地代码</p>
-</li>
-</ul>
-<hr>
-<h1>ReactNative New vs. Old Architecture</h1>
-<p>ReactNative Multi platform application Development.</p>
-<p>This is a good time to understand what changes are taking place under the hood and how they might affect your React Native App.</p>
-<blockquote>
-<p>This article aims to cover the most important changes.</p>
-</blockquote>
-<ul>
-<li><strong>JavaScript Interface(JSI)</strong></li>
-<li><strong>Fabric</strong></li>
-<li><strong>Turbo Modules</strong></li>
-<li><strong>CodeGen</strong></li>
-</ul>
-<h1>Old Architecture</h1>
-<p>Before we get to the new architecture, let’s recap how the old one works.</p>
-<p>R<a href="https://reactnative.dev/" target="_blank">eact Native</a> is a JavaScript library that allows us to create mobile apps that will run on both Android and iOS. As they sell it, “Learn once, write anywhere.”</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1356/1*4p7zu_yWeTioHAhejneoCA.png" alt="img"></p>
-<h1>How the UI of a React Native app is rendered.</h1>
-<p>React Native allows you to build mobile apps using JavaScript and React, but the actual rendering of the user interface happens using native components of the respective platforms (iOS or Android).</p>
-<ul>
-<li><strong>Rendering with Native Views</strong>: React Native doesn’t directly translate your JavaScript code into native code (Java for Android or Objective C/Swift for iOS). Instead, it uses native views to render the UI. This is more efficient and provides a better user experience.</li>
-<li><strong>Communication between Components</strong>: In React Native, you build your UI using components. Components communicate with each other through properties (props) and callbacks. This follows a one-way flow, making it easier to manage data flow in your app.</li>
-<li><strong>Passing Data</strong>: If a parent component needs something from its child, it passes down a callback. Similarly, if a child component needs something from its parent, it receives a property. This unidirectional flow simplifies the design and maintenance of your app.</li>
-<li><strong>Native Code Integration</strong>: While React Native encourages building the UI using its components, if you need to use a native component (e.g., MapView), you can integrate it seamlessly. React Native provides a bridge for communication between the JavaScript code and native components.</li>
-<li><strong>How OS Understands JavaScript</strong>: The OS doesn’t directly understand JavaScript code. Instead, the React Native framework acts as an intermediary. It interprets and executes your JavaScript code, and through its bridge, it communicates with the native components to render the UI on the device.</li>
-</ul>
-<p>So far, so good. But how does the OS understand the JavaScript code?</p>
-<h1>The Bundling Process</h1>
-<p>A native mobile app will be developed using the programming language that is specific to that platform. When developing with React Native, you can pretty much get by without writing any Objective C/Java code — unless you are required to do something that is not covered by the library, such as integrating a payment provider that only offers SDKs for Android and iOS.</p>
-<p>However, any React Native project contains an <code>ios</code> directory and an <code>android</code> one. These directories act as the entry points for each platform — they basically bootstrap React Native. They contain code that is specific to each platform, and here’s where your JS code is bridged for each platform.</p>
-<p>In order to start your app, you’ll generally run <code>yarn android</code> or <code>yarn ios</code> and then you’ll wait until the app magically opens on your desired device. But what happens while you wait?</p>
-<p>As soon as you type in one of those commands (which are <code>react-native run-android</code> and <code>react native run-ios</code>, respectively) you start up the packager. One such packager is <a href="https://facebook.github.io/metro/" target="_blank">Metro</a>. The packager takes all your JS code and puts it into a single file: <code>main.bundle.js</code>. When your app finally opens on your phone, the phone will look in the place that’s familiar to it: either the <code>android</code> or the <code>ios</code> directory. That’s the native entry point that I mentioned above. This native entry point will start the JavaScript virtual machine in a thread. The bundled code that is contained in <code>main.bundle.js</code> will then be run on this thread.</p>
-<p>The code that’s now running within this JavaScript VM thread will communicate with the native thread using the React Native bridge.</p>
-<p>Before jumping to the RN bridge and then analyzing the performance of RN apps, let’s understand how your phone is able to run JavaScript code.</p>
-<h1>JavaScriptCore</h1>
-<p><a href="https://github.com/WebKit/webkit/tree/main/Source/JavaScriptCore" target="_blank">JavaScriptCore</a> is a framework that allows JavaScript code to be run on mobile devices, for instance. On iOS devices, this framework is directly provided by the OS. Android devices don’t have the framework, so React Native bundles it along with the app itself. This increases the app size just a little bit, but it’ll barely matter in the end.</p>
-<p>There’s one thing I want to point out that might save you some debugging time. JavaScriptCore is used for running JS code when the app is run on a device. However, if you choose to debug your app, the JS code is going to run inside Chrome. Chrome uses the V8 engine and uses WebSockets for communicating with the native code, so you’ll be able to see important info such as properly formatted logs and what network requests are being made. Just remember that there are differences between the V8 engine and JavaScriptCore — they are different environments and you might run into bugs that only happen when the debugger is attached but not when your app is run normally on your device!</p>
-<h1>The React Native Bridge</h1>
-<p>The RN bridge is written in Java/C++ and it allows the communication between the main thread of your app and the JavaScript thread. It uses a custom message-passing protocol to allow this communication to happen.</p>
-<p>The JavaScript thread will decide what must be rendered on the screen. It will say to the main thread, “Hey, I need you to render a button and a text. Thanks.” It will use the bridge to say this. The message will be sent as a serialized JSON. But apart from what needs to be rendered on the screen, the message must also state where it will be rendered. Here’s where the shadow thread comes into play. The shadow thread is launched along with the JavaScript thread, and it helps to compute the positions of the views. The results are passed along in the aforementioned message, sent by means of the bridge to the main thread.</p>
-<p>Any action that the user does on the UI will happen on the main thread. Tapping on a button, toggling a switch — any action must be serialized and sent by means of the bridge to the JavaScript thread. There’s where all the logic of your app happens.</p>
-<h1>How Performance Is Affected</h1>
-<p>Let’s review what we have covered so far. The user taps on a button. This action is understood by the main thread and passed as a message to the JavaScript thread. Here, some logic is handled, then the UI must change accordingly. The shadow thread decides where these changes happen, then the updates are sent as a message back to the native thread. Since the user won’t tap too rapidly on the screen, we won’t generally have any performance issues in normal usage scenarios — the bridge handles the communication pretty quickly.</p>
-<p>What is cool about React Native (in comparison to other platforms such as Cordova) is that it doesn’t run its code inside of a <code>WebView</code>. It uses native views.</p>
-<p>This advantage means that we’ll be able to develop smooth and fast apps that can run at 60 FPS. If you modify the state of a component that is very high in the tree (and you didn’t dedicate too much time to prevent useless re-renders), then the whole component tree will be re-rendered. This won’t be visible to the user in most cases. However, if those descendants are computationally expensive, then you’ll notice your app stuttering for a little bit.</p>
-<h1>In a nutshell:</h1>
-<p>When you run a RN app, all you JavaScript code is bundled together into a package called the JS Bundle. The Native Code is kept separately.</p>
-<p>The Execution of React Native apps happens over three threads:</p>
-<ul>
-<li>The JavaScript thread: used by the JS Engine, to run the JS Bundle</li>
-<li>The Native/UI thread: used to run the Native Modules and to handle operations like UI Rendering, user gesture events etc.</li>
-<li>Additionally there is a 3rd thread called the shadow thread, which is used to calculate the Layout of Elements before rendering them on the host screen</li>
-</ul>
-<p>The Communication between the JS and Native Threads is carried over an entity called the bridge. When sending data through the bridge it has to be batched(optimized) and serialized as JSON. This bridge can only handle asynchronous communication.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Sw5UOASq_phL4Z7W4tfnIQ.png" alt="img"></p>
-<p>Old Architecture in React native</p>
-<p>JavaScriptCore: <em>It is the name of a JavaScript Engine, which is used by React Native to execute JS code.</em></p>
-<p>Yoga: <em>It is the name of a Layout engine, which is used to calculate positions of UI elements for the user’s screen.</em></p>
-<h1>JavaScript Interface (JSI)</h1>
-<p>In the old architecture, React Native uses the Bridge Module to make communication possible between the JS and Native threads. Every time data is sent across the bridge, it has to be serialized as JSON. When the data is received on the other side it must be decoded as well.</p>
-<p>This means that the JavaScript and Native worlds are unaware of each other <em>(ie. the JS thread cannot directly call a method on the Native thread)</em></p>
-<p>Another important point to note is; messages send over the bridge are asynchronous in nature, which is a good thing for most use cases, but there are certain instances when JS code and native code needs to be in sync.</p>
-<h1>Let’s take an example to better understand the bridge:</h1>
-<p>If the JavaScript thread needs access to some native modules (eg. Bluetooth), it will need to send a message to the native thread. The JS thread will send a serialized JSON message to the bridge. The bridge will optimize this message and send it over to the native thread. The message will be decoded on the native thread, and eventually the required native code will be executed.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*g1NSRP7XNFK4H60hfTpiIQ.png" alt="img"></p>
-<ul>
-<li>JS thread prepares message for the Native Thread</li>
-<li>It is serizlized as JSON before sending across the bridge</li>
-<li>It is decoded when recieved on the other end of the bridge</li>
-<li>Then the native thread executes the required native code</li>
-</ul>
-<h1>New Architecture</h1>
-<p>However, in the New Architecture, the bridge is going to be replaced with a module called <strong><em>JavaScript Interface\</em></strong>, which is a lightweight, general-purpose layer, written in C++ that can be used by the JavaScript engine to directly invoke/call methods in the native realm.</p>
-<h1>What does general-purpose mean?</h1>
-<p>The current architecture uses the JavaScriptCore Engine. The bridge is only compatible with this particular engine. However, this is not the case for JSI. The JavaScript Interface will be decoupled from the Engine, which means that the new architecture enables the use of other JavaScript Engines like Chakra, v8, Hermes etc. Hence the term “<em>general-purpose”</em>.</p>
-<h1>How can JSI enable JavaScript to directly call native methods?</h1>
-<p>Through the JSI, Native methods will be exposed to JavaScript via C++ Host Objects. JavaScript can hold a reference to these objects. And can invoke the methods directly using that reference. This is similar to the web, where JavaScript code can hold a reference to any DOM element, and call methods on it. For Example: when you write:</p>
-<blockquote>
-<p><em>const container = document.createElement(‘div’);</em></p>
-</blockquote>
-<p>Here, the container is a JavaScript variable, but it holds a reference to a DOM element which was probably initialized in C++. If we call any method on the “container” variable, it will in turn call the method on the DOM element. The JSI will work similarly.</p>
-<p>Unlike the bridge, the JSI will allow JavaScript code to hold a reference to Native Modules. And through the JSI, JavaScript can call methods on this reference directly.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*2yQoZjBjJyXAB_TTK_wtWg.png" alt="img"></p>
-<ol>
-<li>JavaScript has a direct reference to a native module</li>
-<li>It calls a method on this native module, via the JavaScript Interface.</li>
-</ol>
-<p>To Sum it up, JSI will enable the use of other JavaScript Engines &amp; it will allow for complete interoperability between the threads, the JavaScript code could communicate with the native side directly from the JS thread. This will eliminate the need to serialize JSON messages and will fix the congestion and asynchronous issues on the bridge.</p>
-<p>Another big advantage of the JSI is that it is written in C++. With the power of C++ React Native can target large number of Systems like Smart TVs, Watches etc.</p>
-<h1>Fabric</h1>
-<p>Fabric is the rendering system, which will replace the current UI Manager.</p>
-<p>To understand the advantages of Fabric, first let’s look at how UI is currently rendered in React Native:</p>
-<p>When your app is run, React executes your code and creates a ReactElementTree in JavaScript. Based on this tree, the Renderer creates a ReactShadowTree in C++.</p>
-<p>This shadow Tree is used by the Layout Engine to calculate the positions of UI elements for the host screen. Once the results of the Layout calculation are available, the shadow tree is transformed into HostViewTree, which comprises of Native Elements. <em>(For example The ReactNative <view> element will be translated into ViewGroup in Android &amp; UIView in iOS respectively).</view></em></p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*Pv-4VyvyhonoO7Jv7r7VJA.png" alt="img"></p>
-<p>ReactElementTree (JavaScript) -&gt; ReactShadowTree(C++) -&gt; HostViewTree(Native)</p>
-<h1>Problems with this approach:</h1>
-<p>As we know, all the communication between threads happens over the bridge. Which means slow transfer rates, and unnecessary copying of data.</p>
-<p>For Example: If a ReactElementTree Node happens to be an <img>, then the consequent node of the ReactShadowTree will also be an image. However, this data will have to be duplicated and stored separately in both the nodes.</p>
-<p>That’s not all. Since the JS and UI threads are not in sync, there are certain use cases when your app can seem laggy as it drops frames. (Example: Scrolling through a FlatList with a huge list of data)</p>
-<h1>What is Fabric?</h1>
-<p>According to the official <a href="https://reactnative.dev/docs/fabric-renderer" target="_blank">ReactNative documentation</a>,</p>
-<blockquote>
-<p><em>“Fabric is React Native’s new rendering system, a conceptual evolution of the legacy render system”</em></p>
-</blockquote>
-<p>As we have seen in the JSI section of this article, the JavaScript Interface will directly expose native methods to JavaScript, which also includes UI methods. As a result of this, the JS and UI threads can be in sync. This will improve performance for lists, navigation, gesture handling etc.</p>
-<h1>What are the benefits of Fabric?</h1>
-<p>With the new rendering system, user interactions such as scrolling, gestures, etc can be prioritized to be executed synchronously in the main thread or native thread. While other tasks such as API requests will be executed asynchronously.</p>
-<p>That’s not all. The new Shadow Tree will be immutable, and it will be shared between the JS and UI threads, to allow straight interaction from both ends.</p>
-<p>As we have seen, in the old architecture React Native has to maintain two hierarchies/DOM nodes. But since the shadow tree will now be shared among realms, it will help with reducing memory consumption as well.</p>
-<h1>3. Turbo Modules</h1>
-<p>In the old architecture, all the Native Modules used by JavaScript (e.g. Bluetooth, Geo Location, File Storage, etc) have to be initialized before the app is opened. This means, that even if the user doesn’t require a particular module, it still has to be initialized at start-up.</p>
-<p>Turbo Modules are an enhancement over these old Native modules. As we have seen in the previous part of this article, now JavaScript will be able to hold a reference to these modules, which will allow JS Code to load each module only when it is required. This will significantly improve start-up time for React Native apps.</p>
-<h1>4. CodeGen</h1>
-<p>All this talk of Turbo Modules and Fabric sounds promising, but JavaScript is a Dynamically typed language, and JSI is written in C++, which is a Statically Typed Language. Consequently, there is a need to ensure smooth communication between the two.</p>
-<p>That’s why the new architecture will also include a static type checker called CodeGen.</p>
-<p>By using the typed JavaScript as the source of truth CodeGen will define interface elements used by Turbo Modules and Fabric. It will also generate more native code at build time, instead of run time.</p>
-<h1>Summary</h1>
-<p>If we combine all the changes, the new architecture will look like this:</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*94FA1Tqj13GnwQXhV0WlPw.png" alt="img"></p>
-<p>Here the key highlights are:</p>
-<p>• Bridge will be replaced by JSI</p>
-<p>• Ability to swap the JavaScriptCore with other Engines</p>
-<p>• Complete Interoperability between all threads</p>
-<ul>
-<li>Web-like Rendering system</li>
-<li>Time-sensitive tasks can be executed synchronously</li>
-<li>Lazy Loading of Turbo Modules</li>
-<li>Static Type Checking for compatibility between JS and Native Side.</li>
-</ul>
-<p>this new structure will give React Native some powerful improvements.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240115.jpg.pagespeed.ic.K5TJ9RANOO.jpg" medium="image"/>
-    <pubDate>Mon, 15 Jan 2024 13:39:42 +0000</pubDate>
   </item></channel>
 </rss>

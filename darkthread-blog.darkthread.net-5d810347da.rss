@@ -30,6 +30,90 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.csproj PreBuildEvent/PostBuildEvent 抓不到 $(TargetDir) 參數]]></title>
+    <link>https://blog.darkthread.net/blog/postbuildevent-no-build-var/</link>
+    <itunes:title><![CDATA[.csproj PreBuildEvent/PostBuildEvent 抓不到 $(TargetDir) 參數]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;/Project&gt;
+</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;!-- 舊寫法 --&gt;
+&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;!-- 建議寫法 --&gt;
+&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
+&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
+&lt;/Target&gt;
+&lt;/Project&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;/Project&gt;
+</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;!-- 舊寫法 --&gt;
+&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;!-- 建議寫法 --&gt;
+&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
+&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
+&lt;/Target&gt;
+&lt;/Project&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;/Project&gt;
+</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+&lt;PropertyGroup&gt;
+&lt;OutputType&gt;Exe&lt;/OutputType&gt;
+&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+&lt;Nullable&gt;enable&lt;/Nullable&gt;
+&lt;!-- 舊寫法 --&gt;
+&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
+&lt;/PropertyGroup&gt;
+&lt;!-- 建議寫法 --&gt;
+&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
+&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
+&lt;/Target&gt;
+&lt;/Project&gt;
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png" medium="image"/>
+    <pubDate>Mon, 22 Jan 2024 16:04:11 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Semantic Kernel 講座筆記 - 使用 .NET 輕鬆開發 ChatGPT 應用程式]]></title>
     <link>https://blog.darkthread.net/blog/sk-seminar-notes/</link>
     <itunes:title><![CDATA[Semantic Kernel 講座筆記 - 使用 .NET 輕鬆開發 ChatGPT 應用程式]]></itunes:title>
@@ -2011,53 +2095,5 @@ Console.WriteLine($"ERROR - {ex.Message}");
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638407271052730779.png" medium="image"/>
     <pubDate>Sat, 13 Jan 2024 07:16:25 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[「工人」智慧 CAPTCHA 破解服務]]></title>
-    <link>https://blog.darkthread.net/blog/2captcha/</link>
-    <itunes:title><![CDATA[「工人」智慧 CAPTCHA 破解服務]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>我的部落格被某個印尼廣告商盯上，即使垃圾留言會被檢核機制阻擋，他還是孜孜不倦定期來貼不會有人看到的廣告留言，讓我很無言。過年前<a href="/blog/hcaptcha/">部落格換了 hCaptcha</a>原以為可以改善，很不幸<a href="https://www.facebook.com/darkthread.net/posts/pfbid02NxM8xgMPVfvymnTFSphvzGttcFkJUxUvgcqhTzvtrzsaHutpsk56PwrEueRMMXJjl">沒能阻止對方繼續徒勞無功</a>...</p> <p>貼文的留言區讀者俞俞丟了個關鍵字 - 2captcha，引導我認識有趣的產業 - 「在家解 CAPTCHA 賺錢 + 付費 CAPTCHA 破解服務」的線上媒合平台。</p> <p>平台服務分成兩塊：「在家接任務解 CAPTCHA 賺外快」跟「付錢找人跳過 CAPTCHA 樂開懷」。需要破解 CAPTCHA 的客戶呼叫 API 上傳相關參數，平台自動將工作派發給在線上的 Worker (Worker，名符其實的「工人」智慧啊)解題，真人解答後上傳結果回覆給委託者。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png"></p> <p>由於是委託真人破解，理論上沒有解不掉的 CAPTCHA，而依 CAPTCHA 種類不同，耗費時間跟收費也不同，每 1000 次的價格從 USD 1 塊到 2.99 不等，等於一次不到台幣一毛塊(工人拿到的報酬只會更低，十足廉價勞工)，耗時從 3 秒到 25 不等。reCaptcha、hCaptcha 是大宗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638405791141358204.png"></p> <p>Cloudflare Turnstile 也沒問題，1000 次 1.45 USD，耗時 22 秒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638405791143596966.png"></p> <p>至於我之前自製加減算數 CAPTCHA，平台有種上傳圖檔得到答案的玩法，所以即便是獨創的土砲版(像是我的加減法算數)也難逃被破解的命運，但至少對方得花時間看程式分析 CAPTCHA 圖檔及填寫位置，不像 reCaptcha、hCaptcha、Turnstile 有現成範例套用。</p> <pre><code>Normal captcha = new Normal();
-captcha.SetFile("path/to/captcha.jpg");
-captcha.SetNumeric(4);
-captcha.SetMinLen(4);
-captcha.SetMaxLen(20);
-captcha.SetPhrase(true);
-captcha.SetCaseSensitive(true);
-captcha.SetCalc(false);
-captcha.SetLang("en");
-captcha.SetHintImg(new FileInfo("path/to/hint.jpg"));
-captcha.SetHintText("Type red symbols only");
-</code></pre> <p>搞懂攻擊手法，該怎麼防守就有了頭緒，我已經想到一些反制手段(最少要製造麻煩，增加破解成本)，過陣子找時間試試。</p> <p data-slug="2captcha" data-fbimg="https://i.imgur.com/jsQGn8x.png#1123#627"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>我的部落格被某個印尼廣告商盯上，即使垃圾留言會被檢核機制阻擋，他還是孜孜不倦定期來貼不會有人看到的廣告留言，讓我很無言。過年前<a href="/blog/hcaptcha/">部落格換了 hCaptcha</a>原以為可以改善，很不幸<a href="https://www.facebook.com/darkthread.net/posts/pfbid02NxM8xgMPVfvymnTFSphvzGttcFkJUxUvgcqhTzvtrzsaHutpsk56PwrEueRMMXJjl">沒能阻止對方繼續徒勞無功</a>...</p> <p>貼文的留言區讀者俞俞丟了個關鍵字 - 2captcha，引導我認識有趣的產業 - 「在家解 CAPTCHA 賺錢 + 付費 CAPTCHA 破解服務」的線上媒合平台。</p> <p>平台服務分成兩塊：「在家接任務解 CAPTCHA 賺外快」跟「付錢找人跳過 CAPTCHA 樂開懷」。需要破解 CAPTCHA 的客戶呼叫 API 上傳相關參數，平台自動將工作派發給在線上的 Worker (Worker，名符其實的「工人」智慧啊)解題，真人解答後上傳結果回覆給委託者。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png"></p> <p>由於是委託真人破解，理論上沒有解不掉的 CAPTCHA，而依 CAPTCHA 種類不同，耗費時間跟收費也不同，每 1000 次的價格從 USD 1 塊到 2.99 不等，等於一次不到台幣一毛塊(工人拿到的報酬只會更低，十足廉價勞工)，耗時從 3 秒到 25 不等。reCaptcha、hCaptcha 是大宗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638405791141358204.png"></p> <p>Cloudflare Turnstile 也沒問題，1000 次 1.45 USD，耗時 22 秒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638405791143596966.png"></p> <p>至於我之前自製加減算數 CAPTCHA，平台有種上傳圖檔得到答案的玩法，所以即便是獨創的土砲版(像是我的加減法算數)也難逃被破解的命運，但至少對方得花時間看程式分析 CAPTCHA 圖檔及填寫位置，不像 reCaptcha、hCaptcha、Turnstile 有現成範例套用。</p> <pre><code>Normal captcha = new Normal();
-captcha.SetFile("path/to/captcha.jpg");
-captcha.SetNumeric(4);
-captcha.SetMinLen(4);
-captcha.SetMaxLen(20);
-captcha.SetPhrase(true);
-captcha.SetCaseSensitive(true);
-captcha.SetCalc(false);
-captcha.SetLang("en");
-captcha.SetHintImg(new FileInfo("path/to/hint.jpg"));
-captcha.SetHintText("Type red symbols only");
-</code></pre> <p>搞懂攻擊手法，該怎麼防守就有了頭緒，我已經想到一些反制手段(最少要製造麻煩，增加破解成本)，過陣子找時間試試。</p> <p data-slug="2captcha" data-fbimg="https://i.imgur.com/jsQGn8x.png#1123#627"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>我的部落格被某個印尼廣告商盯上，即使垃圾留言會被檢核機制阻擋，他還是孜孜不倦定期來貼不會有人看到的廣告留言，讓我很無言。過年前<a href="/blog/hcaptcha/">部落格換了 hCaptcha</a>原以為可以改善，很不幸<a href="https://www.facebook.com/darkthread.net/posts/pfbid02NxM8xgMPVfvymnTFSphvzGttcFkJUxUvgcqhTzvtrzsaHutpsk56PwrEueRMMXJjl">沒能阻止對方繼續徒勞無功</a>...</p> <p>貼文的留言區讀者俞俞丟了個關鍵字 - 2captcha，引導我認識有趣的產業 - 「在家解 CAPTCHA 賺錢 + 付費 CAPTCHA 破解服務」的線上媒合平台。</p> <p>平台服務分成兩塊：「在家接任務解 CAPTCHA 賺外快」跟「付錢找人跳過 CAPTCHA 樂開懷」。需要破解 CAPTCHA 的客戶呼叫 API 上傳相關參數，平台自動將工作派發給在線上的 Worker (Worker，名符其實的「工人」智慧啊)解題，真人解答後上傳結果回覆給委託者。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png"></p> <p>由於是委託真人破解，理論上沒有解不掉的 CAPTCHA，而依 CAPTCHA 種類不同，耗費時間跟收費也不同，每 1000 次的價格從 USD 1 塊到 2.99 不等，等於一次不到台幣一毛塊(工人拿到的報酬只會更低，十足廉價勞工)，耗時從 3 秒到 25 不等。reCaptcha、hCaptcha 是大宗：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638405791141358204.png"></p> <p>Cloudflare Turnstile 也沒問題，1000 次 1.45 USD，耗時 22 秒：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638405791143596966.png"></p> <p>至於我之前自製加減算數 CAPTCHA，平台有種上傳圖檔得到答案的玩法，所以即便是獨創的土砲版(像是我的加減法算數)也難逃被破解的命運，但至少對方得花時間看程式分析 CAPTCHA 圖檔及填寫位置，不像 reCaptcha、hCaptcha、Turnstile 有現成範例套用。</p> <pre><code>Normal captcha = new Normal();
-captcha.SetFile("path/to/captcha.jpg");
-captcha.SetNumeric(4);
-captcha.SetMinLen(4);
-captcha.SetMaxLen(20);
-captcha.SetPhrase(true);
-captcha.SetCaseSensitive(true);
-captcha.SetCalc(false);
-captcha.SetLang("en");
-captcha.SetHintImg(new FileInfo("path/to/hint.jpg"));
-captcha.SetHintText("Type red symbols only");
-</code></pre> <p>搞懂攻擊手法，該怎麼防守就有了頭緒，我已經想到一些反制手段(最少要製造麻煩，增加破解成本)，過陣子找時間試試。</p> <p data-slug="2captcha" data-fbimg="https://i.imgur.com/jsQGn8x.png#1123#627"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638405791136868264.png" medium="image"/>
-    <pubDate>Thu, 11 Jan 2024 01:05:29 GMT</pubDate>
   </item></channel>
 </rss>
