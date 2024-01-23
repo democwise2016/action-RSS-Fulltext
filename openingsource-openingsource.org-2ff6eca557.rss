@@ -30,6 +30,441 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1083期：Next.js实现购物平台项目：《c-shopping》]]></title>
+    <link>https://openingsource.org/11559/</link>
+    <itunes:title><![CDATA[开源日报第1083期：Next.js实现购物平台项目：《c-shopping》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1083期：Next.js实现购物平台项目：《c-shopping》<br>
+2024年1月23日，开源日报第1083期：<br>
+今日推荐开源项目：《c-shopping》<br>
+今日推荐英文原文：《Mastering React Portal in 2024》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240124.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《c-shopping》传送门：<a href="https://github.com/huanghanzhilian/c-shopping" target="_blank">项目链接</a> </p>
+<p>推荐理由： 一个使用Next.js开发的精美购物平台，专为包括桌面、平板和手机在内的各种设备量身定制</p>
+<p>网站直达：shop.huanghanlian.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/mastering-react-portals-in-2024-c4f920706b5e" target="_blank">Mastering React Portal in 2024</a></p>
+<p>推荐理由：React Portal 在解决模态框等场景中的问题时具有强大的功能，通过创建两个不同的层次结构，一个用于组件，另一个用于在 DOM 上进行样式和定位，Portal 实现了逻辑和显示的分离</p>
+<hr>
+<h1>Mastering React Portal in 2024</h1>
+<p>Today, let’s explore the power of <strong>React Portals</strong>. 🚀</p>
+<p>Every <strong>React</strong> developer already had to handle some of the following situations:</p>
+<blockquote>
+<p>Positioning a modal outside the parent component.</p>
+<p>Creating some “out of the screen” functionality, such as a Toast handler, or Chat App.</p>
+<p>When building some popup that covers the entire screen and is reused on several pages.</p>
+</blockquote>
+<p>Now, despite which problem you had, I bet you resorted to this solution 😅:</p>
+<p>1 — Make the modal appended to the main <strong>HTML</strong> document <code>**position:absolute**</code> or <code>**position:fixed**</code></p>
+<p>2 — Control <strong>CSS</strong> cascading <code>**z-index**</code> by setting values to each component on your screen.</p>
+<p>This solution may sound solid, but there are several drawbacks:</p>
+<blockquote>
+<p>You can’t always separate the styling from the parent component from the child (modal), especially if you are reusing the same modal on several pages. Think about a Chat App or some popup.</p>
+<p>If you have several configurations of <code>**z-indexes**</code> on several pages, you will probably have to randomly select indexes that make what you want. This is terrible for code reusability.</p>
+<p>Another problem with z-index is that the stacking order depends also on the stacking context, making it hard to use when your scope starts to scale.</p>
+<p>Your code and your styling have the same parent-child relation when it’s not really what you want. This isn’t good for code readability and separation of concerns.</p>
+<p>Event Bubbling may become an issue. <strong>CSS</strong> positioning may not always propagate as expected.</p>
+</blockquote>
+<p>I think you got it. Now, what can we do?</p>
+<p>Well, <strong>React</strong> provides a cleaver way to solve all these problems with a simple approach: Portals</p>
+<h1><strong>What Are Portals?</strong></h1>
+<p>A <strong>Portal</strong> is a functionality in <strong>React</strong> that allows you to create two different hierarchies: one for your components (normal tree-like structure), and the other for your styling and positioning on the <strong>DOM</strong> (<strong>Document Object Model</strong>). That way, you can separate what is being from what is shown.</p>
+<p>As the <em>React Documentation</em> states:</p>
+<blockquote>
+<p>A portal only changes the physical placement of the DOM node. In every other way, the JSX you render into a portal acts as a child node of the React component that renders it.</p>
+</blockquote>
+<p>And how to use it? The main instruction to create a <strong>Portal</strong> is:</p>
+<pre><code>createPortal(children, domNode, key?)</code></pre>
+<p>Where:</p>
+<blockquote>
+<p>· children are all components that compose your modal.</p>
+<p>· <code>**domNode**</code> is the element on your <strong>DOM</strong> that will be used to display your component.</p>
+<p>· key (optional), used as a unique ID for your portal.</p>
+</blockquote>
+<p>And this command returns a <strong>React Node</strong>, that can be included in your <strong>JSX</strong>. Imagine this syntax as a kind of a flag: when <strong>React</strong> finds it, it’s indicative that its children must be rendered related to the <strong>domNode</strong>, and not respecting the <strong>JSX</strong> hierarchy.</p>
+<p>Just one additional concern is regarding event propagation: despite being rendered on the <strong>domNode</strong>, events will still follow the <strong>JSX</strong> tree logic.</p>
+<h1>How to use Portals</h1>
+<p>Now we are going to learn how to use it. We will create a new React project together. I am assuming you already have <strong>Node.js</strong> and npm installed 🛠️.</p>
+<p>To simplify the styling process, we will be using <strong>TailwindCSS</strong>. Open your <strong>Terminal</strong> and type:</p>
+<pre><code>npx create-next-app@latest</code></pre>
+<p>Then name it <strong>toast-demo, Yes</strong> to Typescript, <strong>Yes</strong> to <strong>TailwindCSS</strong>, and <strong>Yes</strong> to the src directory</p>
+<p>Now, cd <code>**toast-demo**</code>, then open the project (I am using <em>VS Code</em>)</p>
+<p>Inside the folder <code>**src/pages**</code>, open the <code>**index.tsx**</code> file and change it’s <code>**Home**</code> function to this:</p>
+<pre><code>import { useState } from "react";
+export default function Home() {
+//Simple state. used to switch between open and closed modal
+const [openModal, setOpenModal] = useState(false);
+//Our Modal. Still not using React Portal
+//It will only display if the openModal state is TRUE.
+const modal = openModal &amp;&amp; (
+&lt;div className='bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;
+);
+//Our return statement
+return (
+// Our main div. It's covering the entire screen, and keeping the elements in a flex column.
+&lt;div className="fixed w-full h-full flex flex-col items-center justify-center bg-white text-black gap-4"&gt;
+{/* Just Text */}
+&lt;p&gt;This is the click me parent section&lt;/p&gt;
+{/* Our button, that opens the modal */}
+&lt;button
+className="bg-blue-400 rounded-full p-4 cursor-pointer"
+onClick = {() =&gt; {setOpenModal(!openModal)}}&gt;
+Click Me to open the Modal
+&lt;/button&gt;
+{/* Our modal. It's not using portals yet. */}
+{modal}
+&lt;/div&gt;
+);
+}</code></pre>
+<p>Just a brief explanation. We are creating a main element that is fixed and covers the entire screen. It has a text element and a button, both one below the other. We are including some configuration, a text color, and a background color. We are also adding the cursor-pointer on the button for future use.</p>
+<p>Now let’s run. Type the following command and open the <code>**localhost**</code> on your browser:</p>
+<pre><code>npm run dev</code></pre>
+<p>And you should see the text, the button. If you click the button, the modal will appear below the other two elements, as expected. If the inspect, we should see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*oyY3bO2g1wotZ5vfhMv9YA.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — No Portals</p>
+<p>As we can see, the hierarchy is preserved both in <strong>JSX</strong> and in the <strong>DOM</strong>. Our modal div is under the main <code>**&lt;div&gt;**</code>, and has the <code>**&lt;p&gt;**</code> and the <code>**&lt;button&gt;**</code> as its siblings.</p>
+<p>Now we are going to add our <strong>Portal</strong>. Change the code to the following:</p>
+<pre><code>import { createPortal } from "react-dom";
+...
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>This time, if you run the code, you will see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*cKyLOkHcZe_KhWdbuykMMg.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — With the use of Portals</p>
+<p>Look closely. A couple of important things are happening here:</p>
+<ul>
+<li>Now, despite our modal still being inside our main <code>**&lt;div&gt;**</code> element on <strong>JSX</strong>, it’s being rendered right under the document <code>**&lt;body&gt;**</code>, having our main <code>**&lt;div&gt;**</code> as a sibling instead of a parent.</li>
+<li>It’s being displayed anywhere else, as we haven’t added much styling to it. As it’s at the bottom of the <code>**&lt;body&gt;**</code>, it is being displayed on top of our main <code>**&lt;div&gt;**</code>.</li>
+<li>Last but not least, notice that the text color is not black anymore, but the default white from the <strong>NextJS</strong> project. It happens because, as we talked about previously, our portal doesn’t have to comply with its <strong>JSX</strong> parent styling, and only responds to what the document <code>**&lt;body&gt;**</code> tells it.</li>
+</ul>
+<p>As you can see, <strong>React Portals</strong> allow us to separate concerns regarding code logic and the <strong>DOM</strong> disposition. With this approach in mind, we can create modals that are reusable and can be instantiated on several pages with minor to no changes. Let’s finish this first part with a demonstration of how we can handle event propagation.</p>
+<p>We can do this in several ways, but I will keep it simple and use <code>**pointer-events-none**</code> it to ignore mouse events. That said, change your modal code to the following:</p>
+<pre><code>  //Our Modal. Now with React Portals
+//We are adding the pointer-events-none to our main div, in order to make it ignore pointer events.
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed w-full h-full bg-black bg-opacity-[80%] bg-red-200 flex items-start justify-center pointer-events-none'&gt;
+&lt;div className="p-8 mt-8 bg-white rounded-full text-black"&gt;
+I am a Portal, but I am also invisible to mouse clicks!
+&lt;/div&gt;
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>The use of <code>**pointer-events-none**</code> ensures that the modal ignores mouse events, allowing interaction with the elements behind it. This is particularly useful when you want to create a modal overlay that doesn't interfere with elements beneath it.</p>
+<p>And run. Now you can see that you are still able to close the <strong>Portal</strong> by clicking the button. And if you hover over the button, the cursor will still change.</p>
+<p>Okay, I think you know almost everything there is to know about <strong>React</strong> <strong>Portals</strong> to start using it. I just want to finish with one last (and not very used, I must agree) feature of <strong>React Portals</strong>, which is the rendering element.</p>
+<p>Did you notice that we used <code>**document.body**</code> our <strong>Portal’s</strong> parent element? Well, we can change it if you want to. You can use some component’s reference or name.</p>
+<pre><code>// Our Modal. Now with React Portals using a custom rendering element.
+const modal = openModal &amp;&amp; (
+createPortal(
+&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.getElementById("your-element-id"))
+);</code></pre>
+<p>And add the <code>**property id**</code> to the element you want.</p>
+<p>And that’s it for today. I hope now you understand how to use <strong>React Portals</strong> and start using them on your next modal.</p>
+<p>Looking forward to seeing you soon! 👋</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1083期：Next.js实现购物平台项目：《c-shopping》<br>
+2024年1月23日，开源日报第1083期：<br>
+今日推荐开源项目：《c-shopping》<br>
+今日推荐英文原文：《Mastering React Portal in 2024》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240124.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《c-shopping》传送门：<a href="https://github.com/huanghanzhilian/c-shopping" target="_blank">项目链接</a> </p>
+<p>推荐理由： 一个使用Next.js开发的精美购物平台，专为包括桌面、平板和手机在内的各种设备量身定制</p>
+<p>网站直达：shop.huanghanlian.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/mastering-react-portals-in-2024-c4f920706b5e" target="_blank">Mastering React Portal in 2024</a></p>
+<p>推荐理由：React Portal 在解决模态框等场景中的问题时具有强大的功能，通过创建两个不同的层次结构，一个用于组件，另一个用于在 DOM 上进行样式和定位，Portal 实现了逻辑和显示的分离</p>
+<hr>
+<h1>Mastering React Portal in 2024</h1>
+<p>Today, let’s explore the power of <strong>React Portals</strong>. 🚀</p>
+<p>Every <strong>React</strong> developer already had to handle some of the following situations:</p>
+<blockquote>
+<p>Positioning a modal outside the parent component.</p>
+<p>Creating some “out of the screen” functionality, such as a Toast handler, or Chat App.</p>
+<p>When building some popup that covers the entire screen and is reused on several pages.</p>
+</blockquote>
+<p>Now, despite which problem you had, I bet you resorted to this solution 😅:</p>
+<p>1 — Make the modal appended to the main <strong>HTML</strong> document <code>**position:absolute**</code> or <code>**position:fixed**</code></p>
+<p>2 — Control <strong>CSS</strong> cascading <code>**z-index**</code> by setting values to each component on your screen.</p>
+<p>This solution may sound solid, but there are several drawbacks:</p>
+<blockquote>
+<p>You can’t always separate the styling from the parent component from the child (modal), especially if you are reusing the same modal on several pages. Think about a Chat App or some popup.</p>
+<p>If you have several configurations of <code>**z-indexes**</code> on several pages, you will probably have to randomly select indexes that make what you want. This is terrible for code reusability.</p>
+<p>Another problem with z-index is that the stacking order depends also on the stacking context, making it hard to use when your scope starts to scale.</p>
+<p>Your code and your styling have the same parent-child relation when it’s not really what you want. This isn’t good for code readability and separation of concerns.</p>
+<p>Event Bubbling may become an issue. <strong>CSS</strong> positioning may not always propagate as expected.</p>
+</blockquote>
+<p>I think you got it. Now, what can we do?</p>
+<p>Well, <strong>React</strong> provides a cleaver way to solve all these problems with a simple approach: Portals</p>
+<h1><strong>What Are Portals?</strong></h1>
+<p>A <strong>Portal</strong> is a functionality in <strong>React</strong> that allows you to create two different hierarchies: one for your components (normal tree-like structure), and the other for your styling and positioning on the <strong>DOM</strong> (<strong>Document Object Model</strong>). That way, you can separate what is being from what is shown.</p>
+<p>As the <em>React Documentation</em> states:</p>
+<blockquote>
+<p>A portal only changes the physical placement of the DOM node. In every other way, the JSX you render into a portal acts as a child node of the React component that renders it.</p>
+</blockquote>
+<p>And how to use it? The main instruction to create a <strong>Portal</strong> is:</p>
+<pre><code>createPortal(children, domNode, key?)</code></pre>
+<p>Where:</p>
+<blockquote>
+<p>· children are all components that compose your modal.</p>
+<p>· <code>**domNode**</code> is the element on your <strong>DOM</strong> that will be used to display your component.</p>
+<p>· key (optional), used as a unique ID for your portal.</p>
+</blockquote>
+<p>And this command returns a <strong>React Node</strong>, that can be included in your <strong>JSX</strong>. Imagine this syntax as a kind of a flag: when <strong>React</strong> finds it, it’s indicative that its children must be rendered related to the <strong>domNode</strong>, and not respecting the <strong>JSX</strong> hierarchy.</p>
+<p>Just one additional concern is regarding event propagation: despite being rendered on the <strong>domNode</strong>, events will still follow the <strong>JSX</strong> tree logic.</p>
+<h1>How to use Portals</h1>
+<p>Now we are going to learn how to use it. We will create a new React project together. I am assuming you already have <strong>Node.js</strong> and npm installed 🛠️.</p>
+<p>To simplify the styling process, we will be using <strong>TailwindCSS</strong>. Open your <strong>Terminal</strong> and type:</p>
+<pre><code>npx create-next-app@latest</code></pre>
+<p>Then name it <strong>toast-demo, Yes</strong> to Typescript, <strong>Yes</strong> to <strong>TailwindCSS</strong>, and <strong>Yes</strong> to the src directory</p>
+<p>Now, cd <code>**toast-demo**</code>, then open the project (I am using <em>VS Code</em>)</p>
+<p>Inside the folder <code>**src/pages**</code>, open the <code>**index.tsx**</code> file and change it’s <code>**Home**</code> function to this:</p>
+<pre><code>import { useState } from "react";
+export default function Home() {
+//Simple state. used to switch between open and closed modal
+const [openModal, setOpenModal] = useState(false);
+//Our Modal. Still not using React Portal
+//It will only display if the openModal state is TRUE.
+const modal = openModal &amp;&amp; (
+&lt;div className='bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;
+);
+//Our return statement
+return (
+// Our main div. It's covering the entire screen, and keeping the elements in a flex column.
+&lt;div className="fixed w-full h-full flex flex-col items-center justify-center bg-white text-black gap-4"&gt;
+{/* Just Text */}
+&lt;p&gt;This is the click me parent section&lt;/p&gt;
+{/* Our button, that opens the modal */}
+&lt;button
+className="bg-blue-400 rounded-full p-4 cursor-pointer"
+onClick = {() =&gt; {setOpenModal(!openModal)}}&gt;
+Click Me to open the Modal
+&lt;/button&gt;
+{/* Our modal. It's not using portals yet. */}
+{modal}
+&lt;/div&gt;
+);
+}</code></pre>
+<p>Just a brief explanation. We are creating a main element that is fixed and covers the entire screen. It has a text element and a button, both one below the other. We are including some configuration, a text color, and a background color. We are also adding the cursor-pointer on the button for future use.</p>
+<p>Now let’s run. Type the following command and open the <code>**localhost**</code> on your browser:</p>
+<pre><code>npm run dev</code></pre>
+<p>And you should see the text, the button. If you click the button, the modal will appear below the other two elements, as expected. If the inspect, we should see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*oyY3bO2g1wotZ5vfhMv9YA.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — No Portals</p>
+<p>As we can see, the hierarchy is preserved both in <strong>JSX</strong> and in the <strong>DOM</strong>. Our modal div is under the main <code>**&lt;div&gt;**</code>, and has the <code>**&lt;p&gt;**</code> and the <code>**&lt;button&gt;**</code> as its siblings.</p>
+<p>Now we are going to add our <strong>Portal</strong>. Change the code to the following:</p>
+<pre><code>import { createPortal } from "react-dom";
+...
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>This time, if you run the code, you will see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*cKyLOkHcZe_KhWdbuykMMg.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — With the use of Portals</p>
+<p>Look closely. A couple of important things are happening here:</p>
+<ul>
+<li>Now, despite our modal still being inside our main <code>**&lt;div&gt;**</code> element on <strong>JSX</strong>, it’s being rendered right under the document <code>**&lt;body&gt;**</code>, having our main <code>**&lt;div&gt;**</code> as a sibling instead of a parent.</li>
+<li>It’s being displayed anywhere else, as we haven’t added much styling to it. As it’s at the bottom of the <code>**&lt;body&gt;**</code>, it is being displayed on top of our main <code>**&lt;div&gt;**</code>.</li>
+<li>Last but not least, notice that the text color is not black anymore, but the default white from the <strong>NextJS</strong> project. It happens because, as we talked about previously, our portal doesn’t have to comply with its <strong>JSX</strong> parent styling, and only responds to what the document <code>**&lt;body&gt;**</code> tells it.</li>
+</ul>
+<p>As you can see, <strong>React Portals</strong> allow us to separate concerns regarding code logic and the <strong>DOM</strong> disposition. With this approach in mind, we can create modals that are reusable and can be instantiated on several pages with minor to no changes. Let’s finish this first part with a demonstration of how we can handle event propagation.</p>
+<p>We can do this in several ways, but I will keep it simple and use <code>**pointer-events-none**</code> it to ignore mouse events. That said, change your modal code to the following:</p>
+<pre><code>  //Our Modal. Now with React Portals
+//We are adding the pointer-events-none to our main div, in order to make it ignore pointer events.
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed w-full h-full bg-black bg-opacity-[80%] bg-red-200 flex items-start justify-center pointer-events-none'&gt;
+&lt;div className="p-8 mt-8 bg-white rounded-full text-black"&gt;
+I am a Portal, but I am also invisible to mouse clicks!
+&lt;/div&gt;
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>The use of <code>**pointer-events-none**</code> ensures that the modal ignores mouse events, allowing interaction with the elements behind it. This is particularly useful when you want to create a modal overlay that doesn't interfere with elements beneath it.</p>
+<p>And run. Now you can see that you are still able to close the <strong>Portal</strong> by clicking the button. And if you hover over the button, the cursor will still change.</p>
+<p>Okay, I think you know almost everything there is to know about <strong>React</strong> <strong>Portals</strong> to start using it. I just want to finish with one last (and not very used, I must agree) feature of <strong>React Portals</strong>, which is the rendering element.</p>
+<p>Did you notice that we used <code>**document.body**</code> our <strong>Portal’s</strong> parent element? Well, we can change it if you want to. You can use some component’s reference or name.</p>
+<pre><code>// Our Modal. Now with React Portals using a custom rendering element.
+const modal = openModal &amp;&amp; (
+createPortal(
+&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.getElementById("your-element-id"))
+);</code></pre>
+<p>And add the <code>**property id**</code> to the element you want.</p>
+<p>And that’s it for today. I hope now you understand how to use <strong>React Portals</strong> and start using them on your next modal.</p>
+<p>Looking forward to seeing you soon! 👋</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1083期：Next.js实现购物平台项目：《c-shopping》<br>
+2024年1月23日，开源日报第1083期：<br>
+今日推荐开源项目：《c-shopping》<br>
+今日推荐英文原文：《Mastering React Portal in 2024》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/osd-20240124.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《c-shopping》传送门：<a href="https://github.com/huanghanzhilian/c-shopping" target="_blank">项目链接</a> </p>
+<p>推荐理由： 一个使用Next.js开发的精美购物平台，专为包括桌面、平板和手机在内的各种设备量身定制</p>
+<p>网站直达：shop.huanghanlian.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/stackademic/mastering-react-portals-in-2024-c4f920706b5e" target="_blank">Mastering React Portal in 2024</a></p>
+<p>推荐理由：React Portal 在解决模态框等场景中的问题时具有强大的功能，通过创建两个不同的层次结构，一个用于组件，另一个用于在 DOM 上进行样式和定位，Portal 实现了逻辑和显示的分离</p>
+<hr>
+<h1>Mastering React Portal in 2024</h1>
+<p>Today, let’s explore the power of <strong>React Portals</strong>. 🚀</p>
+<p>Every <strong>React</strong> developer already had to handle some of the following situations:</p>
+<blockquote>
+<p>Positioning a modal outside the parent component.</p>
+<p>Creating some “out of the screen” functionality, such as a Toast handler, or Chat App.</p>
+<p>When building some popup that covers the entire screen and is reused on several pages.</p>
+</blockquote>
+<p>Now, despite which problem you had, I bet you resorted to this solution 😅:</p>
+<p>1 — Make the modal appended to the main <strong>HTML</strong> document <code>**position:absolute**</code> or <code>**position:fixed**</code></p>
+<p>2 — Control <strong>CSS</strong> cascading <code>**z-index**</code> by setting values to each component on your screen.</p>
+<p>This solution may sound solid, but there are several drawbacks:</p>
+<blockquote>
+<p>You can’t always separate the styling from the parent component from the child (modal), especially if you are reusing the same modal on several pages. Think about a Chat App or some popup.</p>
+<p>If you have several configurations of <code>**z-indexes**</code> on several pages, you will probably have to randomly select indexes that make what you want. This is terrible for code reusability.</p>
+<p>Another problem with z-index is that the stacking order depends also on the stacking context, making it hard to use when your scope starts to scale.</p>
+<p>Your code and your styling have the same parent-child relation when it’s not really what you want. This isn’t good for code readability and separation of concerns.</p>
+<p>Event Bubbling may become an issue. <strong>CSS</strong> positioning may not always propagate as expected.</p>
+</blockquote>
+<p>I think you got it. Now, what can we do?</p>
+<p>Well, <strong>React</strong> provides a cleaver way to solve all these problems with a simple approach: Portals</p>
+<h1><strong>What Are Portals?</strong></h1>
+<p>A <strong>Portal</strong> is a functionality in <strong>React</strong> that allows you to create two different hierarchies: one for your components (normal tree-like structure), and the other for your styling and positioning on the <strong>DOM</strong> (<strong>Document Object Model</strong>). That way, you can separate what is being from what is shown.</p>
+<p>As the <em>React Documentation</em> states:</p>
+<blockquote>
+<p>A portal only changes the physical placement of the DOM node. In every other way, the JSX you render into a portal acts as a child node of the React component that renders it.</p>
+</blockquote>
+<p>And how to use it? The main instruction to create a <strong>Portal</strong> is:</p>
+<pre><code>createPortal(children, domNode, key?)</code></pre>
+<p>Where:</p>
+<blockquote>
+<p>· children are all components that compose your modal.</p>
+<p>· <code>**domNode**</code> is the element on your <strong>DOM</strong> that will be used to display your component.</p>
+<p>· key (optional), used as a unique ID for your portal.</p>
+</blockquote>
+<p>And this command returns a <strong>React Node</strong>, that can be included in your <strong>JSX</strong>. Imagine this syntax as a kind of a flag: when <strong>React</strong> finds it, it’s indicative that its children must be rendered related to the <strong>domNode</strong>, and not respecting the <strong>JSX</strong> hierarchy.</p>
+<p>Just one additional concern is regarding event propagation: despite being rendered on the <strong>domNode</strong>, events will still follow the <strong>JSX</strong> tree logic.</p>
+<h1>How to use Portals</h1>
+<p>Now we are going to learn how to use it. We will create a new React project together. I am assuming you already have <strong>Node.js</strong> and npm installed 🛠️.</p>
+<p>To simplify the styling process, we will be using <strong>TailwindCSS</strong>. Open your <strong>Terminal</strong> and type:</p>
+<pre><code>npx create-next-app@latest</code></pre>
+<p>Then name it <strong>toast-demo, Yes</strong> to Typescript, <strong>Yes</strong> to <strong>TailwindCSS</strong>, and <strong>Yes</strong> to the src directory</p>
+<p>Now, cd <code>**toast-demo**</code>, then open the project (I am using <em>VS Code</em>)</p>
+<p>Inside the folder <code>**src/pages**</code>, open the <code>**index.tsx**</code> file and change it’s <code>**Home**</code> function to this:</p>
+<pre><code>import { useState } from "react";
+export default function Home() {
+//Simple state. used to switch between open and closed modal
+const [openModal, setOpenModal] = useState(false);
+//Our Modal. Still not using React Portal
+//It will only display if the openModal state is TRUE.
+const modal = openModal &amp;&amp; (
+&lt;div className='bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;
+);
+//Our return statement
+return (
+// Our main div. It's covering the entire screen, and keeping the elements in a flex column.
+&lt;div className="fixed w-full h-full flex flex-col items-center justify-center bg-white text-black gap-4"&gt;
+{/* Just Text */}
+&lt;p&gt;This is the click me parent section&lt;/p&gt;
+{/* Our button, that opens the modal */}
+&lt;button
+className="bg-blue-400 rounded-full p-4 cursor-pointer"
+onClick = {() =&gt; {setOpenModal(!openModal)}}&gt;
+Click Me to open the Modal
+&lt;/button&gt;
+{/* Our modal. It's not using portals yet. */}
+{modal}
+&lt;/div&gt;
+);
+}</code></pre>
+<p>Just a brief explanation. We are creating a main element that is fixed and covers the entire screen. It has a text element and a button, both one below the other. We are including some configuration, a text color, and a background color. We are also adding the cursor-pointer on the button for future use.</p>
+<p>Now let’s run. Type the following command and open the <code>**localhost**</code> on your browser:</p>
+<pre><code>npm run dev</code></pre>
+<p>And you should see the text, the button. If you click the button, the modal will appear below the other two elements, as expected. If the inspect, we should see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*oyY3bO2g1wotZ5vfhMv9YA.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — No Portals</p>
+<p>As we can see, the hierarchy is preserved both in <strong>JSX</strong> and in the <strong>DOM</strong>. Our modal div is under the main <code>**&lt;div&gt;**</code>, and has the <code>**&lt;p&gt;**</code> and the <code>**&lt;button&gt;**</code> as its siblings.</p>
+<p>Now we are going to add our <strong>Portal</strong>. Change the code to the following:</p>
+<pre><code>import { createPortal } from "react-dom";
+...
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>This time, if you run the code, you will see the following:</p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*cKyLOkHcZe_KhWdbuykMMg.png" alt="img"></p>
+<p>JSX tree structure vs DOM structure — With the use of Portals</p>
+<p>Look closely. A couple of important things are happening here:</p>
+<ul>
+<li>Now, despite our modal still being inside our main <code>**&lt;div&gt;**</code> element on <strong>JSX</strong>, it’s being rendered right under the document <code>**&lt;body&gt;**</code>, having our main <code>**&lt;div&gt;**</code> as a sibling instead of a parent.</li>
+<li>It’s being displayed anywhere else, as we haven’t added much styling to it. As it’s at the bottom of the <code>**&lt;body&gt;**</code>, it is being displayed on top of our main <code>**&lt;div&gt;**</code>.</li>
+<li>Last but not least, notice that the text color is not black anymore, but the default white from the <strong>NextJS</strong> project. It happens because, as we talked about previously, our portal doesn’t have to comply with its <strong>JSX</strong> parent styling, and only responds to what the document <code>**&lt;body&gt;**</code> tells it.</li>
+</ul>
+<p>As you can see, <strong>React Portals</strong> allow us to separate concerns regarding code logic and the <strong>DOM</strong> disposition. With this approach in mind, we can create modals that are reusable and can be instantiated on several pages with minor to no changes. Let’s finish this first part with a demonstration of how we can handle event propagation.</p>
+<p>We can do this in several ways, but I will keep it simple and use <code>**pointer-events-none**</code> it to ignore mouse events. That said, change your modal code to the following:</p>
+<pre><code>  //Our Modal. Now with React Portals
+//We are adding the pointer-events-none to our main div, in order to make it ignore pointer events.
+const modal = openModal &amp;&amp; (
+createPortal(&lt;div className='fixed w-full h-full bg-black bg-opacity-[80%] bg-red-200 flex items-start justify-center pointer-events-none'&gt;
+&lt;div className="p-8 mt-8 bg-white rounded-full text-black"&gt;
+I am a Portal, but I am also invisible to mouse clicks!
+&lt;/div&gt;
+&lt;/div&gt;, document.body) //We are using the DOM body as our
+);</code></pre>
+<p>The use of <code>**pointer-events-none**</code> ensures that the modal ignores mouse events, allowing interaction with the elements behind it. This is particularly useful when you want to create a modal overlay that doesn't interfere with elements beneath it.</p>
+<p>And run. Now you can see that you are still able to close the <strong>Portal</strong> by clicking the button. And if you hover over the button, the cursor will still change.</p>
+<p>Okay, I think you know almost everything there is to know about <strong>React</strong> <strong>Portals</strong> to start using it. I just want to finish with one last (and not very used, I must agree) feature of <strong>React Portals</strong>, which is the rendering element.</p>
+<p>Did you notice that we used <code>**document.body**</code> our <strong>Portal’s</strong> parent element? Well, we can change it if you want to. You can use some component’s reference or name.</p>
+<pre><code>// Our Modal. Now with React Portals using a custom rendering element.
+const modal = openModal &amp;&amp; (
+createPortal(
+&lt;div className='fixed bg-red-200 rounded-full p-4'&gt;
+Hello! I am the Portal!
+&lt;/div&gt;, document.getElementById("your-element-id"))
+);</code></pre>
+<p>And add the <code>**property id**</code> to the element you want.</p>
+<p>And that’s it for today. I hope now you understand how to use <strong>React Portals</strong> and start using them on your next modal.</p>
+<p>Looking forward to seeing you soon! 👋</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240124.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240124.jpg" medium="image"/>
+    <pubDate>Tue, 23 Jan 2024 13:58:00 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1082期：深度学习框架：《transformers.js》]]></title>
     <link>https://openingsource.org/11556/</link>
     <itunes:title><![CDATA[开源日报第1082期：深度学习框架：《transformers.js》]]></itunes:title>
@@ -2000,92 +2435,5 @@ export default HoverExample;</code></pre>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/osd-20240116.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/osd-20240116.jpg" medium="image"/>
     <pubDate>Tue, 16 Jan 2024 12:24:16 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[GUADEC 2024 开放演讲报名，2月18日截止]]></title>
-    <link>https://openingsource.org/6618/</link>
-    <itunes:title><![CDATA[GUADEC 2024 开放演讲报名，2月18日截止]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>GUADEC 2024 峰会将于 7 月 19 日至 24 日在充满活力的科罗拉多州丹佛市举行，这是GNOME 基金会在北美举行的第二次会议，也是在美国的首次活动。GUADEC 2024 将继续作为混合活动举办，与会者可以通过虚拟方式或亲自在位于丹佛的场地参加。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp"></p>
-<p>丹佛坐落在落基山脉的壮丽背景下，因其海拔而被称为“英里高城”。丹佛拥有蓬勃发展的科技社区、多元化的社区和丰富的文化景观，为 GUADEC 2024 提供了完美的背景。探索这座城市著名的美食、户外探险和独特的景点。 会议场地 Auraria Campus 位于丹佛市中心附近。</p>
-<p>GUADEC 2024 的演讲正式于1月10日开放，2月18日截至，话题包括但不限于下列：</p>
-<ul>
-<li>应用开发</li>
-<li>隐私和安全</li>
-<li>社区和团队建设</li>
-<li>用户和开发者体验的设计</li>
-<li>在桌面之外使用 GNOME 技术</li>
-<li>新人倡议</li>
-<li>项目规划和治理</li>
-</ul>
-<h3>活动日期</h3>
-<ul>
-<li>7 月 19 日至 21 日（周五至周日）：峰会及演讲</li>
-<li>7 月 22 日至 23 日（周一至周二）：BoF 和研讨会</li>
-<li>7 月 24 日（星期三）：社交日</li>
-</ul>
-<h3>报名参加</h3>
-<ul>
-<li>报名演讲：<a href="https://events.gnome.org/event/209/abstracts/" target="_blank">https://events.gnome.org/event/209/abstracts/</a></li>
-<li>报名参加：<a href="https://events.gnome.org/event/209/" target="_blank">https://events.gnome.org/event/209/</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome/">GNOME</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec/">GUADEC</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec-2024/">GUADEC 2024</a></span><span><i></i> <a href="https://openingsource.org/tag/%e4%b8%b9%e4%bd%9b/">丹佛</a></span><span><i></i> <a href="https://openingsource.org/tag/%e7%be%8e%e5%9b%bd/">美国</a></span></div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>GUADEC 2024 峰会将于 7 月 19 日至 24 日在充满活力的科罗拉多州丹佛市举行，这是GNOME 基金会在北美举行的第二次会议，也是在美国的首次活动。GUADEC 2024 将继续作为混合活动举办，与会者可以通过虚拟方式或亲自在位于丹佛的场地参加。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp"></p>
-<p>丹佛坐落在落基山脉的壮丽背景下，因其海拔而被称为“英里高城”。丹佛拥有蓬勃发展的科技社区、多元化的社区和丰富的文化景观，为 GUADEC 2024 提供了完美的背景。探索这座城市著名的美食、户外探险和独特的景点。 会议场地 Auraria Campus 位于丹佛市中心附近。</p>
-<p>GUADEC 2024 的演讲正式于1月10日开放，2月18日截至，话题包括但不限于下列：</p>
-<ul>
-<li>应用开发</li>
-<li>隐私和安全</li>
-<li>社区和团队建设</li>
-<li>用户和开发者体验的设计</li>
-<li>在桌面之外使用 GNOME 技术</li>
-<li>新人倡议</li>
-<li>项目规划和治理</li>
-</ul>
-<h3>活动日期</h3>
-<ul>
-<li>7 月 19 日至 21 日（周五至周日）：峰会及演讲</li>
-<li>7 月 22 日至 23 日（周一至周二）：BoF 和研讨会</li>
-<li>7 月 24 日（星期三）：社交日</li>
-</ul>
-<h3>报名参加</h3>
-<ul>
-<li>报名演讲：<a href="https://events.gnome.org/event/209/abstracts/" target="_blank">https://events.gnome.org/event/209/abstracts/</a></li>
-<li>报名参加：<a href="https://events.gnome.org/event/209/" target="_blank">https://events.gnome.org/event/209/</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome/">GNOME</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec/">GUADEC</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec-2024/">GUADEC 2024</a></span><span><i></i> <a href="https://openingsource.org/tag/%e4%b8%b9%e4%bd%9b/">丹佛</a></span><span><i></i> <a href="https://openingsource.org/tag/%e7%be%8e%e5%9b%bd/">美国</a></span></div>]]>
-    </description>
-    <content:encoded><![CDATA[<p>GUADEC 2024 峰会将于 7 月 19 日至 24 日在充满活力的科罗拉多州丹佛市举行，这是GNOME 基金会在北美举行的第二次会议，也是在美国的首次活动。GUADEC 2024 将继续作为混合活动举办，与会者可以通过虚拟方式或亲自在位于丹佛的场地参加。</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp"></p>
-<p>丹佛坐落在落基山脉的壮丽背景下，因其海拔而被称为“英里高城”。丹佛拥有蓬勃发展的科技社区、多元化的社区和丰富的文化景观，为 GUADEC 2024 提供了完美的背景。探索这座城市著名的美食、户外探险和独特的景点。 会议场地 Auraria Campus 位于丹佛市中心附近。</p>
-<p>GUADEC 2024 的演讲正式于1月10日开放，2月18日截至，话题包括但不限于下列：</p>
-<ul>
-<li>应用开发</li>
-<li>隐私和安全</li>
-<li>社区和团队建设</li>
-<li>用户和开发者体验的设计</li>
-<li>在桌面之外使用 GNOME 技术</li>
-<li>新人倡议</li>
-<li>项目规划和治理</li>
-</ul>
-<h3>活动日期</h3>
-<ul>
-<li>7 月 19 日至 21 日（周五至周日）：峰会及演讲</li>
-<li>7 月 22 日至 23 日（周一至周二）：BoF 和研讨会</li>
-<li>7 月 24 日（星期三）：社交日</li>
-</ul>
-<h3>报名参加</h3>
-<ul>
-<li>报名演讲：<a href="https://events.gnome.org/event/209/abstracts/" target="_blank">https://events.gnome.org/event/209/abstracts/</a></li>
-<li>报名参加：<a href="https://events.gnome.org/event/209/" target="_blank">https://events.gnome.org/event/209/</a></li>
-</ul>
-<div><span><i></i> <a href="https://openingsource.org/tag/gnome/">GNOME</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec/">GUADEC</a></span><span><i></i> <a href="https://openingsource.org/tag/guadec-2024/">GUADEC 2024</a></span><span><i></i> <a href="https://openingsource.org/tag/%e4%b8%b9%e4%bd%9b/">丹佛</a></span><span><i></i> <a href="https://openingsource.org/tag/%e7%be%8e%e5%9b%bd/">美国</a></span></div>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2019/05/x2024GUADEC-denverimg.webp.pagespeed.ic.lNDWbppK82.webp" medium="image"/>
-    <pubDate>Mon, 15 Jan 2024 15:06:31 +0000</pubDate>
   </item></channel>
 </rss>
