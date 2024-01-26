@@ -30,6 +30,330 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[前端的那些魔鬼細節 - innerText 與 textContent 的差異及對照測試]]></title>
+    <link>https://blog.darkthread.net/blog/innertext-vs-textcontent/</link>
+    <itunes:title><![CDATA[前端的那些魔鬼細節 - innerText 與 textContent 的差異及對照測試]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>從昨天文章的 <a href="https://www.facebook.com/darkthread.net/posts/pfbid022c878PN7EX5SAeZ8wEqsyNHKWFjdipHYdP2mGbnZfm5LuBssdbZJDJL2w1RcPmKsl">FB 貼文</a>留言學到新東西。</p> <p>身為 IE 出身的開發者，用 innerHTML 讀寫元素 HTML 原始碼，用 innerText 讀寫純文字版內文已經是本能反應。讀者 Chester Fung 提醒我一件事，最好用 textContent 取代 innerText，不然遇到隱藏元素文字會消失。一查，這才後知後覺學到二者差異。</p> <p>依據 MDN 的<a href="https://developer.mozilla.org/zh-TW/docs/Web/API/HTMLElement/innerText">說明</a>：</p> <blockquote> <p>Node.innerText 是一個代表節點及其後代之「已渲染」（rendered）文字內容的屬性。Node.innerText 近似於使用者利用游標選取成高亮後複製至剪貼簿之元素的內容。此功能最初由 Internet Explorer 提供，並在被所有主要瀏覽器採納之後，於 2016 年正式成為 HTML 標準。<br> Node.textContent 屬性是一個相似的選擇，但兩者之間仍有非常不同的差異。</p> </blockquote> <p>而 innerText 與 textContent 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent#differences_from_innertext">差異</a>如下：</p> <ul><li>textContent 包含 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code>，innerText 只包含使用者會讀取到的部分</li> <li>textContent 包含所有子孫元素，innerText 可察覺樣式，忽略隱藏元素</li> <li>innerText 會觸發 <a href="https://developer.mozilla.org/en-US/docs/Glossary/Reflow">Reflow</a> 重繪頁面以確保得到最新樣式結果，效能成本稍高</li></ul> <p>我設計了以下實驗對照二者差異，確認 innerText 在不同情境下的行為：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png"></p> <p>如上圖，共有七組測試，由 1, 2, 3 可知，刪節點或超出範圍看不到並不影響 innerText 讀取，其結果與 textContext 相同(滑鼠選取複製得到的也是完整內容)。</p> <p>由測試 4，text-transform: uppercase 改變大小寫後，innerText 會讀到全大寫內容。</p> <p>測試 5 當內含元素 display: none，innerText 讀不到東西，但故意在其中放了 <code>&lt;script&gt;console.log('Hi');&lt;/script&gt;</code>，<code>console.log('Hi');</code> 會被 textContent 算成 td 的內部文字。</p> <p>測試 6 加了 <code>&lt;br /&gt;</code>，innerText 會解析成 '
+' 換行符號，textContext 則無視。</p> <p>測試 7 將 World! 包成 SPAN 設 display: none，在 innerText 會消失，但 textContent 不受影響。</p> <p><a href="https://output.jsbin.com/hesuruf">線上展示</a></p> <p>【結論】</p> <p>如果元素內容有透過 CSS 隱藏部分內容、修改文字大小寫... 時，而你想擷取使用者看到的文字樣貌(註：不包含超出範圍隱藏的效果)，可用 innerText。若要取未受樣式影響的原始文字內容，則用 textContent，但如果在元素內有穿插 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code> 等非可見內容，textContent 會將區塊內的文字也算進去，可能產非非預期的結果。</p> <p>附上完整程式範例：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width"&gt;
+&lt;title&gt;innerText, textContent&lt;/title&gt;
+&lt;style&gt;
+.container {
+border-collapse: collapse;
+font-family: Verdana, Geneva, Tahoma, sans-serif;
+font-size: 10pt;
+}
+td { border: 1px solid gray; padding: 3px 6px; }
+thead { text-align: center; background-color: #eee; }
+tbody tr:nth-child(even) { background-color: #ffa2; }
+tbody td:nth-child(1) { text-align: center; }
+tbody td:nth-child(3) { color: #00fd; }
+tbody td:nth-child(2) div {
+width: 70px;
+white-space: nowrap;
+border: 1px solid gray;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;table class="container"&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;td&gt;No&lt;/td&gt;
+&lt;td style="width: 120px"&gt;Element&lt;/td&gt;
+&lt;td&gt;td.innerHTML&lt;/td&gt;
+&lt;td&gt;td.innerText&lt;/td&gt;
+&lt;td&gt;td.textContent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;&lt;div style="overflow: hidden; text-overflow: ellipsis"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow: hidden"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow-x: scroll"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;&lt;div  style="text-transform: uppercase"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;&lt;div  style="display: none;"&gt;Hello, World!&lt;script&gt;console.log('Hi');&lt;/script&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;br /&gt; World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;7&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;span style="display: none"&gt; World!&lt;/span&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;script&gt;
+const formatHtml = html =&gt; {
+return html.replace(/(&amp;lt;div.*?&amp;gt;)/, '$1&lt;div style="color:brown"&gt;')
+.replace(/(&amp;lt;\/div&amp;gt;)/, '&lt;/div&gt;$1');
+};
+document.querySelectorAll('tbody tr').forEach(d =&gt; {
+const tds = [...d.querySelectorAll('td')];
+tds[2].textContent = tds[1].innerHTML;
+tds[2].innerHTML = formatHtml(tds[2].innerHTML);
+tds[3].innerHTML = `&lt;pre&gt;${tds[1].innerText}&lt;/pre&gt;`;
+tds[4].innerHTML = `&lt;pre&gt;${tds[1].textContent}&lt;/pre&gt;`;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p data-slug="innertext-vs-textcontent" data-title-en="Differnece between innerText and textContent" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/11/10/22/29/odd-1037935_960_720.jpg#960#640">An explanation and an experiment on the difference between innerText and textContent in JavaScript.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>從昨天文章的 <a href="https://www.facebook.com/darkthread.net/posts/pfbid022c878PN7EX5SAeZ8wEqsyNHKWFjdipHYdP2mGbnZfm5LuBssdbZJDJL2w1RcPmKsl">FB 貼文</a>留言學到新東西。</p> <p>身為 IE 出身的開發者，用 innerHTML 讀寫元素 HTML 原始碼，用 innerText 讀寫純文字版內文已經是本能反應。讀者 Chester Fung 提醒我一件事，最好用 textContent 取代 innerText，不然遇到隱藏元素文字會消失。一查，這才後知後覺學到二者差異。</p> <p>依據 MDN 的<a href="https://developer.mozilla.org/zh-TW/docs/Web/API/HTMLElement/innerText">說明</a>：</p> <blockquote> <p>Node.innerText 是一個代表節點及其後代之「已渲染」（rendered）文字內容的屬性。Node.innerText 近似於使用者利用游標選取成高亮後複製至剪貼簿之元素的內容。此功能最初由 Internet Explorer 提供，並在被所有主要瀏覽器採納之後，於 2016 年正式成為 HTML 標準。<br> Node.textContent 屬性是一個相似的選擇，但兩者之間仍有非常不同的差異。</p> </blockquote> <p>而 innerText 與 textContent 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent#differences_from_innertext">差異</a>如下：</p> <ul><li>textContent 包含 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code>，innerText 只包含使用者會讀取到的部分</li> <li>textContent 包含所有子孫元素，innerText 可察覺樣式，忽略隱藏元素</li> <li>innerText 會觸發 <a href="https://developer.mozilla.org/en-US/docs/Glossary/Reflow">Reflow</a> 重繪頁面以確保得到最新樣式結果，效能成本稍高</li></ul> <p>我設計了以下實驗對照二者差異，確認 innerText 在不同情境下的行為：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png"></p> <p>如上圖，共有七組測試，由 1, 2, 3 可知，刪節點或超出範圍看不到並不影響 innerText 讀取，其結果與 textContext 相同(滑鼠選取複製得到的也是完整內容)。</p> <p>由測試 4，text-transform: uppercase 改變大小寫後，innerText 會讀到全大寫內容。</p> <p>測試 5 當內含元素 display: none，innerText 讀不到東西，但故意在其中放了 <code>&lt;script&gt;console.log('Hi');&lt;/script&gt;</code>，<code>console.log('Hi');</code> 會被 textContent 算成 td 的內部文字。</p> <p>測試 6 加了 <code>&lt;br /&gt;</code>，innerText 會解析成 '
+' 換行符號，textContext 則無視。</p> <p>測試 7 將 World! 包成 SPAN 設 display: none，在 innerText 會消失，但 textContent 不受影響。</p> <p><a href="https://output.jsbin.com/hesuruf">線上展示</a></p> <p>【結論】</p> <p>如果元素內容有透過 CSS 隱藏部分內容、修改文字大小寫... 時，而你想擷取使用者看到的文字樣貌(註：不包含超出範圍隱藏的效果)，可用 innerText。若要取未受樣式影響的原始文字內容，則用 textContent，但如果在元素內有穿插 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code> 等非可見內容，textContent 會將區塊內的文字也算進去，可能產非非預期的結果。</p> <p>附上完整程式範例：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width"&gt;
+&lt;title&gt;innerText, textContent&lt;/title&gt;
+&lt;style&gt;
+.container {
+border-collapse: collapse;
+font-family: Verdana, Geneva, Tahoma, sans-serif;
+font-size: 10pt;
+}
+td { border: 1px solid gray; padding: 3px 6px; }
+thead { text-align: center; background-color: #eee; }
+tbody tr:nth-child(even) { background-color: #ffa2; }
+tbody td:nth-child(1) { text-align: center; }
+tbody td:nth-child(3) { color: #00fd; }
+tbody td:nth-child(2) div {
+width: 70px;
+white-space: nowrap;
+border: 1px solid gray;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;table class="container"&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;td&gt;No&lt;/td&gt;
+&lt;td style="width: 120px"&gt;Element&lt;/td&gt;
+&lt;td&gt;td.innerHTML&lt;/td&gt;
+&lt;td&gt;td.innerText&lt;/td&gt;
+&lt;td&gt;td.textContent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;&lt;div style="overflow: hidden; text-overflow: ellipsis"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow: hidden"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow-x: scroll"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;&lt;div  style="text-transform: uppercase"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;&lt;div  style="display: none;"&gt;Hello, World!&lt;script&gt;console.log('Hi');&lt;/script&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;br /&gt; World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;7&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;span style="display: none"&gt; World!&lt;/span&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;script&gt;
+const formatHtml = html =&gt; {
+return html.replace(/(&amp;lt;div.*?&amp;gt;)/, '$1&lt;div style="color:brown"&gt;')
+.replace(/(&amp;lt;\/div&amp;gt;)/, '&lt;/div&gt;$1');
+};
+document.querySelectorAll('tbody tr').forEach(d =&gt; {
+const tds = [...d.querySelectorAll('td')];
+tds[2].textContent = tds[1].innerHTML;
+tds[2].innerHTML = formatHtml(tds[2].innerHTML);
+tds[3].innerHTML = `&lt;pre&gt;${tds[1].innerText}&lt;/pre&gt;`;
+tds[4].innerHTML = `&lt;pre&gt;${tds[1].textContent}&lt;/pre&gt;`;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p data-slug="innertext-vs-textcontent" data-title-en="Differnece between innerText and textContent" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/11/10/22/29/odd-1037935_960_720.jpg#960#640">An explanation and an experiment on the difference between innerText and textContent in JavaScript.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>從昨天文章的 <a href="https://www.facebook.com/darkthread.net/posts/pfbid022c878PN7EX5SAeZ8wEqsyNHKWFjdipHYdP2mGbnZfm5LuBssdbZJDJL2w1RcPmKsl">FB 貼文</a>留言學到新東西。</p> <p>身為 IE 出身的開發者，用 innerHTML 讀寫元素 HTML 原始碼，用 innerText 讀寫純文字版內文已經是本能反應。讀者 Chester Fung 提醒我一件事，最好用 textContent 取代 innerText，不然遇到隱藏元素文字會消失。一查，這才後知後覺學到二者差異。</p> <p>依據 MDN 的<a href="https://developer.mozilla.org/zh-TW/docs/Web/API/HTMLElement/innerText">說明</a>：</p> <blockquote> <p>Node.innerText 是一個代表節點及其後代之「已渲染」（rendered）文字內容的屬性。Node.innerText 近似於使用者利用游標選取成高亮後複製至剪貼簿之元素的內容。此功能最初由 Internet Explorer 提供，並在被所有主要瀏覽器採納之後，於 2016 年正式成為 HTML 標準。<br> Node.textContent 屬性是一個相似的選擇，但兩者之間仍有非常不同的差異。</p> </blockquote> <p>而 innerText 與 textContent 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent#differences_from_innertext">差異</a>如下：</p> <ul><li>textContent 包含 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code>，innerText 只包含使用者會讀取到的部分</li> <li>textContent 包含所有子孫元素，innerText 可察覺樣式，忽略隱藏元素</li> <li>innerText 會觸發 <a href="https://developer.mozilla.org/en-US/docs/Glossary/Reflow">Reflow</a> 重繪頁面以確保得到最新樣式結果，效能成本稍高</li></ul> <p>我設計了以下實驗對照二者差異，確認 innerText 在不同情境下的行為：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png"></p> <p>如上圖，共有七組測試，由 1, 2, 3 可知，刪節點或超出範圍看不到並不影響 innerText 讀取，其結果與 textContext 相同(滑鼠選取複製得到的也是完整內容)。</p> <p>由測試 4，text-transform: uppercase 改變大小寫後，innerText 會讀到全大寫內容。</p> <p>測試 5 當內含元素 display: none，innerText 讀不到東西，但故意在其中放了 <code>&lt;script&gt;console.log('Hi');&lt;/script&gt;</code>，<code>console.log('Hi');</code> 會被 textContent 算成 td 的內部文字。</p> <p>測試 6 加了 <code>&lt;br /&gt;</code>，innerText 會解析成 '
+' 換行符號，textContext 則無視。</p> <p>測試 7 將 World! 包成 SPAN 設 display: none，在 innerText 會消失，但 textContent 不受影響。</p> <p><a href="https://output.jsbin.com/hesuruf">線上展示</a></p> <p>【結論】</p> <p>如果元素內容有透過 CSS 隱藏部分內容、修改文字大小寫... 時，而你想擷取使用者看到的文字樣貌(註：不包含超出範圍隱藏的效果)，可用 innerText。若要取未受樣式影響的原始文字內容，則用 textContent，但如果在元素內有穿插 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code> 等非可見內容，textContent 會將區塊內的文字也算進去，可能產非非預期的結果。</p> <p>附上完整程式範例：</p> <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width"&gt;
+&lt;title&gt;innerText, textContent&lt;/title&gt;
+&lt;style&gt;
+.container {
+border-collapse: collapse;
+font-family: Verdana, Geneva, Tahoma, sans-serif;
+font-size: 10pt;
+}
+td { border: 1px solid gray; padding: 3px 6px; }
+thead { text-align: center; background-color: #eee; }
+tbody tr:nth-child(even) { background-color: #ffa2; }
+tbody td:nth-child(1) { text-align: center; }
+tbody td:nth-child(3) { color: #00fd; }
+tbody td:nth-child(2) div {
+width: 70px;
+white-space: nowrap;
+border: 1px solid gray;
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;table class="container"&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;td&gt;No&lt;/td&gt;
+&lt;td style="width: 120px"&gt;Element&lt;/td&gt;
+&lt;td&gt;td.innerHTML&lt;/td&gt;
+&lt;td&gt;td.innerText&lt;/td&gt;
+&lt;td&gt;td.textContent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;&lt;div style="overflow: hidden; text-overflow: ellipsis"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow: hidden"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;&lt;div  style="overflow-x: scroll"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;&lt;div  style="text-transform: uppercase"&gt;Hello, World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;&lt;div  style="display: none;"&gt;Hello, World!&lt;script&gt;console.log('Hi');&lt;/script&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;br /&gt; World!&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;7&lt;/td&gt;
+&lt;td&gt;&lt;div&gt;Hello,&lt;span style="display: none"&gt; World!&lt;/span&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;script&gt;
+const formatHtml = html =&gt; {
+return html.replace(/(&amp;lt;div.*?&amp;gt;)/, '$1&lt;div style="color:brown"&gt;')
+.replace(/(&amp;lt;\/div&amp;gt;)/, '&lt;/div&gt;$1');
+};
+document.querySelectorAll('tbody tr').forEach(d =&gt; {
+const tds = [...d.querySelectorAll('td')];
+tds[2].textContent = tds[1].innerHTML;
+tds[2].innerHTML = formatHtml(tds[2].innerHTML);
+tds[3].innerHTML = `&lt;pre&gt;${tds[1].innerText}&lt;/pre&gt;`;
+tds[4].innerHTML = `&lt;pre&gt;${tds[1].textContent}&lt;/pre&gt;`;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre> <p data-slug="innertext-vs-textcontent" data-title-en="Differnece between innerText and textContent" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/11/10/22/29/odd-1037935_960_720.jpg#960#640">An explanation and an experiment on the difference between innerText and textContent in JavaScript.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png" medium="image"/>
+    <pubDate>Fri, 26 Jan 2024 15:34:40 GMT</pubDate>
+  </item><item>
     <title><![CDATA[JavaScript 雜技 - 遇文字折行自動縮小字體與靠左對齊]]></title>
     <link>https://blog.darkthread.net/blog/small-font-when-word-wrap/</link>
     <itunes:title><![CDATA[JavaScript 雜技 - 遇文字折行自動縮小字體與靠左對齊]]></itunes:title>
@@ -1453,341 +1777,5 @@ new DbString { Value = str, IsAnsi = true, Length = str.Length };
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png" medium="image"/>
     <pubDate>Wed, 17 Jan 2024 14:16:24 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[偷看 Dapper 產生的 SQL 指令與參數型別]]></title>
-    <link>https://blog.darkthread.net/blog/spy-parameter-types-in-dapper/</link>
-    <itunes:title><![CDATA[偷看 Dapper 產生的 SQL 指令與參數型別]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
-{
-private readonly string _connectionString;
-public OracleDbConnectionFactory(string connectionString)
-{
-_connectionString = connectionString;
-}
-public DbConnection CreateConnection()
-{
-return new OracleConnection(_connectionString);
-}
-}
-</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
-using Oracle.ManagedDataAccess.Client;
-using StackExchange.Profiling.Internal;
-using System;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.Dynamic;
-using System.Linq;
-using System.Reflection;
-using System.Transactions;
-namespace NetFxConsole
-{
-internal class Program
-{
-// TODO: encrypt the connection string and store it in the app.config
-private const string csOracle =
-"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
-private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
-static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
-{
-var sqlMapperType = typeof(SqlMapper);
-var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
-// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
-var identity = sqlMapperIdentityType.GetConstructors(
-BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
-{
-cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
-});
-dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
-.Invoke(null, new object[] { identity, paramArg, false });
-return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
-}
-public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
-{
-var command = new CommandDefinition(commandText, paramArg);
-var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
-var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
-var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
-switch (cmd)
-{
-case OracleCommand oc:
-Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
-foreach (OracleParameter p in oc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
-}
-break;
-case SqlCommand sc:
-Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
-foreach (SqlParameter p in sc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
-}
-break;
-default:
-throw new NotSupportedException();
-}
-}
-static void Main(string[] args)
-{
-var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
-var paramObject = new
-{
-name = "Jeffrey",
-regDate = new DateTime(2012, 12, 21),
-score = 32767
-};
-using (var cn = new OracleConnection(csOracle))
-{
-SimulateDapperDbParameters(sql, cn, paramObject);
-FixOdpNetDbTypeStringMapping();
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-using (var cn = new SqlConnection(csMsSql))
-{
-sql = sql.Replace(":", "@");
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-Console.ReadLine();
-}
-// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
-static void FixOdpNetDbTypeStringMapping()
-{
-Assembly asm = typeof(OracleConnection).Assembly;
-Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
-var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
-BindingFlags.Static | BindingFlags.NonPublic);
-int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
-mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
-fldDbTypeMapping.SetValue(null, mappings);
-}
-}
-}
-</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
-{
-private readonly string _connectionString;
-public OracleDbConnectionFactory(string connectionString)
-{
-_connectionString = connectionString;
-}
-public DbConnection CreateConnection()
-{
-return new OracleConnection(_connectionString);
-}
-}
-</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
-using Oracle.ManagedDataAccess.Client;
-using StackExchange.Profiling.Internal;
-using System;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.Dynamic;
-using System.Linq;
-using System.Reflection;
-using System.Transactions;
-namespace NetFxConsole
-{
-internal class Program
-{
-// TODO: encrypt the connection string and store it in the app.config
-private const string csOracle =
-"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
-private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
-static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
-{
-var sqlMapperType = typeof(SqlMapper);
-var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
-// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
-var identity = sqlMapperIdentityType.GetConstructors(
-BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
-{
-cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
-});
-dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
-.Invoke(null, new object[] { identity, paramArg, false });
-return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
-}
-public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
-{
-var command = new CommandDefinition(commandText, paramArg);
-var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
-var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
-var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
-switch (cmd)
-{
-case OracleCommand oc:
-Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
-foreach (OracleParameter p in oc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
-}
-break;
-case SqlCommand sc:
-Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
-foreach (SqlParameter p in sc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
-}
-break;
-default:
-throw new NotSupportedException();
-}
-}
-static void Main(string[] args)
-{
-var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
-var paramObject = new
-{
-name = "Jeffrey",
-regDate = new DateTime(2012, 12, 21),
-score = 32767
-};
-using (var cn = new OracleConnection(csOracle))
-{
-SimulateDapperDbParameters(sql, cn, paramObject);
-FixOdpNetDbTypeStringMapping();
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-using (var cn = new SqlConnection(csMsSql))
-{
-sql = sql.Replace(":", "@");
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-Console.ReadLine();
-}
-// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
-static void FixOdpNetDbTypeStringMapping()
-{
-Assembly asm = typeof(OracleConnection).Assembly;
-Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
-var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
-BindingFlags.Static | BindingFlags.NonPublic);
-int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
-mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
-fldDbTypeMapping.SetValue(null, mappings);
-}
-}
-}
-</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>這是調查 Dapper 參數茶包的副產品，檢查底層對映參數型別的工具函式。</p> <p>遇到一個 Dapper 問題，懷疑與匿名參數物件屬性對映的 OracleParameter 型別有關。而 Oracle 不像 MSSQL 有 Profiler 可以偷看實體指令，我便想從程式端突破，設法在執行時取得參數資訊。原本我寄望於現成程式庫，但找到最接近的解決方案是 <a href="https://www.nuget.org/packages/MiniProfiler.Integrations/">MiniProfiler.Integrations </a>，預設只支援 SQL Server / MySQL，如果要用在 Oracle，得寫幾行程式為 OracleConnection 實作 <code>IDbConnectionFactory</code>：</p> <pre><code>public class OracleDbConnectionFactory : IDbConnectionFactory
-{
-private readonly string _connectionString;
-public OracleDbConnectionFactory(string connectionString)
-{
-_connectionString = connectionString;
-}
-public DbConnection CreateConnection()
-{
-return new OracleConnection(_connectionString);
-}
-}
-</code></pre> <p>是有成功印出 SQL 指令跟參數，它的參數資訊為 <code>Dictionary&lt;string, object&gt;</code> 型別，只看得到參數名稱跟參數值，無法得知 OracleParameter.OracleDbType：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"></p> <p>懶得再繼續試其他程式庫，不如動手自己寫吧。我追進 Dapper 原始碼，發現 IDbCommand 的參數會<a href="https://github.com/DapperLib/Dapper/blob/8f369914ac4a03967fb68b3af6b0a85582473e3c/Dapper/CommandDefinition.cs#L144">透過 CacheInfo.ParamReader(IDbCommand, object?) 產生</a>，只是 CacheInfo 的相關型別、方法、建構式都屬內部 API，不開放外部呼叫。所幸，有 Reflection 在手，即使標成 internal、private 也攔不住我們，層層解開，終於一窺底層樣貌：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410080055877544.png"></p> <p>SimulateDapperDbParameters() 會模擬 Dapper 執行 IDbCommand 的過程，將參數一一對映成 OracleParameter 或 SqlParameter (若需支援其他資料庫可自行增加)，實測 Oracle 及 SQL 可抓到實際的參數物件型別，還順便驗證 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping</a> 確實可修正將 string 對映到 NVarChar2，證明有抓取到正確結果。</p> <p>範例程式碼如下，有需要的同學請自取修改利用：(注意：GetConstructors() 取建構式部分我偷懶寫死 [1] 取陣列第二個 Overloading，而 Dapper 新舊版的參數數量及型別可能不同，若不相容請自行調整)</p> <pre><code>using Dapper;
-using Oracle.ManagedDataAccess.Client;
-using StackExchange.Profiling.Internal;
-using System;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.Dynamic;
-using System.Linq;
-using System.Reflection;
-using System.Transactions;
-namespace NetFxConsole
-{
-internal class Program
-{
-// TODO: encrypt the connection string and store it in the app.config
-private const string csOracle =
-"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=SqlDB)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=LAB;Password=****;";
-private const string csMsSql = "Data Source=SqlDB;Initial Catalog=LAB;User Id=LAB;Password=****;";
-static object GetSqlMapperParamReader(CommandDefinition cmd, IDbConnection cnn, object paramArg)
-{
-var sqlMapperType = typeof(SqlMapper);
-var sqlMapperIdentityType = sqlMapperType.Assembly.GetType("Dapper.SqlMapper+Identity");
-// TODO: hard-coded here, array index and parameters may differ in different versions of Dapper
-var identity = sqlMapperIdentityType.GetConstructors(
-BindingFlags.Instance | BindingFlags.NonPublic)[1].Invoke(new object[]
-{
-cmd.CommandText, cmd.CommandType, string.Empty, typeof(string), paramArg.GetType(), null, 0
-});
-dynamic cacheInfo = sqlMapperType.GetMethod("GetCacheInfo", BindingFlags.Static | BindingFlags.NonPublic)
-.Invoke(null, new object[] { identity, paramArg, false });
-return cacheInfo.GetType().GetProperty("ParamReader").GetValue(cacheInfo, null);
-}
-public static void SimulateDapperDbParameters(string commandText, IDbConnection cnn, object paramArg)
-{
-var command = new CommandDefinition(commandText, paramArg);
-var paramReader = GetSqlMapperParamReader(command, cnn, paramArg);
-var mi = command.GetType().GetMethod("SetupCommand", BindingFlags.Instance | BindingFlags.NonPublic);
-var cmd = mi.Invoke(command, new object[] { cnn, paramReader });
-switch (cmd)
-{
-case OracleCommand oc:
-Console.WriteLine($"CommandText: \x1b[33m{oc.CommandText}\x1b[0m");
-foreach (OracleParameter p in oc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.OracleDbType}({p.Size})",-16} \u001b[0m = {p.Value}");
-}
-break;
-case SqlCommand sc:
-Console.WriteLine($"CommandText: \x1b[33m{sc.CommandText}\x1b[0m");
-foreach (SqlParameter p in sc.Parameters)
-{
-Console.WriteLine($" * \u001b[36m{p.ParameterName,-8}\u001b[0m / {p.DbType,-8} / \u001b[35m{$"{p.SqlDbType}({p.Size})",-16}\u001b[0m = {p.Value}");
-}
-break;
-default:
-throw new NotSupportedException();
-}
-}
-static void Main(string[] args)
-{
-var sql = "INSERT INTO SAMPLE VALUES (:name, :regDate, :score)";
-var paramObject = new
-{
-name = "Jeffrey",
-regDate = new DateTime(2012, 12, 21),
-score = 32767
-};
-using (var cn = new OracleConnection(csOracle))
-{
-SimulateDapperDbParameters(sql, cn, paramObject);
-FixOdpNetDbTypeStringMapping();
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-using (var cn = new SqlConnection(csMsSql))
-{
-sql = sql.Replace(":", "@");
-SimulateDapperDbParameters(sql, cn, paramObject);
-}
-Console.ReadLine();
-}
-// https://blog.darkthread.net/blog/dapper-odpnet-unicode-issue/
-static void FixOdpNetDbTypeStringMapping()
-{
-Assembly asm = typeof(OracleConnection).Assembly;
-Type tOraDb_DbTypeTable = asm.GetType("Oracle.ManagedDataAccess.Client.OraDb_DbTypeTable");
-var fldDbTypeMapping = tOraDb_DbTypeTable.GetField("dbTypeToOracleDbTypeMapping",
-BindingFlags.Static | BindingFlags.NonPublic);
-int[] mappings = (int[])fldDbTypeMapping.GetValue(null);
-mappings[(int)System.Data.DbType.String] = (int)OracleDbType.NVarchar2;
-fldDbTypeMapping.SetValue(null, mappings);
-}
-}
-}
-</code></pre> <p>補充顯示資料時用到兩則小技巧：</p> <ul><li><a href="/blog/ansi-escape-code/">ANSI 顏色控制碼 - 讓 Console 輸出五彩繽紛</a></li> <li><a href="/blog/string-format-alignment/">【笨問題】C# 字串補空白與靠左右對齊</a></li></ul> <p data-slug="spy-parameter-types-in-dapper" data-title-en="Inspect the parameter type generated by Dapper" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">A function to inspect the parameter types generated by Dapper with reflection.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638410080049520570.png" medium="image"/>
-    <pubDate>Tue, 16 Jan 2024 12:53:01 GMT</pubDate>
   </item></channel>
 </rss>

@@ -30,6 +30,363 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1086期：React DOM测试工具：《react-testing-library》]]></title>
+    <link>https://openingsource.org/11568/</link>
+    <itunes:title><![CDATA[开源日报第1086期：React DOM测试工具：《react-testing-library》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月26日，开源日报第1086期：<br>
+今日推荐开源项目：《react-testing-library》<br>
+今日推荐英文原文：《It’s 2024, you should be using React Server Components already》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127.jpg.pagespeed.ic.V2TGXK_cb6.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-testing-library》传送门：<a href="https://github.com/testing-library/react-testing-library?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 🐐 简单而完整的React DOM测试工具，鼓励良好的测试实践</p>
+<p>网站直达：testing-library.com/react</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank">It’s 2024, you should be using React Server Components already</a></p>
+<p>推荐理由：React 服务器组件（RSC）是 Next 和 React 的不太受欢迎的特性，但有三个原因应该在所有项目中使用它们：1. 数据获取更快且更简便；2. 更快的 UI 和更好的用户体验；3. UI 代码更简单</p>
+<hr>
+<h1>It’s 2024, you should be using React Server Components already</h1>
+<h2>3 reasons why you should actually use RSC in all your projects</h2>
+<p>Let’s face it, React Server Components aren’t the most liked feature of Next or React. Tons of devs have actually mentally blocked them and decided to pretend they don’t exist by adding <code>use client</code> on top of all their components.</p>
+<p>But that’s not only wrong, they’re missing out on a lot of benefits.</p>
+<p>In this article I’m going to try and convince you to start using them, so get started.</p>
+<h1>How do React Server Components work?</h1>
+<p>To understand the benefits, you first have to understand how these “new” components work.</p>
+<p>If you’ve always been a front-end developer, this might actually be the missing piece you needed, so pay attention.</p>
+<p>RSC are executed on the server (hence the “server” part of their name). <em>But what does that mean exactly?</em></p>
+<p>It means the framework (let’s say NextJS) will do the following:</p>
+<ol>
+<li>It will figure out which components inside the page (including the page actually) are indeed, server components.</li>
+<li>For each of them, it will load a server version of React and it will execute them.</li>
+<li>Each of these components will output an HTML as a result, and that HTML will take its place inside the bundle that gets shipped to the browser.</li>
+</ol>
+<p>The bundle is called React Server Component Payload and inside it, the browser will find:</p>
+<ul>
+<li>The actual HTML resulted from executing each RSC.</li>
+<li>Placeholders inside the HTML for client components that need to be hydrated on the browser.</li>
+<li>Optionally, if there are any props passed from the server components down into the client components, those props will also be inside the payload.</li>
+</ul>
+<p>And that’s it.</p>
+<h2>Is RSC the same as SSR?</h2>
+<p>This is also a very common question I see being asked around. And I understand the confusion, but no, RSC and SSR are not the same thing.</p>
+<p>While SSR (Server-side Rendering) is focused on rendering the entire application on the server and then sending that to the client where hydration happens, RSC focus only on single components. They optimize the rendering process, yes, but at a more granular level.</p>
+<p>So now let’s continue with the “why you should use RSC”.</p>
+<h1>Reason #1: Performing data fetching is faster and easier</h1>
+<p>Have you ever had to do data-fetching from a React component?</p>
+<p>It usually goes like this:</p>
+<ol>
+<li>You write your data-fetching logic to directly query the data source if you can (say an external API).</li>
+<li>Or you create an internal endpoint on the server side that actually queries the data source (say a database or an external API) and you write your data-fetching logic to hit your internal endpoint.</li>
+</ol>
+<p>If you go with #1, the drawbacks are:</p>
+<ul>
+<li>You might run into CORS problems, given how you’re querying an external API from the browser.</li>
+<li>You can’t query certain data sources like a database or read a file from disc.</li>
+<li>You expose the data-fetching logic to the user, potentially divulging code and logic that shouldn’t be seen by end-users (or potential attackers).</li>
+<li>You’re coupling a lot of the error-handling logic associated with the source of the data with your UI component.</li>
+</ul>
+<p>If, instead, you decide to go with option #2, while it’s true that you solve the security aspects of it, and you’re no longer coupling data-fetching error-handling logic to your UI component, you still have to go through the process of writing extra code to create the internal API endpoint.</p>
+<p>What if you could have the best of both worlds though? <em>That’s</em> where RSC come into play!</p>
+<p>With a React Server Component you can write a component like this:</p>
+<pre><code>async function getUserData(){
+//your data fetching logic goes here...
+}
+async function MyComponent() {
+let data = await getUserData()
+if(!data) {
+return (&lt;div className="error-msg"&gt;User not found!&lt;/div&gt;)
+}
+return (
+&lt;div&gt;
+{data.username}
+&lt;DeleteUserButton id={data.id} /&gt;
+&lt;/div&gt;
+)
+}</code></pre>
+<p>So, what do we have there? Let’s break it up:</p>
+<ul>
+<li>We have a component that’s not using any interactive code (no DOM API, no event handlers, no browser API, etc).</li>
+<li>We have a component that’s not using side effects or state (no <code>useEffect</code> nor <code>useState</code> hooks called).</li>
+<li>We have a component that’s simply calling a regular function to get some data, and then it’s displaying that data using simple HTML tags.</li>
+<li>We also have a component that checks for lack of results and simply returns a different HTML.</li>
+<li>And finally, we have a call to another component called <code>DeleteUserButton</code> that will have event handlers (like an <code>onClick</code> handler) which makes it a client component.</li>
+</ul>
+<p>Our server component ended up being simpler than the alternatives we covered because:</p>
+<ul>
+<li>We didn’t have to create a brand-new internal API endpoint.</li>
+<li>We didn’t have to couple error-handling logic to a UI component (this is a backend component).</li>
+<li>We’re not in any danger of encountering any CORS issues with this method.</li>
+<li>And you can literally query any data source from the <code>getUserData</code> function. Whether it’s a database, an external API or a local text file, you can get that data from wherever you want.</li>
+</ul>
+<p>So all in all, a big win so far, but let’s keep going!</p>
+<h1>Reason #2: Faster UI and better UX</h1>
+<p>First the disclaimer: <em>this only works if you do things “right”, if you still mess up, just by using RSC you’re not going to get better performance than a well-crafted UI using client components.</em></p>
+<p>With that out of the way, let’s understand what this reason means.</p>
+<p>Remember, RSC render on the server, so the first thing we notice is that the browser doesn’t have to do any work to render that part of the DOM. Yes, it has to add those nodes into the overall tree once it receives them from the server, but there is no JavaScript involved to parse code, create HTML elements on the fly and only then update the DOM.</p>
+<p>This model allows you to offload the processing power required to render your code to the server. This is especially useful for very complex applications that can turn most of their components into server components.</p>
+<p>Another added benefit from the extra work you’re no longer doing on the browser, is that the UI can load faster and start showing information to the end user sooner. This in turn can be seen as an improvement to the UX of your app. Your users suddenly have to wait less time until the <a href="https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint" target="_blank">first contentful paint</a>, which happens when your browser starts showing anything meaningful to the user.</p>
+<h1>Reason #3: Simpler UI code</h1>
+<p>Another very valid reason to start using RSC is to simplify your client component’s logic.</p>
+<p>In other words, now you can stop considering your client components as the only place where you should store your UI business logic.</p>
+<p>Now instead, you can offload a lot of the “heavy lifting” (like data fetching and data processing) to RSC and let the client components only handle the actual representation (the UI).</p>
+<p>This will help you reduce the size of your client components, thus reducing also the size of the bundle that gets shipped to the client whenever a new component needs to be rendered.</p>
+<p>With the addition of server components, you’re now able to split the code you had inside your client-only components. You can remove the unnecessary code that was performing non-UI related logic and move it to the server while leaving the rendering part untouched (almost).</p>
+<p>And you can even remove entire UI components that don’t need any dynamic behavior (like a footer for instance) and place them on the server to be rendered there. Now suddenly the codebase for your UI is reduced significantly.</p>
+<p>That’s also a great win!</p>
+<p>To sum it up, react server components are not bad, in fact, they’re great. But they do require a bit of a mindset change at first, especially so if you haven’t done any backend coding in the past.</p>
+<p>They bring tons of improvements to your web development workflow, but the main ones I’ve identified are:</p>
+<ul>
+<li>You’re able to perform easier data-fetching/data processing (and more securely as well).</li>
+<li>You’re using tools that let you craft better UI/UX for your users with small changes.</li>
+<li>You’re reducing the complexity of your UI codebase by removing non-UI code from your client components.</li>
+</ul>
+<p>If you’d like to know more about React Server Components, I have a fresh <a href="https://www.newline.co/courses/next.js-complex-state-management-patterns-with-rsc" target="_blank">new course that teaches you how to use RSC and client components to share state between them</a>. You might want to check it out!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月26日，开源日报第1086期：<br>
+今日推荐开源项目：《react-testing-library》<br>
+今日推荐英文原文：《It’s 2024, you should be using React Server Components already》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127.jpg.pagespeed.ic.V2TGXK_cb6.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-testing-library》传送门：<a href="https://github.com/testing-library/react-testing-library?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 🐐 简单而完整的React DOM测试工具，鼓励良好的测试实践</p>
+<p>网站直达：testing-library.com/react</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank">It’s 2024, you should be using React Server Components already</a></p>
+<p>推荐理由：React 服务器组件（RSC）是 Next 和 React 的不太受欢迎的特性，但有三个原因应该在所有项目中使用它们：1. 数据获取更快且更简便；2. 更快的 UI 和更好的用户体验；3. UI 代码更简单</p>
+<hr>
+<h1>It’s 2024, you should be using React Server Components already</h1>
+<h2>3 reasons why you should actually use RSC in all your projects</h2>
+<p>Let’s face it, React Server Components aren’t the most liked feature of Next or React. Tons of devs have actually mentally blocked them and decided to pretend they don’t exist by adding <code>use client</code> on top of all their components.</p>
+<p>But that’s not only wrong, they’re missing out on a lot of benefits.</p>
+<p>In this article I’m going to try and convince you to start using them, so get started.</p>
+<h1>How do React Server Components work?</h1>
+<p>To understand the benefits, you first have to understand how these “new” components work.</p>
+<p>If you’ve always been a front-end developer, this might actually be the missing piece you needed, so pay attention.</p>
+<p>RSC are executed on the server (hence the “server” part of their name). <em>But what does that mean exactly?</em></p>
+<p>It means the framework (let’s say NextJS) will do the following:</p>
+<ol>
+<li>It will figure out which components inside the page (including the page actually) are indeed, server components.</li>
+<li>For each of them, it will load a server version of React and it will execute them.</li>
+<li>Each of these components will output an HTML as a result, and that HTML will take its place inside the bundle that gets shipped to the browser.</li>
+</ol>
+<p>The bundle is called React Server Component Payload and inside it, the browser will find:</p>
+<ul>
+<li>The actual HTML resulted from executing each RSC.</li>
+<li>Placeholders inside the HTML for client components that need to be hydrated on the browser.</li>
+<li>Optionally, if there are any props passed from the server components down into the client components, those props will also be inside the payload.</li>
+</ul>
+<p>And that’s it.</p>
+<h2>Is RSC the same as SSR?</h2>
+<p>This is also a very common question I see being asked around. And I understand the confusion, but no, RSC and SSR are not the same thing.</p>
+<p>While SSR (Server-side Rendering) is focused on rendering the entire application on the server and then sending that to the client where hydration happens, RSC focus only on single components. They optimize the rendering process, yes, but at a more granular level.</p>
+<p>So now let’s continue with the “why you should use RSC”.</p>
+<h1>Reason #1: Performing data fetching is faster and easier</h1>
+<p>Have you ever had to do data-fetching from a React component?</p>
+<p>It usually goes like this:</p>
+<ol>
+<li>You write your data-fetching logic to directly query the data source if you can (say an external API).</li>
+<li>Or you create an internal endpoint on the server side that actually queries the data source (say a database or an external API) and you write your data-fetching logic to hit your internal endpoint.</li>
+</ol>
+<p>If you go with #1, the drawbacks are:</p>
+<ul>
+<li>You might run into CORS problems, given how you’re querying an external API from the browser.</li>
+<li>You can’t query certain data sources like a database or read a file from disc.</li>
+<li>You expose the data-fetching logic to the user, potentially divulging code and logic that shouldn’t be seen by end-users (or potential attackers).</li>
+<li>You’re coupling a lot of the error-handling logic associated with the source of the data with your UI component.</li>
+</ul>
+<p>If, instead, you decide to go with option #2, while it’s true that you solve the security aspects of it, and you’re no longer coupling data-fetching error-handling logic to your UI component, you still have to go through the process of writing extra code to create the internal API endpoint.</p>
+<p>What if you could have the best of both worlds though? <em>That’s</em> where RSC come into play!</p>
+<p>With a React Server Component you can write a component like this:</p>
+<pre><code>async function getUserData(){
+//your data fetching logic goes here...
+}
+async function MyComponent() {
+let data = await getUserData()
+if(!data) {
+return (&lt;div className="error-msg"&gt;User not found!&lt;/div&gt;)
+}
+return (
+&lt;div&gt;
+{data.username}
+&lt;DeleteUserButton id={data.id} /&gt;
+&lt;/div&gt;
+)
+}</code></pre>
+<p>So, what do we have there? Let’s break it up:</p>
+<ul>
+<li>We have a component that’s not using any interactive code (no DOM API, no event handlers, no browser API, etc).</li>
+<li>We have a component that’s not using side effects or state (no <code>useEffect</code> nor <code>useState</code> hooks called).</li>
+<li>We have a component that’s simply calling a regular function to get some data, and then it’s displaying that data using simple HTML tags.</li>
+<li>We also have a component that checks for lack of results and simply returns a different HTML.</li>
+<li>And finally, we have a call to another component called <code>DeleteUserButton</code> that will have event handlers (like an <code>onClick</code> handler) which makes it a client component.</li>
+</ul>
+<p>Our server component ended up being simpler than the alternatives we covered because:</p>
+<ul>
+<li>We didn’t have to create a brand-new internal API endpoint.</li>
+<li>We didn’t have to couple error-handling logic to a UI component (this is a backend component).</li>
+<li>We’re not in any danger of encountering any CORS issues with this method.</li>
+<li>And you can literally query any data source from the <code>getUserData</code> function. Whether it’s a database, an external API or a local text file, you can get that data from wherever you want.</li>
+</ul>
+<p>So all in all, a big win so far, but let’s keep going!</p>
+<h1>Reason #2: Faster UI and better UX</h1>
+<p>First the disclaimer: <em>this only works if you do things “right”, if you still mess up, just by using RSC you’re not going to get better performance than a well-crafted UI using client components.</em></p>
+<p>With that out of the way, let’s understand what this reason means.</p>
+<p>Remember, RSC render on the server, so the first thing we notice is that the browser doesn’t have to do any work to render that part of the DOM. Yes, it has to add those nodes into the overall tree once it receives them from the server, but there is no JavaScript involved to parse code, create HTML elements on the fly and only then update the DOM.</p>
+<p>This model allows you to offload the processing power required to render your code to the server. This is especially useful for very complex applications that can turn most of their components into server components.</p>
+<p>Another added benefit from the extra work you’re no longer doing on the browser, is that the UI can load faster and start showing information to the end user sooner. This in turn can be seen as an improvement to the UX of your app. Your users suddenly have to wait less time until the <a href="https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint" target="_blank">first contentful paint</a>, which happens when your browser starts showing anything meaningful to the user.</p>
+<h1>Reason #3: Simpler UI code</h1>
+<p>Another very valid reason to start using RSC is to simplify your client component’s logic.</p>
+<p>In other words, now you can stop considering your client components as the only place where you should store your UI business logic.</p>
+<p>Now instead, you can offload a lot of the “heavy lifting” (like data fetching and data processing) to RSC and let the client components only handle the actual representation (the UI).</p>
+<p>This will help you reduce the size of your client components, thus reducing also the size of the bundle that gets shipped to the client whenever a new component needs to be rendered.</p>
+<p>With the addition of server components, you’re now able to split the code you had inside your client-only components. You can remove the unnecessary code that was performing non-UI related logic and move it to the server while leaving the rendering part untouched (almost).</p>
+<p>And you can even remove entire UI components that don’t need any dynamic behavior (like a footer for instance) and place them on the server to be rendered there. Now suddenly the codebase for your UI is reduced significantly.</p>
+<p>That’s also a great win!</p>
+<p>To sum it up, react server components are not bad, in fact, they’re great. But they do require a bit of a mindset change at first, especially so if you haven’t done any backend coding in the past.</p>
+<p>They bring tons of improvements to your web development workflow, but the main ones I’ve identified are:</p>
+<ul>
+<li>You’re able to perform easier data-fetching/data processing (and more securely as well).</li>
+<li>You’re using tools that let you craft better UI/UX for your users with small changes.</li>
+<li>You’re reducing the complexity of your UI codebase by removing non-UI code from your client components.</li>
+</ul>
+<p>If you’d like to know more about React Server Components, I have a fresh <a href="https://www.newline.co/courses/next.js-complex-state-management-patterns-with-rsc" target="_blank">new course that teaches you how to use RSC and client components to share state between them</a>. You might want to check it out!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月26日，开源日报第1086期：<br>
+今日推荐开源项目：《react-testing-library》<br>
+今日推荐英文原文：《It’s 2024, you should be using React Server Components already》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127.jpg.pagespeed.ic.V2TGXK_cb6.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-testing-library》传送门：<a href="https://github.com/testing-library/react-testing-library?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 🐐 简单而完整的React DOM测试工具，鼓励良好的测试实践</p>
+<p>网站直达：testing-library.com/react</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank">It’s 2024, you should be using React Server Components already</a></p>
+<p>推荐理由：React 服务器组件（RSC）是 Next 和 React 的不太受欢迎的特性，但有三个原因应该在所有项目中使用它们：1. 数据获取更快且更简便；2. 更快的 UI 和更好的用户体验；3. UI 代码更简单</p>
+<hr>
+<h1>It’s 2024, you should be using React Server Components already</h1>
+<h2>3 reasons why you should actually use RSC in all your projects</h2>
+<p>Let’s face it, React Server Components aren’t the most liked feature of Next or React. Tons of devs have actually mentally blocked them and decided to pretend they don’t exist by adding <code>use client</code> on top of all their components.</p>
+<p>But that’s not only wrong, they’re missing out on a lot of benefits.</p>
+<p>In this article I’m going to try and convince you to start using them, so get started.</p>
+<h1>How do React Server Components work?</h1>
+<p>To understand the benefits, you first have to understand how these “new” components work.</p>
+<p>If you’ve always been a front-end developer, this might actually be the missing piece you needed, so pay attention.</p>
+<p>RSC are executed on the server (hence the “server” part of their name). <em>But what does that mean exactly?</em></p>
+<p>It means the framework (let’s say NextJS) will do the following:</p>
+<ol>
+<li>It will figure out which components inside the page (including the page actually) are indeed, server components.</li>
+<li>For each of them, it will load a server version of React and it will execute them.</li>
+<li>Each of these components will output an HTML as a result, and that HTML will take its place inside the bundle that gets shipped to the browser.</li>
+</ol>
+<p>The bundle is called React Server Component Payload and inside it, the browser will find:</p>
+<ul>
+<li>The actual HTML resulted from executing each RSC.</li>
+<li>Placeholders inside the HTML for client components that need to be hydrated on the browser.</li>
+<li>Optionally, if there are any props passed from the server components down into the client components, those props will also be inside the payload.</li>
+</ul>
+<p>And that’s it.</p>
+<h2>Is RSC the same as SSR?</h2>
+<p>This is also a very common question I see being asked around. And I understand the confusion, but no, RSC and SSR are not the same thing.</p>
+<p>While SSR (Server-side Rendering) is focused on rendering the entire application on the server and then sending that to the client where hydration happens, RSC focus only on single components. They optimize the rendering process, yes, but at a more granular level.</p>
+<p>So now let’s continue with the “why you should use RSC”.</p>
+<h1>Reason #1: Performing data fetching is faster and easier</h1>
+<p>Have you ever had to do data-fetching from a React component?</p>
+<p>It usually goes like this:</p>
+<ol>
+<li>You write your data-fetching logic to directly query the data source if you can (say an external API).</li>
+<li>Or you create an internal endpoint on the server side that actually queries the data source (say a database or an external API) and you write your data-fetching logic to hit your internal endpoint.</li>
+</ol>
+<p>If you go with #1, the drawbacks are:</p>
+<ul>
+<li>You might run into CORS problems, given how you’re querying an external API from the browser.</li>
+<li>You can’t query certain data sources like a database or read a file from disc.</li>
+<li>You expose the data-fetching logic to the user, potentially divulging code and logic that shouldn’t be seen by end-users (or potential attackers).</li>
+<li>You’re coupling a lot of the error-handling logic associated with the source of the data with your UI component.</li>
+</ul>
+<p>If, instead, you decide to go with option #2, while it’s true that you solve the security aspects of it, and you’re no longer coupling data-fetching error-handling logic to your UI component, you still have to go through the process of writing extra code to create the internal API endpoint.</p>
+<p>What if you could have the best of both worlds though? <em>That’s</em> where RSC come into play!</p>
+<p>With a React Server Component you can write a component like this:</p>
+<pre><code>async function getUserData(){
+//your data fetching logic goes here...
+}
+async function MyComponent() {
+let data = await getUserData()
+if(!data) {
+return (&lt;div className="error-msg"&gt;User not found!&lt;/div&gt;)
+}
+return (
+&lt;div&gt;
+{data.username}
+&lt;DeleteUserButton id={data.id} /&gt;
+&lt;/div&gt;
+)
+}</code></pre>
+<p>So, what do we have there? Let’s break it up:</p>
+<ul>
+<li>We have a component that’s not using any interactive code (no DOM API, no event handlers, no browser API, etc).</li>
+<li>We have a component that’s not using side effects or state (no <code>useEffect</code> nor <code>useState</code> hooks called).</li>
+<li>We have a component that’s simply calling a regular function to get some data, and then it’s displaying that data using simple HTML tags.</li>
+<li>We also have a component that checks for lack of results and simply returns a different HTML.</li>
+<li>And finally, we have a call to another component called <code>DeleteUserButton</code> that will have event handlers (like an <code>onClick</code> handler) which makes it a client component.</li>
+</ul>
+<p>Our server component ended up being simpler than the alternatives we covered because:</p>
+<ul>
+<li>We didn’t have to create a brand-new internal API endpoint.</li>
+<li>We didn’t have to couple error-handling logic to a UI component (this is a backend component).</li>
+<li>We’re not in any danger of encountering any CORS issues with this method.</li>
+<li>And you can literally query any data source from the <code>getUserData</code> function. Whether it’s a database, an external API or a local text file, you can get that data from wherever you want.</li>
+</ul>
+<p>So all in all, a big win so far, but let’s keep going!</p>
+<h1>Reason #2: Faster UI and better UX</h1>
+<p>First the disclaimer: <em>this only works if you do things “right”, if you still mess up, just by using RSC you’re not going to get better performance than a well-crafted UI using client components.</em></p>
+<p>With that out of the way, let’s understand what this reason means.</p>
+<p>Remember, RSC render on the server, so the first thing we notice is that the browser doesn’t have to do any work to render that part of the DOM. Yes, it has to add those nodes into the overall tree once it receives them from the server, but there is no JavaScript involved to parse code, create HTML elements on the fly and only then update the DOM.</p>
+<p>This model allows you to offload the processing power required to render your code to the server. This is especially useful for very complex applications that can turn most of their components into server components.</p>
+<p>Another added benefit from the extra work you’re no longer doing on the browser, is that the UI can load faster and start showing information to the end user sooner. This in turn can be seen as an improvement to the UX of your app. Your users suddenly have to wait less time until the <a href="https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint" target="_blank">first contentful paint</a>, which happens when your browser starts showing anything meaningful to the user.</p>
+<h1>Reason #3: Simpler UI code</h1>
+<p>Another very valid reason to start using RSC is to simplify your client component’s logic.</p>
+<p>In other words, now you can stop considering your client components as the only place where you should store your UI business logic.</p>
+<p>Now instead, you can offload a lot of the “heavy lifting” (like data fetching and data processing) to RSC and let the client components only handle the actual representation (the UI).</p>
+<p>This will help you reduce the size of your client components, thus reducing also the size of the bundle that gets shipped to the client whenever a new component needs to be rendered.</p>
+<p>With the addition of server components, you’re now able to split the code you had inside your client-only components. You can remove the unnecessary code that was performing non-UI related logic and move it to the server while leaving the rendering part untouched (almost).</p>
+<p>And you can even remove entire UI components that don’t need any dynamic behavior (like a footer for instance) and place them on the server to be rendered there. Now suddenly the codebase for your UI is reduced significantly.</p>
+<p>That’s also a great win!</p>
+<p>To sum it up, react server components are not bad, in fact, they’re great. But they do require a bit of a mindset change at first, especially so if you haven’t done any backend coding in the past.</p>
+<p>They bring tons of improvements to your web development workflow, but the main ones I’ve identified are:</p>
+<ul>
+<li>You’re able to perform easier data-fetching/data processing (and more securely as well).</li>
+<li>You’re using tools that let you craft better UI/UX for your users with small changes.</li>
+<li>You’re reducing the complexity of your UI codebase by removing non-UI code from your client components.</li>
+</ul>
+<p>If you’d like to know more about React Server Components, I have a fresh <a href="https://www.newline.co/courses/next.js-complex-state-management-patterns-with-rsc" target="_blank">new course that teaches you how to use RSC and client components to share state between them</a>. You might want to check it out!</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127.jpg.pagespeed.ic.V2TGXK_cb6.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127.jpg.pagespeed.ic.V2TGXK_cb6.jpg" medium="image"/>
+    <pubDate>Fri, 26 Jan 2024 12:10:03 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1085期：：v0.dev的替代品《vx.dev》]]></title>
     <link>https://openingsource.org/11565/</link>
     <itunes:title><![CDATA[开源日报第1085期：：v0.dev的替代品《vx.dev》]]></itunes:title>
@@ -2273,314 +2630,5 @@ export default Test;</code></pre>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg" medium="image"/>
     <pubDate>Fri, 19 Jan 2024 13:03:52 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></title>
-    <link>https://openingsource.org/11544/</link>
-    <itunes:title><![CDATA[开源日报第1078期：界面友好的命令行工具：《fish-shell》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月18日，开源日报第1078期：<br>
-今日推荐开源项目：《fish-shell》<br>
-今日推荐英文原文：《React — Each and Of Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
-<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
-<p>官网直达：fishshell.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
-<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
-<hr>
-<h1>React — Each and Of Pattern</h1>
-<h1>Each and Of in React</h1>
-<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
-<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
-<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
-<h2>Each and Or Pattern</h2>
-<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
-<p><strong>Use Map</strong></p>
-<pre><code>{
-customers.map((customer) =&gt; {
-return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
-})
-}</code></pre>
-<p><strong>Use For loop and variations</strong></p>
-<pre><code>// before render
-const renderCustomers = () =&gt; {
-const cards = []
-for(let i = 0; i &lt; customers.length; i++){
-cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
-}
-return cards;
-}
-// inside render
-{
-renderCustomers()
-}</code></pre>
-<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
-<pre><code>// in render
-&lt;Each of={customers} render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}} /&gt;</code></pre>
-<p><em>Question — What is the benefit of this approach?</em></p>
-<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
-<ul>
-<li>No need to worry about <code>key</code> property of rendering your cards</li>
-<li>Pass additional list-specific features like sort or filter callback</li>
-<li>Give a search functionality that will be generic to all of your list</li>
-</ul>
-<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
-<h2>Implementation</h2>
-<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of }) =&gt; {
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}</code></pre>
-<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
-<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of, options }) =&gt; {
-if(options.filter){
-return Children.toArray(
-of.filter(options.filter)
-.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-// Usage
-&lt;Each of={customers}
-options = {
-{
-filter: (customer) =&gt; !customer.isBlocked
-}
-}
-render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}}
-/&gt;</code></pre>
-<h2>Conclusion</h2>
-<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月18日，开源日报第1078期：<br>
-今日推荐开源项目：《fish-shell》<br>
-今日推荐英文原文：《React — Each and Of Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
-<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
-<p>官网直达：fishshell.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
-<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
-<hr>
-<h1>React — Each and Of Pattern</h1>
-<h1>Each and Of in React</h1>
-<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
-<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
-<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
-<h2>Each and Or Pattern</h2>
-<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
-<p><strong>Use Map</strong></p>
-<pre><code>{
-customers.map((customer) =&gt; {
-return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
-})
-}</code></pre>
-<p><strong>Use For loop and variations</strong></p>
-<pre><code>// before render
-const renderCustomers = () =&gt; {
-const cards = []
-for(let i = 0; i &lt; customers.length; i++){
-cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
-}
-return cards;
-}
-// inside render
-{
-renderCustomers()
-}</code></pre>
-<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
-<pre><code>// in render
-&lt;Each of={customers} render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}} /&gt;</code></pre>
-<p><em>Question — What is the benefit of this approach?</em></p>
-<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
-<ul>
-<li>No need to worry about <code>key</code> property of rendering your cards</li>
-<li>Pass additional list-specific features like sort or filter callback</li>
-<li>Give a search functionality that will be generic to all of your list</li>
-</ul>
-<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
-<h2>Implementation</h2>
-<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of }) =&gt; {
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}</code></pre>
-<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
-<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of, options }) =&gt; {
-if(options.filter){
-return Children.toArray(
-of.filter(options.filter)
-.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-// Usage
-&lt;Each of={customers}
-options = {
-{
-filter: (customer) =&gt; !customer.isBlocked
-}
-}
-render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}}
-/&gt;</code></pre>
-<h2>Conclusion</h2>
-<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月18日，开源日报第1078期：<br>
-今日推荐开源项目：《fish-shell》<br>
-今日推荐英文原文：《React — Each and Of Pattern》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《fish-shell》传送门：<a href="https://github.com/fish-shell/fish-shell" target="_blank">项目链接</a> </p>
-<p>推荐理由： 界面友好的命令行shell适用于macOS、Linux和其他系统，fish具有语法高亮、实时自动建议以及精美的标签补全等功能，无需任何配置开箱即用</p>
-<p>官网直达：fishshell.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/react-each-and-of-pattern-b00aa4305089" target="_blank">React — Each and Of Pattern</a></p>
-<p>推荐理由：本文介绍了React中的"Each"和"Of"模式并引出了一种使用<each>组件的新方式，该组件接收of和render作为props，通过遍历of数组并调用render函数进行渲染，但在代码可读性上更好，尤其在需要处理key属性、传递额外列表特定功能（如排序或过滤回调）能够使代码更简洁</each></p>
-<hr>
-<h1>React — Each and Of Pattern</h1>
-<h1>Each and Of in React</h1>
-<p>React is one of the most popular frontend libraries of today's date and everyone has their way of working on things. Some prefer using Redux, some prefer using Context, and others prefer working with regular state only. It highly depends upon what application we are working on and what the complexity of that application is. The same goes with rendering trees, Many people work with Render props patterns and some think Object Oriented programming in React is more better</p>
-<p><a href="https://javascript.plainenglish.io/object-oriented-programming-in-react-ba0ad4275e35?source=post_page-----b00aa4305089--------------------------------" target="_blank">Object Oriented Programming in ReactUsing object-oriented programming for your function component in React applicationjavascript.plainenglish.io</a></p>
-<p><a href="https://javascript.plainenglish.io/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179?source=post_page-----b00aa4305089--------------------------------" target="_blank">React’s Render Props Pattern: A Comprehensive GuideExplore React’s Render Props: Flexible, Reusable Components for Real-World Apps.javascript.plainenglish.io</a></p>
-<h2>Each and Or Pattern</h2>
-<p>In the same way, rendering also differs, Array in Javascript has lots of methods and techniques that you can use while rendering your tree for list or map-like objects, some of being</p>
-<p><strong>Use Map</strong></p>
-<pre><code>{
-customers.map((customer) =&gt; {
-return &lt;CustomerCard key={customer.id} customer={customer} /&gt;
-})
-}</code></pre>
-<p><strong>Use For loop and variations</strong></p>
-<pre><code>// before render
-const renderCustomers = () =&gt; {
-const cards = []
-for(let i = 0; i &lt; customers.length; i++){
-cards.push(&lt;CustomerCard customer={customers[i]}&gt;)
-}
-return cards;
-}
-// inside render
-{
-renderCustomers()
-}</code></pre>
-<p>All of them have their own pros and cons. It all depends upon what output we want to achieve with this. There is one more way to list over all your list items and get more out of it</p>
-<pre><code>// in render
-&lt;Each of={customers} render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}} /&gt;</code></pre>
-<p><em>Question — What is the benefit of this approach?</em></p>
-<p>Well, there ain’t any benefit that we can’t achieve with other methods but long story short. This will look good in front of your friends and colleagues. But let me name a few so that we can add more to your program</p>
-<ul>
-<li>No need to worry about <code>key</code> property of rendering your cards</li>
-<li>Pass additional list-specific features like sort or filter callback</li>
-<li>Give a search functionality that will be generic to all of your list</li>
-</ul>
-<p>You can name more than this but as I said, there are no benefits that you can’t create with a regular approach.</p>
-<h2>Implementation</h2>
-<p>Now, how to achieve this, as what it looks. We need to create a component name <code>Each</code> that needs to be generic so that any component and list can access it without having to worry about it.</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of }) =&gt; {
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}</code></pre>
-<p>Now, our component is ready to take some action. Since it is a React component only, this Higher-order function will have support for all the states, hooks, and other features that React offers for components.</p>
-<p>You can also make it more advanced by giving options to perform operations on data like the following:</p>
-<pre><code>import { Children } from 'react';
-export const Each = ({ render, of, options }) =&gt; {
-if(options.filter){
-return Children.toArray(
-of.filter(options.filter)
-.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-return Children.toArray(
-of.map((item, index) =&gt; {
-return render(item, index)
-})
-)
-}
-// Usage
-&lt;Each of={customers}
-options = {
-{
-filter: (customer) =&gt; !customer.isBlocked
-}
-}
-render={(customer) =&gt; {
-return &lt;CustomerCard customer={customer} /&gt;
-}}
-/&gt;</code></pre>
-<h2>Conclusion</h2>
-<p>If you ever have to work with similar lists then do consider using Each-of pattern to generalize your list rendering and make the most use of it, and I hope you learn something new today. Happy coding!</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240118.jpg.pagespeed.ic.1K0EV6GYIM.jpg" medium="image"/>
-    <pubDate>Thu, 18 Jan 2024 12:10:32 +0000</pubDate>
   </item></channel>
 </rss>
