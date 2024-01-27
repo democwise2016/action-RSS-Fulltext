@@ -30,6 +30,120 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[PowerShell 操作 SQLite 資料庫]]></title>
+    <link>https://blog.darkthread.net/blog/ps-sqlite-example/</link>
+    <itunes:title><![CDATA[PowerShell 操作 SQLite 資料庫]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>PowerShell 是某些情境跑程式的首選，能省下<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oj1e97YgBbQKwAraxA8n5mCPoR7qwUGWjfnTRo1c8w7sVh8bEDzdP8LtbZnt4k7ml">掏粉自清</a>的麻煩。</p> <p>我手邊有 PowerShell 存取 SQL/Oracle 的範例，再補上 SQLite。</p> <p>首先是決定用什麼程式庫，共有 System.Data.SQLite 及 Microsoft.Data.Sqlite 兩種選擇，前者由 SQLite 官方維護，後者是微軟 Entity Framework 小組<a href="https://learn.microsoft.com/zh-tw/dotnet/standard/data/sqlite/compare?WT.mc_id=DOP-MVP-37580">配合 .NET Core (.NET 6+) 需求發展的輕量級版本</a>。若要在 PowerShell 使用，我偏好 System.Data.SQLite，需部署的檔案數量較少。(Microsoft.Data.Sqlite 依賴 SQLitePCLRaw.bundle-*，需要的 dll 檔案較多，參考：<a href="/blog/sqlitepclraw-version/">.NET 6 SQLite 原生程式庫版本問題</a>)</p> <p>前置作業是取得 System.Data.SQLite 所需 dll 檔案。無腦做法是開個 .NET Console 專案用 NuGet 安裝 System.Data.SQLite，編譯後由 bin 目錄取檔，將以下檔案複製到 .ps 所在目錄：</p> <ul><li>System.Data.SQLite.dll</li> <li>x64\SQLite.Interop.dll</li> <li>x86\SQLite.Interop.dll (實測這個可以不用)</li></ul> <p>.ps 程式範例如下，就是標準 ADO.NET 操作，應沒有任何難度：</p> <pre><code>$ErrorActionPreference = 'STOP'
+$dbPath = '.\test.sqlite'
+$cs = "Data Source=$dbPath";
+$needInit = !(Test-Path $dbPath)
+Add-Type -Path .\System.Data.SQLite.dll
+$cn = [System.Data.SQLite.SQLiteConnection]::new($cs)
+$cn.Open()
+$cmd = $cn.CreateCommand();
+if ($needInit) {
+$cmd.CommandText = @"
+CREATE TABLE Player (
+Id VARCHAR(16),
+Name VARCHAR(32),
+CONSTRAINT Player_PK PRIMARY KEY (Id)
+)
+"@
+$cmd.ExecuteNonQuery() | Out-Null
+}
+$cmd.CommandText = 'DELETE FROM Player'
+$cmd.ExecuteNonQuery() | Out-Null
+$cmd.CommandText = 'INSERT INTO Player VALUES (@Id, @Name)'
+$cmd.Parameters.Add([System.Data.SQLite.SQLiteParameter]::new('Id', 'A1234')) | Out-Null
+$p = $cmd.Parameters.Add('Name', [System.Data.DbType]::AnsiString)
+$p.Value = 'Jeffrey'
+$rowAffected = $cmd.ExecuteNonQuery()
+Write-Host "$rowAffected rows inserted"
+$cmd.CommandText = "SELECT * FROM Player"
+$cmd.Parameters.Clear()
+$dr = $cmd.ExecuteReader()
+while ($dr.Read()) {
+Write-Host $dr["Id"] $dr["Name"]
+}
+$cn.Dispose()
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638419161709306690.png"></p> <p data-slug="ps-sqlite-example" data-fbimg="https://i.imgur.com/ULsNU0M.jpeg#640#480"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>PowerShell 是某些情境跑程式的首選，能省下<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oj1e97YgBbQKwAraxA8n5mCPoR7qwUGWjfnTRo1c8w7sVh8bEDzdP8LtbZnt4k7ml">掏粉自清</a>的麻煩。</p> <p>我手邊有 PowerShell 存取 SQL/Oracle 的範例，再補上 SQLite。</p> <p>首先是決定用什麼程式庫，共有 System.Data.SQLite 及 Microsoft.Data.Sqlite 兩種選擇，前者由 SQLite 官方維護，後者是微軟 Entity Framework 小組<a href="https://learn.microsoft.com/zh-tw/dotnet/standard/data/sqlite/compare?WT.mc_id=DOP-MVP-37580">配合 .NET Core (.NET 6+) 需求發展的輕量級版本</a>。若要在 PowerShell 使用，我偏好 System.Data.SQLite，需部署的檔案數量較少。(Microsoft.Data.Sqlite 依賴 SQLitePCLRaw.bundle-*，需要的 dll 檔案較多，參考：<a href="/blog/sqlitepclraw-version/">.NET 6 SQLite 原生程式庫版本問題</a>)</p> <p>前置作業是取得 System.Data.SQLite 所需 dll 檔案。無腦做法是開個 .NET Console 專案用 NuGet 安裝 System.Data.SQLite，編譯後由 bin 目錄取檔，將以下檔案複製到 .ps 所在目錄：</p> <ul><li>System.Data.SQLite.dll</li> <li>x64\SQLite.Interop.dll</li> <li>x86\SQLite.Interop.dll (實測這個可以不用)</li></ul> <p>.ps 程式範例如下，就是標準 ADO.NET 操作，應沒有任何難度：</p> <pre><code>$ErrorActionPreference = 'STOP'
+$dbPath = '.\test.sqlite'
+$cs = "Data Source=$dbPath";
+$needInit = !(Test-Path $dbPath)
+Add-Type -Path .\System.Data.SQLite.dll
+$cn = [System.Data.SQLite.SQLiteConnection]::new($cs)
+$cn.Open()
+$cmd = $cn.CreateCommand();
+if ($needInit) {
+$cmd.CommandText = @"
+CREATE TABLE Player (
+Id VARCHAR(16),
+Name VARCHAR(32),
+CONSTRAINT Player_PK PRIMARY KEY (Id)
+)
+"@
+$cmd.ExecuteNonQuery() | Out-Null
+}
+$cmd.CommandText = 'DELETE FROM Player'
+$cmd.ExecuteNonQuery() | Out-Null
+$cmd.CommandText = 'INSERT INTO Player VALUES (@Id, @Name)'
+$cmd.Parameters.Add([System.Data.SQLite.SQLiteParameter]::new('Id', 'A1234')) | Out-Null
+$p = $cmd.Parameters.Add('Name', [System.Data.DbType]::AnsiString)
+$p.Value = 'Jeffrey'
+$rowAffected = $cmd.ExecuteNonQuery()
+Write-Host "$rowAffected rows inserted"
+$cmd.CommandText = "SELECT * FROM Player"
+$cmd.Parameters.Clear()
+$dr = $cmd.ExecuteReader()
+while ($dr.Read()) {
+Write-Host $dr["Id"] $dr["Name"]
+}
+$cn.Dispose()
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638419161709306690.png"></p> <p data-slug="ps-sqlite-example" data-fbimg="https://i.imgur.com/ULsNU0M.jpeg#640#480"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>PowerShell 是某些情境跑程式的首選，能省下<a href="https://www.facebook.com/darkthread.net/posts/pfbid0oj1e97YgBbQKwAraxA8n5mCPoR7qwUGWjfnTRo1c8w7sVh8bEDzdP8LtbZnt4k7ml">掏粉自清</a>的麻煩。</p> <p>我手邊有 PowerShell 存取 SQL/Oracle 的範例，再補上 SQLite。</p> <p>首先是決定用什麼程式庫，共有 System.Data.SQLite 及 Microsoft.Data.Sqlite 兩種選擇，前者由 SQLite 官方維護，後者是微軟 Entity Framework 小組<a href="https://learn.microsoft.com/zh-tw/dotnet/standard/data/sqlite/compare?WT.mc_id=DOP-MVP-37580">配合 .NET Core (.NET 6+) 需求發展的輕量級版本</a>。若要在 PowerShell 使用，我偏好 System.Data.SQLite，需部署的檔案數量較少。(Microsoft.Data.Sqlite 依賴 SQLitePCLRaw.bundle-*，需要的 dll 檔案較多，參考：<a href="/blog/sqlitepclraw-version/">.NET 6 SQLite 原生程式庫版本問題</a>)</p> <p>前置作業是取得 System.Data.SQLite 所需 dll 檔案。無腦做法是開個 .NET Console 專案用 NuGet 安裝 System.Data.SQLite，編譯後由 bin 目錄取檔，將以下檔案複製到 .ps 所在目錄：</p> <ul><li>System.Data.SQLite.dll</li> <li>x64\SQLite.Interop.dll</li> <li>x86\SQLite.Interop.dll (實測這個可以不用)</li></ul> <p>.ps 程式範例如下，就是標準 ADO.NET 操作，應沒有任何難度：</p> <pre><code>$ErrorActionPreference = 'STOP'
+$dbPath = '.\test.sqlite'
+$cs = "Data Source=$dbPath";
+$needInit = !(Test-Path $dbPath)
+Add-Type -Path .\System.Data.SQLite.dll
+$cn = [System.Data.SQLite.SQLiteConnection]::new($cs)
+$cn.Open()
+$cmd = $cn.CreateCommand();
+if ($needInit) {
+$cmd.CommandText = @"
+CREATE TABLE Player (
+Id VARCHAR(16),
+Name VARCHAR(32),
+CONSTRAINT Player_PK PRIMARY KEY (Id)
+)
+"@
+$cmd.ExecuteNonQuery() | Out-Null
+}
+$cmd.CommandText = 'DELETE FROM Player'
+$cmd.ExecuteNonQuery() | Out-Null
+$cmd.CommandText = 'INSERT INTO Player VALUES (@Id, @Name)'
+$cmd.Parameters.Add([System.Data.SQLite.SQLiteParameter]::new('Id', 'A1234')) | Out-Null
+$p = $cmd.Parameters.Add('Name', [System.Data.DbType]::AnsiString)
+$p.Value = 'Jeffrey'
+$rowAffected = $cmd.ExecuteNonQuery()
+Write-Host "$rowAffected rows inserted"
+$cmd.CommandText = "SELECT * FROM Player"
+$cmd.Parameters.Clear()
+$dr = $cmd.ExecuteReader()
+while ($dr.Read()) {
+Write-Host $dr["Id"] $dr["Name"]
+}
+$cn.Dispose()
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638419161709306690.png"></p> <p data-slug="ps-sqlite-example" data-fbimg="https://i.imgur.com/ULsNU0M.jpeg#640#480"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638419161709306690.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638419161709306690.png" medium="image"/>
+    <pubDate>Sat, 27 Jan 2024 01:35:19 GMT</pubDate>
+  </item><item>
     <title><![CDATA[前端的那些魔鬼細節 - innerText 與 textContent 的差異及對照測試]]></title>
     <link>https://blog.darkthread.net/blog/innertext-vs-textcontent/</link>
     <itunes:title><![CDATA[前端的那些魔鬼細節 - innerText 與 textContent 的差異及對照測試]]></itunes:title>
@@ -1540,242 +1654,5 @@ return (negtive ? "負" : string.Empty) + t;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638411846253089805.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638411846253089805.png" medium="image"/>
     <pubDate>Thu, 18 Jan 2024 14:23:54 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Dapper 之字串參數查詢效能地雷]]></title>
-    <link>https://blog.darkthread.net/blog/dapper-dbstring/</link>
-    <itunes:title><![CDATA[Dapper 之字串參數查詢效能地雷]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>同事踩到 Dapper 的雷，我跟著上了一課，筆記備忘。</p> <p>用一個 2,000 萬筆資料的 Oracle 資料表重現問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png"></p> <p>用 Dapper 執行 <code>UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id</code>，id 參數分別用匿名型別 <code>new { id }</code> 及 <code>var p = new DynamicParameters(); p.Add("id", id);</code> 傳入，總共測 5 次，兩種寫法的執行速度天差地別，相差 100 倍：<br> (註：有使用 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping 修正 Unicode 字元寫入問題</a>)</p> <pre><code>static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest();
-}
-Console.ReadLine();
-}
-static void RunTest()
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-}
-}
-</code></pre> <p>使用昨天說的 <a href="/blog/spy-parameter-types-in-dapper/">SimulateDapperDbParameters()</a> 檢查二者產生的參數型別，發現關鍵差異：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410977560824052.png"></p> <p>使用匿名型別傳參數時，對映出來的 OracleParameter 型別是 NVarChar2，而 DynamicParameters 則對映到 VarChar2。</p> <p>這裡藏了一個陷阱，當欄位型別是 VarChar，若用 NVarChar 型別參數進行比對，將因型別不同無法使用索引(從 Index Seek 變成 Index Scan，細節可參考<a href="https://dotblogs.com.tw/supershowwei/2019/08/12/232213">軟體主廚的實測</a>或這篇 <a href="https://lostechies.com/jimmybogard/2012/07/18/troubleshooting-sql-index-performance-on-varchar-columns/">Troubleshooting SQL index performance on varchar columns</a>)，當資料筆數很多，有沒有索引便會形成明顯差異。資料筆數愈多，差距愈大。</p> <p>知道原因就不難解決。針對 WHERE 條件式中參數須使用 VarChar 型別確保查詢效能的情境，Dapper 提供的解法是透過 <a href="https://github.com/DapperLib/Dapper?tab=readme-ov-file#ansi-strings-and-varchar">DbString 類別 IsAnsi 屬性</a>指定將 string 對映成 VarChar (SQL) / VarChar2 (Oracle) 型別。在本案例改成 <code>new { id = new DbString { Value = id, IsAnsi = true, Length = id.Length } }</code> 即可確保 Dapper 用 VarChar2 傳送 id 參數。依我的個性，肯定受不了程式碼冒出一大堆又臭又長的 <code>new DbString { Value = ..., IsAnsi = true... }</code>，我選擇寫個擴充方法簡化成 <code>new { id = id.ToConstVarChar() }</code>：</p> <pre><code>internal class Program
-{
-static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest(i == 4);
-}
-Console.ReadLine();
-}
-static void RunTest(bool printParamTypes)
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id = id.ToConstVarChar() };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, anonymousType);
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, p);
-}
-}
-}
-public static class ExtMethods
-{
-public static DbString ToConstVarChar(this string str) =&gt;
-new DbString { Value = str, IsAnsi = true, Length = str.Length };
-}
-</code></pre> <p>改用 DbString 後，參數型別變成 VarChar2，執行速度提升到跟 DynamicParameter 一樣快(註：第一次冷啟動耗時較久不計)，問題排除。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410977563209027.png"></p> <p>這是個很容易踩到的陷阱，若 Dapper (其實用 ADO.NET 也會中) 有用到 WHERE 比對 VarChar / VarChar2，切記要確認型別以免寫出效能不佳的程式碼。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/dapper-odpnet-unicode-issue/">Hacking樂無窮：修正Dapper＋ODP.NET無法寫入Unicode問題</a></li> <li><a href="/blog/dapper-dynaparam-odpnet-unicode-issue-cause/">Dapper DynamicParameters 不會換 NVarChar</a></li></ul> <p data-slug="dapper-dbstring" data-title-en="Performance issue of NVarChar parameter type in where when using Dapper" data-catg=".NET" data-fbimg="https://en.wikipedia.org/wiki/Anti-tank_mine#/media/File:TM-46_AP-mine.JPEG#2850#1880">Introduce the potential performance issues that may occur when mapping a string to NVarChar in Dapper and how to avoid them using DbString.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>同事踩到 Dapper 的雷，我跟著上了一課，筆記備忘。</p> <p>用一個 2,000 萬筆資料的 Oracle 資料表重現問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png"></p> <p>用 Dapper 執行 <code>UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id</code>，id 參數分別用匿名型別 <code>new { id }</code> 及 <code>var p = new DynamicParameters(); p.Add("id", id);</code> 傳入，總共測 5 次，兩種寫法的執行速度天差地別，相差 100 倍：<br> (註：有使用 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping 修正 Unicode 字元寫入問題</a>)</p> <pre><code>static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest();
-}
-Console.ReadLine();
-}
-static void RunTest()
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-}
-}
-</code></pre> <p>使用昨天說的 <a href="/blog/spy-parameter-types-in-dapper/">SimulateDapperDbParameters()</a> 檢查二者產生的參數型別，發現關鍵差異：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410977560824052.png"></p> <p>使用匿名型別傳參數時，對映出來的 OracleParameter 型別是 NVarChar2，而 DynamicParameters 則對映到 VarChar2。</p> <p>這裡藏了一個陷阱，當欄位型別是 VarChar，若用 NVarChar 型別參數進行比對，將因型別不同無法使用索引(從 Index Seek 變成 Index Scan，細節可參考<a href="https://dotblogs.com.tw/supershowwei/2019/08/12/232213">軟體主廚的實測</a>或這篇 <a href="https://lostechies.com/jimmybogard/2012/07/18/troubleshooting-sql-index-performance-on-varchar-columns/">Troubleshooting SQL index performance on varchar columns</a>)，當資料筆數很多，有沒有索引便會形成明顯差異。資料筆數愈多，差距愈大。</p> <p>知道原因就不難解決。針對 WHERE 條件式中參數須使用 VarChar 型別確保查詢效能的情境，Dapper 提供的解法是透過 <a href="https://github.com/DapperLib/Dapper?tab=readme-ov-file#ansi-strings-and-varchar">DbString 類別 IsAnsi 屬性</a>指定將 string 對映成 VarChar (SQL) / VarChar2 (Oracle) 型別。在本案例改成 <code>new { id = new DbString { Value = id, IsAnsi = true, Length = id.Length } }</code> 即可確保 Dapper 用 VarChar2 傳送 id 參數。依我的個性，肯定受不了程式碼冒出一大堆又臭又長的 <code>new DbString { Value = ..., IsAnsi = true... }</code>，我選擇寫個擴充方法簡化成 <code>new { id = id.ToConstVarChar() }</code>：</p> <pre><code>internal class Program
-{
-static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest(i == 4);
-}
-Console.ReadLine();
-}
-static void RunTest(bool printParamTypes)
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id = id.ToConstVarChar() };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, anonymousType);
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, p);
-}
-}
-}
-public static class ExtMethods
-{
-public static DbString ToConstVarChar(this string str) =&gt;
-new DbString { Value = str, IsAnsi = true, Length = str.Length };
-}
-</code></pre> <p>改用 DbString 後，參數型別變成 VarChar2，執行速度提升到跟 DynamicParameter 一樣快(註：第一次冷啟動耗時較久不計)，問題排除。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410977563209027.png"></p> <p>這是個很容易踩到的陷阱，若 Dapper (其實用 ADO.NET 也會中) 有用到 WHERE 比對 VarChar / VarChar2，切記要確認型別以免寫出效能不佳的程式碼。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/dapper-odpnet-unicode-issue/">Hacking樂無窮：修正Dapper＋ODP.NET無法寫入Unicode問題</a></li> <li><a href="/blog/dapper-dynaparam-odpnet-unicode-issue-cause/">Dapper DynamicParameters 不會換 NVarChar</a></li></ul> <p data-slug="dapper-dbstring" data-title-en="Performance issue of NVarChar parameter type in where when using Dapper" data-catg=".NET" data-fbimg="https://en.wikipedia.org/wiki/Anti-tank_mine#/media/File:TM-46_AP-mine.JPEG#2850#1880">Introduce the potential performance issues that may occur when mapping a string to NVarChar in Dapper and how to avoid them using DbString.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>同事踩到 Dapper 的雷，我跟著上了一課，筆記備忘。</p> <p>用一個 2,000 萬筆資料的 Oracle 資料表重現問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png"></p> <p>用 Dapper 執行 <code>UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id</code>，id 參數分別用匿名型別 <code>new { id }</code> 及 <code>var p = new DynamicParameters(); p.Add("id", id);</code> 傳入，總共測 5 次，兩種寫法的執行速度天差地別，相差 100 倍：<br> (註：有使用 <a href="/blog/dapper-odpnet-unicode-issue/">FixOdpNetDbTypeStringMapping 修正 Unicode 字元寫入問題</a>)</p> <pre><code>static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest();
-}
-Console.ReadLine();
-}
-static void RunTest()
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-}
-}
-</code></pre> <p>使用昨天說的 <a href="/blog/spy-parameter-types-in-dapper/">SimulateDapperDbParameters()</a> 檢查二者產生的參數型別，發現關鍵差異：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638410977560824052.png"></p> <p>使用匿名型別傳參數時，對映出來的 OracleParameter 型別是 NVarChar2，而 DynamicParameters 則對映到 VarChar2。</p> <p>這裡藏了一個陷阱，當欄位型別是 VarChar，若用 NVarChar 型別參數進行比對，將因型別不同無法使用索引(從 Index Seek 變成 Index Scan，細節可參考<a href="https://dotblogs.com.tw/supershowwei/2019/08/12/232213">軟體主廚的實測</a>或這篇 <a href="https://lostechies.com/jimmybogard/2012/07/18/troubleshooting-sql-index-performance-on-varchar-columns/">Troubleshooting SQL index performance on varchar columns</a>)，當資料筆數很多，有沒有索引便會形成明顯差異。資料筆數愈多，差距愈大。</p> <p>知道原因就不難解決。針對 WHERE 條件式中參數須使用 VarChar 型別確保查詢效能的情境，Dapper 提供的解法是透過 <a href="https://github.com/DapperLib/Dapper?tab=readme-ov-file#ansi-strings-and-varchar">DbString 類別 IsAnsi 屬性</a>指定將 string 對映成 VarChar (SQL) / VarChar2 (Oracle) 型別。在本案例改成 <code>new { id = new DbString { Value = id, IsAnsi = true, Length = id.Length } }</code> 即可確保 Dapper 用 VarChar2 傳送 id 參數。依我的個性，肯定受不了程式碼冒出一大堆又臭又長的 <code>new DbString { Value = ..., IsAnsi = true... }</code>，我選擇寫個擴充方法簡化成 <code>new { id = id.ToConstVarChar() }</code>：</p> <pre><code>internal class Program
-{
-static void Main(string[] args)
-{
-FixOdpNetDbTypeStringMapping();
-for (var i = 0; i &lt; 5; i++)
-{
-RunTest(i == 4);
-}
-Console.ReadLine();
-}
-static void RunTest(bool printParamTypes)
-{
-var sql = "UPDATE EXAMPLE SET Score = Score + 1 WHERE Id = :id";
-var rnd = new Random();
-var rowCount = 20000000;
-using (var cn = new OracleConnection(cs))
-{
-var id = $"{rnd.Next(rowCount):x8}";
-var anonymousType = new { id = id.ToConstVarChar() };
-var sw = new Stopwatch();
-sw.Start();
-var affected = cn.Execute(sql, anonymousType);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, anonymousType);
-id = $"{rnd.Next(rowCount):x8}";
-var p = new DynamicParameters();
-p.Add("id", id);
-sw.Restart();
-affected = cn.Execute(sql, p);
-sw.Stop();
-Console.WriteLine($"{id} - {affected} row updated. ({sw.ElapsedMilliseconds} ms)");
-if (printParamTypes) SimulateDapperDbParameters(sql, cn, p);
-}
-}
-}
-public static class ExtMethods
-{
-public static DbString ToConstVarChar(this string str) =&gt;
-new DbString { Value = str, IsAnsi = true, Length = str.Length };
-}
-</code></pre> <p>改用 DbString 後，參數型別變成 VarChar2，執行速度提升到跟 DynamicParameter 一樣快(註：第一次冷啟動耗時較久不計)，問題排除。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638410977563209027.png"></p> <p>這是個很容易踩到的陷阱，若 Dapper (其實用 ADO.NET 也會中) 有用到 WHERE 比對 VarChar / VarChar2，切記要確認型別以免寫出效能不佳的程式碼。</p> <p>【延伸閱讀】</p> <ul><li><a href="/blog/dapper-odpnet-unicode-issue/">Hacking樂無窮：修正Dapper＋ODP.NET無法寫入Unicode問題</a></li> <li><a href="/blog/dapper-dynaparam-odpnet-unicode-issue-cause/">Dapper DynamicParameters 不會換 NVarChar</a></li></ul> <p data-slug="dapper-dbstring" data-title-en="Performance issue of NVarChar parameter type in where when using Dapper" data-catg=".NET" data-fbimg="https://en.wikipedia.org/wiki/Anti-tank_mine#/media/File:TM-46_AP-mine.JPEG#2850#1880">Introduce the potential performance issues that may occur when mapping a string to NVarChar in Dapper and how to avoid them using DbString.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig3_638410980848373581.png" medium="image"/>
-    <pubDate>Wed, 17 Jan 2024 14:16:24 GMT</pubDate>
   </item></channel>
 </rss>
