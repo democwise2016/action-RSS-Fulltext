@@ -30,6 +30,822 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1088期：draw.io编辑器：《drawio-desktop》]]></title>
+    <link>https://openingsource.org/11574/</link>
+    <itunes:title><![CDATA[开源日报第1088期：draw.io编辑器：《drawio-desktop》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1088期：<br>
+今日推荐开源项目：《drawio-desktop》<br>
+今日推荐英文原文：《A Super Simple Guide to the Render Props Pattern in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240128.jpg.pagespeed.ic.9U5-FlmV65.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《drawio-desktop》传送门：<a href="https://github.com/jgraph/drawio-desktop?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： drawio-desktop是一个基于Electron的图表和白板桌面应用程序，它包装了核心的draw.io编辑器</p>
+<p>网站直达：www.diagrams.net</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179" target="_blank">A Super Simple Guide to the Render Props Pattern in React</a></p>
+<p>推荐理由：渲染属性模式是React中一种优雅的模式，用于在组件间以清晰可重用的方式共享数据或功能，创建渲染属性组件如<code>DateProvider</code>，通过渲染传递的函数提供数据，提高复用性</p>
+<hr>
+<h1>A Super Simple Guide to the Render Props Pattern in React</h1>
+<h1>Render Props Pattern in React</h1>
+<p>Hey there, React enthusiasts! Today, we’re diving into an elegant and versatile pattern in React: the Render Props pattern. This pattern allows you to share data or functionality between components in a clean and reusable way, and it’s simpler than you might think.</p>
+<h2>What’s the Render Props Pattern?</h2>
+<p>Imagine you’re sharing your favorite book with a friend. You don’t just give them the book; you read it together, enjoying each page. The Render Props pattern is like that shared reading experience. It’s a way to share data or functionality by rendering a function as a child component. This function receives data as an argument and returns what to render based on that data.</p>
+<h2>When Do We Use the Render Props Pattern in React?</h2>
+<p>The Render Props pattern is handy when you want to share data or functionality between components, especially in situations where you need to customize the rendering based on that data. It’s a versatile approach for making your React components more reusable.</p>
+<h2>Creating a Render Props Component</h2>
+<p>Let’s create a simple Render Props component that shares the current date:</p>
+<pre><code>import React from 'react';
+class DateProvider extends React.Component {
+render() {
+const currentDate = new Date();
+return this.props.children(currentDate);
+}
+}
+export default DateProvider;</code></pre>
+<p>In this example, <code>DateProvider</code> is our Render Props component. It provides the current date by rendering the function passed as <code>children</code> and passing the <code>currentDate</code> as an argument.</p>
+<h2>Using the Render Props Component</h2>
+<p>Now, let’s see how we can use the <code>DateProvider</code> to display the current date in our app:</p>
+<pre><code>import React from 'react';
+import DateProvider from './DateProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;DateProvider&gt;
+{(currentDate) =&gt; (
+&lt;p&gt;Today's date is: {currentDate.toDateString()}&lt;/p&gt;
+)}
+&lt;/DateProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>In this example:</p>
+<ol>
+<li>We import the <code>DateProvider</code> component.</li>
+<li>Inside the <code>App</code> component, we wrap the content we want to share the current date with inside the <code>&lt;DateProvider&gt;</code> component.</li>
+<li>We render a function as a child, which receives the <code>currentDate</code> as an argument and returns what to render. In this case, we display the current date.</li>
+</ol>
+<h2>Real-World Example: Token Validation</h2>
+<p>Now, let’s take the Render Props pattern to the real world. Imagine you have a React app that requires user authentication. You want to validate user data stored <code>localStorage</code> against an API. If successful, you'd like to pass the user's ID to child components or display an error message if the validation fails.</p>
+<p>Here’s how you can modify your <code>AzureProvider</code> component to use the Render Props pattern:</p>
+<pre><code>import React, { useEffect, useState } from 'react';
+const AzureProvider = (props) =&gt; {
+const [error, setError] = useState(null);
+const [globalProvider, setGlobalProvider] = useState(null);
+const validate = async () =&gt; {
+let provider;
+try {
+const token = localStorage.getItem('userToken');
+if (!token) {
+throw new Error('No user token found in localStorage');
+}
+// Make an API call to validate the token
+const response = await fetch('https://your-api-endpoint.com/validate', {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${token}`,
+},
+});
+if (!response.ok) {
+throw new Error('Token validation failed');
+}
+// Assuming the response contains user information with an 'id' field
+const userData = await response.json();
+provider = userData.id;
+} catch (error) {
+console.error(error);
+setError('Token validation failed. Please log in again.');
+} finally {
+if (provider) {
+setGlobalProvider(provider);
+}
+}
+};
+useEffect(() =&gt; {
+validate();
+}, []);
+return props.children(globalProvider, error);
+};
+export default AzureProvider;</code></pre>
+<p>In this modified <code>AzureProvider</code> component:</p>
+<ol>
+<li>We use <code>async/await</code> it to perform token validation.</li>
+<li>We check for a token <code>localStorage</code> and handle validation errors.</li>
+<li>We set the <code>provider</code> and <code>error</code> states as appropriate.</li>
+<li>We passed both <code>provider</code> and <code>error</code> values to the children via <code>props.children</code>.</li>
+</ol>
+<p>Now, you can use the <code>AzureProvider</code> as shown in your <code>App</code> component:</p>
+<pre><code>import React from 'react';
+import AzureProvider from './AzureProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;AzureProvider&gt;
+{(provider, error) =&gt; {
+if (error) {
+return &lt;p style={{ color: "red" }}&gt;{error}&lt;/p&gt;;
+}
+if (provider) {
+return &lt;Component provider={provider} /&gt;; // Replace 'Component' with the actual name of your child component
+}
+return &lt;p&gt;Loading&lt;/p&gt;;
+}}
+&lt;/AzureProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>Here, we render a function as a child within the <code>AzureProvider</code>, which receives both the <code>provider</code> and <code>error</code> values and decides what to render based on the outcome of the token validation.</p>
+<p>The Render Props pattern is a powerful tool for sharing data and functionality in your React components, making your code cleaner, more reusable, and more adaptable. So, whether you’re displaying the current date or managing user authentication, Render Props is your go-to pattern in the React kitchen.</p>
+<h2>Conclusion</h2>
+<p>In this guide, we’ve explored the Render Props pattern in React, a flexible and powerful approach to sharing data and functionality between components. We began with a simple example of displaying the current date and extended it to a real-world scenario of user token validation. With Render Props, you can create more organized, reusable, and efficient components in your React applications.</p>
+<p>When to Use the Render Props Pattern:</p>
+<ol>
+<li>Customization: Use Render Props when you need to customize the rendering of a component based on some data or functionality.</li>
+<li>Data Sharing: It’s ideal for sharing data or behavior between components in a clean and maintainable way.</li>
+<li>Reusability: Employ Render Props to make your components more reusable, as they can adapt to different use cases.</li>
+<li>Flexibility: Choose this pattern when you want a flexible and versatile method for component composition.</li>
+</ol>
+<p>When to Avoid the Render Props Pattern:</p>
+<ol>
+<li>Simplicity: If your data-sharing needs are straightforward, and you don’t require customization, using the Render Props pattern might add unnecessary complexity to your code.</li>
+<li>Overuse: Avoid overusing Render Props in situations where simpler solutions like prop drilling or context API suffice.</li>
+<li>Nesting Complexity: Be cautious when nesting multiple components with Render Props, as it can make your code harder to maintain and understand.</li>
+</ol>
+<p>In essence, the Render Props pattern is a fantastic tool for enhancing the reusability and flexibility of your React components. However, like any tool, it should be used judiciously, considering the complexity and requirements of your specific project. So, keep it in your toolkit and apply it where it fits best, ensuring a seamless and efficient development experience in your React applications.</p>
+<p>Happy coding, and keep React-ing in style! 🚀💻</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1088期：<br>
+今日推荐开源项目：《drawio-desktop》<br>
+今日推荐英文原文：《A Super Simple Guide to the Render Props Pattern in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240128.jpg.pagespeed.ic.9U5-FlmV65.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《drawio-desktop》传送门：<a href="https://github.com/jgraph/drawio-desktop?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： drawio-desktop是一个基于Electron的图表和白板桌面应用程序，它包装了核心的draw.io编辑器</p>
+<p>网站直达：www.diagrams.net</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179" target="_blank">A Super Simple Guide to the Render Props Pattern in React</a></p>
+<p>推荐理由：渲染属性模式是React中一种优雅的模式，用于在组件间以清晰可重用的方式共享数据或功能，创建渲染属性组件如<code>DateProvider</code>，通过渲染传递的函数提供数据，提高复用性</p>
+<hr>
+<h1>A Super Simple Guide to the Render Props Pattern in React</h1>
+<h1>Render Props Pattern in React</h1>
+<p>Hey there, React enthusiasts! Today, we’re diving into an elegant and versatile pattern in React: the Render Props pattern. This pattern allows you to share data or functionality between components in a clean and reusable way, and it’s simpler than you might think.</p>
+<h2>What’s the Render Props Pattern?</h2>
+<p>Imagine you’re sharing your favorite book with a friend. You don’t just give them the book; you read it together, enjoying each page. The Render Props pattern is like that shared reading experience. It’s a way to share data or functionality by rendering a function as a child component. This function receives data as an argument and returns what to render based on that data.</p>
+<h2>When Do We Use the Render Props Pattern in React?</h2>
+<p>The Render Props pattern is handy when you want to share data or functionality between components, especially in situations where you need to customize the rendering based on that data. It’s a versatile approach for making your React components more reusable.</p>
+<h2>Creating a Render Props Component</h2>
+<p>Let’s create a simple Render Props component that shares the current date:</p>
+<pre><code>import React from 'react';
+class DateProvider extends React.Component {
+render() {
+const currentDate = new Date();
+return this.props.children(currentDate);
+}
+}
+export default DateProvider;</code></pre>
+<p>In this example, <code>DateProvider</code> is our Render Props component. It provides the current date by rendering the function passed as <code>children</code> and passing the <code>currentDate</code> as an argument.</p>
+<h2>Using the Render Props Component</h2>
+<p>Now, let’s see how we can use the <code>DateProvider</code> to display the current date in our app:</p>
+<pre><code>import React from 'react';
+import DateProvider from './DateProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;DateProvider&gt;
+{(currentDate) =&gt; (
+&lt;p&gt;Today's date is: {currentDate.toDateString()}&lt;/p&gt;
+)}
+&lt;/DateProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>In this example:</p>
+<ol>
+<li>We import the <code>DateProvider</code> component.</li>
+<li>Inside the <code>App</code> component, we wrap the content we want to share the current date with inside the <code>&lt;DateProvider&gt;</code> component.</li>
+<li>We render a function as a child, which receives the <code>currentDate</code> as an argument and returns what to render. In this case, we display the current date.</li>
+</ol>
+<h2>Real-World Example: Token Validation</h2>
+<p>Now, let’s take the Render Props pattern to the real world. Imagine you have a React app that requires user authentication. You want to validate user data stored <code>localStorage</code> against an API. If successful, you'd like to pass the user's ID to child components or display an error message if the validation fails.</p>
+<p>Here’s how you can modify your <code>AzureProvider</code> component to use the Render Props pattern:</p>
+<pre><code>import React, { useEffect, useState } from 'react';
+const AzureProvider = (props) =&gt; {
+const [error, setError] = useState(null);
+const [globalProvider, setGlobalProvider] = useState(null);
+const validate = async () =&gt; {
+let provider;
+try {
+const token = localStorage.getItem('userToken');
+if (!token) {
+throw new Error('No user token found in localStorage');
+}
+// Make an API call to validate the token
+const response = await fetch('https://your-api-endpoint.com/validate', {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${token}`,
+},
+});
+if (!response.ok) {
+throw new Error('Token validation failed');
+}
+// Assuming the response contains user information with an 'id' field
+const userData = await response.json();
+provider = userData.id;
+} catch (error) {
+console.error(error);
+setError('Token validation failed. Please log in again.');
+} finally {
+if (provider) {
+setGlobalProvider(provider);
+}
+}
+};
+useEffect(() =&gt; {
+validate();
+}, []);
+return props.children(globalProvider, error);
+};
+export default AzureProvider;</code></pre>
+<p>In this modified <code>AzureProvider</code> component:</p>
+<ol>
+<li>We use <code>async/await</code> it to perform token validation.</li>
+<li>We check for a token <code>localStorage</code> and handle validation errors.</li>
+<li>We set the <code>provider</code> and <code>error</code> states as appropriate.</li>
+<li>We passed both <code>provider</code> and <code>error</code> values to the children via <code>props.children</code>.</li>
+</ol>
+<p>Now, you can use the <code>AzureProvider</code> as shown in your <code>App</code> component:</p>
+<pre><code>import React from 'react';
+import AzureProvider from './AzureProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;AzureProvider&gt;
+{(provider, error) =&gt; {
+if (error) {
+return &lt;p style={{ color: "red" }}&gt;{error}&lt;/p&gt;;
+}
+if (provider) {
+return &lt;Component provider={provider} /&gt;; // Replace 'Component' with the actual name of your child component
+}
+return &lt;p&gt;Loading&lt;/p&gt;;
+}}
+&lt;/AzureProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>Here, we render a function as a child within the <code>AzureProvider</code>, which receives both the <code>provider</code> and <code>error</code> values and decides what to render based on the outcome of the token validation.</p>
+<p>The Render Props pattern is a powerful tool for sharing data and functionality in your React components, making your code cleaner, more reusable, and more adaptable. So, whether you’re displaying the current date or managing user authentication, Render Props is your go-to pattern in the React kitchen.</p>
+<h2>Conclusion</h2>
+<p>In this guide, we’ve explored the Render Props pattern in React, a flexible and powerful approach to sharing data and functionality between components. We began with a simple example of displaying the current date and extended it to a real-world scenario of user token validation. With Render Props, you can create more organized, reusable, and efficient components in your React applications.</p>
+<p>When to Use the Render Props Pattern:</p>
+<ol>
+<li>Customization: Use Render Props when you need to customize the rendering of a component based on some data or functionality.</li>
+<li>Data Sharing: It’s ideal for sharing data or behavior between components in a clean and maintainable way.</li>
+<li>Reusability: Employ Render Props to make your components more reusable, as they can adapt to different use cases.</li>
+<li>Flexibility: Choose this pattern when you want a flexible and versatile method for component composition.</li>
+</ol>
+<p>When to Avoid the Render Props Pattern:</p>
+<ol>
+<li>Simplicity: If your data-sharing needs are straightforward, and you don’t require customization, using the Render Props pattern might add unnecessary complexity to your code.</li>
+<li>Overuse: Avoid overusing Render Props in situations where simpler solutions like prop drilling or context API suffice.</li>
+<li>Nesting Complexity: Be cautious when nesting multiple components with Render Props, as it can make your code harder to maintain and understand.</li>
+</ol>
+<p>In essence, the Render Props pattern is a fantastic tool for enhancing the reusability and flexibility of your React components. However, like any tool, it should be used judiciously, considering the complexity and requirements of your specific project. So, keep it in your toolkit and apply it where it fits best, ensuring a seamless and efficient development experience in your React applications.</p>
+<p>Happy coding, and keep React-ing in style! 🚀💻</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1088期：<br>
+今日推荐开源项目：《drawio-desktop》<br>
+今日推荐英文原文：《A Super Simple Guide to the Render Props Pattern in React》<br>
+<img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240128.jpg.pagespeed.ic.9U5-FlmV65.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《drawio-desktop》传送门：<a href="https://github.com/jgraph/drawio-desktop?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： drawio-desktop是一个基于Electron的图表和白板桌面应用程序，它包装了核心的draw.io编辑器</p>
+<p>网站直达：www.diagrams.net</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/reacts-render-props-pattern-a-comprehensive-guide-f9d5f07be179" target="_blank">A Super Simple Guide to the Render Props Pattern in React</a></p>
+<p>推荐理由：渲染属性模式是React中一种优雅的模式，用于在组件间以清晰可重用的方式共享数据或功能，创建渲染属性组件如<code>DateProvider</code>，通过渲染传递的函数提供数据，提高复用性</p>
+<hr>
+<h1>A Super Simple Guide to the Render Props Pattern in React</h1>
+<h1>Render Props Pattern in React</h1>
+<p>Hey there, React enthusiasts! Today, we’re diving into an elegant and versatile pattern in React: the Render Props pattern. This pattern allows you to share data or functionality between components in a clean and reusable way, and it’s simpler than you might think.</p>
+<h2>What’s the Render Props Pattern?</h2>
+<p>Imagine you’re sharing your favorite book with a friend. You don’t just give them the book; you read it together, enjoying each page. The Render Props pattern is like that shared reading experience. It’s a way to share data or functionality by rendering a function as a child component. This function receives data as an argument and returns what to render based on that data.</p>
+<h2>When Do We Use the Render Props Pattern in React?</h2>
+<p>The Render Props pattern is handy when you want to share data or functionality between components, especially in situations where you need to customize the rendering based on that data. It’s a versatile approach for making your React components more reusable.</p>
+<h2>Creating a Render Props Component</h2>
+<p>Let’s create a simple Render Props component that shares the current date:</p>
+<pre><code>import React from 'react';
+class DateProvider extends React.Component {
+render() {
+const currentDate = new Date();
+return this.props.children(currentDate);
+}
+}
+export default DateProvider;</code></pre>
+<p>In this example, <code>DateProvider</code> is our Render Props component. It provides the current date by rendering the function passed as <code>children</code> and passing the <code>currentDate</code> as an argument.</p>
+<h2>Using the Render Props Component</h2>
+<p>Now, let’s see how we can use the <code>DateProvider</code> to display the current date in our app:</p>
+<pre><code>import React from 'react';
+import DateProvider from './DateProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;DateProvider&gt;
+{(currentDate) =&gt; (
+&lt;p&gt;Today's date is: {currentDate.toDateString()}&lt;/p&gt;
+)}
+&lt;/DateProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>In this example:</p>
+<ol>
+<li>We import the <code>DateProvider</code> component.</li>
+<li>Inside the <code>App</code> component, we wrap the content we want to share the current date with inside the <code>&lt;DateProvider&gt;</code> component.</li>
+<li>We render a function as a child, which receives the <code>currentDate</code> as an argument and returns what to render. In this case, we display the current date.</li>
+</ol>
+<h2>Real-World Example: Token Validation</h2>
+<p>Now, let’s take the Render Props pattern to the real world. Imagine you have a React app that requires user authentication. You want to validate user data stored <code>localStorage</code> against an API. If successful, you'd like to pass the user's ID to child components or display an error message if the validation fails.</p>
+<p>Here’s how you can modify your <code>AzureProvider</code> component to use the Render Props pattern:</p>
+<pre><code>import React, { useEffect, useState } from 'react';
+const AzureProvider = (props) =&gt; {
+const [error, setError] = useState(null);
+const [globalProvider, setGlobalProvider] = useState(null);
+const validate = async () =&gt; {
+let provider;
+try {
+const token = localStorage.getItem('userToken');
+if (!token) {
+throw new Error('No user token found in localStorage');
+}
+// Make an API call to validate the token
+const response = await fetch('https://your-api-endpoint.com/validate', {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${token}`,
+},
+});
+if (!response.ok) {
+throw new Error('Token validation failed');
+}
+// Assuming the response contains user information with an 'id' field
+const userData = await response.json();
+provider = userData.id;
+} catch (error) {
+console.error(error);
+setError('Token validation failed. Please log in again.');
+} finally {
+if (provider) {
+setGlobalProvider(provider);
+}
+}
+};
+useEffect(() =&gt; {
+validate();
+}, []);
+return props.children(globalProvider, error);
+};
+export default AzureProvider;</code></pre>
+<p>In this modified <code>AzureProvider</code> component:</p>
+<ol>
+<li>We use <code>async/await</code> it to perform token validation.</li>
+<li>We check for a token <code>localStorage</code> and handle validation errors.</li>
+<li>We set the <code>provider</code> and <code>error</code> states as appropriate.</li>
+<li>We passed both <code>provider</code> and <code>error</code> values to the children via <code>props.children</code>.</li>
+</ol>
+<p>Now, you can use the <code>AzureProvider</code> as shown in your <code>App</code> component:</p>
+<pre><code>import React from 'react';
+import AzureProvider from './AzureProvider';
+class App extends React.Component {
+render() {
+return (
+&lt;div className="App"&gt;
+&lt;h1&gt;Welcome to My React App&lt;/h1&gt;
+&lt;AzureProvider&gt;
+{(provider, error) =&gt; {
+if (error) {
+return &lt;p style={{ color: "red" }}&gt;{error}&lt;/p&gt;;
+}
+if (provider) {
+return &lt;Component provider={provider} /&gt;; // Replace 'Component' with the actual name of your child component
+}
+return &lt;p&gt;Loading&lt;/p&gt;;
+}}
+&lt;/AzureProvider&gt;
+&lt;/div&gt;
+);
+}
+}
+export default App;</code></pre>
+<p>Here, we render a function as a child within the <code>AzureProvider</code>, which receives both the <code>provider</code> and <code>error</code> values and decides what to render based on the outcome of the token validation.</p>
+<p>The Render Props pattern is a powerful tool for sharing data and functionality in your React components, making your code cleaner, more reusable, and more adaptable. So, whether you’re displaying the current date or managing user authentication, Render Props is your go-to pattern in the React kitchen.</p>
+<h2>Conclusion</h2>
+<p>In this guide, we’ve explored the Render Props pattern in React, a flexible and powerful approach to sharing data and functionality between components. We began with a simple example of displaying the current date and extended it to a real-world scenario of user token validation. With Render Props, you can create more organized, reusable, and efficient components in your React applications.</p>
+<p>When to Use the Render Props Pattern:</p>
+<ol>
+<li>Customization: Use Render Props when you need to customize the rendering of a component based on some data or functionality.</li>
+<li>Data Sharing: It’s ideal for sharing data or behavior between components in a clean and maintainable way.</li>
+<li>Reusability: Employ Render Props to make your components more reusable, as they can adapt to different use cases.</li>
+<li>Flexibility: Choose this pattern when you want a flexible and versatile method for component composition.</li>
+</ol>
+<p>When to Avoid the Render Props Pattern:</p>
+<ol>
+<li>Simplicity: If your data-sharing needs are straightforward, and you don’t require customization, using the Render Props pattern might add unnecessary complexity to your code.</li>
+<li>Overuse: Avoid overusing Render Props in situations where simpler solutions like prop drilling or context API suffice.</li>
+<li>Nesting Complexity: Be cautious when nesting multiple components with Render Props, as it can make your code harder to maintain and understand.</li>
+</ol>
+<p>In essence, the Render Props pattern is a fantastic tool for enhancing the reusability and flexibility of your React components. However, like any tool, it should be used judiciously, considering the complexity and requirements of your specific project. So, keep it in your toolkit and apply it where it fits best, ensuring a seamless and efficient development experience in your React applications.</p>
+<p>Happy coding, and keep React-ing in style! 🚀💻</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240128.jpg.pagespeed.ic.9U5-FlmV65.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240128.jpg.pagespeed.ic.9U5-FlmV65.jpg" medium="image"/>
+    <pubDate>Sun, 28 Jan 2024 13:59:33 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1087期： 可拖放列表库：《Sortable》]]></title>
+    <link>https://openingsource.org/11571/</link>
+    <itunes:title><![CDATA[开源日报第1087期： 可拖放列表库：《Sortable》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1087期：<br>
+今日推荐开源项目：《Sortable》<br>
+今日推荐英文原文：《 Do you really need React.forwardRef ?》</p>
+<hr>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127-1.jpg.pagespeed.ic.BSjTzlpsCy.jpg"></p>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Sortable》传送门：<a href="https://github.com/SortableJS/Sortable?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 现代浏览器和触摸设备上可重新排序的拖放列表，不需要jQuery或框架</p>
+<p>网站直达：sortablejs.github.io/Sortable/</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank"> Do you really need React.forwardRef ?</a></p>
+<p>推荐理由：React.forwardRef 是 React 中的一个函数，解决了在自定义 React 组件中转发 ref 对象的问题，forwardRef 函数允许覆盖保留的 ref prop，从而使用标准 prop 名称进行 ref 转发</p>
+<hr>
+<h1>Do you really need React.forwardRef ?</h1>
+<blockquote>
+<p><strong><em>Disclaimer:\</em></strong> All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<h1><strong>Introduction</strong></h1>
+<p>I hope every reader knows at-least the basics of React js. Before going to the concept, let’s see what is <code>Ref</code> in a nutshell.</p>
+<ul>
+<li>In React, <code>ref</code> is an object facilitating direct interaction with DOM elements or React components.</li>
+<li>Essential for accessing and modifying element properties or methods outside the standard React data flow.</li>
+<li>For more info, check my another blog.</li>
+</ul>
+<h1>What is React.forwardRef?</h1>
+<p><code>React.forwardRef</code> is a function in React that allows components to forward a <code>ref</code> they receive to a child component. This is particularly useful when you want a parent component to interact with a specific child component instance.</p>
+<p>Let’s see an example</p>
+<pre><code>import React, { forwardRef } from 'react';
+const Input = forwardRef((props, ref) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={ref}
+/&gt;
+);
+});
+export default Input;</code></pre>
+<p>In the above implementation we have created a React component names as Input. We have wrapped a functional component inside <code>forwardRef </code>function. Now let’s see how we pass the <code>ref</code> as prop to the Input.</p>
+<pre><code>import React, { useRef } from 'react';
+import Input from './Input'; // Assuming the file is in the same directory
+const ParentComponent = () =&gt; {
+const inputRef = useRef();
+useEffect(()=&gt;{
+if (inputRef.current) {
+inputRef.current.focus();
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;Input ref={inputRef} placeholder="Enter text" /&gt;
+&lt;/div&gt;
+);
+};
+export default ParentComponent;</code></pre>
+<h1>Don’t skip, read this scenario.</h1>
+<p>Consider a situation where you are building a design system like React-Bootstrap. Assume that, you are currently building a Input Component. Since it’s essential for other developers, who may need <code>ref object</code> for accessing the underlying input element, you decided to add <code>ref</code> as a prop to your custom component. But what happens, boom, your code throws an error.</p>
+<p>For example, let me remove the <code>forwardRef</code> from the input element.</p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.ref}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<p>Now let’s save it and run. What will happen? Any guess ?. The following line will throw an error</p>
+<pre><code>&lt;Input ref={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>**But why?</p>
+<p>**Because <code>ref</code> is a reserved prop is React, just like reserved keywords in programming languages. React handles the <code>ref</code> prop specially, so by default you can’t override with your custom value.</p>
+<p><strong>Here’s the warning message: But in this case, it should be considered as Error message.</strong></p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*h6fbDFW9iGjjTIXCECyTAQ.png" alt="img"></p>
+<p><strong>Now let’s fix this by using the clue given by first warning message.</strong> Now change the prop name from <code>ref</code> to <code>myRef</code>.</p>
+<pre><code>&lt;Input myRef={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>Also in the input component, change <code>ref={props.ref}</code> to <code>ref={props.myRef}</code></p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.myRef}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<blockquote>
+<p>Wait, what happens if I use other prop names like <strong>myRef</strong>, <strong>customRef</strong> or <strong>ref1 ?</strong> will it work ?</p>
+</blockquote>
+<p>Yes indeed, it works. You can use other names to forward you <code>ref object</code> in your custom react component.</p>
+<blockquote>
+<p>Huh, then Why I need <strong>React.forwardRef</strong> ? You may have this question in your mind?</p>
+</blockquote>
+<p>Your doubt has logic, but still you need forwardRef function. Let’s see why</p>
+<h1>What problem that forwardRef function solves ?</h1>
+<p>So if you not using <code>forwardRef</code> instead if you use any other name than <code>ref</code> for forwarding a <code>ref object</code> , then you need to mention it explicitly in the documentation. It will become harder for developers who are using your library, need to adapt to the new custom <code>ref</code> prop name. Also it violates the React standard way of coding.</p>
+<h1>How it solves the problem?</h1>
+<p>The forwardRef function will override the <code>ref</code> prop, which can’t be done implicitly, so that we can use the <code>ref</code> prop to send our custom <code>ref object</code> through it. So that there is no need of explicitly define the prop name for forwarding <code>ref</code>. Even in React’s official documentation itself, it dosen’t have this explanation atleast at the time of writing this blog. I hope it will be added soon.</p>
+<p>Thanks for reading, your love and support means lot to me. Thank you, see you soon in another story.</p>
+<p><a href="https://medium.com/tag/react?source=post_page-----93b48e9c1fab---------------react-----------------" target="_blank">React</a></p>
+<p><a href="https://medium.com/tag/forwardref?source=post_page-----93b48e9c1fab---------------forwardref-----------------" target="_blank">Forwardref</a></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1087期：<br>
+今日推荐开源项目：《Sortable》<br>
+今日推荐英文原文：《 Do you really need React.forwardRef ?》</p>
+<hr>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127-1.jpg.pagespeed.ic.BSjTzlpsCy.jpg"></p>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Sortable》传送门：<a href="https://github.com/SortableJS/Sortable?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 现代浏览器和触摸设备上可重新排序的拖放列表，不需要jQuery或框架</p>
+<p>网站直达：sortablejs.github.io/Sortable/</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank"> Do you really need React.forwardRef ?</a></p>
+<p>推荐理由：React.forwardRef 是 React 中的一个函数，解决了在自定义 React 组件中转发 ref 对象的问题，forwardRef 函数允许覆盖保留的 ref prop，从而使用标准 prop 名称进行 ref 转发</p>
+<hr>
+<h1>Do you really need React.forwardRef ?</h1>
+<blockquote>
+<p><strong><em>Disclaimer:\</em></strong> All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<h1><strong>Introduction</strong></h1>
+<p>I hope every reader knows at-least the basics of React js. Before going to the concept, let’s see what is <code>Ref</code> in a nutshell.</p>
+<ul>
+<li>In React, <code>ref</code> is an object facilitating direct interaction with DOM elements or React components.</li>
+<li>Essential for accessing and modifying element properties or methods outside the standard React data flow.</li>
+<li>For more info, check my another blog.</li>
+</ul>
+<h1>What is React.forwardRef?</h1>
+<p><code>React.forwardRef</code> is a function in React that allows components to forward a <code>ref</code> they receive to a child component. This is particularly useful when you want a parent component to interact with a specific child component instance.</p>
+<p>Let’s see an example</p>
+<pre><code>import React, { forwardRef } from 'react';
+const Input = forwardRef((props, ref) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={ref}
+/&gt;
+);
+});
+export default Input;</code></pre>
+<p>In the above implementation we have created a React component names as Input. We have wrapped a functional component inside <code>forwardRef </code>function. Now let’s see how we pass the <code>ref</code> as prop to the Input.</p>
+<pre><code>import React, { useRef } from 'react';
+import Input from './Input'; // Assuming the file is in the same directory
+const ParentComponent = () =&gt; {
+const inputRef = useRef();
+useEffect(()=&gt;{
+if (inputRef.current) {
+inputRef.current.focus();
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;Input ref={inputRef} placeholder="Enter text" /&gt;
+&lt;/div&gt;
+);
+};
+export default ParentComponent;</code></pre>
+<h1>Don’t skip, read this scenario.</h1>
+<p>Consider a situation where you are building a design system like React-Bootstrap. Assume that, you are currently building a Input Component. Since it’s essential for other developers, who may need <code>ref object</code> for accessing the underlying input element, you decided to add <code>ref</code> as a prop to your custom component. But what happens, boom, your code throws an error.</p>
+<p>For example, let me remove the <code>forwardRef</code> from the input element.</p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.ref}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<p>Now let’s save it and run. What will happen? Any guess ?. The following line will throw an error</p>
+<pre><code>&lt;Input ref={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>**But why?</p>
+<p>**Because <code>ref</code> is a reserved prop is React, just like reserved keywords in programming languages. React handles the <code>ref</code> prop specially, so by default you can’t override with your custom value.</p>
+<p><strong>Here’s the warning message: But in this case, it should be considered as Error message.</strong></p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*h6fbDFW9iGjjTIXCECyTAQ.png" alt="img"></p>
+<p><strong>Now let’s fix this by using the clue given by first warning message.</strong> Now change the prop name from <code>ref</code> to <code>myRef</code>.</p>
+<pre><code>&lt;Input myRef={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>Also in the input component, change <code>ref={props.ref}</code> to <code>ref={props.myRef}</code></p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.myRef}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<blockquote>
+<p>Wait, what happens if I use other prop names like <strong>myRef</strong>, <strong>customRef</strong> or <strong>ref1 ?</strong> will it work ?</p>
+</blockquote>
+<p>Yes indeed, it works. You can use other names to forward you <code>ref object</code> in your custom react component.</p>
+<blockquote>
+<p>Huh, then Why I need <strong>React.forwardRef</strong> ? You may have this question in your mind?</p>
+</blockquote>
+<p>Your doubt has logic, but still you need forwardRef function. Let’s see why</p>
+<h1>What problem that forwardRef function solves ?</h1>
+<p>So if you not using <code>forwardRef</code> instead if you use any other name than <code>ref</code> for forwarding a <code>ref object</code> , then you need to mention it explicitly in the documentation. It will become harder for developers who are using your library, need to adapt to the new custom <code>ref</code> prop name. Also it violates the React standard way of coding.</p>
+<h1>How it solves the problem?</h1>
+<p>The forwardRef function will override the <code>ref</code> prop, which can’t be done implicitly, so that we can use the <code>ref</code> prop to send our custom <code>ref object</code> through it. So that there is no need of explicitly define the prop name for forwarding <code>ref</code>. Even in React’s official documentation itself, it dosen’t have this explanation atleast at the time of writing this blog. I hope it will be added soon.</p>
+<p>Thanks for reading, your love and support means lot to me. Thank you, see you soon in another story.</p>
+<p><a href="https://medium.com/tag/react?source=post_page-----93b48e9c1fab---------------react-----------------" target="_blank">React</a></p>
+<p><a href="https://medium.com/tag/forwardref?source=post_page-----93b48e9c1fab---------------forwardref-----------------" target="_blank">Forwardref</a></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年1月28日，开源日报第1087期：<br>
+今日推荐开源项目：《Sortable》<br>
+今日推荐英文原文：《 Do you really need React.forwardRef ?》</p>
+<hr>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127-1.jpg.pagespeed.ic.BSjTzlpsCy.jpg"></p>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《Sortable》传送门：<a href="https://github.com/SortableJS/Sortable?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由： 现代浏览器和触摸设备上可重新排序的拖放列表，不需要jQuery或框架</p>
+<p>网站直达：sortablejs.github.io/Sortable/</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/itnext/its-2024-you-should-be-using-react-server-components-already-6cb24a7140a1" target="_blank"> Do you really need React.forwardRef ?</a></p>
+<p>推荐理由：React.forwardRef 是 React 中的一个函数，解决了在自定义 React 组件中转发 ref 对象的问题，forwardRef 函数允许覆盖保留的 ref prop，从而使用标准 prop 名称进行 ref 转发</p>
+<hr>
+<h1>Do you really need React.forwardRef ?</h1>
+<blockquote>
+<p><strong><em>Disclaimer:\</em></strong> All the information below given are based on my experience and knowledge, it may have some mistakes and I’m not liable for any loss due to that. Please let me know if you have found out any mistakes in the comment section.</p>
+</blockquote>
+<h1><strong>Introduction</strong></h1>
+<p>I hope every reader knows at-least the basics of React js. Before going to the concept, let’s see what is <code>Ref</code> in a nutshell.</p>
+<ul>
+<li>In React, <code>ref</code> is an object facilitating direct interaction with DOM elements or React components.</li>
+<li>Essential for accessing and modifying element properties or methods outside the standard React data flow.</li>
+<li>For more info, check my another blog.</li>
+</ul>
+<h1>What is React.forwardRef?</h1>
+<p><code>React.forwardRef</code> is a function in React that allows components to forward a <code>ref</code> they receive to a child component. This is particularly useful when you want a parent component to interact with a specific child component instance.</p>
+<p>Let’s see an example</p>
+<pre><code>import React, { forwardRef } from 'react';
+const Input = forwardRef((props, ref) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={ref}
+/&gt;
+);
+});
+export default Input;</code></pre>
+<p>In the above implementation we have created a React component names as Input. We have wrapped a functional component inside <code>forwardRef </code>function. Now let’s see how we pass the <code>ref</code> as prop to the Input.</p>
+<pre><code>import React, { useRef } from 'react';
+import Input from './Input'; // Assuming the file is in the same directory
+const ParentComponent = () =&gt; {
+const inputRef = useRef();
+useEffect(()=&gt;{
+if (inputRef.current) {
+inputRef.current.focus();
+}
+}, []);
+return (
+&lt;div&gt;
+&lt;Input ref={inputRef} placeholder="Enter text" /&gt;
+&lt;/div&gt;
+);
+};
+export default ParentComponent;</code></pre>
+<h1>Don’t skip, read this scenario.</h1>
+<p>Consider a situation where you are building a design system like React-Bootstrap. Assume that, you are currently building a Input Component. Since it’s essential for other developers, who may need <code>ref object</code> for accessing the underlying input element, you decided to add <code>ref</code> as a prop to your custom component. But what happens, boom, your code throws an error.</p>
+<p>For example, let me remove the <code>forwardRef</code> from the input element.</p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.ref}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<p>Now let’s save it and run. What will happen? Any guess ?. The following line will throw an error</p>
+<pre><code>&lt;Input ref={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>**But why?</p>
+<p>**Because <code>ref</code> is a reserved prop is React, just like reserved keywords in programming languages. React handles the <code>ref</code> prop specially, so by default you can’t override with your custom value.</p>
+<p><strong>Here’s the warning message: But in this case, it should be considered as Error message.</strong></p>
+<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*h6fbDFW9iGjjTIXCECyTAQ.png" alt="img"></p>
+<p><strong>Now let’s fix this by using the clue given by first warning message.</strong> Now change the prop name from <code>ref</code> to <code>myRef</code>.</p>
+<pre><code>&lt;Input myRef={inputRef} placeholder="Enter text" /&gt;</code></pre>
+<p>Also in the input component, change <code>ref={props.ref}</code> to <code>ref={props.myRef}</code></p>
+<pre><code>import React from 'react';
+const Input = (props) =&gt; {
+return (
+&lt;input
+type="text"
+placeholder={props.placeholder}
+ref={props.myRef}
+/&gt;
+);
+}
+export default Input;</code></pre>
+<blockquote>
+<p>Wait, what happens if I use other prop names like <strong>myRef</strong>, <strong>customRef</strong> or <strong>ref1 ?</strong> will it work ?</p>
+</blockquote>
+<p>Yes indeed, it works. You can use other names to forward you <code>ref object</code> in your custom react component.</p>
+<blockquote>
+<p>Huh, then Why I need <strong>React.forwardRef</strong> ? You may have this question in your mind?</p>
+</blockquote>
+<p>Your doubt has logic, but still you need forwardRef function. Let’s see why</p>
+<h1>What problem that forwardRef function solves ?</h1>
+<p>So if you not using <code>forwardRef</code> instead if you use any other name than <code>ref</code> for forwarding a <code>ref object</code> , then you need to mention it explicitly in the documentation. It will become harder for developers who are using your library, need to adapt to the new custom <code>ref</code> prop name. Also it violates the React standard way of coding.</p>
+<h1>How it solves the problem?</h1>
+<p>The forwardRef function will override the <code>ref</code> prop, which can’t be done implicitly, so that we can use the <code>ref</code> prop to send our custom <code>ref object</code> through it. So that there is no need of explicitly define the prop name for forwarding <code>ref</code>. Even in React’s official documentation itself, it dosen’t have this explanation atleast at the time of writing this blog. I hope it will be added soon.</p>
+<p>Thanks for reading, your love and support means lot to me. Thank you, see you soon in another story.</p>
+<p><a href="https://medium.com/tag/react?source=post_page-----93b48e9c1fab---------------react-----------------" target="_blank">React</a></p>
+<p><a href="https://medium.com/tag/forwardref?source=post_page-----93b48e9c1fab---------------forwardref-----------------" target="_blank">Forwardref</a></p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127-1.jpg.pagespeed.ic.BSjTzlpsCy.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240127-1.jpg.pagespeed.ic.BSjTzlpsCy.jpg" medium="image"/>
+    <pubDate>Sat, 27 Jan 2024 15:19:05 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1086期：React DOM测试工具：《react-testing-library》]]></title>
     <link>https://openingsource.org/11568/</link>
     <itunes:title><![CDATA[开源日报第1086期：React DOM测试工具：《react-testing-library》]]></itunes:title>
@@ -2060,575 +2876,5 @@ export default App</code></pre>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240121.jpg.pagespeed.ic.VGFIICwMlD.jpg" medium="image"/>
     <pubDate>Sun, 21 Jan 2024 15:33:35 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1080期：React框架：《refine》]]></title>
-    <link>https://openingsource.org/11550/</link>
-    <itunes:title><![CDATA[开源日报第1080期：React框架：《refine》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月20日，开源日报第1080期：<br>
-今日推荐开源项目：《refine》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
-<p>什么是 refine？（来自仓库 README文件翻译）<br>
-Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
-Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
-Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
-<p>官网直达：refine.dev</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
-</a></p>
-<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
-<hr>
-<h1>The Context API in React</h1>
-<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
-<p>Here’s an example to illustrate how Context API works</p>
-<h2><strong>Step1: Create the context:</strong></h2>
-<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
-<pre><code>import React from "react";
-// Create the context
-const UserContext = React.createContext();
-export default UserContext
-OR
-import React, { createContext, useState } from 'react';
-// Create the context
-const ThemeContext = createContext();</code></pre>
-<h2><strong>Step 2: Set up a Provider</strong></h2>
-<ol>
-<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
-<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
-<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
-</ol>
-<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
-<ol>
-<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
-<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
-</ol>
-<pre><code>import React, { useContext } from "react";
-import UserContext from "./UserContext";
-export const useUser = () =&gt; {
-const user = useContext(UserContext);
-return user;
-}
-const UserContextProvider = ({children}) =&gt;{
-const name ="This is example of Context Api"
-return (
-&lt;UserContext.Provider value={name}&gt;
-{children}
-&lt;/UserContext.Provider&gt;
-)
-}
-export default UserContextProvider</code></pre>
-<h2>Step 4: Wrap the App with the Provider</h2>
-<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
-<pre><code>import "./App.css";
-import { Outlet } from "react-router-dom";
-import Header from "./components/Common/Header/Header";
-import Footer from "./components/Common/Footer/Footer";
-import Home from "./components/Home";
-import Test from "./components/Test";
-import UserContextProvider from "./context/UserContextProvider";
-function App() {
-return (
-&lt;UserContextProvider&gt;
-&lt;div className="App"&gt;
-&lt;Header /&gt;
-&lt;Home /&gt;
-&lt;Test /&gt;
-&lt;Footer /&gt;
-&lt;/div&gt;
-&lt;/UserContextProvider&gt;
-);
-}
-export default App;</code></pre>
-<h2>Step 5: Use the Context in Components</h2>
-<ol>
-<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
-<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
-</ol>
-<h2>Example -1</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Home = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Home;</code></pre>
-<h2>Example -2</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Test = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Test;</code></pre>
-<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月20日，开源日报第1080期：<br>
-今日推荐开源项目：《refine》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
-<p>什么是 refine？（来自仓库 README文件翻译）<br>
-Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
-Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
-Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
-<p>官网直达：refine.dev</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
-</a></p>
-<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
-<hr>
-<h1>The Context API in React</h1>
-<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
-<p>Here’s an example to illustrate how Context API works</p>
-<h2><strong>Step1: Create the context:</strong></h2>
-<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
-<pre><code>import React from "react";
-// Create the context
-const UserContext = React.createContext();
-export default UserContext
-OR
-import React, { createContext, useState } from 'react';
-// Create the context
-const ThemeContext = createContext();</code></pre>
-<h2><strong>Step 2: Set up a Provider</strong></h2>
-<ol>
-<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
-<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
-<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
-</ol>
-<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
-<ol>
-<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
-<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
-</ol>
-<pre><code>import React, { useContext } from "react";
-import UserContext from "./UserContext";
-export const useUser = () =&gt; {
-const user = useContext(UserContext);
-return user;
-}
-const UserContextProvider = ({children}) =&gt;{
-const name ="This is example of Context Api"
-return (
-&lt;UserContext.Provider value={name}&gt;
-{children}
-&lt;/UserContext.Provider&gt;
-)
-}
-export default UserContextProvider</code></pre>
-<h2>Step 4: Wrap the App with the Provider</h2>
-<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
-<pre><code>import "./App.css";
-import { Outlet } from "react-router-dom";
-import Header from "./components/Common/Header/Header";
-import Footer from "./components/Common/Footer/Footer";
-import Home from "./components/Home";
-import Test from "./components/Test";
-import UserContextProvider from "./context/UserContextProvider";
-function App() {
-return (
-&lt;UserContextProvider&gt;
-&lt;div className="App"&gt;
-&lt;Header /&gt;
-&lt;Home /&gt;
-&lt;Test /&gt;
-&lt;Footer /&gt;
-&lt;/div&gt;
-&lt;/UserContextProvider&gt;
-);
-}
-export default App;</code></pre>
-<h2>Step 5: Use the Context in Components</h2>
-<ol>
-<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
-<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
-</ol>
-<h2>Example -1</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Home = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Home;</code></pre>
-<h2>Example -2</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Test = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Test;</code></pre>
-<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月20日，开源日报第1080期：<br>
-今日推荐开源项目：《refine》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《refine》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： refine 用于构建内部工具、管理面板、仪表盘和B2B应用程序的React框架，具有无与伦比的灵活性</p>
-<p>什么是 refine？（来自仓库 README文件翻译）<br>
-Refine是一个元React框架，可以快速开发各种Web应用程序，从内部工具到管理面板、B2B应用和仪表盘，它作为构建任何类型的CRUD应用程序的综合解决方案。<br>
-Refine的内部钩子和组件简化了开发过程，并通过提供行业标准解决方案来消除重复任务，包括身份验证、访问控制、路由、网络连接、状态管理和国际化等项目的关键方面。<br>
-Refine设计为无头模式，因此提供了无限的样式和自定义选项。</p>
-<p>官网直达：refine.dev</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@bhairabpatra.iitd/the-context-api-in-react-059a7e2aaaac" target="_blank">The Context API in React<br>
-</a></p>
-<p>推荐理由：React中的Context API是一种管理状态的方法，允许多个组件访问状态而无需通过组件树的每个级别传递props，这篇文章会具体讲Context API使用范例</p>
-<hr>
-<h1>The Context API in React</h1>
-<p>The Context API in React is a way to manage a state that needs to be accessible by multiple components without having to pass props through each level of the component tree. It’s particularly useful for sharing data that is considered global or shared across different parts of your application.</p>
-<p>Here’s an example to illustrate how Context API works</p>
-<h2><strong>Step1: Create the context:</strong></h2>
-<p>First, create a context: Use <strong>createContext()</strong> to create a new context. This will serve as a container to hold the shared data.</p>
-<pre><code>import React from "react";
-// Create the context
-const UserContext = React.createContext();
-export default UserContext
-OR
-import React, { createContext, useState } from 'react';
-// Create the context
-const ThemeContext = createContext();</code></pre>
-<h2><strong>Step 2: Set up a Provider</strong></h2>
-<ol>
-<li><strong>Create a Provider component</strong>: This will wrap the components that need access to the context.</li>
-<li>Define state (if needed): Use useState to manage the state that you want to share across components.</li>
-<li><strong>Provide the context value:</strong> Use the <strong>Provider</strong> component created by the context and pass the value that will be accessible to consuming components.</li>
-</ol>
-<h2>Step 3: Create Custom Hooks (Optional but Recommended)</h2>
-<ol>
-<li>Create custom hooks: These hooks will allow components to consume the context easily.</li>
-<li>Use <code>useContext</code>: Inside these custom hooks, use the <code>useContext</code> hook provided by React to access the context</li>
-</ol>
-<pre><code>import React, { useContext } from "react";
-import UserContext from "./UserContext";
-export const useUser = () =&gt; {
-const user = useContext(UserContext);
-return user;
-}
-const UserContextProvider = ({children}) =&gt;{
-const name ="This is example of Context Api"
-return (
-&lt;UserContext.Provider value={name}&gt;
-{children}
-&lt;/UserContext.Provider&gt;
-)
-}
-export default UserContextProvider</code></pre>
-<h2>Step 4: Wrap the App with the Provider</h2>
-<p>Wrap the root component: Wrap your root component (often <code>App</code>) with the <strong>UserContextProvider</strong> to make the context available throughout your app.</p>
-<pre><code>import "./App.css";
-import { Outlet } from "react-router-dom";
-import Header from "./components/Common/Header/Header";
-import Footer from "./components/Common/Footer/Footer";
-import Home from "./components/Home";
-import Test from "./components/Test";
-import UserContextProvider from "./context/UserContextProvider";
-function App() {
-return (
-&lt;UserContextProvider&gt;
-&lt;div className="App"&gt;
-&lt;Header /&gt;
-&lt;Home /&gt;
-&lt;Test /&gt;
-&lt;Footer /&gt;
-&lt;/div&gt;
-&lt;/UserContextProvider&gt;
-);
-}
-export default App;</code></pre>
-<h2>Step 5: Use the Context in Components</h2>
-<ol>
-<li>Wrap components with Provider: Wrap the components that need access to the context with the UserContextProvider.</li>
-<li>Consume the context: Use the custom hooks created to access the context values within these components.</li>
-</ol>
-<h2>Example -1</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Home = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Home;</code></pre>
-<h2>Example -2</h2>
-<pre><code>import React, {useContext} from "react";
-import UserContext from "../../context/UserContext";
-const Test = () =&gt; {
-const value = useContext(UserContext);
-return (
-&lt;div className="container"&gt;
-&lt;h1&gt;{value}&lt;/h1&gt;
-&lt;/div&gt;
-);
-};
-export default Test;</code></pre>
-<p>This structure ensures that components wrapped within the <code>ThemeProvider</code> have access to the data provided by the context without having to pass props through each level of the component tree.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240120.jpg.pagespeed.ic.DxLi-JHD4f.jpg" medium="image"/>
-    <pubDate>Sat, 20 Jan 2024 14:23:03 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1079期：TeamViewer替代品：《rustdesk》]]></title>
-    <link>https://openingsource.org/11547/</link>
-    <itunes:title><![CDATA[开源日报第1079期：TeamViewer替代品：《rustdesk》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月19日，开源日报第1079期：<br>
-今日推荐开源项目：《rustdesk》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
-<p>官网直达：rustdesk.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
-<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
-<hr>
-<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
-<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
-<h1>Understanding the Landscape</h1>
-<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
-<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
-<h1>Essential Interview Questions and Answers</h1>
-<h1>1. What is ReactJS, and what are its key features?</h1>
-<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
-<h1>2. What is JSX, and why is it used in React?</h1>
-<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
-<h1>3. Explain the concept of “props” in React.</h1>
-<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
-<h1>4. What is state in React, and how is it different from props?</h1>
-<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
-<h1>5. What are React hooks, and how do they differ from class components?</h1>
-<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
-<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
-<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
-<h1>7. What is the purpose of the “key” prop in React lists?</h1>
-<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
-<h1>8. How does Redux work, and when would you use it?</h1>
-<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
-<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
-<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
-<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
-<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
-<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
-<h1>Showcasing Your Expertise</h1>
-<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
-<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
-<h1>Tips for Excelling in a ReactJS Interview</h1>
-<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
-<ol>
-<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
-<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
-<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
-<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
-<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
-<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
-<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
-<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
-<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
-<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
-</ol>
-<h1>Conclusion</h1>
-<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
-<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月19日，开源日报第1079期：<br>
-今日推荐开源项目：《rustdesk》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
-<p>官网直达：rustdesk.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
-<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
-<hr>
-<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
-<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
-<h1>Understanding the Landscape</h1>
-<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
-<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
-<h1>Essential Interview Questions and Answers</h1>
-<h1>1. What is ReactJS, and what are its key features?</h1>
-<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
-<h1>2. What is JSX, and why is it used in React?</h1>
-<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
-<h1>3. Explain the concept of “props” in React.</h1>
-<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
-<h1>4. What is state in React, and how is it different from props?</h1>
-<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
-<h1>5. What are React hooks, and how do they differ from class components?</h1>
-<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
-<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
-<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
-<h1>7. What is the purpose of the “key” prop in React lists?</h1>
-<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
-<h1>8. How does Redux work, and when would you use it?</h1>
-<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
-<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
-<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
-<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
-<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
-<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
-<h1>Showcasing Your Expertise</h1>
-<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
-<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
-<h1>Tips for Excelling in a ReactJS Interview</h1>
-<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
-<ol>
-<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
-<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
-<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
-<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
-<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
-<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
-<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
-<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
-<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
-<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
-</ol>
-<h1>Conclusion</h1>
-<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
-<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年1月19日，开源日报第1079期：<br>
-今日推荐开源项目：《rustdesk》<br>
-今日推荐英文原文：《Mastering ReactJS Interview Questions and Answers》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《rustdesk》传送门：<a href="https://github.com/rustdesk/rustdesk" target="_blank">项目链接</a> </p>
-<p>推荐理由： rustdesk是一个开源的远程桌面，是TeamViewer的替代品，开箱即用，无需配置，也编写自己的rendezvous/relay服务器实用</p>
-<p>官网直达：rustdesk.com</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/@greennolgaa/mastering-reactjs-interview-questions-and-answers-a-comprehensive-guide-for-5-years-of-experience-d93fd09d44c2" target="_blank">Mastering ReactJS Interview Questions and Answers</a></p>
-<p>推荐理由：这篇文章是一份综合指南，涵盖了 ReactJS 面试中对具有五年经验的开发者可能提出的问题及详细答案，除了基础概念外，还介绍了 JSX、组件通信、状态管理、React Hooks、虚拟 DOM 等关键知识点</p>
-<hr>
-<h1>Mastering ReactJS Interview Questions and Answers: A Comprehensive Guide for 5 Years of Experience</h1>
-<p>Congratulations on reaching the milestone of five years of experience in the dynamic world of web development! As you embark on the next phase of your career, navigating interviews becomes essential. ReactJS, a widely-used JavaScript library for building user interfaces, often takes center stage in front-end interviews. In this comprehensive guide, we’ll equip you with a curated list of <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions</a> and detailed answers, ensuring you’re well-prepared to showcase your expertise and secure your next role.</p>
-<h1>Understanding the Landscape</h1>
-<p>Before we delve into the interview questions, let’s briefly revisit the fundamentals of ReactJS and its role in modern web development.</p>
-<p>ReactJS is renowned for its declarative syntax, component-based architecture, and virtual DOM. It empowers developers to create interactive and dynamic user interfaces efficiently. Over your five years of experience, you’ve likely honed your skills in designing reusable components, managing state, handling props, and utilizing lifecycle methods. Now, let’s explore the <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview questions for 5 years experience</a> that will highlight your proficiency and help you stand out in ReactJS interviews.</p>
-<h1>Essential Interview Questions and Answers</h1>
-<h1>1. What is ReactJS, and what are its key features?</h1>
-<p>Answer: ReactJS is an open-source JavaScript library developed by Facebook. It is used for building user interfaces in web applications. Key features include a <a href="https://www.cronj.com/blog/virtual-dom-react-js/" target="_blank">virtual DOM</a> for efficient updates, component-based architecture for reusability, JSX for declarative syntax, and unidirectional data flow.</p>
-<h1>2. What is JSX, and why is it used in React?</h1>
-<p>Answer: JSX (JavaScript XML) is an extension to JavaScript that allows you to write HTML-like code within JavaScript. It provides a more readable and concise way to describe the structure of UI components. React uses JSX to define the structure of components, making it easier to visualize and understand the UI hierarchy.</p>
-<h1>3. Explain the concept of “props” in React.</h1>
-<p>Answer: Props (short for properties) are a mechanism for passing data from a parent component to a child component. They are read-only and provide a way to configure and customize child components based on their parent’s data. Props are an essential part of creating reusable and dynamic components.</p>
-<h1>4. What is state in React, and how is it different from props?</h1>
-<p>Answer: State is a mechanism for managing and storing dynamic data within a component. Unlike props, which are passed from <a href="https://www.cronj.com/blog/how-to-deal-with-parent-child-components-in-reactjs/" target="_blank">parent to child</a> and are read-only, state is local to a component and can be updated using the <code>setState</code> method. State enables components to re-render when data changes, updating the UI dynamically.</p>
-<h1>5. What are React hooks, and how do they differ from class components?</h1>
-<p>Answer: <a href="https://www.cronj.com/blog/react-hooks-complete-guide-usestate-useeffect-rules-for-react-hooks/" target="_blank">React hooks</a> are functions that allow you to use state and other React features in functional components. They provide an alternative to class components by enabling the use of state and lifecycle features without writing a class. Hooks, such as <code>useState</code> and <code>useEffect</code>, streamline component logic and make it more concise.</p>
-<h1>6. Explain the concept of the virtual DOM and its advantages.</h1>
-<p>Answer: The virtual DOM is a lightweight copy of the actual DOM in memory. React uses it to perform efficient updates by comparing the virtual DOM with the previous version and calculating the minimum number of changes needed to reflect the new state. This minimizes direct manipulation of the actual DOM, leading to improved performance and responsiveness.</p>
-<h1>7. What is the purpose of the “key” prop in React lists?</h1>
-<p>Answer: The “key” prop is used to uniquely identify elements in a list of components. It helps React efficiently update and reorder components by providing a stable identity for each item. Using keys correctly improves the performance of rendering and updating lists.</p>
-<h1>8. How does Redux work, and when would you use it?</h1>
-<p>Answer: Redux is a state management library for managing the global state of an application. It uses a single source of truth and enforces a unidirectional data flow. <a href="https://www.cronj.com/blog/react-redux-a-complete-guide-to-beginners/" target="_blank">React Redux</a> is suitable for large-scale applications with complex state management needs, where multiple components need access to shared data.</p>
-<h1>9. What is the significance of the “shouldComponentUpdate” method?</h1>
-<p>Answer: The <code>shouldComponentUpdate</code> method is used to optimize performance by determining whether a component should re-render. It is called before a component updates and receives the next props and state. By returning <code>false</code> in certain conditions, you can prevent unnecessary re-renders and improve performance.</p>
-<h1>10. How do you handle forms in React, and what is controlled vs. uncontrolled components?</h1>
-<p>Answer: Forms in React can be controlled or uncontrolled. Controlled components have their state controlled by React and are updated via the <code>setState</code> method. Uncontrolled components manage their state using the DOM directly. Controlled components provide a more predictable and maintainable way to handle form inputs.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/0*V98y_JlI1jm97XEc" alt="interview questions"></p>
-<p>Photo by <a href="https://unsplash.com/@headwayio?utm_source=medium&amp;utm_medium=referral" target="_blank">Headway</a></p>
-<h1>Showcasing Your Expertise</h1>
-<p>As a developer with five years of experience, you possess a wealth of knowledge that extends beyond the basics. While these foundational questions and answers provide a strong starting point, you can further demonstrate your expertise by discussing real-world projects, design patterns, performance optimization techniques, and your approach to handling complex scenarios.</p>
-<p>Remember, an interview is not just about providing the right answers; it’s about showcasing your problem-solving skills, communication, and ability to apply your knowledge to practical situations. Prepare for behavioral questions that assess your teamwork, collaboration, and decision-making abilities as well.</p>
-<h1>Tips for Excelling in a ReactJS Interview</h1>
-<p>As you prepare to showcase your expertise in a <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">ReactJS interview</a>, consider these valuable tips to stand out and make a lasting impression:</p>
-<ol>
-<li>Master the Basics: Ensure you have a solid understanding of ReactJS fundamentals, including JSX, components, props, state, and lifecycle methods. Clear articulation of these concepts will establish a strong foundation for more complex discussions.</li>
-<li>Real-world Examples: Be ready to share real-world projects where you’ve applied ReactJS. Discuss challenges you encountered, decisions you made, and the impact your work had on the user experience and overall project.</li>
-<li>Code Walkthrough: Prepare to walk through code snippets or projects. Explain your thought process, design considerations, and any optimizations you implemented. A clear and concise explanation demonstrates your technical acumen.</li>
-<li>Problem-solving: Expect problem-solving scenarios or algorithmic questions. Approach these challenges systematically, explaining your approach and considering trade-offs.</li>
-<li>Architecture and Patterns: Discuss design patterns like Container-Component, Higher Order Components (HOCs), and Render Props. Showcase your ability to create scalable and maintainable architectures.</li>
-<li>Performance Optimization: Be prepared to discuss techniques for optimizing React app performance, such as lazy loading, code splitting, and memoization.</li>
-<li>State Management: If you’ve worked with state management libraries like Redux or <a href="https://www.cronj.com/blog/react-context/" target="_blank">React Context</a> API, be ready to explain their implementation, benefits, and scenarios where they’re appropriate.</li>
-<li>Hooks Proficiency: Highlight your proficiency with React hooks, such as <code>useState</code>, <code>useEffect</code>, and custom hooks. Discuss how hooks streamline code and enhance component reusability.</li>
-<li>Testing Knowledge: Familiarize yourself with testing frameworks like Jest and tools like React Testing Library. Emphasize the importance of testing for code reliability.</li>
-<li>Communication Skills: Clearly explain complex concepts, demonstrate your problem-solving process, and actively engage with the interviewer’s questions. Effective communication showcases your ability to collaborate and contribute to a team.</li>
-</ol>
-<h1>Conclusion</h1>
-<p>Congratulations once again on reaching the five-year mark in your web development journey. <a href="https://www.cronj.com/blog/basic-javascript-interview-questions/" target="_blank">Armed with a comprehensive understanding of ReactJS and the curated interview questions and answers provided here</a>, you’re well-equipped to excel in ReactJS interviews. Remember to leverage your practical experience, share your insights, and demonstrate your passion for creating exceptional user interfaces. As you embark on your next career move, approach interviews as opportunities to showcase your accomplishments and embark on new and exciting challenges.</p>
-<p><a href="https://www.cronj.com/" target="_blank">When it comes to ReactJS and web development expertise, look no further than CronJ</a>. As a distinguished software development company, CronJ possesses a deep understanding of ReactJS and its <a href="https://www.cronj.com/hire-react-js-developers.html" target="_blank">hire react js software development agency</a> application in creating innovative and impactful solutions.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/01/xosd-20240119.jpg.pagespeed.ic._NO0rPLAB3.jpg" medium="image"/>
-    <pubDate>Fri, 19 Jan 2024 13:03:52 +0000</pubDate>
   </item></channel>
 </rss>
