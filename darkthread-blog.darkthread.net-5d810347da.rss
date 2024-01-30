@@ -30,6 +30,327 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[文字轉 ChatGPT Token 之實驗與觀察]]></title>
+    <link>https://blog.darkthread.net/blog/conv-gpt-token/</link>
+    <itunes:title><![CDATA[文字轉 ChatGPT Token 之實驗與觀察]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
+"type": "object",
+"properties": {
+"completion_tokens": {
+"type": "number",
+"format": "int32"
+},
+"prompt_tokens": {
+"type": "number",
+"format": "int32"
+},
+"total_tokens": {
+"type": "number",
+"format": "int32"
+}
+},
+"required": [
+"prompt_tokens",
+"total_tokens",
+"completion_tokens"
+]
+}
+</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
+var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
+</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
+using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+Action&lt;string&gt; showTokens = (input) =&gt;
+{
+var tokens = encoding.Encode(input);
+var queue = new List&lt;int&gt;();
+tokens.ForEach(t =&gt;
+{
+queue.Add(t);
+var tryDecode = encoding.Decode(queue);
+if (tryDecode != "�")
+{
+Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
+queue.Clear();
+}
+});
+Console.WriteLine();
+Console.WriteLine("Tokens Count: " + tokens.Count);
+};
+showTokens("To be, or not to be, that is the question.");
+showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
+showTokens("我達達的馬蹄是美麗的錯誤");
+showTokens("逃げるは恥だが役に立つ");
+showTokens("Szégyen a futás, de hasznos");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
+{
+var chatMessages = new List&lt;ChatMessage&gt;() {
+new ChatMessage(ChatRole.System, SystemPrompt)
+};
+chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
+m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
+m.Message
+)));
+Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
+deploymentOrModelName: DeployName,
+new ChatCompletionsOptions(chatMessages)
+{
+Temperature = Temperature,
+MaxTokens = MaxTokens,
+NucleusSamplingFactor = NucleusSamplingFactor,
+FrequencyPenalty = FrequencyPenalty,
+PresencePenalty = PresencePenalty
+});
+ChatCompletions completions = response.Value;
+var result = completions.Choices.First().Message.Content;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
+").ToArray());
+var promptTokens = encoding.Encode(promptMsg);
+var reslutTokens = encoding.Encode(result);
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(promptMsg);
+var stats = @$"
+Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
+Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine(stats);
+Console.WriteLine();
+Console.ResetColor();
+return result;
+}
+/* ... 略 ... */
+var gpt = new ChatGptService();
+var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
+逃げるは恥だが役に立つ");
+Console.WriteLine(response);
+response = await gpt.Generate(@"指出以下程式碼的錯誤
+```js
+for (var i = 0; i &lt; 10; i--) {
+Console.WriteLine(i);
+}
+``
+");
+Console.WriteLine(response);
+</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
+" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
+"type": "object",
+"properties": {
+"completion_tokens": {
+"type": "number",
+"format": "int32"
+},
+"prompt_tokens": {
+"type": "number",
+"format": "int32"
+},
+"total_tokens": {
+"type": "number",
+"format": "int32"
+}
+},
+"required": [
+"prompt_tokens",
+"total_tokens",
+"completion_tokens"
+]
+}
+</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
+var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
+</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
+using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+Action&lt;string&gt; showTokens = (input) =&gt;
+{
+var tokens = encoding.Encode(input);
+var queue = new List&lt;int&gt;();
+tokens.ForEach(t =&gt;
+{
+queue.Add(t);
+var tryDecode = encoding.Decode(queue);
+if (tryDecode != "�")
+{
+Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
+queue.Clear();
+}
+});
+Console.WriteLine();
+Console.WriteLine("Tokens Count: " + tokens.Count);
+};
+showTokens("To be, or not to be, that is the question.");
+showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
+showTokens("我達達的馬蹄是美麗的錯誤");
+showTokens("逃げるは恥だが役に立つ");
+showTokens("Szégyen a futás, de hasznos");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
+{
+var chatMessages = new List&lt;ChatMessage&gt;() {
+new ChatMessage(ChatRole.System, SystemPrompt)
+};
+chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
+m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
+m.Message
+)));
+Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
+deploymentOrModelName: DeployName,
+new ChatCompletionsOptions(chatMessages)
+{
+Temperature = Temperature,
+MaxTokens = MaxTokens,
+NucleusSamplingFactor = NucleusSamplingFactor,
+FrequencyPenalty = FrequencyPenalty,
+PresencePenalty = PresencePenalty
+});
+ChatCompletions completions = response.Value;
+var result = completions.Choices.First().Message.Content;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
+").ToArray());
+var promptTokens = encoding.Encode(promptMsg);
+var reslutTokens = encoding.Encode(result);
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(promptMsg);
+var stats = @$"
+Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
+Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine(stats);
+Console.WriteLine();
+Console.ResetColor();
+return result;
+}
+/* ... 略 ... */
+var gpt = new ChatGptService();
+var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
+逃げるは恥だが役に立つ");
+Console.WriteLine(response);
+response = await gpt.Generate(@"指出以下程式碼的錯誤
+```js
+for (var i = 0; i &lt; 10; i--) {
+Console.WriteLine(i);
+}
+``
+");
+Console.WriteLine(response);
+</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
+" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
+"type": "object",
+"properties": {
+"completion_tokens": {
+"type": "number",
+"format": "int32"
+},
+"prompt_tokens": {
+"type": "number",
+"format": "int32"
+},
+"total_tokens": {
+"type": "number",
+"format": "int32"
+}
+},
+"required": [
+"prompt_tokens",
+"total_tokens",
+"completion_tokens"
+]
+}
+</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
+var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
+</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
+using SharpToken;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+Action&lt;string&gt; showTokens = (input) =&gt;
+{
+var tokens = encoding.Encode(input);
+var queue = new List&lt;int&gt;();
+tokens.ForEach(t =&gt;
+{
+queue.Add(t);
+var tryDecode = encoding.Decode(queue);
+if (tryDecode != "�")
+{
+Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
+queue.Clear();
+}
+});
+Console.WriteLine();
+Console.WriteLine("Tokens Count: " + tokens.Count);
+};
+showTokens("To be, or not to be, that is the question.");
+showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
+showTokens("我達達的馬蹄是美麗的錯誤");
+showTokens("逃げるは恥だが役に立つ");
+showTokens("Szégyen a futás, de hasznos");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
+{
+var chatMessages = new List&lt;ChatMessage&gt;() {
+new ChatMessage(ChatRole.System, SystemPrompt)
+};
+chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
+m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
+m.Message
+)));
+Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
+deploymentOrModelName: DeployName,
+new ChatCompletionsOptions(chatMessages)
+{
+Temperature = Temperature,
+MaxTokens = MaxTokens,
+NucleusSamplingFactor = NucleusSamplingFactor,
+FrequencyPenalty = FrequencyPenalty,
+PresencePenalty = PresencePenalty
+});
+ChatCompletions completions = response.Value;
+var result = completions.Choices.First().Message.Content;
+var encoding = GptEncoding.GetEncodingForModel("gpt-4");
+var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
+").ToArray());
+var promptTokens = encoding.Encode(promptMsg);
+var reslutTokens = encoding.Encode(result);
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine(promptMsg);
+var stats = @$"
+Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
+Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine(stats);
+Console.WriteLine();
+Console.ResetColor();
+return result;
+}
+/* ... 略 ... */
+var gpt = new ChatGptService();
+var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
+逃げるは恥だが役に立つ");
+Console.WriteLine(response);
+response = await gpt.Generate(@"指出以下程式碼的錯誤
+```js
+for (var i = 0; i &lt; 10; i--) {
+Console.WriteLine(i);
+}
+``
+");
+Console.WriteLine(response);
+</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
+" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png" medium="image"/>
+    <pubDate>Tue, 30 Jan 2024 13:32:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[閒聊 - 除了 Active Directory，企業還會用什麼管理員工帳號？]]></title>
     <link>https://blog.darkthread.net/blog/ent-directory-solution-survey/</link>
     <itunes:title><![CDATA[閒聊 - 除了 Active Directory，企業還會用什麼管理員工帳號？]]></itunes:title>
@@ -1075,20 +1396,5 @@ chtnumconverter.free_mem(p); # free memory
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638414000165790417.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638414000165790417.png" medium="image"/>
     <pubDate>Sun, 21 Jan 2024 01:45:24 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[會寫程式不值錢了嗎？ChatGPT C# 轉 JavaScript 轉 Python 實測]]></title>
-    <link>https://blog.darkthread.net/blog/chatgpt-conv-program-language/</link>
-    <itunes:title><![CDATA[會寫程式不值錢了嗎？ChatGPT C# 轉 JavaScript 轉 Python 實測]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="/blog/cht-num-converter/">阿拉伯數字與中文數字雙向轉換 .NET 函式</a>貼文有讀者提到：如果將來不用 C#，豈不要重寫？</p> <p>好問題，其實寫函式時我就有想到這點，當時想法是，之所以擺脫 Visual Studio 程式庫從頭用 C# 重寫，便是著眼於相同演算法可移植到其他程式語言，更甭提我們現在有 ChatGPT 當靠山，這種沒用什麼平台專屬 API 的純演算法小功能，以 ChatGPT 4 的聰慧，理論上可以無痛轉移才對。</p> <p>理論歸理論，但實際上呢？實測一下便知。我打算將這個工具函式轉成 JavaScript 跟 Python 版本，看看需要花多少力氣。</p> <p>把程式碼貼給 ChatGPT-4，這點小事用不著情勒催眠角色扮演，Prompt 寫一句 <code>convert this c# to javascript</code> 即可：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638413132860843124.png"></p> <p>C# 轉 JavaScript 的部分，ChatGPT 偷懶了。兩個核心方法 ParseChtNum 及 ToChtNum，ChatGPT 只給了註解，說他知道一種美妙的寫法，可惜這裡太小寫不下 XD 但有提示如果有需要可另外提問。把 ChtNumConvert 型別程式單獨拿出來再問一次，這回便拿到完整轉換結果。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638413132864943894.png"></p> <p>ChatGPT 轉換的 JavaScript 可直接執行，沒編譯或 Runtime 錯誤：(註：有部分「零」沒有處理好，畫面沒截到)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638413132867339908.png"></p> <p>轉完 JavaScript，再來轉成 Python 試試。由於 ChatGPT 對 JavaScript 比對 C# 熟 (JavaScript 訓練資料較多)，我選擇請 ChatGPT 將剛轉好的 JavaScript 轉成 Python 而非從 C# 轉。這回 ChatGPT 很乾脆，整段程式一次轉完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638413132869610719.png"></p> <p>Python 版本也可順利編譯執行，但結果的錯誤更明顯，出現「零零零」、「零三百十」：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638413132871744554.png"></p> <p>動手 Debug，JavaScript 版的問題出在 C# Trim('零') 邏輯沒轉對，用 RegExp 只換了結尾，補上開頭置換就 OK 了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638413132873912983.png"></p> <p>Python 部分幾個則是幾個 C# Regular Expression 處理沒正確轉譯。雖然不熟 Python，在 <a href="/blog/github-copilot-demo/">Github Copilot</a> 協助下沒費什麼力氣就修正好了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638413132876070410.png"></p> <p>修改後，C#、JavaScript 與 Python 三個版本產生的結果一致，確認轉換成功。</p> <p>總結一下本次實測結果：</p> <ol><li>本範例約 100 行 C# 程式，使用 ChatGPT 4 轉換耗時約一分鐘左右可拿到結果，轉換出來的 JavaScript 及 Python 版本均可直接執行，沒有編譯及 Runtime 錯誤，但執行結果有部分不正確</li> <li>JavaScript 有兩處需要修改，Python 有三處，但都是很明顯很容易修改的錯誤，前後不到五分鐘改好</li> <li>修改後，比對 C#、JavaScript、Python 三個版本執行結果一致，判定轉換成功</li></ol> <p>在本次 ChatGPT 火力展示，由於程式碼不長，未涉及專屬程式庫呼叫並以演算法為主，ChatGPT 從 A 程式語言轉成 B 程式語言的完成度及正確率頗高，人工確認結果及修 Bug 免不了，但比起徒手翻寫不知快 N 倍。即使面對不熟悉的程式語言(本例中的 Python)，靠著 ChatGPT 先轉換，利用 Github Copilot 協助修正，我也能在短短幾分鐘內自力完成翻寫，在 ChatGPT 出來之前，我沒想過有會有這麼一天。</p> <p>阿貓阿狗都能轉程式改程式，這意味著會寫程式不值錢了嗎？好像不得不承認是這樣沒錯。</p> <p>ChatGPT / AI 大幅降低了寫程式的門檻，新手生手不需要歷經漫長的學習也能生出可用的程式，老鳥的不可取代性下降(當然，品質效能擴充維護性有別，但很多時候，能解決眼前問題的堪用程式已值千金)；但很公平的是一件事是，新手有 AI 可以依靠，老鳥一樣也得到 AI 加持，像我不熟 Python，一樣只花幾分鐘就寫好 Python 版函式。</p> <p>正確地說，應該是入門到中級的程式技能貶值了。過去會寫程式在一般人眼中就是高手，會有很多人巴著你請你幫忙，排隊等你心情好賞賜幾支程式解決問題。</p> <p>如今，一般人靠著 ChatGPT/RPA/NoCode 工具也能寫出滿足需求的程式，沒必要把會寫程式的人當成寶。除非對效能、資源用量、擴充維護性有較高要求的情境，此時若經驗與知識不足，即便有 ChatGPT 無法精準提問也是枉然，此時仍需經驗知識豐富的老鳥才能應付，但程式能力只有一般水平是派不上用場的。由此推論，寫得出程式真的不值錢了，很會寫程式懂偵錯且具備效能、架構、擴充維護性知識才算值錢本事。</p> <p>靠會一點程式便有恃無恐的時代結束了，得再跑快一點惹。</p> <p>註：轉換結果我有丟上 <a href="https://github.com/darkthread/cht-num-string">Github</a>，如果有人想參考的話</p> <p data-slug="chatgpt-conv-program-language" data-fbimg="https://cdn.pixabay.com/photo/2019/08/09/06/12/car-racing-4394450_1280.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="/blog/cht-num-converter/">阿拉伯數字與中文數字雙向轉換 .NET 函式</a>貼文有讀者提到：如果將來不用 C#，豈不要重寫？</p> <p>好問題，其實寫函式時我就有想到這點，當時想法是，之所以擺脫 Visual Studio 程式庫從頭用 C# 重寫，便是著眼於相同演算法可移植到其他程式語言，更甭提我們現在有 ChatGPT 當靠山，這種沒用什麼平台專屬 API 的純演算法小功能，以 ChatGPT 4 的聰慧，理論上可以無痛轉移才對。</p> <p>理論歸理論，但實際上呢？實測一下便知。我打算將這個工具函式轉成 JavaScript 跟 Python 版本，看看需要花多少力氣。</p> <p>把程式碼貼給 ChatGPT-4，這點小事用不著情勒催眠角色扮演，Prompt 寫一句 <code>convert this c# to javascript</code> 即可：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638413132860843124.png"></p> <p>C# 轉 JavaScript 的部分，ChatGPT 偷懶了。兩個核心方法 ParseChtNum 及 ToChtNum，ChatGPT 只給了註解，說他知道一種美妙的寫法，可惜這裡太小寫不下 XD 但有提示如果有需要可另外提問。把 ChtNumConvert 型別程式單獨拿出來再問一次，這回便拿到完整轉換結果。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638413132864943894.png"></p> <p>ChatGPT 轉換的 JavaScript 可直接執行，沒編譯或 Runtime 錯誤：(註：有部分「零」沒有處理好，畫面沒截到)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638413132867339908.png"></p> <p>轉完 JavaScript，再來轉成 Python 試試。由於 ChatGPT 對 JavaScript 比對 C# 熟 (JavaScript 訓練資料較多)，我選擇請 ChatGPT 將剛轉好的 JavaScript 轉成 Python 而非從 C# 轉。這回 ChatGPT 很乾脆，整段程式一次轉完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638413132869610719.png"></p> <p>Python 版本也可順利編譯執行，但結果的錯誤更明顯，出現「零零零」、「零三百十」：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638413132871744554.png"></p> <p>動手 Debug，JavaScript 版的問題出在 C# Trim('零') 邏輯沒轉對，用 RegExp 只換了結尾，補上開頭置換就 OK 了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638413132873912983.png"></p> <p>Python 部分幾個則是幾個 C# Regular Expression 處理沒正確轉譯。雖然不熟 Python，在 <a href="/blog/github-copilot-demo/">Github Copilot</a> 協助下沒費什麼力氣就修正好了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638413132876070410.png"></p> <p>修改後，C#、JavaScript 與 Python 三個版本產生的結果一致，確認轉換成功。</p> <p>總結一下本次實測結果：</p> <ol><li>本範例約 100 行 C# 程式，使用 ChatGPT 4 轉換耗時約一分鐘左右可拿到結果，轉換出來的 JavaScript 及 Python 版本均可直接執行，沒有編譯及 Runtime 錯誤，但執行結果有部分不正確</li> <li>JavaScript 有兩處需要修改，Python 有三處，但都是很明顯很容易修改的錯誤，前後不到五分鐘改好</li> <li>修改後，比對 C#、JavaScript、Python 三個版本執行結果一致，判定轉換成功</li></ol> <p>在本次 ChatGPT 火力展示，由於程式碼不長，未涉及專屬程式庫呼叫並以演算法為主，ChatGPT 從 A 程式語言轉成 B 程式語言的完成度及正確率頗高，人工確認結果及修 Bug 免不了，但比起徒手翻寫不知快 N 倍。即使面對不熟悉的程式語言(本例中的 Python)，靠著 ChatGPT 先轉換，利用 Github Copilot 協助修正，我也能在短短幾分鐘內自力完成翻寫，在 ChatGPT 出來之前，我沒想過有會有這麼一天。</p> <p>阿貓阿狗都能轉程式改程式，這意味著會寫程式不值錢了嗎？好像不得不承認是這樣沒錯。</p> <p>ChatGPT / AI 大幅降低了寫程式的門檻，新手生手不需要歷經漫長的學習也能生出可用的程式，老鳥的不可取代性下降(當然，品質效能擴充維護性有別，但很多時候，能解決眼前問題的堪用程式已值千金)；但很公平的是一件事是，新手有 AI 可以依靠，老鳥一樣也得到 AI 加持，像我不熟 Python，一樣只花幾分鐘就寫好 Python 版函式。</p> <p>正確地說，應該是入門到中級的程式技能貶值了。過去會寫程式在一般人眼中就是高手，會有很多人巴著你請你幫忙，排隊等你心情好賞賜幾支程式解決問題。</p> <p>如今，一般人靠著 ChatGPT/RPA/NoCode 工具也能寫出滿足需求的程式，沒必要把會寫程式的人當成寶。除非對效能、資源用量、擴充維護性有較高要求的情境，此時若經驗與知識不足，即便有 ChatGPT 無法精準提問也是枉然，此時仍需經驗知識豐富的老鳥才能應付，但程式能力只有一般水平是派不上用場的。由此推論，寫得出程式真的不值錢了，很會寫程式懂偵錯且具備效能、架構、擴充維護性知識才算值錢本事。</p> <p>靠會一點程式便有恃無恐的時代結束了，得再跑快一點惹。</p> <p>註：轉換結果我有丟上 <a href="https://github.com/darkthread/cht-num-string">Github</a>，如果有人想參考的話</p> <p data-slug="chatgpt-conv-program-language" data-fbimg="https://cdn.pixabay.com/photo/2019/08/09/06/12/car-racing-4394450_1280.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="/blog/cht-num-converter/">阿拉伯數字與中文數字雙向轉換 .NET 函式</a>貼文有讀者提到：如果將來不用 C#，豈不要重寫？</p> <p>好問題，其實寫函式時我就有想到這點，當時想法是，之所以擺脫 Visual Studio 程式庫從頭用 C# 重寫，便是著眼於相同演算法可移植到其他程式語言，更甭提我們現在有 ChatGPT 當靠山，這種沒用什麼平台專屬 API 的純演算法小功能，以 ChatGPT 4 的聰慧，理論上可以無痛轉移才對。</p> <p>理論歸理論，但實際上呢？實測一下便知。我打算將這個工具函式轉成 JavaScript 跟 Python 版本，看看需要花多少力氣。</p> <p>把程式碼貼給 ChatGPT-4，這點小事用不著情勒催眠角色扮演，Prompt 寫一句 <code>convert this c# to javascript</code> 即可：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638413132860843124.png"></p> <p>C# 轉 JavaScript 的部分，ChatGPT 偷懶了。兩個核心方法 ParseChtNum 及 ToChtNum，ChatGPT 只給了註解，說他知道一種美妙的寫法，可惜這裡太小寫不下 XD 但有提示如果有需要可另外提問。把 ChtNumConvert 型別程式單獨拿出來再問一次，這回便拿到完整轉換結果。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638413132864943894.png"></p> <p>ChatGPT 轉換的 JavaScript 可直接執行，沒編譯或 Runtime 錯誤：(註：有部分「零」沒有處理好，畫面沒截到)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638413132867339908.png"></p> <p>轉完 JavaScript，再來轉成 Python 試試。由於 ChatGPT 對 JavaScript 比對 C# 熟 (JavaScript 訓練資料較多)，我選擇請 ChatGPT 將剛轉好的 JavaScript 轉成 Python 而非從 C# 轉。這回 ChatGPT 很乾脆，整段程式一次轉完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638413132869610719.png"></p> <p>Python 版本也可順利編譯執行，但結果的錯誤更明顯，出現「零零零」、「零三百十」：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638413132871744554.png"></p> <p>動手 Debug，JavaScript 版的問題出在 C# Trim('零') 邏輯沒轉對，用 RegExp 只換了結尾，補上開頭置換就 OK 了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638413132873912983.png"></p> <p>Python 部分幾個則是幾個 C# Regular Expression 處理沒正確轉譯。雖然不熟 Python，在 <a href="/blog/github-copilot-demo/">Github Copilot</a> 協助下沒費什麼力氣就修正好了。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638413132876070410.png"></p> <p>修改後，C#、JavaScript 與 Python 三個版本產生的結果一致，確認轉換成功。</p> <p>總結一下本次實測結果：</p> <ol><li>本範例約 100 行 C# 程式，使用 ChatGPT 4 轉換耗時約一分鐘左右可拿到結果，轉換出來的 JavaScript 及 Python 版本均可直接執行，沒有編譯及 Runtime 錯誤，但執行結果有部分不正確</li> <li>JavaScript 有兩處需要修改，Python 有三處，但都是很明顯很容易修改的錯誤，前後不到五分鐘改好</li> <li>修改後，比對 C#、JavaScript、Python 三個版本執行結果一致，判定轉換成功</li></ol> <p>在本次 ChatGPT 火力展示，由於程式碼不長，未涉及專屬程式庫呼叫並以演算法為主，ChatGPT 從 A 程式語言轉成 B 程式語言的完成度及正確率頗高，人工確認結果及修 Bug 免不了，但比起徒手翻寫不知快 N 倍。即使面對不熟悉的程式語言(本例中的 Python)，靠著 ChatGPT 先轉換，利用 Github Copilot 協助修正，我也能在短短幾分鐘內自力完成翻寫，在 ChatGPT 出來之前，我沒想過有會有這麼一天。</p> <p>阿貓阿狗都能轉程式改程式，這意味著會寫程式不值錢了嗎？好像不得不承認是這樣沒錯。</p> <p>ChatGPT / AI 大幅降低了寫程式的門檻，新手生手不需要歷經漫長的學習也能生出可用的程式，老鳥的不可取代性下降(當然，品質效能擴充維護性有別，但很多時候，能解決眼前問題的堪用程式已值千金)；但很公平的是一件事是，新手有 AI 可以依靠，老鳥一樣也得到 AI 加持，像我不熟 Python，一樣只花幾分鐘就寫好 Python 版函式。</p> <p>正確地說，應該是入門到中級的程式技能貶值了。過去會寫程式在一般人眼中就是高手，會有很多人巴著你請你幫忙，排隊等你心情好賞賜幾支程式解決問題。</p> <p>如今，一般人靠著 ChatGPT/RPA/NoCode 工具也能寫出滿足需求的程式，沒必要把會寫程式的人當成寶。除非對效能、資源用量、擴充維護性有較高要求的情境，此時若經驗與知識不足，即便有 ChatGPT 無法精準提問也是枉然，此時仍需經驗知識豐富的老鳥才能應付，但程式能力只有一般水平是派不上用場的。由此推論，寫得出程式真的不值錢了，很會寫程式懂偵錯且具備效能、架構、擴充維護性知識才算值錢本事。</p> <p>靠會一點程式便有恃無恐的時代結束了，得再跑快一點惹。</p> <p>註：轉換結果我有丟上 <a href="https://github.com/darkthread/cht-num-string">Github</a>，如果有人想參考的話</p> <p data-slug="chatgpt-conv-program-language" data-fbimg="https://cdn.pixabay.com/photo/2019/08/09/06/12/car-racing-4394450_1280.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638413132860843124.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638413132860843124.png" medium="image"/>
-    <pubDate>Sat, 20 Jan 2024 02:04:17 GMT</pubDate>
   </item></channel>
 </rss>
