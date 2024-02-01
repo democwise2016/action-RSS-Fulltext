@@ -30,6 +30,1698 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[Kurator V0.6.0：实现应用全流程生命周期管理]]></title>
+    <link>https://my.oschina.net/u/4526289/blog/11009306</link>
+    <itunes:title><![CDATA[Kurator V0.6.0：实现应用全流程生命周期管理]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>本文分享自华为云社区《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fforum%2Fthread-0271141912138799003-1-1.html%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank">Kurator V0.6.0：实现应用全流程生命周期管理</a>》，作者：云容器大未来。</p>
+<p>Kurator 是华为云开源的面向分布式云原生环境的一站式解决方案。它利用 Karmada 作为多集群编排基础，内置集成了Istio、Prometheus、Thanos、Volcano、KubeEdge、Argo 等主流云原生技术。基于此，Kurator 构建了包括集群舰队管理、集群生命周期管理、统一应用分发、流量治理、监控和策略管理在内的分布式云平台管理能力。</p>
+<p><strong>在最新 0.6.0 版本中，Kurator 为云原生应用增加了 CI/CD 流水线设置与管理功能，简化流水线创建。此外，强化了 0.4.0 版本发布的统一应用分发功能，可以在部署新应用时设置金丝雀（灰度）发布、A/B 测试、蓝绿发布三种渐进式发布策略。</strong>新增的流水线特性和渐进式发布功能与统一分发能力结合，实现基于代码仓库的 GitOps 工作流。这有助于快速构建分布式云原生平台，简化应用开发与发布流程。Kurator CI/CD 的结构图如下所示：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8605150f14.png"></p>
+<p>用户更新代码仓库后，触发 Kurator 流水线，完成代码拉取、检查、编译并构建镜像。其后，用户更新应用部署模板，例如更改应用配置中的镜像信息。Kurator Application Controller 侦测到配置更新，将自动触发已应用的渐进式发布策略，实现应用的自动发布。如此一来，整个软件研发生命周期以代码为中心，实现开发至发布完整流程的自动化，简化运维、部署工作。</p>
+<h1>流水线</h1>
+<p>CI/CD 流水线实现源码到发布的自动化过程，包括源码管理、检查、测试等阶段。但由于每个阶段技术需求不同，导致流水线配置和管理难度大。Kurator 参考开源项目 Tekton，通过预定义常用任务模版的方式简化流水线创建操作。用户只需指定任务名称和代码仓库访问凭证即可创建流水线，使用门槛低。对熟悉流水线的高级用户，Kurator 也支持自定义任务。用户可以根据自己需求定制任务内容，满足个性化场景。通过预置任务模板和自定义任务的能力，Kurator 大幅简化了流水线配置和管理的难度。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-c82632464d.png"></p>
+<p>从图中可以看出，在使用流水线时，Kurator 完成了大部分工作。用户只需配置运行环境，选择任务模板即可完成流水线创建，大大减少学习成本。特别是与传统Tekton 相比，Kurator 提供了预定义任务模板，用户只关注任务内容而不再处理具体实现，实现了流水线使用的极致简化。</p>
+<p>除了简化流水线的创建操作外，Kurator 还考虑到了软件供应链安全，可以在流水线构建镜像时自动为其添加数字签名和源头证明，以防范假冒镜像，保证镜像源头可靠，保证在镜像制作方面的安全性。软件供应链安全指的是保护软件从开发到部署的整个生命周期过程中的安全性。软件供应链安全可以提高软件安全性能和用户信任度，预防恶意代码渗透。签名和证明添加后，镜像将自动上传至仓库。在镜像仓库中可以直接查看镜像签名和证明的详细情况，如图所示。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-b351a91abf.png">用户可以用签名过程生成的公钥验证镜像签名和源头。这样在生产中,生产者仅需公布签名公钥，就能让用户验证数字签名和来源证明。接下来将展示一个在 Kurator 中创建一个流水线的示例：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-1961d82579.png"></p>
+<p>在流水线定义 spec.tasks 中指定任务名称，即可选择 Kurator 内置的常用任务模板。目前内置的常用任务模板包括:</p>
+<table border="1" cellspacing="0">
+<tbody>
+<tr>
+<td>  <p>名称</p>  </td>
+<td>任务目标</td>
+</tr>
+<tr>
+<td>git-clone</td>
+<td>拉取源码</td>
+</tr>
+<tr>
+<td>go-test</td>
+<td>运行go代码单元测试  </td>
+</tr>
+<tr>
+<td>go-lint</td>
+<td>go源码静态检查</td>
+</tr>
+<tr>
+<td>build-and-push-image</td>
+<td>编译，构建镜像并上传</td>
+</tr>
+</tbody>
+</table>
+<p>此外，通过 customTask 定义可以发布自定义任务。通过指定 image、command 和 args,实现定制任务需求，如上述示例中自定义任务完成的工作就是打印README.md。</p>
+<p>更多的示例和细节，请参考: https://kurator.dev/docs/pipeline/</p>
+<h1>渐进式发布</h1>
+<p>金丝雀发布、A/B 测试和蓝绿发布都是主流的应用发布策略，可有效减少上线风险。Kurator 0.6.0 在原统一应用分发基础上，增加渐进式发布功能。现在应用可以指定三种渐进式发布策略中的一种策略。同时，可以将具备发布能力的统一分发，与 CI/CD 流水线结合起来，实现基于代码仓库的 GitOps 工作流。</p>
+<h2>金丝雀发布</h2>
+<p>金丝雀部署是一种渐进式发布策略。先向少数用户发布新的软件版本进行测试，根据测试结果，决定是否向更多用户推出新版本。旨在最大限度地减少新版本上线后对用户的影响，是一种更安全、更可靠的软件发布策略。参阅以下的操作示例，了解如何使用 Kurator 配置金丝雀发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-d211aa7dd0.png"></p>
+<p>通过配置 rollout 中的 workload 字段，可以将金丝雀发布的目标设置为 webapp 命名空间下名为 backend 的应用。发布目标除了支持 deployment 应用之外，还支持 daemonSet应用。流量分析使用 Kurator 内置的请求成功率（request-sueccess-rate）和平均访问时延（request-duration）两个指标作为衡量新版本是否健康的标准。其中通过 thresholdRange 指定阈值。示例中要求请求成功率<span>达</span><strong>99%</strong>，平均访问时延小于 500ms，新版本的服务才会被认定为健康。rolloutPolicy.canaryStrategy 配置了每次测试成功后，下次流量递增的比例和最终允许测试版本流量占比的最大值，从而实现渐进式发布新版本。示例中每次递增<span>&nbsp;</span><strong>10%</strong><span>&nbsp;</span>的流量流向新版本，最多为 50%。也可以设置 maxWeight 为 55，这样在最后一次测试的时候，只会新增<span>&nbsp;</span><strong>5%<span>&nbsp;</span></strong>的流量流向新版本。除了这些配置之外，Kurator 还可以设定完成验证之后，流量以什么样的比例逐步流向新版本。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<h2>A/B测试</h2>
+<p>A/B 测试为效果测试，是验证应用两版本表现的测试方法。它通过将用户分到不同组，每个组体验不同版本，然后分析每个组用户在使用过程中的各项指标，选择效果较好的版本。A/B 测试也可以先让部分用户试用新版本，收集真实环境下的用户反馈，再决定是否上线新版本。了解如何在 Kurator 配置应用的 A/B 测试，请参考下方操作示例。</p>
+<p><strong><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8a513cd2df.png"></strong></p>
+<p>和金丝雀发布类似，由 workload 指定 A/B 测试的目标。通过 metric 指定测试的指标。A/B 测试和金丝雀发布不同的点在于需要配置 match 中的匹配规则，实现流量分组。上述 match 配置是只有 http 请求头满足使用 FireFox 浏览器或请求的 cookie 中包含 “type=insider” 的情况下，请求才会被转发到新版本。通过对不同请求头的处理达到对用户分组的效果，对不同的版本进行效果测试。除了匹配请求头之外，还能匹配 URI、端口号等。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<h2>蓝绿发布</h2>
+<p>蓝绿发布是一种渐进零停机发布方法。它将生产环境分为两个独立运行的蓝绿环境,蓝环境承载当前实际流量，绿环境预部署新版本。新版本通过测试后,只需切换流量到绿环境，就能实现零停机升级。蓝环境备用支持回滚。通过实时扩容，可近乎零停机完成迭代交付，提高发布效率和用户体验。了解如何在 Kurator 配置蓝绿发布的操作示例，请参考下方。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-685d36c065.png"></p>
+<p>蓝绿发布需要配置目标应用、测试指标、迭代次数和容许测试失败的次数，其中测试的迭代次数由 analysisTimes 指定，容许测试失败的次数由 checkFailedTimes指定，除此之外无需配置别的规则。因为蓝绿发布在测试新版本的时候是将全局流量转发到绿环境中进行测试，没有金丝雀发布的渐进式流量递增和 A/B 测试的对用户分组的需求。</p>
+<p>更多细节请参: https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<h1>未来展望</h1>
+<p>综上所述，通过 CI/CD 流水线和渐进式发布功能，Kurator 实现了从源码到发布的完整流水线自动化，真正提升了开发效率和运维能力，实现开发、配置和发布的应用全流程生命周期管理。此外还大幅简化了采用 CI/CD 流水线和渐进式发布的门槛。随着 Kurator 的不断迭代升级，我们还将继续为流水线添加更多的预定义任务模板，为渐进式发布提供更多的测试指标。欢迎大家试用 Kurator 并提出宝贵的意见与需求。Kurator的门户为：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>随着功能的逐渐完善，Kurator 将成为用户快速立体掌握云原生技术体系、高效运行分布式应用的强大工具。</p>
+<h3>参考链接</h3>
+<p>Kurator项目地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>CI/CD流水线：https://kurator.dev/docs/pipeline/</p>
+<p>软件供应链安全：https://kurator.dev/docs/pipeline/chain-security/</p>
+<p>渐进式发布：https://kurator.dev/docs/fleet-manager/rollout/</p>
+<p>金丝雀发布：https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<p>A/B测试：https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<p>蓝绿发布：https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fblogs%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank"><strong>点击关注，第一时间了解华为云新鲜技术~</strong></a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>本文分享自华为云社区《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fforum%2Fthread-0271141912138799003-1-1.html%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank">Kurator V0.6.0：实现应用全流程生命周期管理</a>》，作者：云容器大未来。</p>
+<p>Kurator 是华为云开源的面向分布式云原生环境的一站式解决方案。它利用 Karmada 作为多集群编排基础，内置集成了Istio、Prometheus、Thanos、Volcano、KubeEdge、Argo 等主流云原生技术。基于此，Kurator 构建了包括集群舰队管理、集群生命周期管理、统一应用分发、流量治理、监控和策略管理在内的分布式云平台管理能力。</p>
+<p><strong>在最新 0.6.0 版本中，Kurator 为云原生应用增加了 CI/CD 流水线设置与管理功能，简化流水线创建。此外，强化了 0.4.0 版本发布的统一应用分发功能，可以在部署新应用时设置金丝雀（灰度）发布、A/B 测试、蓝绿发布三种渐进式发布策略。</strong>新增的流水线特性和渐进式发布功能与统一分发能力结合，实现基于代码仓库的 GitOps 工作流。这有助于快速构建分布式云原生平台，简化应用开发与发布流程。Kurator CI/CD 的结构图如下所示：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8605150f14.png"></p>
+<p>用户更新代码仓库后，触发 Kurator 流水线，完成代码拉取、检查、编译并构建镜像。其后，用户更新应用部署模板，例如更改应用配置中的镜像信息。Kurator Application Controller 侦测到配置更新，将自动触发已应用的渐进式发布策略，实现应用的自动发布。如此一来，整个软件研发生命周期以代码为中心，实现开发至发布完整流程的自动化，简化运维、部署工作。</p>
+<h1>流水线</h1>
+<p>CI/CD 流水线实现源码到发布的自动化过程，包括源码管理、检查、测试等阶段。但由于每个阶段技术需求不同，导致流水线配置和管理难度大。Kurator 参考开源项目 Tekton，通过预定义常用任务模版的方式简化流水线创建操作。用户只需指定任务名称和代码仓库访问凭证即可创建流水线，使用门槛低。对熟悉流水线的高级用户，Kurator 也支持自定义任务。用户可以根据自己需求定制任务内容，满足个性化场景。通过预置任务模板和自定义任务的能力，Kurator 大幅简化了流水线配置和管理的难度。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-c82632464d.png"></p>
+<p>从图中可以看出，在使用流水线时，Kurator 完成了大部分工作。用户只需配置运行环境，选择任务模板即可完成流水线创建，大大减少学习成本。特别是与传统Tekton 相比，Kurator 提供了预定义任务模板，用户只关注任务内容而不再处理具体实现，实现了流水线使用的极致简化。</p>
+<p>除了简化流水线的创建操作外，Kurator 还考虑到了软件供应链安全，可以在流水线构建镜像时自动为其添加数字签名和源头证明，以防范假冒镜像，保证镜像源头可靠，保证在镜像制作方面的安全性。软件供应链安全指的是保护软件从开发到部署的整个生命周期过程中的安全性。软件供应链安全可以提高软件安全性能和用户信任度，预防恶意代码渗透。签名和证明添加后，镜像将自动上传至仓库。在镜像仓库中可以直接查看镜像签名和证明的详细情况，如图所示。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-b351a91abf.png">用户可以用签名过程生成的公钥验证镜像签名和源头。这样在生产中,生产者仅需公布签名公钥，就能让用户验证数字签名和来源证明。接下来将展示一个在 Kurator 中创建一个流水线的示例：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-1961d82579.png"></p>
+<p>在流水线定义 spec.tasks 中指定任务名称，即可选择 Kurator 内置的常用任务模板。目前内置的常用任务模板包括:</p>
+<table border="1" cellspacing="0">
+<tbody>
+<tr>
+<td>  <p>名称</p>  </td>
+<td>任务目标</td>
+</tr>
+<tr>
+<td>git-clone</td>
+<td>拉取源码</td>
+</tr>
+<tr>
+<td>go-test</td>
+<td>运行go代码单元测试  </td>
+</tr>
+<tr>
+<td>go-lint</td>
+<td>go源码静态检查</td>
+</tr>
+<tr>
+<td>build-and-push-image</td>
+<td>编译，构建镜像并上传</td>
+</tr>
+</tbody>
+</table>
+<p>此外，通过 customTask 定义可以发布自定义任务。通过指定 image、command 和 args,实现定制任务需求，如上述示例中自定义任务完成的工作就是打印README.md。</p>
+<p>更多的示例和细节，请参考: https://kurator.dev/docs/pipeline/</p>
+<h1>渐进式发布</h1>
+<p>金丝雀发布、A/B 测试和蓝绿发布都是主流的应用发布策略，可有效减少上线风险。Kurator 0.6.0 在原统一应用分发基础上，增加渐进式发布功能。现在应用可以指定三种渐进式发布策略中的一种策略。同时，可以将具备发布能力的统一分发，与 CI/CD 流水线结合起来，实现基于代码仓库的 GitOps 工作流。</p>
+<h2>金丝雀发布</h2>
+<p>金丝雀部署是一种渐进式发布策略。先向少数用户发布新的软件版本进行测试，根据测试结果，决定是否向更多用户推出新版本。旨在最大限度地减少新版本上线后对用户的影响，是一种更安全、更可靠的软件发布策略。参阅以下的操作示例，了解如何使用 Kurator 配置金丝雀发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-d211aa7dd0.png"></p>
+<p>通过配置 rollout 中的 workload 字段，可以将金丝雀发布的目标设置为 webapp 命名空间下名为 backend 的应用。发布目标除了支持 deployment 应用之外，还支持 daemonSet应用。流量分析使用 Kurator 内置的请求成功率（request-sueccess-rate）和平均访问时延（request-duration）两个指标作为衡量新版本是否健康的标准。其中通过 thresholdRange 指定阈值。示例中要求请求成功率<span>达</span><strong>99%</strong>，平均访问时延小于 500ms，新版本的服务才会被认定为健康。rolloutPolicy.canaryStrategy 配置了每次测试成功后，下次流量递增的比例和最终允许测试版本流量占比的最大值，从而实现渐进式发布新版本。示例中每次递增<span>&nbsp;</span><strong>10%</strong><span>&nbsp;</span>的流量流向新版本，最多为 50%。也可以设置 maxWeight 为 55，这样在最后一次测试的时候，只会新增<span>&nbsp;</span><strong>5%<span>&nbsp;</span></strong>的流量流向新版本。除了这些配置之外，Kurator 还可以设定完成验证之后，流量以什么样的比例逐步流向新版本。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<h2>A/B测试</h2>
+<p>A/B 测试为效果测试，是验证应用两版本表现的测试方法。它通过将用户分到不同组，每个组体验不同版本，然后分析每个组用户在使用过程中的各项指标，选择效果较好的版本。A/B 测试也可以先让部分用户试用新版本，收集真实环境下的用户反馈，再决定是否上线新版本。了解如何在 Kurator 配置应用的 A/B 测试，请参考下方操作示例。</p>
+<p><strong><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8a513cd2df.png"></strong></p>
+<p>和金丝雀发布类似，由 workload 指定 A/B 测试的目标。通过 metric 指定测试的指标。A/B 测试和金丝雀发布不同的点在于需要配置 match 中的匹配规则，实现流量分组。上述 match 配置是只有 http 请求头满足使用 FireFox 浏览器或请求的 cookie 中包含 “type=insider” 的情况下，请求才会被转发到新版本。通过对不同请求头的处理达到对用户分组的效果，对不同的版本进行效果测试。除了匹配请求头之外，还能匹配 URI、端口号等。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<h2>蓝绿发布</h2>
+<p>蓝绿发布是一种渐进零停机发布方法。它将生产环境分为两个独立运行的蓝绿环境,蓝环境承载当前实际流量，绿环境预部署新版本。新版本通过测试后,只需切换流量到绿环境，就能实现零停机升级。蓝环境备用支持回滚。通过实时扩容，可近乎零停机完成迭代交付，提高发布效率和用户体验。了解如何在 Kurator 配置蓝绿发布的操作示例，请参考下方。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-685d36c065.png"></p>
+<p>蓝绿发布需要配置目标应用、测试指标、迭代次数和容许测试失败的次数，其中测试的迭代次数由 analysisTimes 指定，容许测试失败的次数由 checkFailedTimes指定，除此之外无需配置别的规则。因为蓝绿发布在测试新版本的时候是将全局流量转发到绿环境中进行测试，没有金丝雀发布的渐进式流量递增和 A/B 测试的对用户分组的需求。</p>
+<p>更多细节请参: https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<h1>未来展望</h1>
+<p>综上所述，通过 CI/CD 流水线和渐进式发布功能，Kurator 实现了从源码到发布的完整流水线自动化，真正提升了开发效率和运维能力，实现开发、配置和发布的应用全流程生命周期管理。此外还大幅简化了采用 CI/CD 流水线和渐进式发布的门槛。随着 Kurator 的不断迭代升级，我们还将继续为流水线添加更多的预定义任务模板，为渐进式发布提供更多的测试指标。欢迎大家试用 Kurator 并提出宝贵的意见与需求。Kurator的门户为：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>随着功能的逐渐完善，Kurator 将成为用户快速立体掌握云原生技术体系、高效运行分布式应用的强大工具。</p>
+<h3>参考链接</h3>
+<p>Kurator项目地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>CI/CD流水线：https://kurator.dev/docs/pipeline/</p>
+<p>软件供应链安全：https://kurator.dev/docs/pipeline/chain-security/</p>
+<p>渐进式发布：https://kurator.dev/docs/fleet-manager/rollout/</p>
+<p>金丝雀发布：https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<p>A/B测试：https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<p>蓝绿发布：https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fblogs%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank"><strong>点击关注，第一时间了解华为云新鲜技术~</strong></a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>本文分享自华为云社区《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fforum%2Fthread-0271141912138799003-1-1.html%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank">Kurator V0.6.0：实现应用全流程生命周期管理</a>》，作者：云容器大未来。</p>
+<p>Kurator 是华为云开源的面向分布式云原生环境的一站式解决方案。它利用 Karmada 作为多集群编排基础，内置集成了Istio、Prometheus、Thanos、Volcano、KubeEdge、Argo 等主流云原生技术。基于此，Kurator 构建了包括集群舰队管理、集群生命周期管理、统一应用分发、流量治理、监控和策略管理在内的分布式云平台管理能力。</p>
+<p><strong>在最新 0.6.0 版本中，Kurator 为云原生应用增加了 CI/CD 流水线设置与管理功能，简化流水线创建。此外，强化了 0.4.0 版本发布的统一应用分发功能，可以在部署新应用时设置金丝雀（灰度）发布、A/B 测试、蓝绿发布三种渐进式发布策略。</strong>新增的流水线特性和渐进式发布功能与统一分发能力结合，实现基于代码仓库的 GitOps 工作流。这有助于快速构建分布式云原生平台，简化应用开发与发布流程。Kurator CI/CD 的结构图如下所示：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8605150f14.png"></p>
+<p>用户更新代码仓库后，触发 Kurator 流水线，完成代码拉取、检查、编译并构建镜像。其后，用户更新应用部署模板，例如更改应用配置中的镜像信息。Kurator Application Controller 侦测到配置更新，将自动触发已应用的渐进式发布策略，实现应用的自动发布。如此一来，整个软件研发生命周期以代码为中心，实现开发至发布完整流程的自动化，简化运维、部署工作。</p>
+<h1>流水线</h1>
+<p>CI/CD 流水线实现源码到发布的自动化过程，包括源码管理、检查、测试等阶段。但由于每个阶段技术需求不同，导致流水线配置和管理难度大。Kurator 参考开源项目 Tekton，通过预定义常用任务模版的方式简化流水线创建操作。用户只需指定任务名称和代码仓库访问凭证即可创建流水线，使用门槛低。对熟悉流水线的高级用户，Kurator 也支持自定义任务。用户可以根据自己需求定制任务内容，满足个性化场景。通过预置任务模板和自定义任务的能力，Kurator 大幅简化了流水线配置和管理的难度。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-c82632464d.png"></p>
+<p>从图中可以看出，在使用流水线时，Kurator 完成了大部分工作。用户只需配置运行环境，选择任务模板即可完成流水线创建，大大减少学习成本。特别是与传统Tekton 相比，Kurator 提供了预定义任务模板，用户只关注任务内容而不再处理具体实现，实现了流水线使用的极致简化。</p>
+<p>除了简化流水线的创建操作外，Kurator 还考虑到了软件供应链安全，可以在流水线构建镜像时自动为其添加数字签名和源头证明，以防范假冒镜像，保证镜像源头可靠，保证在镜像制作方面的安全性。软件供应链安全指的是保护软件从开发到部署的整个生命周期过程中的安全性。软件供应链安全可以提高软件安全性能和用户信任度，预防恶意代码渗透。签名和证明添加后，镜像将自动上传至仓库。在镜像仓库中可以直接查看镜像签名和证明的详细情况，如图所示。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-b351a91abf.png">用户可以用签名过程生成的公钥验证镜像签名和源头。这样在生产中,生产者仅需公布签名公钥，就能让用户验证数字签名和来源证明。接下来将展示一个在 Kurator 中创建一个流水线的示例：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-1961d82579.png"></p>
+<p>在流水线定义 spec.tasks 中指定任务名称，即可选择 Kurator 内置的常用任务模板。目前内置的常用任务模板包括:</p>
+<table border="1" cellspacing="0">
+<tbody>
+<tr>
+<td>  <p>名称</p>  </td>
+<td>任务目标</td>
+</tr>
+<tr>
+<td>git-clone</td>
+<td>拉取源码</td>
+</tr>
+<tr>
+<td>go-test</td>
+<td>运行go代码单元测试  </td>
+</tr>
+<tr>
+<td>go-lint</td>
+<td>go源码静态检查</td>
+</tr>
+<tr>
+<td>build-and-push-image</td>
+<td>编译，构建镜像并上传</td>
+</tr>
+</tbody>
+</table>
+<p>此外，通过 customTask 定义可以发布自定义任务。通过指定 image、command 和 args,实现定制任务需求，如上述示例中自定义任务完成的工作就是打印README.md。</p>
+<p>更多的示例和细节，请参考: https://kurator.dev/docs/pipeline/</p>
+<h1>渐进式发布</h1>
+<p>金丝雀发布、A/B 测试和蓝绿发布都是主流的应用发布策略，可有效减少上线风险。Kurator 0.6.0 在原统一应用分发基础上，增加渐进式发布功能。现在应用可以指定三种渐进式发布策略中的一种策略。同时，可以将具备发布能力的统一分发，与 CI/CD 流水线结合起来，实现基于代码仓库的 GitOps 工作流。</p>
+<h2>金丝雀发布</h2>
+<p>金丝雀部署是一种渐进式发布策略。先向少数用户发布新的软件版本进行测试，根据测试结果，决定是否向更多用户推出新版本。旨在最大限度地减少新版本上线后对用户的影响，是一种更安全、更可靠的软件发布策略。参阅以下的操作示例，了解如何使用 Kurator 配置金丝雀发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-d211aa7dd0.png"></p>
+<p>通过配置 rollout 中的 workload 字段，可以将金丝雀发布的目标设置为 webapp 命名空间下名为 backend 的应用。发布目标除了支持 deployment 应用之外，还支持 daemonSet应用。流量分析使用 Kurator 内置的请求成功率（request-sueccess-rate）和平均访问时延（request-duration）两个指标作为衡量新版本是否健康的标准。其中通过 thresholdRange 指定阈值。示例中要求请求成功率<span>达</span><strong>99%</strong>，平均访问时延小于 500ms，新版本的服务才会被认定为健康。rolloutPolicy.canaryStrategy 配置了每次测试成功后，下次流量递增的比例和最终允许测试版本流量占比的最大值，从而实现渐进式发布新版本。示例中每次递增<span>&nbsp;</span><strong>10%</strong><span>&nbsp;</span>的流量流向新版本，最多为 50%。也可以设置 maxWeight 为 55，这样在最后一次测试的时候，只会新增<span>&nbsp;</span><strong>5%<span>&nbsp;</span></strong>的流量流向新版本。除了这些配置之外，Kurator 还可以设定完成验证之后，流量以什么样的比例逐步流向新版本。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<h2>A/B测试</h2>
+<p>A/B 测试为效果测试，是验证应用两版本表现的测试方法。它通过将用户分到不同组，每个组体验不同版本，然后分析每个组用户在使用过程中的各项指标，选择效果较好的版本。A/B 测试也可以先让部分用户试用新版本，收集真实环境下的用户反馈，再决定是否上线新版本。了解如何在 Kurator 配置应用的 A/B 测试，请参考下方操作示例。</p>
+<p><strong><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8a513cd2df.png"></strong></p>
+<p>和金丝雀发布类似，由 workload 指定 A/B 测试的目标。通过 metric 指定测试的指标。A/B 测试和金丝雀发布不同的点在于需要配置 match 中的匹配规则，实现流量分组。上述 match 配置是只有 http 请求头满足使用 FireFox 浏览器或请求的 cookie 中包含 “type=insider” 的情况下，请求才会被转发到新版本。通过对不同请求头的处理达到对用户分组的效果，对不同的版本进行效果测试。除了匹配请求头之外，还能匹配 URI、端口号等。</p>
+<p>更多细节请参考: https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<h2>蓝绿发布</h2>
+<p>蓝绿发布是一种渐进零停机发布方法。它将生产环境分为两个独立运行的蓝绿环境,蓝环境承载当前实际流量，绿环境预部署新版本。新版本通过测试后,只需切换流量到绿环境，就能实现零停机升级。蓝环境备用支持回滚。通过实时扩容，可近乎零停机完成迭代交付，提高发布效率和用户体验。了解如何在 Kurator 配置蓝绿发布的操作示例，请参考下方。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-685d36c065.png"></p>
+<p>蓝绿发布需要配置目标应用、测试指标、迭代次数和容许测试失败的次数，其中测试的迭代次数由 analysisTimes 指定，容许测试失败的次数由 checkFailedTimes指定，除此之外无需配置别的规则。因为蓝绿发布在测试新版本的时候是将全局流量转发到绿环境中进行测试，没有金丝雀发布的渐进式流量递增和 A/B 测试的对用户分组的需求。</p>
+<p>更多细节请参: https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<h1>未来展望</h1>
+<p>综上所述，通过 CI/CD 流水线和渐进式发布功能，Kurator 实现了从源码到发布的完整流水线自动化，真正提升了开发效率和运维能力，实现开发、配置和发布的应用全流程生命周期管理。此外还大幅简化了采用 CI/CD 流水线和渐进式发布的门槛。随着 Kurator 的不断迭代升级，我们还将继续为流水线添加更多的预定义任务模板，为渐进式发布提供更多的测试指标。欢迎大家试用 Kurator 并提出宝贵的意见与需求。Kurator的门户为：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>随着功能的逐渐完善，Kurator 将成为用户快速立体掌握云原生技术体系、高效运行分布式应用的强大工具。</p>
+<h3>参考链接</h3>
+<p>Kurator项目地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkurator-dev%2Fkurator" target="_blank">https://github.com/kurator-dev/kurator</a></p>
+<p>CI/CD流水线：https://kurator.dev/docs/pipeline/</p>
+<p>软件供应链安全：https://kurator.dev/docs/pipeline/chain-security/</p>
+<p>渐进式发布：https://kurator.dev/docs/fleet-manager/rollout/</p>
+<p>金丝雀发布：https://kurator.dev/docs/fleet-manager/rollout/canary/</p>
+<p>A/B测试：https://kurator.dev/docs/fleet-manager/rollout/abtest/</p>
+<p>蓝绿发布：https://kurator.dev/docs/fleet-manager/rollout/blue-green/</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbbs.huaweicloud.com%2Fblogs%3Futm_source%3Doschina%26utm_medium%3Dbbs-ex%26utm_campaign%3Dother%26utm_content%3Dcontent" target="_blank"><strong>点击关注，第一时间了解华为云新鲜技术~</strong></a></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8605150f14.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/bbs-img.huaweicloud.com-8605150f14.png" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 13:49:15 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Java 提案计划弃用 sun.misc.Unsafe 中的内存访问]]></title>
+    <link>https://www.oschina.net/news/277235/java-proposal-scrap-sunmiscunsafe-memory-access</link>
+    <itunes:title><![CDATA[Java 提案计划弃用 sun.misc.Unsafe 中的内存访问]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>OpenJDK 社区中一个名为“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenjdk.org%2Fjeps%2F8323072" target="_blank">Deprecate Memory-Access Methods in sun.misc.Unsafe for Removal</a>”的 JEP 草案提出，建议弃用 sun.misc.Unsafe 中的内存访问方法，以便在未来的 Java 版本中将其进行删除。</span></p>
+<p><span>sun.misc.Unsafe 类于 2002 年引入，是 JDK 中 Java 类执行低级操作的一种方法，距今已有 20 多年的历史。在该类的 87 个方法中，有 79 个用于内存访问。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a512fbfad9.png"></p>
+<p><span>该提案指出，自 JDK 9（用于访问堆内内存）和 JDK 22（用于访问堆外内存）以来，这些不受支持的方法已经有了受支持的替代方法。因此强烈建议库开发人员从 sun.misc.Unsafe 迁移到受支持的替代方法，以便应用程序能够顺利迁移到现代 JDK。</span></p>
+<p><span>提案的目标包括为在未来的 JDK 版本中移除 sun.misc.Unsafe 中的内存访问方法做好准备，以及帮助开发人员了解他们的应用程序何时直接或间接依赖 sun.misc.Unsafe 中的内存访问方法。但它并不旨在完全删除 sun.misc.Unsafe 类，因为该类中的少量方法不用于内存访问，所以将会保持不被弃用；它们的废弃和移除将单独进行。</span></p>
+<p><span>提案并未明确提及将具体在哪个 Java 版本废弃这些方法。但 JDK 22 计划于 3 月份发布，其功能集已被冻结；因此计划于 9 月份发布的 JDK 23 可能将是其目标。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>OpenJDK 社区中一个名为“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenjdk.org%2Fjeps%2F8323072" target="_blank">Deprecate Memory-Access Methods in sun.misc.Unsafe for Removal</a>”的 JEP 草案提出，建议弃用 sun.misc.Unsafe 中的内存访问方法，以便在未来的 Java 版本中将其进行删除。</span></p>
+<p><span>sun.misc.Unsafe 类于 2002 年引入，是 JDK 中 Java 类执行低级操作的一种方法，距今已有 20 多年的历史。在该类的 87 个方法中，有 79 个用于内存访问。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a512fbfad9.png"></p>
+<p><span>该提案指出，自 JDK 9（用于访问堆内内存）和 JDK 22（用于访问堆外内存）以来，这些不受支持的方法已经有了受支持的替代方法。因此强烈建议库开发人员从 sun.misc.Unsafe 迁移到受支持的替代方法，以便应用程序能够顺利迁移到现代 JDK。</span></p>
+<p><span>提案的目标包括为在未来的 JDK 版本中移除 sun.misc.Unsafe 中的内存访问方法做好准备，以及帮助开发人员了解他们的应用程序何时直接或间接依赖 sun.misc.Unsafe 中的内存访问方法。但它并不旨在完全删除 sun.misc.Unsafe 类，因为该类中的少量方法不用于内存访问，所以将会保持不被弃用；它们的废弃和移除将单独进行。</span></p>
+<p><span>提案并未明确提及将具体在哪个 Java 版本废弃这些方法。但 JDK 22 计划于 3 月份发布，其功能集已被冻结；因此计划于 9 月份发布的 JDK 23 可能将是其目标。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>OpenJDK 社区中一个名为“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenjdk.org%2Fjeps%2F8323072" target="_blank">Deprecate Memory-Access Methods in sun.misc.Unsafe for Removal</a>”的 JEP 草案提出，建议弃用 sun.misc.Unsafe 中的内存访问方法，以便在未来的 Java 版本中将其进行删除。</span></p>
+<p><span>sun.misc.Unsafe 类于 2002 年引入，是 JDK 中 Java 类执行低级操作的一种方法，距今已有 20 多年的历史。在该类的 87 个方法中，有 79 个用于内存访问。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a512fbfad9.png"></p>
+<p><span>该提案指出，自 JDK 9（用于访问堆内内存）和 JDK 22（用于访问堆外内存）以来，这些不受支持的方法已经有了受支持的替代方法。因此强烈建议库开发人员从 sun.misc.Unsafe 迁移到受支持的替代方法，以便应用程序能够顺利迁移到现代 JDK。</span></p>
+<p><span>提案的目标包括为在未来的 JDK 版本中移除 sun.misc.Unsafe 中的内存访问方法做好准备，以及帮助开发人员了解他们的应用程序何时直接或间接依赖 sun.misc.Unsafe 中的内存访问方法。但它并不旨在完全删除 sun.misc.Unsafe 类，因为该类中的少量方法不用于内存访问，所以将会保持不被弃用；它们的废弃和移除将单独进行。</span></p>
+<p><span>提案并未明确提及将具体在哪个 Java 版本废弃这些方法。但 JDK 22 计划于 3 月份发布，其功能集已被冻结；因此计划于 9 月份发布的 JDK 23 可能将是其目标。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a512fbfad9.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a512fbfad9.png" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 11:47:47 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Lepton Search —— 对话式 AI 搜索工具]]></title>
+    <link>https://www.oschina.net/p/search-with-lepton</link>
+    <itunes:title><![CDATA[Lepton Search —— 对话式 AI 搜索工具]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Lepton Search 是用 500 行 Python 代码构建的对话式 AI 搜索工具。该项目的后端是 Mixtral-8x7b 模型，托管在 Lepton AI，输出速度能达到每秒大约 200 个 token，搜索引擎采用了 Bing 的搜索 API。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87be9aab80.png"></p>
+<p><strong>特性</strong></p>
+<ul>
+<li>内置 LLM 支持</li>
+<li>内置搜索引擎支持</li>
+<li>可定制 UI</li>
+<li>可共享的缓存搜索结果</li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Lepton Search 是用 500 行 Python 代码构建的对话式 AI 搜索工具。该项目的后端是 Mixtral-8x7b 模型，托管在 Lepton AI，输出速度能达到每秒大约 200 个 token，搜索引擎采用了 Bing 的搜索 API。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87be9aab80.png"></p>
+<p><strong>特性</strong></p>
+<ul>
+<li>内置 LLM 支持</li>
+<li>内置搜索引擎支持</li>
+<li>可定制 UI</li>
+<li>可共享的缓存搜索结果</li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Lepton Search 是用 500 行 Python 代码构建的对话式 AI 搜索工具。该项目的后端是 Mixtral-8x7b 模型，托管在 Lepton AI，输出速度能达到每秒大约 200 个 token，搜索引擎采用了 Bing 的搜索 API。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87be9aab80.png"></p>
+<p><strong>特性</strong></p>
+<ul>
+<li>内置 LLM 支持</li>
+<li>内置搜索引擎支持</li>
+<li>可定制 UI</li>
+<li>可共享的缓存搜索结果</li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87be9aab80.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87be9aab80.png" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 11:17:39 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[每日一博 | 开发 Java 应用时如何用好 Log]]></title>
+    <link>https://my.oschina.net/u/4662964/blog/10946665</link>
+    <itunes:title><![CDATA[每日一博 | 开发 Java 应用时如何用好 Log]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503043467" data-ratio="0.16666666666666666" data-w="636" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fd1edddf42.gif">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<p><span>本篇文章，主要介绍应用如何正确使用日志系统，帮助用户从依赖、输出、清理、问题排查、报警等各方面全面掌握。</span></p>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043463" data-ratio="0.3161764705882353" data-s="300,640" data-w="408" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c719603940.png"></span>
+</section>
+<section>
+<span>日志相关的包的种类及使用</span>
+</section>
+<p>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22UiUKr%22%2C%22name%22%3A%22h2%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u57ca2a4a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%22color%22%3A%22rgb(0%2C%200%2C%200)%22%7D%2C%22data%22%3A%22%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%97%A5%E5%BF%97%E6%A1%86%E6%9E%B6%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>日志系统与日志框架</span></strong></span></h4>
+<p><br></p>
+<section>
+<span>每个应用为了方便排查问题都要输出日志，大家经常使用：log4j、logback等。我们先搞明白日志系统的整套体系是如何运作的。</span>
+</section>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>直接负责打印输出日志，提供完整的日志输出能力：</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JUL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>java.util.logging.*，java自带的日志系统简称JUL。目前除了Java自身代码很少被生态系统类库使用。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Log4j</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://logging.apache.org/</span>
+<span>，目前已经发展到2.x版本（2.x版本有超越logback的趋势），早期的1.x版本非常成功。开创日志系统模型（Logger\Appender\Level等概念）并被各种日志框架采用，且一直沿用至今</span>
+</section></li>
+<li>
+<section>
+<span>log4j可直接使用，也可配合日志框架一起使用</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Logback</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>http://logback.qos.ch/</span>
+<span>，Log4j作者的另一个作品，（比Log4j1.x新，Log4j2.x旧）吸取多年经验教训重新设计的一套日志系统，使用更方便、功能更强、性能更好。</span>
+</section></li>
+<li>
+<section>
+<span>logback不能单独使用，需配置日志框架SLF4J一起使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<ul>
+<li><h3><span>日志框架</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>为了克服各种日志系统标准混乱，诞生了日志框架，日志框架不提供日志输出的功能，它定义标准，提供标准接口API，日志框架+日志系统=输出日志。</span>
+</section>
+<section>
+<span>写代码过程中使用日志框架的好处：编码的时候调用日志框架API，部署的时候可根据不同的环境在多种日志系统中随意切换。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JCL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://commons.apache.org/proper/commons-logging/</span>
+<span>，前几年最流行的日志框架，由Apache社区维护，大量的老牌知名框架版本都在使用，比如Spring（甚至新版本依然在使用）。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>SLF4J</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://www.slf4j.org/</span>
+<span>，Log4j作者推出，这几年最流行的日志框架，特别是配合Logback使用。 </span>
+</section></li>
+<li>
+<section>
+<span>当然也可以配合log4j使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<span>目前在Java生态趋势主要是使用：SLF4J+Logback组合。</span>
+</section>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>如何正确组合使用日志系统和日志框架</span></strong></span></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"></h4>
+<section>
+<br>
+</section>
+<p><span>上一节我们介绍了日志框架和日志系统，因为存在多套，所以：如何在系统中正确使用是我们的重点。</span></p>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统之间互斥</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043462" data-ratio="0.7355704697986577" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a9cf93db4.png" data-w="745"></span>
+</section>
+<ol>
+<li>
+<section>
+<span>日志框架：JCL和JCL-over-SLF4J桥接包直接互斥</span>
+<br>
+</section></li>
+<li>
+<section>
+<span>日志系统：logback和slf4j-log4j12互斥，不能共存</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span>我们大概可枚举出如下几种组合：</span>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>类型</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+logback</span></p></td>
+<td><p><span>目前最主流的玩法，除了依赖slf4j、logback，还需要考虑把二方库和三方库内部使用的jcl和log4j桥接到slf4j上来，并避免依赖反桥接的包</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+log4j</span></p></td>
+<td><p><span>不推荐。需要把slf4j桥接到log4j，并把jul桥接到slf4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>jcl+log4j</span></p></td>
+<td><p><span>不推荐。这需要你直接使用jcl接口来编码，并把把slf4j桥接到log4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>log4j</span></p></td>
+<td><p><span>不推荐。直接依赖日志系统</span></p></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>slf4j+logback组合</span></h3></li>
+</ul>
+<p><span><br></span></p>
+<p><span>下面列出一个正确的slf4j+logback依赖，这个环节很重要，很多应用因为依赖搞不清楚经常出现日志丢失问题：</span></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;properties&gt;</span></code><code><span>  &lt;slf4j.version&gt;${xxxx}&lt;/slf4j.version&gt;</span></code><code><span>  &lt;logback.version&gt;${yyyyy}&lt;/logback.version&gt;</span></code><code><span>&lt;/properties&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencyManagement&gt;</span></code><code><span>  &lt;dependencies&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;commons-logging&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;commons-logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jakarta.commons.logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-nop&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-simple&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-simple&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;log4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>  &lt;/dependencies&gt;</span></code><code><span>&lt;/dependencyManagement&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencies&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>&lt;/dependencies&gt;</span></code></pre>
+</section>
+<p><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></span></p>
+<ol>
+<li><p><span>先将依赖全部写在&lt;dependencyManagement&gt;节点中，这样可影响间接依赖，如果只当初的使用dependencies节点，只会应用直接依赖</span></p></li>
+<li><p><span>使用999-not-exist这样的版本：欺骗maven，直接依赖一个空包占位，这样Maven就不会再去依赖相同坐标的真实依赖，间接起到排包的作用</span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>logback配置</span></strong></span></h4>
+<section>
+<br>
+</section>
+<ul>
+<li><h3><span>文件名和位置</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>应用类型</span></p></td>
+<td><p><span>文件名</span></p></td>
+<td><p><span>文件配置（启动模块）</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>spring-boot</span></p></td>
+<td><p><span>logback-spring.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><p><span>支持从spring-boot配置文件中直接读取property</span></p></td>
+</tr>
+<tr>
+<td><p><span>普通java应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><br></td>
+</tr>
+<tr>
+<td><p><span>WAR应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/webapp/WEB-INF/</span></p></td>
+<td><p><span>需要依赖slf4j-ext，然后在web.xml里使用监听器挂载这个文件</span></p><p><img data-imgfileid="503043469" data-ratio="0.17224287484510534" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5383a2025d.png" data-w="807"></p></td>
+</tr>
+<tr>
+<td><p><span>单元测试和集成测试</span></p></td>
+<td><p><span>logback-test.xml</span></p></td>
+<td><p><span>src/test/resources/</span></p></td>
+<td><br></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>配置样例</span></h3></li>
+</ul>
+<p><br></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></code><code><span>&lt;configuration&gt;</span></code><code><span>  &lt;property name="APP_NAME" value="demo1" /&gt;</span></code><code><span>  &lt;property name="LOG_PATH" value="${user.home}/${APP_NAME}/logs" /&gt;</span></code><code><span>  &lt;property name="LOG_FILE" value="${LOG_PATH}/application.log" /&gt;</span></code><code><span>  &lt;property name="LOG.PATTERN" value="%d %-5level %X{EAGLEEYE_TRACE_ID}  %logger{5}[%L] - %msg%n"/&gt;</span></code><code><span>  &lt;property name="LOG.CHARSET" value="UTF-8"/&gt;</span></code><code><span><br></span></code><code><span>  &lt;appender name="APPLICATION"</span></code><code><span>    class="ch.qos.logback.core.rolling.RollingFileAppender"&gt;</span></code><code><span>    &lt;file&gt;${LOG_FILE}&lt;/file&gt;</span></code><code><span>    &lt;encoder&gt;</span></code><code><span>      &lt;pattern&gt;${LOG.PATTERN}&lt;/pattern&gt;</span></code><code><span>      &lt;charset&gt;${LOG.CHARSET}&lt;/charset&gt;</span></code><code><span>    &lt;/encoder&gt;</span></code><code><span>    &lt;rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy"&gt;</span></code><code><span>      &lt;fileNamePattern&gt;${LOG_FILE}.%d{yyyy-MM-dd}.%i.log&lt;/fileNamePattern&gt;</span></code><code><span>      &lt;maxHistory&gt;7&lt;/maxHistory&gt;</span></code><code><span>      &lt;maxFileSize&gt;50MB&lt;/maxFileSize&gt;</span></code><code><span>      &lt;totalSizeCap&gt;20GB&lt;/totalSizeCap&gt;</span></code><code><span>    &lt;/rollingPolicy&gt;</span></code><code><span>  &lt;/appender&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.springframework" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.ibatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.mybatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="java.sql" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="sqlMonitor" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.taobao" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba.example.demo" additivity="false"&gt;</span></code><code><span>    &lt;level value="info"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;root level="error"&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION" /&gt;</span></code><code><span>  &lt;/root&gt;</span></code><code><span>&lt;/configuration&gt;</span></code></pre>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>使用SizeAndTimeBasedRollingPolicy使日志可以根据大小和日期进行滚动</span></p></li>
+<li><p><span>日志编码请使用UTF-8</span></p></li>
+<li><p><span>请正确使用日志级别，不要统统输出error</span></p></li>
+</ol>
+<p><br></p>
+<ul>
+<li><h3><span>日志级别根据不同环境可配</span></h3></li>
+</ul>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>如果是Pandora-boot或spring-boot可以直接在配置里使用property读取application.properties，application.properties在不同环境下使用-Dspring.profiles.active进行切换</span>
+</section></li>
+<li>
+<section>
+<span>普通应用和WAR应用：请使用autoconfig-maven-plugin插件</span>
+</section></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503043470" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0d6ad633a6.png" data-w="422"></span>
+</section>
+<section>
+<span>一些实用的日志技巧</span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><br></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>动态修改日志级别</span></strong></span></h4>
+<p><br></p>
+<p><span>场景：应用在运行中，默认日志配置的打印级别是error，但是我现在想针对某个包或者某个类输出下info日志。</span></p>
+<p><span>使用Arthas：https://arthas.aliyun.com/doc/logger.html，该工具提供了动态修改日志的能力。</span></p>
+<p><span><br></span></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>追加业务信息到日志中，并格式化输出：追加MDC信息，方便排查问题</span></strong></span></h4>
+<p><br></p>
+<p><span>这是日志系统的一个扩容能力，可以把一些额外的信息输出到日志里，只需要在MDC上下文中写入kv，https://logback.qos.ch/manual/mdc.html</span></p>
+<p><br></p>
+<p><span>例如：</span></p>
+<section>
+<pre data-lang="cs"><code><span>public static void main(String[] args) {</span></code><code><span>    //代码里使用MDC.put写入key为traceId的值</span></code><code><span>    //在logback.xml里就可以使用%X{traceId}进行输出</span></code><code><span>    MDC.put("traceId", UUID.randomUUID().toString().replace("-", ""));</span></code><code><span>}</span></code></pre>
+</section>
+<p><span><img data-backh="161" data-backw="578" data-imgfileid="503043471" data-ratio="0.27870370370370373" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-36b67dcc77.png" data-w="1080"></span></p>
+<section>
+<span><strong><span><br></span></strong></span>
+</section>
+<section>
+<span><strong><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard></span></strong></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>配置定时日志磁盘占用清理</span></strong></span></h4>
+<p><br></p>
+<p><span>一定要配置合理的日志清理策略，避免磁盘被打爆，可借助日志框架自身能力，或借助可用的日志清理系统（如果有）</span></p>
+<p><span>在logback.xml配置中，可通过配置带有清理作用的rollingPolicy来完成日志定时清理和滚动，例如：SizeAndTimeBasedRollingPolicy</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="102" data-backw="578" data-imgfileid="503043472" data-ratio="0.17696629213483145" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b051d34cf.png" data-w="712"></span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u87788482%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u6f1d679a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E8%BF%99%E6%AE%B5%E9%85%8D%E7%BD%AE%E7%9A%84%E5%90%AB%E4%B9%89%E6%98%AF%EF%BC%9A%E6%9C%80%E5%A4%9A%E4%BF%9D%E7%95%997%E5%A4%A9%EF%BC%8C%E5%8D%95%E4%B8%AA%E6%96%87%E4%BB%B6%E6%9C%80%E5%A4%A750MB%EF%BC%8C%E8%AF%A5%E6%97%A5%E5%BF%97%EF%BC%88%E5%8C%85%E6%8B%AC%E6%BB%9A%E5%8A%A8%E7%9A%84%EF%BC%89%E6%9C%80%E5%A4%A7%E5%8F%AA%E8%83%BD%E4%BF%9D%E5%AD%9820GB%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>这段配置的含义是：最多保留7天，单个文件最大50MB，该日志（包括滚动的）最大只能保存20GB。</span></p>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>不要封装一个日志Util，而应该直接使用日志框架进行输出</span></strong></span></h4>
+<p><br></p>
+<p><span>反例：LogUtil.log("通过封装的日志工具打印日志");</span></p>
+<p><span>正例：log.info("直接使用日志框架的api进行日志输出");</span></p>
+<p><span>理由：在日志输出的时候，日志系统会打印日志产生的原始位置：比如哪个包的哪个类，以及第几行（如果配置了[%L]），如果你使用LogUtil等自己封装的工具，所有的日志输出打印的位置都是LogUtil的，这样不便于做日志问题定位</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503043473" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21fae66c28.png" data-w="422"></p>
+<p><span>系统日志打不出来或者丢日志排查思路</span></p>
+<p><br></p>
+<p><span>目前没有现成的工具帮你一键做好这个事情，下面给出一个排查思路</span></p>
+<ol>
+<li><p><span>先明确该系统到底使用的是什么日志框架+日志系统组合，这个很重要，必须搞清是何种组合才可有针对性的处理后续步骤</span></p></li>
+<li><p><span>如果是slf4j+logback组合，则可根据第一章列出的maven依赖进行排包处理，优先保证依赖的包没有错误，90%的情况下都是包依赖混乱导致的日志丢失</span></p></li>
+<li><p><span>排查自己的logback配置文件是否放在正确的路径下、文件名是否正确，配置文件位置不对也会导致日志输出的不对甚至丢失</span></p></li>
+<li><p><span>检查logback配置文件内部每个<span>logger及其level配置是否正确，避免自己期望打印info，却配置了error</span></span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503043474" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8088589a11.png" data-w="256">
+</section>
+<section>
+<span>总结</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>日志系统的正确使用，对于应用的日常维护和问题排查尤为重要，所谓：工欲善其事，必先利其器。本篇文章重点讲解了日志系统的结构和包如何正确依赖，这是很多同学最容易犯的错误，需要格外注意并认真阅读，只有正确理解其中的含义才可以更好的使用日志系统，在日常使用中大家要不断总结经验。</span></p>
+<p><span><br></span></p>
+<p><span>最后希望文章提供的内容能够在日常开发和维护中为大家提供到切实的帮助。</span></p>
+<section>
+<br>
+</section>
+<p><img data-imgfileid="503043475" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ae0c3314cb.png" data-w="256"></p>
+<p><span>团队介绍</span></p>
+<section>
+<br>
+</section>
+<section>
+<span>物流技术团队是服务淘天物流部及零售行业的产技团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="690" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503043467" data-ratio="0.16666666666666666" data-w="636" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fd1edddf42.gif">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<p><span>本篇文章，主要介绍应用如何正确使用日志系统，帮助用户从依赖、输出、清理、问题排查、报警等各方面全面掌握。</span></p>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043463" data-ratio="0.3161764705882353" data-s="300,640" data-w="408" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c719603940.png"></span>
+</section>
+<section>
+<span>日志相关的包的种类及使用</span>
+</section>
+<p>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22UiUKr%22%2C%22name%22%3A%22h2%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u57ca2a4a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%22color%22%3A%22rgb(0%2C%200%2C%200)%22%7D%2C%22data%22%3A%22%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%97%A5%E5%BF%97%E6%A1%86%E6%9E%B6%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>日志系统与日志框架</span></strong></span></h4>
+<p><br></p>
+<section>
+<span>每个应用为了方便排查问题都要输出日志，大家经常使用：log4j、logback等。我们先搞明白日志系统的整套体系是如何运作的。</span>
+</section>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>直接负责打印输出日志，提供完整的日志输出能力：</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JUL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>java.util.logging.*，java自带的日志系统简称JUL。目前除了Java自身代码很少被生态系统类库使用。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Log4j</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://logging.apache.org/</span>
+<span>，目前已经发展到2.x版本（2.x版本有超越logback的趋势），早期的1.x版本非常成功。开创日志系统模型（Logger\Appender\Level等概念）并被各种日志框架采用，且一直沿用至今</span>
+</section></li>
+<li>
+<section>
+<span>log4j可直接使用，也可配合日志框架一起使用</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Logback</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>http://logback.qos.ch/</span>
+<span>，Log4j作者的另一个作品，（比Log4j1.x新，Log4j2.x旧）吸取多年经验教训重新设计的一套日志系统，使用更方便、功能更强、性能更好。</span>
+</section></li>
+<li>
+<section>
+<span>logback不能单独使用，需配置日志框架SLF4J一起使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<ul>
+<li><h3><span>日志框架</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>为了克服各种日志系统标准混乱，诞生了日志框架，日志框架不提供日志输出的功能，它定义标准，提供标准接口API，日志框架+日志系统=输出日志。</span>
+</section>
+<section>
+<span>写代码过程中使用日志框架的好处：编码的时候调用日志框架API，部署的时候可根据不同的环境在多种日志系统中随意切换。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JCL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://commons.apache.org/proper/commons-logging/</span>
+<span>，前几年最流行的日志框架，由Apache社区维护，大量的老牌知名框架版本都在使用，比如Spring（甚至新版本依然在使用）。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>SLF4J</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://www.slf4j.org/</span>
+<span>，Log4j作者推出，这几年最流行的日志框架，特别是配合Logback使用。 </span>
+</section></li>
+<li>
+<section>
+<span>当然也可以配合log4j使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<span>目前在Java生态趋势主要是使用：SLF4J+Logback组合。</span>
+</section>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>如何正确组合使用日志系统和日志框架</span></strong></span></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"></h4>
+<section>
+<br>
+</section>
+<p><span>上一节我们介绍了日志框架和日志系统，因为存在多套，所以：如何在系统中正确使用是我们的重点。</span></p>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统之间互斥</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043462" data-ratio="0.7355704697986577" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a9cf93db4.png" data-w="745"></span>
+</section>
+<ol>
+<li>
+<section>
+<span>日志框架：JCL和JCL-over-SLF4J桥接包直接互斥</span>
+<br>
+</section></li>
+<li>
+<section>
+<span>日志系统：logback和slf4j-log4j12互斥，不能共存</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span>我们大概可枚举出如下几种组合：</span>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>类型</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+logback</span></p></td>
+<td><p><span>目前最主流的玩法，除了依赖slf4j、logback，还需要考虑把二方库和三方库内部使用的jcl和log4j桥接到slf4j上来，并避免依赖反桥接的包</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+log4j</span></p></td>
+<td><p><span>不推荐。需要把slf4j桥接到log4j，并把jul桥接到slf4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>jcl+log4j</span></p></td>
+<td><p><span>不推荐。这需要你直接使用jcl接口来编码，并把把slf4j桥接到log4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>log4j</span></p></td>
+<td><p><span>不推荐。直接依赖日志系统</span></p></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>slf4j+logback组合</span></h3></li>
+</ul>
+<p><span><br></span></p>
+<p><span>下面列出一个正确的slf4j+logback依赖，这个环节很重要，很多应用因为依赖搞不清楚经常出现日志丢失问题：</span></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;properties&gt;</span></code><code><span>  &lt;slf4j.version&gt;${xxxx}&lt;/slf4j.version&gt;</span></code><code><span>  &lt;logback.version&gt;${yyyyy}&lt;/logback.version&gt;</span></code><code><span>&lt;/properties&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencyManagement&gt;</span></code><code><span>  &lt;dependencies&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;commons-logging&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;commons-logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jakarta.commons.logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-nop&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-simple&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-simple&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;log4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>  &lt;/dependencies&gt;</span></code><code><span>&lt;/dependencyManagement&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencies&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>&lt;/dependencies&gt;</span></code></pre>
+</section>
+<p><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></span></p>
+<ol>
+<li><p><span>先将依赖全部写在&lt;dependencyManagement&gt;节点中，这样可影响间接依赖，如果只当初的使用dependencies节点，只会应用直接依赖</span></p></li>
+<li><p><span>使用999-not-exist这样的版本：欺骗maven，直接依赖一个空包占位，这样Maven就不会再去依赖相同坐标的真实依赖，间接起到排包的作用</span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>logback配置</span></strong></span></h4>
+<section>
+<br>
+</section>
+<ul>
+<li><h3><span>文件名和位置</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>应用类型</span></p></td>
+<td><p><span>文件名</span></p></td>
+<td><p><span>文件配置（启动模块）</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>spring-boot</span></p></td>
+<td><p><span>logback-spring.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><p><span>支持从spring-boot配置文件中直接读取property</span></p></td>
+</tr>
+<tr>
+<td><p><span>普通java应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><br></td>
+</tr>
+<tr>
+<td><p><span>WAR应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/webapp/WEB-INF/</span></p></td>
+<td><p><span>需要依赖slf4j-ext，然后在web.xml里使用监听器挂载这个文件</span></p><p><img data-imgfileid="503043469" data-ratio="0.17224287484510534" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5383a2025d.png" data-w="807"></p></td>
+</tr>
+<tr>
+<td><p><span>单元测试和集成测试</span></p></td>
+<td><p><span>logback-test.xml</span></p></td>
+<td><p><span>src/test/resources/</span></p></td>
+<td><br></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>配置样例</span></h3></li>
+</ul>
+<p><br></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></code><code><span>&lt;configuration&gt;</span></code><code><span>  &lt;property name="APP_NAME" value="demo1" /&gt;</span></code><code><span>  &lt;property name="LOG_PATH" value="${user.home}/${APP_NAME}/logs" /&gt;</span></code><code><span>  &lt;property name="LOG_FILE" value="${LOG_PATH}/application.log" /&gt;</span></code><code><span>  &lt;property name="LOG.PATTERN" value="%d %-5level %X{EAGLEEYE_TRACE_ID}  %logger{5}[%L] - %msg%n"/&gt;</span></code><code><span>  &lt;property name="LOG.CHARSET" value="UTF-8"/&gt;</span></code><code><span><br></span></code><code><span>  &lt;appender name="APPLICATION"</span></code><code><span>    class="ch.qos.logback.core.rolling.RollingFileAppender"&gt;</span></code><code><span>    &lt;file&gt;${LOG_FILE}&lt;/file&gt;</span></code><code><span>    &lt;encoder&gt;</span></code><code><span>      &lt;pattern&gt;${LOG.PATTERN}&lt;/pattern&gt;</span></code><code><span>      &lt;charset&gt;${LOG.CHARSET}&lt;/charset&gt;</span></code><code><span>    &lt;/encoder&gt;</span></code><code><span>    &lt;rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy"&gt;</span></code><code><span>      &lt;fileNamePattern&gt;${LOG_FILE}.%d{yyyy-MM-dd}.%i.log&lt;/fileNamePattern&gt;</span></code><code><span>      &lt;maxHistory&gt;7&lt;/maxHistory&gt;</span></code><code><span>      &lt;maxFileSize&gt;50MB&lt;/maxFileSize&gt;</span></code><code><span>      &lt;totalSizeCap&gt;20GB&lt;/totalSizeCap&gt;</span></code><code><span>    &lt;/rollingPolicy&gt;</span></code><code><span>  &lt;/appender&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.springframework" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.ibatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.mybatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="java.sql" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="sqlMonitor" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.taobao" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba.example.demo" additivity="false"&gt;</span></code><code><span>    &lt;level value="info"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;root level="error"&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION" /&gt;</span></code><code><span>  &lt;/root&gt;</span></code><code><span>&lt;/configuration&gt;</span></code></pre>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>使用SizeAndTimeBasedRollingPolicy使日志可以根据大小和日期进行滚动</span></p></li>
+<li><p><span>日志编码请使用UTF-8</span></p></li>
+<li><p><span>请正确使用日志级别，不要统统输出error</span></p></li>
+</ol>
+<p><br></p>
+<ul>
+<li><h3><span>日志级别根据不同环境可配</span></h3></li>
+</ul>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>如果是Pandora-boot或spring-boot可以直接在配置里使用property读取application.properties，application.properties在不同环境下使用-Dspring.profiles.active进行切换</span>
+</section></li>
+<li>
+<section>
+<span>普通应用和WAR应用：请使用autoconfig-maven-plugin插件</span>
+</section></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503043470" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0d6ad633a6.png" data-w="422"></span>
+</section>
+<section>
+<span>一些实用的日志技巧</span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><br></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>动态修改日志级别</span></strong></span></h4>
+<p><br></p>
+<p><span>场景：应用在运行中，默认日志配置的打印级别是error，但是我现在想针对某个包或者某个类输出下info日志。</span></p>
+<p><span>使用Arthas：https://arthas.aliyun.com/doc/logger.html，该工具提供了动态修改日志的能力。</span></p>
+<p><span><br></span></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>追加业务信息到日志中，并格式化输出：追加MDC信息，方便排查问题</span></strong></span></h4>
+<p><br></p>
+<p><span>这是日志系统的一个扩容能力，可以把一些额外的信息输出到日志里，只需要在MDC上下文中写入kv，https://logback.qos.ch/manual/mdc.html</span></p>
+<p><br></p>
+<p><span>例如：</span></p>
+<section>
+<pre data-lang="cs"><code><span>public static void main(String[] args) {</span></code><code><span>    //代码里使用MDC.put写入key为traceId的值</span></code><code><span>    //在logback.xml里就可以使用%X{traceId}进行输出</span></code><code><span>    MDC.put("traceId", UUID.randomUUID().toString().replace("-", ""));</span></code><code><span>}</span></code></pre>
+</section>
+<p><span><img data-backh="161" data-backw="578" data-imgfileid="503043471" data-ratio="0.27870370370370373" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-36b67dcc77.png" data-w="1080"></span></p>
+<section>
+<span><strong><span><br></span></strong></span>
+</section>
+<section>
+<span><strong><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard></span></strong></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>配置定时日志磁盘占用清理</span></strong></span></h4>
+<p><br></p>
+<p><span>一定要配置合理的日志清理策略，避免磁盘被打爆，可借助日志框架自身能力，或借助可用的日志清理系统（如果有）</span></p>
+<p><span>在logback.xml配置中，可通过配置带有清理作用的rollingPolicy来完成日志定时清理和滚动，例如：SizeAndTimeBasedRollingPolicy</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="102" data-backw="578" data-imgfileid="503043472" data-ratio="0.17696629213483145" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b051d34cf.png" data-w="712"></span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u87788482%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u6f1d679a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E8%BF%99%E6%AE%B5%E9%85%8D%E7%BD%AE%E7%9A%84%E5%90%AB%E4%B9%89%E6%98%AF%EF%BC%9A%E6%9C%80%E5%A4%9A%E4%BF%9D%E7%95%997%E5%A4%A9%EF%BC%8C%E5%8D%95%E4%B8%AA%E6%96%87%E4%BB%B6%E6%9C%80%E5%A4%A750MB%EF%BC%8C%E8%AF%A5%E6%97%A5%E5%BF%97%EF%BC%88%E5%8C%85%E6%8B%AC%E6%BB%9A%E5%8A%A8%E7%9A%84%EF%BC%89%E6%9C%80%E5%A4%A7%E5%8F%AA%E8%83%BD%E4%BF%9D%E5%AD%9820GB%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>这段配置的含义是：最多保留7天，单个文件最大50MB，该日志（包括滚动的）最大只能保存20GB。</span></p>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>不要封装一个日志Util，而应该直接使用日志框架进行输出</span></strong></span></h4>
+<p><br></p>
+<p><span>反例：LogUtil.log("通过封装的日志工具打印日志");</span></p>
+<p><span>正例：log.info("直接使用日志框架的api进行日志输出");</span></p>
+<p><span>理由：在日志输出的时候，日志系统会打印日志产生的原始位置：比如哪个包的哪个类，以及第几行（如果配置了[%L]），如果你使用LogUtil等自己封装的工具，所有的日志输出打印的位置都是LogUtil的，这样不便于做日志问题定位</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503043473" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21fae66c28.png" data-w="422"></p>
+<p><span>系统日志打不出来或者丢日志排查思路</span></p>
+<p><br></p>
+<p><span>目前没有现成的工具帮你一键做好这个事情，下面给出一个排查思路</span></p>
+<ol>
+<li><p><span>先明确该系统到底使用的是什么日志框架+日志系统组合，这个很重要，必须搞清是何种组合才可有针对性的处理后续步骤</span></p></li>
+<li><p><span>如果是slf4j+logback组合，则可根据第一章列出的maven依赖进行排包处理，优先保证依赖的包没有错误，90%的情况下都是包依赖混乱导致的日志丢失</span></p></li>
+<li><p><span>排查自己的logback配置文件是否放在正确的路径下、文件名是否正确，配置文件位置不对也会导致日志输出的不对甚至丢失</span></p></li>
+<li><p><span>检查logback配置文件内部每个<span>logger及其level配置是否正确，避免自己期望打印info，却配置了error</span></span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503043474" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8088589a11.png" data-w="256">
+</section>
+<section>
+<span>总结</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>日志系统的正确使用，对于应用的日常维护和问题排查尤为重要，所谓：工欲善其事，必先利其器。本篇文章重点讲解了日志系统的结构和包如何正确依赖，这是很多同学最容易犯的错误，需要格外注意并认真阅读，只有正确理解其中的含义才可以更好的使用日志系统，在日常使用中大家要不断总结经验。</span></p>
+<p><span><br></span></p>
+<p><span>最后希望文章提供的内容能够在日常开发和维护中为大家提供到切实的帮助。</span></p>
+<section>
+<br>
+</section>
+<p><img data-imgfileid="503043475" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ae0c3314cb.png" data-w="256"></p>
+<p><span>团队介绍</span></p>
+<section>
+<br>
+</section>
+<section>
+<span>物流技术团队是服务淘天物流部及零售行业的产技团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="690" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503043467" data-ratio="0.16666666666666666" data-w="636" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fd1edddf42.gif">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<p><span>本篇文章，主要介绍应用如何正确使用日志系统，帮助用户从依赖、输出、清理、问题排查、报警等各方面全面掌握。</span></p>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043463" data-ratio="0.3161764705882353" data-s="300,640" data-w="408" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c719603940.png"></span>
+</section>
+<section>
+<span>日志相关的包的种类及使用</span>
+</section>
+<p>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22UiUKr%22%2C%22name%22%3A%22h2%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u57ca2a4a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%22color%22%3A%22rgb(0%2C%200%2C%200)%22%7D%2C%22data%22%3A%22%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%97%A5%E5%BF%97%E6%A1%86%E6%9E%B6%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>日志系统与日志框架</span></strong></span></h4>
+<p><br></p>
+<section>
+<span>每个应用为了方便排查问题都要输出日志，大家经常使用：log4j、logback等。我们先搞明白日志系统的整套体系是如何运作的。</span>
+</section>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>直接负责打印输出日志，提供完整的日志输出能力：</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JUL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>java.util.logging.*，java自带的日志系统简称JUL。目前除了Java自身代码很少被生态系统类库使用。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Log4j</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://logging.apache.org/</span>
+<span>，目前已经发展到2.x版本（2.x版本有超越logback的趋势），早期的1.x版本非常成功。开创日志系统模型（Logger\Appender\Level等概念）并被各种日志框架采用，且一直沿用至今</span>
+</section></li>
+<li>
+<section>
+<span>log4j可直接使用，也可配合日志框架一起使用</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>Logback</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>http://logback.qos.ch/</span>
+<span>，Log4j作者的另一个作品，（比Log4j1.x新，Log4j2.x旧）吸取多年经验教训重新设计的一套日志系统，使用更方便、功能更强、性能更好。</span>
+</section></li>
+<li>
+<section>
+<span>logback不能单独使用，需配置日志框架SLF4J一起使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<ul>
+<li><h3><span>日志框架</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span>为了克服各种日志系统标准混乱，诞生了日志框架，日志框架不提供日志输出的功能，它定义标准，提供标准接口API，日志框架+日志系统=输出日志。</span>
+</section>
+<section>
+<span>写代码过程中使用日志框架的好处：编码的时候调用日志框架API，部署的时候可根据不同的环境在多种日志系统中随意切换。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>JCL</span>
+</section></li>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://commons.apache.org/proper/commons-logging/</span>
+<span>，前几年最流行的日志框架，由Apache社区维护，大量的老牌知名框架版本都在使用，比如Spring（甚至新版本依然在使用）。</span>
+</section></li>
+</ul>
+<li>
+<section>
+<span>SLF4J</span>
+</section></li>
+</ol>
+<ul>
+<ul ne-level="1">
+<li>
+<section>
+<span>https://www.slf4j.org/</span>
+<span>，Log4j作者推出，这几年最流行的日志框架，特别是配合Logback使用。 </span>
+</section></li>
+<li>
+<section>
+<span>当然也可以配合log4j使用</span>
+</section></li>
+</ul>
+</ul>
+<section>
+<span>目前在Java生态趋势主要是使用：SLF4J+Logback组合。</span>
+</section>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>如何正确组合使用日志系统和日志框架</span></strong></span></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"></h4>
+<section>
+<br>
+</section>
+<p><span>上一节我们介绍了日志框架和日志系统，因为存在多套，所以：如何在系统中正确使用是我们的重点。</span></p>
+<p><br></p>
+<ul>
+<li><h3><span>日志系统之间互斥</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503043462" data-ratio="0.7355704697986577" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a9cf93db4.png" data-w="745"></span>
+</section>
+<ol>
+<li>
+<section>
+<span>日志框架：JCL和JCL-over-SLF4J桥接包直接互斥</span>
+<br>
+</section></li>
+<li>
+<section>
+<span>日志系统：logback和slf4j-log4j12互斥，不能共存</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span>我们大概可枚举出如下几种组合：</span>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>类型</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+logback</span></p></td>
+<td><p><span>目前最主流的玩法，除了依赖slf4j、logback，还需要考虑把二方库和三方库内部使用的jcl和log4j桥接到slf4j上来，并避免依赖反桥接的包</span></p></td>
+</tr>
+<tr>
+<td><p><span>slf4j+log4j</span></p></td>
+<td><p><span>不推荐。需要把slf4j桥接到log4j，并把jul桥接到slf4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>jcl+log4j</span></p></td>
+<td><p><span>不推荐。这需要你直接使用jcl接口来编码，并把把slf4j桥接到log4j</span></p></td>
+</tr>
+<tr>
+<td><p><span>log4j</span></p></td>
+<td><p><span>不推荐。直接依赖日志系统</span></p></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>slf4j+logback组合</span></h3></li>
+</ul>
+<p><span><br></span></p>
+<p><span>下面列出一个正确的slf4j+logback依赖，这个环节很重要，很多应用因为依赖搞不清楚经常出现日志丢失问题：</span></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;properties&gt;</span></code><code><span>  &lt;slf4j.version&gt;${xxxx}&lt;/slf4j.version&gt;</span></code><code><span>  &lt;logback.version&gt;${yyyyy}&lt;/logback.version&gt;</span></code><code><span>&lt;/properties&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencyManagement&gt;</span></code><code><span>  &lt;dependencies&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;commons-logging&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;commons-logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jakarta.commons.logging&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-log4j12&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-nop&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-simple&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>        &lt;groupId&gt;com.alibaba.external&lt;/groupId&gt;</span></code><code><span>        &lt;artifactId&gt;org.slf4j.slf4j-simple&lt;/artifactId&gt;</span></code><code><span>        &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;log4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;999-not-exist&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${slf4j.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>    &lt;dependency&gt;</span></code><code><span>      &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>      &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>      &lt;version&gt;${logback.version}&lt;/version&gt;</span></code><code><span>    &lt;/dependency&gt;</span></code><code><span>  &lt;/dependencies&gt;</span></code><code><span>&lt;/dependencyManagement&gt;</span></code><code><span><br></span></code><code><span><br></span></code><code><span><br></span></code><code><span>&lt;dependencies&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;slf4j-ext&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jcl-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;jul-to-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;org.slf4j&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;log4j-over-slf4j&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-core&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>  &lt;dependency&gt;</span></code><code><span>    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;</span></code><code><span>    &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;</span></code><code><span>  &lt;/dependency&gt;</span></code><code><span>&lt;/dependencies&gt;</span></code></pre>
+</section>
+<p><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23">
+<br>
+</ne-clipboard></span></p>
+<ol>
+<li><p><span>先将依赖全部写在&lt;dependencyManagement&gt;节点中，这样可影响间接依赖，如果只当初的使用dependencies节点，只会应用直接依赖</span></p></li>
+<li><p><span>使用999-not-exist这样的版本：欺骗maven，直接依赖一个空包占位，这样Maven就不会再去依赖相同坐标的真实依赖，间接起到排包的作用</span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>logback配置</span></strong></span></h4>
+<section>
+<br>
+</section>
+<ul>
+<li><h3><span>文件名和位置</span></h3></li>
+</ul>
+<section>
+<br>
+</section>
+<table>
+<tbody>
+<tr>
+<td><p><span>应用类型</span></p></td>
+<td><p><span>文件名</span></p></td>
+<td><p><span>文件配置（启动模块）</span></p></td>
+<td><p><span>说明</span></p></td>
+</tr>
+<tr>
+<td><p><span>spring-boot</span></p></td>
+<td><p><span>logback-spring.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><p><span>支持从spring-boot配置文件中直接读取property</span></p></td>
+</tr>
+<tr>
+<td><p><span>普通java应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/resources/</span></p></td>
+<td><br></td>
+</tr>
+<tr>
+<td><p><span>WAR应用</span></p></td>
+<td><p><span>logback.xml</span></p></td>
+<td><p><span>src/main/webapp/WEB-INF/</span></p></td>
+<td><p><span>需要依赖slf4j-ext，然后在web.xml里使用监听器挂载这个文件</span></p><p><img data-imgfileid="503043469" data-ratio="0.17224287484510534" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5383a2025d.png" data-w="807"></p></td>
+</tr>
+<tr>
+<td><p><span>单元测试和集成测试</span></p></td>
+<td><p><span>logback-test.xml</span></p></td>
+<td><p><span>src/test/resources/</span></p></td>
+<td><br></td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<ul>
+<li><h3><span>配置样例</span></h3></li>
+</ul>
+<p><br></p>
+<section>
+<pre data-lang="xml"><code><span>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></code><code><span>&lt;configuration&gt;</span></code><code><span>  &lt;property name="APP_NAME" value="demo1" /&gt;</span></code><code><span>  &lt;property name="LOG_PATH" value="${user.home}/${APP_NAME}/logs" /&gt;</span></code><code><span>  &lt;property name="LOG_FILE" value="${LOG_PATH}/application.log" /&gt;</span></code><code><span>  &lt;property name="LOG.PATTERN" value="%d %-5level %X{EAGLEEYE_TRACE_ID}  %logger{5}[%L] - %msg%n"/&gt;</span></code><code><span>  &lt;property name="LOG.CHARSET" value="UTF-8"/&gt;</span></code><code><span><br></span></code><code><span>  &lt;appender name="APPLICATION"</span></code><code><span>    class="ch.qos.logback.core.rolling.RollingFileAppender"&gt;</span></code><code><span>    &lt;file&gt;${LOG_FILE}&lt;/file&gt;</span></code><code><span>    &lt;encoder&gt;</span></code><code><span>      &lt;pattern&gt;${LOG.PATTERN}&lt;/pattern&gt;</span></code><code><span>      &lt;charset&gt;${LOG.CHARSET}&lt;/charset&gt;</span></code><code><span>    &lt;/encoder&gt;</span></code><code><span>    &lt;rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy"&gt;</span></code><code><span>      &lt;fileNamePattern&gt;${LOG_FILE}.%d{yyyy-MM-dd}.%i.log&lt;/fileNamePattern&gt;</span></code><code><span>      &lt;maxHistory&gt;7&lt;/maxHistory&gt;</span></code><code><span>      &lt;maxFileSize&gt;50MB&lt;/maxFileSize&gt;</span></code><code><span>      &lt;totalSizeCap&gt;20GB&lt;/totalSizeCap&gt;</span></code><code><span>    &lt;/rollingPolicy&gt;</span></code><code><span>  &lt;/appender&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.springframework" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.ibatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="org.mybatis" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="java.sql" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="sqlMonitor" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.taobao" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba" additivity="false"&gt;</span></code><code><span>    &lt;level value="error"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;logger name="com.alibaba.example.demo" additivity="false"&gt;</span></code><code><span>    &lt;level value="info"/&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION"/&gt;</span></code><code><span>  &lt;/logger&gt;</span></code><code><span><br></span></code><code><span>  &lt;root level="error"&gt;</span></code><code><span>    &lt;appender-ref ref="APPLICATION" /&gt;</span></code><code><span>  &lt;/root&gt;</span></code><code><span>&lt;/configuration&gt;</span></code></pre>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>使用SizeAndTimeBasedRollingPolicy使日志可以根据大小和日期进行滚动</span></p></li>
+<li><p><span>日志编码请使用UTF-8</span></p></li>
+<li><p><span>请正确使用日志级别，不要统统输出error</span></p></li>
+</ol>
+<p><br></p>
+<ul>
+<li><h3><span>日志级别根据不同环境可配</span></h3></li>
+</ul>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>如果是Pandora-boot或spring-boot可以直接在配置里使用property读取application.properties，application.properties在不同环境下使用-Dspring.profiles.active进行切换</span>
+</section></li>
+<li>
+<section>
+<span>普通应用和WAR应用：请使用autoconfig-maven-plugin插件</span>
+</section></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503043470" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0d6ad633a6.png" data-w="422"></span>
+</section>
+<section>
+<span>一些实用的日志技巧</span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><br></h4>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>动态修改日志级别</span></strong></span></h4>
+<p><br></p>
+<p><span>场景：应用在运行中，默认日志配置的打印级别是error，但是我现在想针对某个包或者某个类输出下info日志。</span></p>
+<p><span>使用Arthas：https://arthas.aliyun.com/doc/logger.html，该工具提供了动态修改日志的能力。</span></p>
+<p><span><br></span></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>追加业务信息到日志中，并格式化输出：追加MDC信息，方便排查问题</span></strong></span></h4>
+<p><br></p>
+<p><span>这是日志系统的一个扩容能力，可以把一些额外的信息输出到日志里，只需要在MDC上下文中写入kv，https://logback.qos.ch/manual/mdc.html</span></p>
+<p><br></p>
+<p><span>例如：</span></p>
+<section>
+<pre data-lang="cs"><code><span>public static void main(String[] args) {</span></code><code><span>    //代码里使用MDC.put写入key为traceId的值</span></code><code><span>    //在logback.xml里就可以使用%X{traceId}进行输出</span></code><code><span>    MDC.put("traceId", UUID.randomUUID().toString().replace("-", ""));</span></code><code><span>}</span></code></pre>
+</section>
+<p><span><img data-backh="161" data-backw="578" data-imgfileid="503043471" data-ratio="0.27870370370370373" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-36b67dcc77.png" data-w="1080"></span></p>
+<section>
+<span><strong><span><br></span></strong></span>
+</section>
+<section>
+<span><strong><span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard></span></strong></span>
+</section>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>配置定时日志磁盘占用清理</span></strong></span></h4>
+<p><br></p>
+<p><span>一定要配置合理的日志清理策略，避免磁盘被打爆，可借助日志框架自身能力，或借助可用的日志清理系统（如果有）</span></p>
+<p><span>在logback.xml配置中，可通过配置带有清理作用的rollingPolicy来完成日志定时清理和滚动，例如：SizeAndTimeBasedRollingPolicy</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="102" data-backw="578" data-imgfileid="503043472" data-ratio="0.17696629213483145" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b051d34cf.png" data-w="712"></span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u87788482%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u6f1d679a%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E8%BF%99%E6%AE%B5%E9%85%8D%E7%BD%AE%E7%9A%84%E5%90%AB%E4%B9%89%E6%98%AF%EF%BC%9A%E6%9C%80%E5%A4%9A%E4%BF%9D%E7%95%997%E5%A4%A9%EF%BC%8C%E5%8D%95%E4%B8%AA%E6%96%87%E4%BB%B6%E6%9C%80%E5%A4%A750MB%EF%BC%8C%E8%AF%A5%E6%97%A5%E5%BF%97%EF%BC%88%E5%8C%85%E6%8B%AC%E6%BB%9A%E5%8A%A8%E7%9A%84%EF%BC%89%E6%9C%80%E5%A4%A7%E5%8F%AA%E8%83%BD%E4%BF%9D%E5%AD%9820GB%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>这段配置的含义是：最多保留7天，单个文件最大50MB，该日志（包括滚动的）最大只能保存20GB。</span></p>
+<p><br></p>
+<h4 data-lake-id="ca6fa186228ff7efaa653334195896c8" data-wording="true"><span><strong><span>▐</span></strong><strong><span>&nbsp;&nbsp;</span></strong><strong><span>不要封装一个日志Util，而应该直接使用日志框架进行输出</span></strong></span></h4>
+<p><br></p>
+<p><span>反例：LogUtil.log("通过封装的日志工具打印日志");</span></p>
+<p><span>正例：log.info("直接使用日志框架的api进行日志输出");</span></p>
+<p><span>理由：在日志输出的时候，日志系统会打印日志产生的原始位置：比如哪个包的哪个类，以及第几行（如果配置了[%L]），如果你使用LogUtil等自己封装的工具，所有的日志输出打印的位置都是LogUtil的，这样不便于做日志问题定位</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503043473" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21fae66c28.png" data-w="422"></p>
+<p><span>系统日志打不出来或者丢日志排查思路</span></p>
+<p><br></p>
+<p><span>目前没有现成的工具帮你一键做好这个事情，下面给出一个排查思路</span></p>
+<ol>
+<li><p><span>先明确该系统到底使用的是什么日志框架+日志系统组合，这个很重要，必须搞清是何种组合才可有针对性的处理后续步骤</span></p></li>
+<li><p><span>如果是slf4j+logback组合，则可根据第一章列出的maven依赖进行排包处理，优先保证依赖的包没有错误，90%的情况下都是包依赖混乱导致的日志丢失</span></p></li>
+<li><p><span>排查自己的logback配置文件是否放在正确的路径下、文件名是否正确，配置文件位置不对也会导致日志输出的不对甚至丢失</span></p></li>
+<li><p><span>检查logback配置文件内部每个<span>logger及其level配置是否正确，避免自己期望打印info，却配置了error</span></span></p></li>
+</ol>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503043474" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8088589a11.png" data-w="256">
+</section>
+<section>
+<span>总结</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fwien.wuh%2Fdoc%2Fctdtsgv6r0esyll2%3FsingleDoc%23"></ne-clipboard>
+</section>
+<p><span>日志系统的正确使用，对于应用的日常维护和问题排查尤为重要，所谓：工欲善其事，必先利其器。本篇文章重点讲解了日志系统的结构和包如何正确依赖，这是很多同学最容易犯的错误，需要格外注意并认真阅读，只有正确理解其中的含义才可以更好的使用日志系统，在日常使用中大家要不断总结经验。</span></p>
+<p><span><br></span></p>
+<p><span>最后希望文章提供的内容能够在日常开发和维护中为大家提供到切实的帮助。</span></p>
+<section>
+<br>
+</section>
+<p><img data-imgfileid="503043475" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ae0c3314cb.png" data-w="256"></p>
+<p><span>团队介绍</span></p>
+<section>
+<br>
+</section>
+<section>
+<span>物流技术团队是服务淘天物流部及零售行业的产技团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="690" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fd1edddf42.gif"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fd1edddf42.gif" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 11:15:51 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[网易首款鸿蒙原生游戏《倩女幽魂》手游完成开发，商业化版本已就绪]]></title>
+    <link>https://www.oschina.net/news/277223</link>
+    <itunes:title><![CDATA[网易首款鸿蒙原生游戏《倩女幽魂》手游完成开发，商业化版本已就绪]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>在2023年12月15日，网易游戏正式宣布启动基于HarmonyOS NEXT鸿蒙原生应用开发。目前，作为网易首款鸿蒙原生游戏，《倩女幽魂》不但完成了鸿蒙原生应用开发，且商业化版本已就绪。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6a5935b46f.png"></p>
+<p><span>在华为游戏中心和网易中台的深度合作下，基于HarmonyOS SDK在应用框架层面覆盖ArkTS、进程间通讯、数据管理等方面的底层基础能力，《倩女幽魂》鸿蒙原生应用的开发得以更加简单和高效。同时，《倩女幽魂》开发团队快速完成了账号登录、消息推送以及应用内支付等一系列HarmonyOS SDK应用服务领域的集成，充分利用能力下沉OS底层的优势，快速完成基础服务的开发上线，为商业化版本上线做好充足准备。</span></p>
+<p><span>《倩女幽魂》鸿蒙原生应用商业化版本的就绪，也意味着由网易中台提供的账号登录、消息推送及应用内支付等UniSDK核心部分已支持HarmonyOS，不但有助于网易游戏更高效地完成更多鸿蒙原生游戏开发与最终上架，更是鸿蒙生态游戏建设前进的重要一步。</span></p>
+<p><span>早在华为开发者大会上，网易雷火事业群技术副总裁卢小军宣布，在网易游戏和华为游戏中心联合调优下，《倩女幽魂》已率先完成在主体渲染和逻辑打通，基于HarmonyOS及其方舟图形引擎，双方不但仅花费三周时间就完成了完整游戏逻辑的移植工作，而且整体渲染性能实现明显提升，画面更清晰、柔和，此外，还完成了帧数提升的同时降低功耗的性能调优，游戏画面单帧的功耗下降了13%。给用户带来更畅快持久的游戏体验。</span></p>
+<p><span>公告称，本次《倩女幽魂》鸿蒙原生应用商业化版本的就绪，可以看出网易与华为游戏中心在技术应用和商业化层面更深入的鸿蒙生态合作，将进一步丰富鸿蒙生态下的游戏品类与内容，也将通过鸿蒙为游戏精品化发展和长线运营注入新活力，带给用户更沉浸和多元的游戏体验。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>在2023年12月15日，网易游戏正式宣布启动基于HarmonyOS NEXT鸿蒙原生应用开发。目前，作为网易首款鸿蒙原生游戏，《倩女幽魂》不但完成了鸿蒙原生应用开发，且商业化版本已就绪。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6a5935b46f.png"></p>
+<p><span>在华为游戏中心和网易中台的深度合作下，基于HarmonyOS SDK在应用框架层面覆盖ArkTS、进程间通讯、数据管理等方面的底层基础能力，《倩女幽魂》鸿蒙原生应用的开发得以更加简单和高效。同时，《倩女幽魂》开发团队快速完成了账号登录、消息推送以及应用内支付等一系列HarmonyOS SDK应用服务领域的集成，充分利用能力下沉OS底层的优势，快速完成基础服务的开发上线，为商业化版本上线做好充足准备。</span></p>
+<p><span>《倩女幽魂》鸿蒙原生应用商业化版本的就绪，也意味着由网易中台提供的账号登录、消息推送及应用内支付等UniSDK核心部分已支持HarmonyOS，不但有助于网易游戏更高效地完成更多鸿蒙原生游戏开发与最终上架，更是鸿蒙生态游戏建设前进的重要一步。</span></p>
+<p><span>早在华为开发者大会上，网易雷火事业群技术副总裁卢小军宣布，在网易游戏和华为游戏中心联合调优下，《倩女幽魂》已率先完成在主体渲染和逻辑打通，基于HarmonyOS及其方舟图形引擎，双方不但仅花费三周时间就完成了完整游戏逻辑的移植工作，而且整体渲染性能实现明显提升，画面更清晰、柔和，此外，还完成了帧数提升的同时降低功耗的性能调优，游戏画面单帧的功耗下降了13%。给用户带来更畅快持久的游戏体验。</span></p>
+<p><span>公告称，本次《倩女幽魂》鸿蒙原生应用商业化版本的就绪，可以看出网易与华为游戏中心在技术应用和商业化层面更深入的鸿蒙生态合作，将进一步丰富鸿蒙生态下的游戏品类与内容，也将通过鸿蒙为游戏精品化发展和长线运营注入新活力，带给用户更沉浸和多元的游戏体验。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>在2023年12月15日，网易游戏正式宣布启动基于HarmonyOS NEXT鸿蒙原生应用开发。目前，作为网易首款鸿蒙原生游戏，《倩女幽魂》不但完成了鸿蒙原生应用开发，且商业化版本已就绪。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6a5935b46f.png"></p>
+<p><span>在华为游戏中心和网易中台的深度合作下，基于HarmonyOS SDK在应用框架层面覆盖ArkTS、进程间通讯、数据管理等方面的底层基础能力，《倩女幽魂》鸿蒙原生应用的开发得以更加简单和高效。同时，《倩女幽魂》开发团队快速完成了账号登录、消息推送以及应用内支付等一系列HarmonyOS SDK应用服务领域的集成，充分利用能力下沉OS底层的优势，快速完成基础服务的开发上线，为商业化版本上线做好充足准备。</span></p>
+<p><span>《倩女幽魂》鸿蒙原生应用商业化版本的就绪，也意味着由网易中台提供的账号登录、消息推送及应用内支付等UniSDK核心部分已支持HarmonyOS，不但有助于网易游戏更高效地完成更多鸿蒙原生游戏开发与最终上架，更是鸿蒙生态游戏建设前进的重要一步。</span></p>
+<p><span>早在华为开发者大会上，网易雷火事业群技术副总裁卢小军宣布，在网易游戏和华为游戏中心联合调优下，《倩女幽魂》已率先完成在主体渲染和逻辑打通，基于HarmonyOS及其方舟图形引擎，双方不但仅花费三周时间就完成了完整游戏逻辑的移植工作，而且整体渲染性能实现明显提升，画面更清晰、柔和，此外，还完成了帧数提升的同时降低功耗的性能调优，游戏画面单帧的功耗下降了13%。给用户带来更畅快持久的游戏体验。</span></p>
+<p><span>公告称，本次《倩女幽魂》鸿蒙原生应用商业化版本的就绪，可以看出网易与华为游戏中心在技术应用和商业化层面更深入的鸿蒙生态合作，将进一步丰富鸿蒙生态下的游戏品类与内容，也将通过鸿蒙为游戏精品化发展和长线运营注入新活力，带给用户更沉浸和多元的游戏体验。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6a5935b46f.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6a5935b46f.png" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 11:13:20 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报：IntelliJ 负责人成为 JetBrains 新任 CEO，技术栈一定要选择开源的]]></title>
+    <link>https://www.oschina.net/news/277214</link>
+    <itunes:title><![CDATA[开源日报：IntelliJ 负责人成为 JetBrains 新任 CEO，技术栈一定要选择开源的]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<p><strong># 2024.1.31&nbsp;</strong></p>
+<h2><span><span><span><span><span><span>今日要点</span></span></span></span></span></span></h2>
+<p><strong>OpenSource Daily</strong></p>
+<h3><u><a href="https://www.oschina.net/news/277037/urllib3-works-in-the-browser" target="news">Python HTTP 库 urllib3 支持直接在浏览器运行</a></u></h3>
+<p><span>Python HTTP 库 urllib3 最新版本 2.2.0 新增了一项重磅特性 ——<span>&nbsp;</span></span><strong>可直接在浏览器运行</strong><span>。</span></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Furllib3.readthedocs.io%2Fen%2Fstable%2Freference%2Fcontrib%2Femscripten.html" target="_blank">根据介绍</a>，从 2.2.0 开始，urllib3 支持在 Pyodide 运行时中使用<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FFetch_API" target="_blank">JavaScript fetch API</a>，或者在 fetch API 不可用时（例如当跨源隔离未激活时）返回<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FXMLHttpRequest" target="_blank">XMLHttpRequest</a>。这意味着开发者可以使用该库直接从浏览器发出 HTTP 请求。</p>
+<p>由于 urllib3 的 Emscripten 支持与 API 兼容，这意味着依赖于 urllib3 的库现在也可以在 Emscripten 和 Pyodide 环境中使用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abe66c44c5.png"></p>
+<h3><u><a href="https://www.oschina.net/news/277020" target="_blank">Opera 将推出全球首款非 WebKit 内核的 iOS 浏览器</a></u></h3>
+<p>昆仑万维旗下海外信息分发与元宇宙平台 Opera 近日宣布，将为欧洲的 iPhone 和iPad 用户带来一款基于自研引擎的全新 AI 浏览器 “Opera One”。</p>
+<p>Opera 计划于 3 月份首次亮相这款新浏览器，届时 DMA（欧洲数字市场法案）将生效。由于这些变化仅在欧盟实施，Opera 强烈鼓励苹果将这些增强功能推广至全球 iOS 用户。</p>
+<p>为了遵守 DMA，苹果决定允许开发者提交非基于 WebKit 的浏览器，包括 Web 浏览器应用和在iOS应用中显示网页的应用内浏览器。Opera 表示，这些变化将使他们有机会为 iPhone 用户提供Safari 之外的人工智能浏览器。</p>
+<h3><u><a href="https://www.oschina.net/news/277057/jetbrains-ceo-transition" target="_blank">IntelliJ 负责人 Kirill Skrygan 成为 JetBrains 新任 CEO</a></u></h3>
+<p><span>JetBrains 公司正式对外宣布了最新人事任命：原负责领导 IntelliJ 部门的 Kirill Skrygan&nbsp;将于 2024 年 2 月 1 日起担任首席执行官。</span></p>
+<p>JetBrains 在公告写道：“在我们迈向人工智能发挥变革作用的新时代之际，公司已经建立了一个良好的底层基础，并且可以在此基础上继续推动公司向前发展。</p>
+<p>作为新阶段的一部分，Kirill Skrygan 自 2010 年加入 JetBrains，并在过去几年里一直领导IntelliJ部门，他将于 2024 年 2 月 1 日担任首席执行官一职。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b74399cc38.png"></p>
+<hr>
+<h2><strong><span><span><span><span><span><span>用户观点</span></span></span></span></span></span></strong></h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-553d127834.png"></p>
+<hr>
+<h3><strong><span><span><span><span><span><span>媒体观点</span></span></span></span></span></span></strong></h3>
+<h3><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-84923b8700.png"></h3>
+<hr>
+<h2><strong><span><span><span><span><span><span>每日项目榜</span></span></span></span></span></span></strong></h2>
+<p>GitHub 榜单：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3ba39c471.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c3f09a5faa.png"></p>
+<blockquote>
+<h4>在线阅读完整日报内容，访问：<strong><u><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC006%E6%9C%9F%EF%BC%9A%E9%80%89%E6%8B%A9%E6%8A%80%E6%9C%AF%E6%A0%88%E4%B8%80%E5%AE%9A%E8%A6%81%E9%80%89%E6%8B%A9%E5%BC%80%E6%BA%90%E7%9A%84.pdf" target="_blank">开源日报第006期：选择技术栈一定要选择开源的</a></u></strong></h4>
+</blockquote>
+<hr>
+<p><strong>往期回顾</strong></p>
+<ul>
+<li><a href="http://www.oschina.net/news/277040"><u>开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</u></a></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<p><strong># 2024.1.31&nbsp;</strong></p>
+<h2><span><span><span><span><span><span>今日要点</span></span></span></span></span></span></h2>
+<p><strong>OpenSource Daily</strong></p>
+<h3><u><a href="https://www.oschina.net/news/277037/urllib3-works-in-the-browser" target="news">Python HTTP 库 urllib3 支持直接在浏览器运行</a></u></h3>
+<p><span>Python HTTP 库 urllib3 最新版本 2.2.0 新增了一项重磅特性 ——<span>&nbsp;</span></span><strong>可直接在浏览器运行</strong><span>。</span></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Furllib3.readthedocs.io%2Fen%2Fstable%2Freference%2Fcontrib%2Femscripten.html" target="_blank">根据介绍</a>，从 2.2.0 开始，urllib3 支持在 Pyodide 运行时中使用<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FFetch_API" target="_blank">JavaScript fetch API</a>，或者在 fetch API 不可用时（例如当跨源隔离未激活时）返回<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FXMLHttpRequest" target="_blank">XMLHttpRequest</a>。这意味着开发者可以使用该库直接从浏览器发出 HTTP 请求。</p>
+<p>由于 urllib3 的 Emscripten 支持与 API 兼容，这意味着依赖于 urllib3 的库现在也可以在 Emscripten 和 Pyodide 环境中使用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abe66c44c5.png"></p>
+<h3><u><a href="https://www.oschina.net/news/277020" target="_blank">Opera 将推出全球首款非 WebKit 内核的 iOS 浏览器</a></u></h3>
+<p>昆仑万维旗下海外信息分发与元宇宙平台 Opera 近日宣布，将为欧洲的 iPhone 和iPad 用户带来一款基于自研引擎的全新 AI 浏览器 “Opera One”。</p>
+<p>Opera 计划于 3 月份首次亮相这款新浏览器，届时 DMA（欧洲数字市场法案）将生效。由于这些变化仅在欧盟实施，Opera 强烈鼓励苹果将这些增强功能推广至全球 iOS 用户。</p>
+<p>为了遵守 DMA，苹果决定允许开发者提交非基于 WebKit 的浏览器，包括 Web 浏览器应用和在iOS应用中显示网页的应用内浏览器。Opera 表示，这些变化将使他们有机会为 iPhone 用户提供Safari 之外的人工智能浏览器。</p>
+<h3><u><a href="https://www.oschina.net/news/277057/jetbrains-ceo-transition" target="_blank">IntelliJ 负责人 Kirill Skrygan 成为 JetBrains 新任 CEO</a></u></h3>
+<p><span>JetBrains 公司正式对外宣布了最新人事任命：原负责领导 IntelliJ 部门的 Kirill Skrygan&nbsp;将于 2024 年 2 月 1 日起担任首席执行官。</span></p>
+<p>JetBrains 在公告写道：“在我们迈向人工智能发挥变革作用的新时代之际，公司已经建立了一个良好的底层基础，并且可以在此基础上继续推动公司向前发展。</p>
+<p>作为新阶段的一部分，Kirill Skrygan 自 2010 年加入 JetBrains，并在过去几年里一直领导IntelliJ部门，他将于 2024 年 2 月 1 日担任首席执行官一职。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b74399cc38.png"></p>
+<hr>
+<h2><strong><span><span><span><span><span><span>用户观点</span></span></span></span></span></span></strong></h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-553d127834.png"></p>
+<hr>
+<h3><strong><span><span><span><span><span><span>媒体观点</span></span></span></span></span></span></strong></h3>
+<h3><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-84923b8700.png"></h3>
+<hr>
+<h2><strong><span><span><span><span><span><span>每日项目榜</span></span></span></span></span></span></strong></h2>
+<p>GitHub 榜单：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3ba39c471.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c3f09a5faa.png"></p>
+<blockquote>
+<h4>在线阅读完整日报内容，访问：<strong><u><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC006%E6%9C%9F%EF%BC%9A%E9%80%89%E6%8B%A9%E6%8A%80%E6%9C%AF%E6%A0%88%E4%B8%80%E5%AE%9A%E8%A6%81%E9%80%89%E6%8B%A9%E5%BC%80%E6%BA%90%E7%9A%84.pdf" target="_blank">开源日报第006期：选择技术栈一定要选择开源的</a></u></strong></h4>
+</blockquote>
+<hr>
+<p><strong>往期回顾</strong></p>
+<ul>
+<li><a href="http://www.oschina.net/news/277040"><u>开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</u></a></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<p><strong># 2024.1.31&nbsp;</strong></p>
+<h2><span><span><span><span><span><span>今日要点</span></span></span></span></span></span></h2>
+<p><strong>OpenSource Daily</strong></p>
+<h3><u><a href="https://www.oschina.net/news/277037/urllib3-works-in-the-browser" target="news">Python HTTP 库 urllib3 支持直接在浏览器运行</a></u></h3>
+<p><span>Python HTTP 库 urllib3 最新版本 2.2.0 新增了一项重磅特性 ——<span>&nbsp;</span></span><strong>可直接在浏览器运行</strong><span>。</span></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Furllib3.readthedocs.io%2Fen%2Fstable%2Freference%2Fcontrib%2Femscripten.html" target="_blank">根据介绍</a>，从 2.2.0 开始，urllib3 支持在 Pyodide 运行时中使用<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FFetch_API" target="_blank">JavaScript fetch API</a>，或者在 fetch API 不可用时（例如当跨源隔离未激活时）返回<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FXMLHttpRequest" target="_blank">XMLHttpRequest</a>。这意味着开发者可以使用该库直接从浏览器发出 HTTP 请求。</p>
+<p>由于 urllib3 的 Emscripten 支持与 API 兼容，这意味着依赖于 urllib3 的库现在也可以在 Emscripten 和 Pyodide 环境中使用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abe66c44c5.png"></p>
+<h3><u><a href="https://www.oschina.net/news/277020" target="_blank">Opera 将推出全球首款非 WebKit 内核的 iOS 浏览器</a></u></h3>
+<p>昆仑万维旗下海外信息分发与元宇宙平台 Opera 近日宣布，将为欧洲的 iPhone 和iPad 用户带来一款基于自研引擎的全新 AI 浏览器 “Opera One”。</p>
+<p>Opera 计划于 3 月份首次亮相这款新浏览器，届时 DMA（欧洲数字市场法案）将生效。由于这些变化仅在欧盟实施，Opera 强烈鼓励苹果将这些增强功能推广至全球 iOS 用户。</p>
+<p>为了遵守 DMA，苹果决定允许开发者提交非基于 WebKit 的浏览器，包括 Web 浏览器应用和在iOS应用中显示网页的应用内浏览器。Opera 表示，这些变化将使他们有机会为 iPhone 用户提供Safari 之外的人工智能浏览器。</p>
+<h3><u><a href="https://www.oschina.net/news/277057/jetbrains-ceo-transition" target="_blank">IntelliJ 负责人 Kirill Skrygan 成为 JetBrains 新任 CEO</a></u></h3>
+<p><span>JetBrains 公司正式对外宣布了最新人事任命：原负责领导 IntelliJ 部门的 Kirill Skrygan&nbsp;将于 2024 年 2 月 1 日起担任首席执行官。</span></p>
+<p>JetBrains 在公告写道：“在我们迈向人工智能发挥变革作用的新时代之际，公司已经建立了一个良好的底层基础，并且可以在此基础上继续推动公司向前发展。</p>
+<p>作为新阶段的一部分，Kirill Skrygan 自 2010 年加入 JetBrains，并在过去几年里一直领导IntelliJ部门，他将于 2024 年 2 月 1 日担任首席执行官一职。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b74399cc38.png"></p>
+<hr>
+<h2><strong><span><span><span><span><span><span>用户观点</span></span></span></span></span></span></strong></h2>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-553d127834.png"></p>
+<hr>
+<h3><strong><span><span><span><span><span><span>媒体观点</span></span></span></span></span></span></strong></h3>
+<h3><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-84923b8700.png"></h3>
+<hr>
+<h2><strong><span><span><span><span><span><span>每日项目榜</span></span></span></span></span></span></strong></h2>
+<p>GitHub 榜单：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e3ba39c471.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c3f09a5faa.png"></p>
+<blockquote>
+<h4>在线阅读完整日报内容，访问：<strong><u><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC006%E6%9C%9F%EF%BC%9A%E9%80%89%E6%8B%A9%E6%8A%80%E6%9C%AF%E6%A0%88%E4%B8%80%E5%AE%9A%E8%A6%81%E9%80%89%E6%8B%A9%E5%BC%80%E6%BA%90%E7%9A%84.pdf" target="_blank">开源日报第006期：选择技术栈一定要选择开源的</a></u></strong></h4>
+</blockquote>
+<hr>
+<p><strong>往期回顾</strong></p>
+<ul>
+<li><a href="http://www.oschina.net/news/277040"><u>开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</u></a></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abe66c44c5.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abe66c44c5.png" medium="image"/>
+    <pubDate>Thu, 01 Feb 2024 10:38:48 +0800</pubDate>
+  </item><item>
     <title><![CDATA[Windows Terminal Preview 1.20 发布]]></title>
     <link>https://www.oschina.net/news/277103/windows-terminal-preview-1-20-released</link>
     <itunes:title><![CDATA[Windows Terminal Preview 1.20 发布]]></itunes:title>
