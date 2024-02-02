@@ -30,6 +30,537 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[C# 基本練習 - 識別 IP 所屬網段 (物件導向寫法)]]></title>
+    <link>https://blog.darkthread.net/blog/cidr-match/</link>
+    <itunes:title><![CDATA[C# 基本練習 - 識別 IP 所屬網段 (物件導向寫法)]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
+"10.0.0.0/8\tSvr-ALL\t10 網段",
+"10.10.0.0/16\tSvr-10\t10.10 網段",
+"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
+"172.17.0.0/16\tOffice-17\t172.17 網段",
+"192.168.0.0/16\tNetDevice\t192.168 網段"
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var maxMaskBits = 0;
+var matchNetZone = "Undefined";
+var ipUint = IPToUint(ip);
+foreach (var netZone in netZones)
+{
+var p = netZone.Split('\t');
+var cidr = p[0];
+var zoneCode = p[1];
+var comment = p[2];
+p = cidr.Split('/');
+var maskBits = int.Parse(p[1]);
+var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
+if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
+{
+if (maskBits &gt; maxMaskBits) {
+maxMaskBits = maskBits;
+matchNetZone = netZone;
+}
+}
+}
+Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
+{
+new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
+new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
+new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
+new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
+new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var netZone = netZones.Match(ip);
+Console.WriteLine($"{ip,-15} =&gt; {netZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+namespace netmask_lab
+{
+/// &lt;summary&gt;
+/// 網段定義
+/// &lt;/summary&gt;
+public class NetworkZone
+{
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址
+/// &lt;/summary&gt;
+public string IP = "0.0.0.0";
+[JsonIgnore]
+/// &lt;summary&gt;
+/// 子網路遮罩位元數
+/// &lt;/summary&gt;
+public int MaskBits = 32;
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址轉為 uint
+/// &lt;/summary&gt;
+public uint UintVal = 0;
+/// &lt;summary&gt;
+/// 是否為未定義網段
+/// &lt;/summary&gt;
+public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
+/// &lt;summary&gt;
+/// 子網段識別(CIDR)
+/// &lt;/summary&gt;
+public string Cidr { get; set; } = "0.0.0.0/32";
+/// &lt;summary&gt;
+/// 網段代碼
+/// &lt;/summary&gt;
+public string ZoneCode { get; set; } = "NA";
+/// &lt;summary&gt;
+/// 網段說明
+/// &lt;/summary&gt;
+public string Comment { get; set; } = "Undefined";
+/// &lt;summary&gt;
+/// 將 IP 轉為 uint，方便 Mask 計算
+/// &lt;/summary&gt;
+/// &lt;param name="ip"&gt;&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+public static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+void Init()
+{
+if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
+throw new Exception("CIDR format error.");
+IP = Cidr.Split('/').First();
+MaskBits = int.Parse(Cidr.Split('/').Last());
+UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
+}
+public NetworkZone()
+{
+Init();
+}
+public NetworkZone(string cidr, string zoneCode, string comment)
+{
+this.Cidr = cidr;
+this.ZoneCode = zoneCode;
+this.Comment = comment;
+Init();
+}
+public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
+public bool Match(string ip) =&gt; Match(IPToUint(ip));
+override public string ToString()
+{
+if (IsUndefined) return Comment;
+return $"{Cidr} ({ZoneCode} {Comment})";
+}
+}
+public class NetworkZoneTable : List&lt;NetworkZone&gt;
+{
+public NetworkZone Match(string ip)
+{
+var ipUint = NetworkZone.IPToUint(ip);
+return this.OrderByDescending(o =&gt; o.MaskBits)
+.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
+}
+}
+}
+</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
+"10.0.0.0/8\tSvr-ALL\t10 網段",
+"10.10.0.0/16\tSvr-10\t10.10 網段",
+"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
+"172.17.0.0/16\tOffice-17\t172.17 網段",
+"192.168.0.0/16\tNetDevice\t192.168 網段"
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var maxMaskBits = 0;
+var matchNetZone = "Undefined";
+var ipUint = IPToUint(ip);
+foreach (var netZone in netZones)
+{
+var p = netZone.Split('\t');
+var cidr = p[0];
+var zoneCode = p[1];
+var comment = p[2];
+p = cidr.Split('/');
+var maskBits = int.Parse(p[1]);
+var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
+if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
+{
+if (maskBits &gt; maxMaskBits) {
+maxMaskBits = maskBits;
+matchNetZone = netZone;
+}
+}
+}
+Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
+{
+new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
+new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
+new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
+new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
+new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var netZone = netZones.Match(ip);
+Console.WriteLine($"{ip,-15} =&gt; {netZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+namespace netmask_lab
+{
+/// &lt;summary&gt;
+/// 網段定義
+/// &lt;/summary&gt;
+public class NetworkZone
+{
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址
+/// &lt;/summary&gt;
+public string IP = "0.0.0.0";
+[JsonIgnore]
+/// &lt;summary&gt;
+/// 子網路遮罩位元數
+/// &lt;/summary&gt;
+public int MaskBits = 32;
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址轉為 uint
+/// &lt;/summary&gt;
+public uint UintVal = 0;
+/// &lt;summary&gt;
+/// 是否為未定義網段
+/// &lt;/summary&gt;
+public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
+/// &lt;summary&gt;
+/// 子網段識別(CIDR)
+/// &lt;/summary&gt;
+public string Cidr { get; set; } = "0.0.0.0/32";
+/// &lt;summary&gt;
+/// 網段代碼
+/// &lt;/summary&gt;
+public string ZoneCode { get; set; } = "NA";
+/// &lt;summary&gt;
+/// 網段說明
+/// &lt;/summary&gt;
+public string Comment { get; set; } = "Undefined";
+/// &lt;summary&gt;
+/// 將 IP 轉為 uint，方便 Mask 計算
+/// &lt;/summary&gt;
+/// &lt;param name="ip"&gt;&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+public static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+void Init()
+{
+if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
+throw new Exception("CIDR format error.");
+IP = Cidr.Split('/').First();
+MaskBits = int.Parse(Cidr.Split('/').Last());
+UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
+}
+public NetworkZone()
+{
+Init();
+}
+public NetworkZone(string cidr, string zoneCode, string comment)
+{
+this.Cidr = cidr;
+this.ZoneCode = zoneCode;
+this.Comment = comment;
+Init();
+}
+public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
+public bool Match(string ip) =&gt; Match(IPToUint(ip));
+override public string ToString()
+{
+if (IsUndefined) return Comment;
+return $"{Cidr} ({ZoneCode} {Comment})";
+}
+}
+public class NetworkZoneTable : List&lt;NetworkZone&gt;
+{
+public NetworkZone Match(string ip)
+{
+var ipUint = NetworkZone.IPToUint(ip);
+return this.OrderByDescending(o =&gt; o.MaskBits)
+.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
+}
+}
+}
+</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
+"10.0.0.0/8\tSvr-ALL\t10 網段",
+"10.10.0.0/16\tSvr-10\t10.10 網段",
+"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
+"172.17.0.0/16\tOffice-17\t172.17 網段",
+"192.168.0.0/16\tNetDevice\t192.168 網段"
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var maxMaskBits = 0;
+var matchNetZone = "Undefined";
+var ipUint = IPToUint(ip);
+foreach (var netZone in netZones)
+{
+var p = netZone.Split('\t');
+var cidr = p[0];
+var zoneCode = p[1];
+var comment = p[2];
+p = cidr.Split('/');
+var maskBits = int.Parse(p[1]);
+var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
+if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
+{
+if (maskBits &gt; maxMaskBits) {
+maxMaskBits = maskBits;
+matchNetZone = netZone;
+}
+}
+}
+Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
+{
+new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
+new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
+new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
+new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
+new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
+};
+Action&lt;string&gt; test = (ip) =&gt;
+{
+var netZone = netZones.Match(ip);
+Console.WriteLine($"{ip,-15} =&gt; {netZone}");
+};
+test("10.10.123.123");
+test("10.123.123.123");
+test("192.168.1.1");
+test("172.28.1.1");
+test("172.16.1.1");
+test("172.17.1.1");
+test("8.8.8.8");
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+namespace netmask_lab
+{
+/// &lt;summary&gt;
+/// 網段定義
+/// &lt;/summary&gt;
+public class NetworkZone
+{
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址
+/// &lt;/summary&gt;
+public string IP = "0.0.0.0";
+[JsonIgnore]
+/// &lt;summary&gt;
+/// 子網路遮罩位元數
+/// &lt;/summary&gt;
+public int MaskBits = 32;
+[JsonIgnore]
+/// &lt;summary&gt;
+/// IP 位址轉為 uint
+/// &lt;/summary&gt;
+public uint UintVal = 0;
+/// &lt;summary&gt;
+/// 是否為未定義網段
+/// &lt;/summary&gt;
+public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
+/// &lt;summary&gt;
+/// 子網段識別(CIDR)
+/// &lt;/summary&gt;
+public string Cidr { get; set; } = "0.0.0.0/32";
+/// &lt;summary&gt;
+/// 網段代碼
+/// &lt;/summary&gt;
+public string ZoneCode { get; set; } = "NA";
+/// &lt;summary&gt;
+/// 網段說明
+/// &lt;/summary&gt;
+public string Comment { get; set; } = "Undefined";
+/// &lt;summary&gt;
+/// 將 IP 轉為 uint，方便 Mask 計算
+/// &lt;/summary&gt;
+/// &lt;param name="ip"&gt;&lt;/param&gt;
+/// &lt;returns&gt;&lt;/returns&gt;
+public static uint IPToUint(string ip)
+{
+var segments = ip.Split('.');
+if (segments.Length != 4) return 0;
+try
+{
+return (uint.Parse(segments[0]) &lt;&lt; 24)
+| (uint.Parse(segments[1]) &lt;&lt; 16)
+| (uint.Parse(segments[2]) &lt;&lt; 8)
+| uint.Parse(segments[3]);
+}
+catch (Exception)
+{
+return 0;
+}
+}
+void Init()
+{
+if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
+throw new Exception("CIDR format error.");
+IP = Cidr.Split('/').First();
+MaskBits = int.Parse(Cidr.Split('/').Last());
+UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
+}
+public NetworkZone()
+{
+Init();
+}
+public NetworkZone(string cidr, string zoneCode, string comment)
+{
+this.Cidr = cidr;
+this.ZoneCode = zoneCode;
+this.Comment = comment;
+Init();
+}
+public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
+public bool Match(string ip) =&gt; Match(IPToUint(ip));
+override public string ToString()
+{
+if (IsUndefined) return Comment;
+return $"{Cidr} ({ZoneCode} {Comment})";
+}
+}
+public class NetworkZoneTable : List&lt;NetworkZone&gt;
+{
+public NetworkZone Match(string ip)
+{
+var ipUint = NetworkZone.IPToUint(ip);
+return this.OrderByDescending(o =&gt; o.MaskBits)
+.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
+}
+}
+}
+</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png" medium="image"/>
+    <pubDate>Fri, 02 Feb 2024 15:58:27 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PQC 筆記 1 - 靠近一點看量子電腦對當代密碼學的威脅]]></title>
     <link>https://blog.darkthread.net/blog/pqc-notes-1-threat/</link>
     <itunes:title><![CDATA[PQC 筆記 1 - 靠近一點看量子電腦對當代密碼學的威脅]]></itunes:title>
@@ -1267,20 +1798,5 @@ arguments: new(openAIPromptExecutionSettings) {
 </code></pre> <p>影片還介紹了幾個實用的應用範例：</p> <ul><li>生成 FB 英文貼文：兩段 Prompt，第一段依標題產生 FB 貼文、第二段將貼文翻成英文版。</li> <li>歸納旅館客戶評論：透過 Prompt 指定解讀並總結客人意見，指定輸出 JSON。(技巧：Prompt 要用範例引導結果確保輸出 JSON)</li> <li>RAG 範例：將法條內容轉為 Embedding 向量，搜尋後依搜尋結果生成回答。(技巧：Prompt 要囑咐搜尋沒結果就直覺說找不到，要給沒參考資料的明確範例引導)</li></ul> <p>註：Azure AI Search 服務很貴，早期版本支援 Embedding 存本機記憶體的做法，但 1.0 拿掉了。</p> <p>Ian 補充：講座的範例程式碼(v1.0)已經放上 <a href="https://github.com/iangithub/sklearn/tree/main/skv1_start">Github</a> 了，想實際玩看看的同學可參考。</p> <p data-slug="sk-seminar-notes" data-title-en="Semantic Kernel seminar notes" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/09/12/13/23/new-home-1664272_960_720.jpg#960#720">Intrudocution to LLM framework - Semantic Kernel and some examples.</p>]]></content:encoded>
     
     <pubDate>Sun, 21 Jan 2024 22:30:00 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[筆記 - 在 Linux 平台使用 .NET Native AOT]]></title>
-    <link>https://blog.darkthread.net/blog/publish-native-aot-on-linux/</link>
-    <itunes:title><![CDATA[筆記 - 在 Linux 平台使用 .NET Native AOT]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>接續前一篇<a href="/blog/native-aot-w-python/">用 .NET Native AOT 編譯程式庫給 Python 呼叫</a>的實驗。</p> <p>下一步我打算搬到 Linux 執行，過程有些小波折，編譯原生二進位檔案有優點，但領教過比較複雜繁瑣的編譯程序，倒也襯托出 .NET Runtime 的好處。</p> <p>參考官方文件 <a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT deployment</a>，先簡單整理重點。</p> <ol><li>.NET 8 對 Native AOT 的支援比較完整，反正 Native AOT 不涉及目標主機安裝的 .NET Runtime 版本，建議用 .NET 8。</li> <li>在 .csproj 加入 <code>&lt;PublishAot&gt;true&lt;/PublishAot&gt;</code> 後 <code>dotnet publish</code> 將改編譯成 Native AOT，並會啟動編輯及編譯階段動態程式碼使用分析 (Dynamic Code-Usage Analysis)。</li> <li>原生二進位檔對平台版本的依賴很深，如果你用 Ubuntu 20.04 編譯的 Native AOT 檔案，只能在 Ubuntu 20.04 以後的作業系統執行，無法在 Ubuntu 18.04 用。</li> <li>.csproj 加入 <code>&lt;IsAotCompatible&gt;true&lt;/IsAotCompatible&gt;</code> 可標示程式庫相容 Native AOT (等同啟用以下設定：IsTrimmable、EnableTrimAnalyzer、EnableSingleFileAnalyzer、EnableAotAnalyzer)</li> <li>Native AOT 編譯後會產生偵錯檔 .dbg(Linux)/.pdb(Windows)/.dSYM(macOS) 可協助 Crash Dump 偵錯，在非 Windows 平台，設定 <code>&lt;StripSymbols&gt;false&lt;/StripSymbols&gt;</code> 可將其併入原生二進位檔。</li> <li>.NET Native AOT 支援以下平台<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638414057660330135.png"></li> <li>作業系統必須安裝 C++ 編譯工具才能編譯 Native AOT，Winows 要安裝 VS2022 Desktop Development with C++，Ubuntu 要 <code>sudo apt-get install clang zlib1g-dev</code>、macOS 要安裝 Command Line Tools for XCode。<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Clinux-ubuntu&amp;WT.mc_id=DOP-MVP-37580#prerequisites">參考</a></li></ol> <p>要編譯 Linux 用的 Native AOT 原生程式庫需要用 Linux 平台上編譯(編譯平台與目標平台需相同)，嘗試在 Windows 平台執行 <code>dotnet publish -r linux-x64</code> 會得到 <code>error : Cross-OS native compilation is not supported.</code></p> <p>我是將專案原始檔複製到 Debian，一開始忘了裝安裝 gcc 或 clang，<code>dotnet publish /p:NativeLib=Shared --use-current-runtime</code> 會發生 <code>collect2 : error : ld returned 1 exit status</code> 錯誤 <a href="https://github.com/godotengine/godot/issues/85476#issuecomment-1831464914">參考</a>)，安裝 clang、zlib1g-dev 後成功編譯出 .so 檔：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638414057667181162.png"></p> <p>在 Linux 平台跑 test.py，有三處要修改：1) Windows 載入 .dll，Linux 要載入 .so 2) .NET 端用 Marshal.StringToHGlobalAnsi(result) 傳回字串，在 Windows 是 BIG5 編碼，在 Linux 則是 UTF-8 3) Python 呼叫 .NET Marshal.FreeHGlobal() 釋放 Unmanaged 記憶體配置的做法在 Linux 會出錯，出現 <code>munmap_chunk(): invalid pointer in linux</code> (這部分超出我的知識範圍，期待具相關經驗的前輩指點解惑)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638414057669437006.png"></p> <p>以上就是本次的 Native AOT 登陸 Linux 經驗分享。<br> (串接 Managed 及 Unmanaged 世界這塊水頗深，我目前還在新手村打史萊姆... )</p> <p data-slug="publish-native-aot-on-linux" data-title-en="Tips of publishing Native AOT on Linux" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/07/27/09/58/traverse-862283_960_720.jpg#960#720">Tips of how to publish Native AOT library on Linux.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>接續前一篇<a href="/blog/native-aot-w-python/">用 .NET Native AOT 編譯程式庫給 Python 呼叫</a>的實驗。</p> <p>下一步我打算搬到 Linux 執行，過程有些小波折，編譯原生二進位檔案有優點，但領教過比較複雜繁瑣的編譯程序，倒也襯托出 .NET Runtime 的好處。</p> <p>參考官方文件 <a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT deployment</a>，先簡單整理重點。</p> <ol><li>.NET 8 對 Native AOT 的支援比較完整，反正 Native AOT 不涉及目標主機安裝的 .NET Runtime 版本，建議用 .NET 8。</li> <li>在 .csproj 加入 <code>&lt;PublishAot&gt;true&lt;/PublishAot&gt;</code> 後 <code>dotnet publish</code> 將改編譯成 Native AOT，並會啟動編輯及編譯階段動態程式碼使用分析 (Dynamic Code-Usage Analysis)。</li> <li>原生二進位檔對平台版本的依賴很深，如果你用 Ubuntu 20.04 編譯的 Native AOT 檔案，只能在 Ubuntu 20.04 以後的作業系統執行，無法在 Ubuntu 18.04 用。</li> <li>.csproj 加入 <code>&lt;IsAotCompatible&gt;true&lt;/IsAotCompatible&gt;</code> 可標示程式庫相容 Native AOT (等同啟用以下設定：IsTrimmable、EnableTrimAnalyzer、EnableSingleFileAnalyzer、EnableAotAnalyzer)</li> <li>Native AOT 編譯後會產生偵錯檔 .dbg(Linux)/.pdb(Windows)/.dSYM(macOS) 可協助 Crash Dump 偵錯，在非 Windows 平台，設定 <code>&lt;StripSymbols&gt;false&lt;/StripSymbols&gt;</code> 可將其併入原生二進位檔。</li> <li>.NET Native AOT 支援以下平台<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638414057660330135.png"></li> <li>作業系統必須安裝 C++ 編譯工具才能編譯 Native AOT，Winows 要安裝 VS2022 Desktop Development with C++，Ubuntu 要 <code>sudo apt-get install clang zlib1g-dev</code>、macOS 要安裝 Command Line Tools for XCode。<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Clinux-ubuntu&amp;WT.mc_id=DOP-MVP-37580#prerequisites">參考</a></li></ol> <p>要編譯 Linux 用的 Native AOT 原生程式庫需要用 Linux 平台上編譯(編譯平台與目標平台需相同)，嘗試在 Windows 平台執行 <code>dotnet publish -r linux-x64</code> 會得到 <code>error : Cross-OS native compilation is not supported.</code></p> <p>我是將專案原始檔複製到 Debian，一開始忘了裝安裝 gcc 或 clang，<code>dotnet publish /p:NativeLib=Shared --use-current-runtime</code> 會發生 <code>collect2 : error : ld returned 1 exit status</code> 錯誤 <a href="https://github.com/godotengine/godot/issues/85476#issuecomment-1831464914">參考</a>)，安裝 clang、zlib1g-dev 後成功編譯出 .so 檔：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638414057667181162.png"></p> <p>在 Linux 平台跑 test.py，有三處要修改：1) Windows 載入 .dll，Linux 要載入 .so 2) .NET 端用 Marshal.StringToHGlobalAnsi(result) 傳回字串，在 Windows 是 BIG5 編碼，在 Linux 則是 UTF-8 3) Python 呼叫 .NET Marshal.FreeHGlobal() 釋放 Unmanaged 記憶體配置的做法在 Linux 會出錯，出現 <code>munmap_chunk(): invalid pointer in linux</code> (這部分超出我的知識範圍，期待具相關經驗的前輩指點解惑)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638414057669437006.png"></p> <p>以上就是本次的 Native AOT 登陸 Linux 經驗分享。<br> (串接 Managed 及 Unmanaged 世界這塊水頗深，我目前還在新手村打史萊姆... )</p> <p data-slug="publish-native-aot-on-linux" data-title-en="Tips of publishing Native AOT on Linux" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/07/27/09/58/traverse-862283_960_720.jpg#960#720">Tips of how to publish Native AOT library on Linux.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>接續前一篇<a href="/blog/native-aot-w-python/">用 .NET Native AOT 編譯程式庫給 Python 呼叫</a>的實驗。</p> <p>下一步我打算搬到 Linux 執行，過程有些小波折，編譯原生二進位檔案有優點，但領教過比較複雜繁瑣的編譯程序，倒也襯托出 .NET Runtime 的好處。</p> <p>參考官方文件 <a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT deployment</a>，先簡單整理重點。</p> <ol><li>.NET 8 對 Native AOT 的支援比較完整，反正 Native AOT 不涉及目標主機安裝的 .NET Runtime 版本，建議用 .NET 8。</li> <li>在 .csproj 加入 <code>&lt;PublishAot&gt;true&lt;/PublishAot&gt;</code> 後 <code>dotnet publish</code> 將改編譯成 Native AOT，並會啟動編輯及編譯階段動態程式碼使用分析 (Dynamic Code-Usage Analysis)。</li> <li>原生二進位檔對平台版本的依賴很深，如果你用 Ubuntu 20.04 編譯的 Native AOT 檔案，只能在 Ubuntu 20.04 以後的作業系統執行，無法在 Ubuntu 18.04 用。</li> <li>.csproj 加入 <code>&lt;IsAotCompatible&gt;true&lt;/IsAotCompatible&gt;</code> 可標示程式庫相容 Native AOT (等同啟用以下設定：IsTrimmable、EnableTrimAnalyzer、EnableSingleFileAnalyzer、EnableAotAnalyzer)</li> <li>Native AOT 編譯後會產生偵錯檔 .dbg(Linux)/.pdb(Windows)/.dSYM(macOS) 可協助 Crash Dump 偵錯，在非 Windows 平台，設定 <code>&lt;StripSymbols&gt;false&lt;/StripSymbols&gt;</code> 可將其併入原生二進位檔。</li> <li>.NET Native AOT 支援以下平台<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638414057660330135.png"></li> <li>作業系統必須安裝 C++ 編譯工具才能編譯 Native AOT，Winows 要安裝 VS2022 Desktop Development with C++，Ubuntu 要 <code>sudo apt-get install clang zlib1g-dev</code>、macOS 要安裝 Command Line Tools for XCode。<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/native-aot/?tabs=net7%2Clinux-ubuntu&amp;WT.mc_id=DOP-MVP-37580#prerequisites">參考</a></li></ol> <p>要編譯 Linux 用的 Native AOT 原生程式庫需要用 Linux 平台上編譯(編譯平台與目標平台需相同)，嘗試在 Windows 平台執行 <code>dotnet publish -r linux-x64</code> 會得到 <code>error : Cross-OS native compilation is not supported.</code></p> <p>我是將專案原始檔複製到 Debian，一開始忘了裝安裝 gcc 或 clang，<code>dotnet publish /p:NativeLib=Shared --use-current-runtime</code> 會發生 <code>collect2 : error : ld returned 1 exit status</code> 錯誤 <a href="https://github.com/godotengine/godot/issues/85476#issuecomment-1831464914">參考</a>)，安裝 clang、zlib1g-dev 後成功編譯出 .so 檔：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638414057667181162.png"></p> <p>在 Linux 平台跑 test.py，有三處要修改：1) Windows 載入 .dll，Linux 要載入 .so 2) .NET 端用 Marshal.StringToHGlobalAnsi(result) 傳回字串，在 Windows 是 BIG5 編碼，在 Linux 則是 UTF-8 3) Python 呼叫 .NET Marshal.FreeHGlobal() 釋放 Unmanaged 記憶體配置的做法在 Linux 會出錯，出現 <code>munmap_chunk(): invalid pointer in linux</code> (這部分超出我的知識範圍，期待具相關經驗的前輩指點解惑)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638414057669437006.png"></p> <p>以上就是本次的 Native AOT 登陸 Linux 經驗分享。<br> (串接 Managed 及 Unmanaged 世界這塊水頗深，我目前還在新手村打史萊姆... )</p> <p data-slug="publish-native-aot-on-linux" data-title-en="Tips of publishing Native AOT on Linux" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/07/27/09/58/traverse-862283_960_720.jpg#960#720">Tips of how to publish Native AOT library on Linux.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638414057660330135.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638414057660330135.png" medium="image"/>
-    <pubDate>Sun, 21 Jan 2024 04:27:10 GMT</pubDate>
   </item></channel>
 </rss>
