@@ -30,6 +30,800 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[FastGateway：一个可以用于代替 Nginx 的网关]]></title>
+    <link>https://www.oschina.net/news/277575</link>
+    <itunes:title><![CDATA[FastGateway：一个可以用于代替 Nginx 的网关]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在我本人研究Yarp的时候经常用于公司项目的业务网关代理，这时候就个大佬问我是否可以实现动态加载HTTPS证书？那时候我说不太可能实现，然而在某一天我看到</p>
+<p>微软使用Yarp代替了Nginx吞吐量提升了百分之八十！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd92ebdd28.png"></p>
+<p>这个时候我就萌生了自己使用yarp造一个Gateway的项目，应为我本身也经常使用nginx作为网关，但是nginx的使用总得写conf，然后重启我的nginx，并且还需要配置证书重启，我就在想是否可以实现界面管理，并且完全动态管理？</p>
+<p>然后我们的FastGateway项目就诞生了，下面我们介绍一下我们的FastGateway的项目简单案例</p>
+<p>## FastGateway</p>
+<p>我们的FastGateway提供了俩个容器，一个是代理服务，一个是前端服务</p>
+<p>一般简单使用就可以直接使用我们的docker-compose构建，非常简单</p>
+<p>FastGateway支持哪些功能？</p>
+<ul>
+<li><span>&nbsp;</span>登录授权&nbsp;
+<ul>
+<li>通过环境变量简单设置账号密码</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态路由管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态配置证书管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>dashboard监控
+<ul>
+<li>提供了简单数据监控，后续还会提供更完善的功能</li>
+</ul> </li>
+<li><span>&nbsp;</span>静态文件服务代理
+<ul>
+<li>使用中间件简单实现了静态文件代理（Yarp默认是不支持静态文件代理）</li>
+</ul> </li>
+<li><span>&nbsp;</span>穿透隧道功能
+<ul>
+<li>只需要提供一个公网的Gateway服务端，然后下载我们的Gateway的客户端就可以将客户端的局域网的服务映射到外网（只支持http协议的服务）</li>
+</ul> </li>
+<li><span>&nbsp;</span>出入口流量监控
+<ul>
+<li>基于Kestrel实现出入口流量监控，还提供当前服务器的所有网卡的出入流量实时监控</li>
+</ul> </li>
+</ul>
+<h2>技术栈</h2>
+<h3>后端技术栈</h3>
+<ul>
+<li>Asp.Net 8.0 用于提供基础服务</li>
+<li>Yarp 用于提供反向代理服务</li>
+<li>FreeSql 用于提供数据库服务</li>
+<li>JWT 用于提供登录授权服务</li>
+<li>MiniApis 提供WebApi服务</li>
+</ul>
+<h3>前端技术栈</h3>
+<ul>
+<li>reset-css 用于重置浏览器默认样式</li>
+<li>axios 用于发送http请求</li>
+<li>semi 用于提供基础组件</li>
+<li>react-router-dom 用于路由管理</li>
+</ul>
+<h2>镜像执行指令</h2>
+<div>
+<div>
+<pre><span><span>mkdir </span>data</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--name</span> gateway-api <span>-p</span> 8000:8000 <span>-p</span> 8200:8080 <span>-p</span> 8300:8081 <span>-v</span> <span>$(</span><span>pwd</span><span>)</span>/data:/data/ registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--privileged</span> <span>--name</span> gateway-web <span>-p</span> 10800:80 <span>-e</span> <span>api_url</span><span>=</span>http://localhost:8000 registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Docker-Compose文件</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span> <span># 请注意手动创建data目录，负责在Linux下可能出现权限问题导致无法写入</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>build</span><span>:</span></span>
+<span>      <span>context</span><span>:</span> <span>../web</span></span>
+<span>      <span>dockerfile</span><span>:</span> <span>Dockerfile</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>如果并没有提供账号密码则默认</p>
+<p>账号：root</p>
+<p>密码：Aa010426.</p>
+<h2>替换默认的https证书</h2>
+<p>由于需要使用https，为了方便系统默认提供了一个pfx证书，如果你需要提供的话可以按照以下操作进行，如果是Docker执行的话证书的目录则是<span>&nbsp;</span><code>/app/certificates/gateway.pfx</code></p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8200:8080</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>参考上面的docker-compose文件，我们提供了俩个环境变量<code>HTTPS_PASSWORD</code>，<code>HTTPS_FILE</code>，</p>
+<p><code>HTTPS_FILE</code>：</p>
+<ul>
+<li>在系统中已经指定了容器的<code>/app/certificates</code>目录，你只想要挂在目录中的文件名即可</li>
+</ul>
+<p><code>HTTPS_PASSWORD</code>：</p>
+<ul>
+<li>Pfx证书的密码，如果修改了证书请填写证书的密码。</li>
+</ul>
+<p><code>/app/certificates</code>：</p>
+<ul>
+<li>这个是系统证书默认存放目录，如果映射了目录则需要提供自己的证书。</li>
+</ul>
+<h2>使用隧道</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>TUNNEL_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>增加<code>TUNNEL_PASSWORD</code>环境变量，默认为空不设置密码</p>
+<p>下载隧道客户端<span>&nbsp;</span><a href="https://gitee.com/hejiale010426/Gateway/releases">https://gitee.com/hejiale010426/Gateway/releases</a><span>&nbsp;</span>然后解压压缩包，打开appsettings.json文件修改Tunnel节点的Url，如果Gateway使用了TUNNEL_PASSWORD，那么你的URL应该是<code>https://localhost:8081/api/gateway/connect-h2?host=backend1.app&amp;password=dd666666</code>，<span>&nbsp;</span><code>host</code>是在集群中的集群端点的域名，这个域名就是定义到我们的隧道客户端的<code>host</code>的这个参数，请保证值的唯一性，当绑定集群的路由匹配成功以后则会访问图片定义的端点，如果并没有存在节点那么他会直接代理。</p>
+<p><img alt="输入图片说明" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/gitee.com-edc4b4d28b.png"></p>
+<h2>出入流量监控</h2>
+<p>使用环境变量控制是否启用流量监控，使用环境变量<code>ENABLE_FLOW_MONITORING</code>设置我们是否启用流量监控，如果为空则默认启动流量监控，然后可以打开我们的控制面板查看流量监控的数据。</p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>      <span>ENABLE_FLOW_MONITORING</span><span>:</span> <span>true</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span></pre>
+</div>
+</div>
+<p>开源地址：<a href="https://gitee.com/hejiale010426/FastGateway">FastGateway: FastGateway 一个超级简单方便的网关，基于Kestrel+Yarp实现的网关。 支持动态配置路由，支持动态配置集群，支持动态配置HTTPS证书，无需重启即可使用。 (gitee.com)</a></p>
+<p><strong>效果图</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7c3acc1ee3.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-895d1925db.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c53212051.png"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在我本人研究Yarp的时候经常用于公司项目的业务网关代理，这时候就个大佬问我是否可以实现动态加载HTTPS证书？那时候我说不太可能实现，然而在某一天我看到</p>
+<p>微软使用Yarp代替了Nginx吞吐量提升了百分之八十！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd92ebdd28.png"></p>
+<p>这个时候我就萌生了自己使用yarp造一个Gateway的项目，应为我本身也经常使用nginx作为网关，但是nginx的使用总得写conf，然后重启我的nginx，并且还需要配置证书重启，我就在想是否可以实现界面管理，并且完全动态管理？</p>
+<p>然后我们的FastGateway项目就诞生了，下面我们介绍一下我们的FastGateway的项目简单案例</p>
+<p>## FastGateway</p>
+<p>我们的FastGateway提供了俩个容器，一个是代理服务，一个是前端服务</p>
+<p>一般简单使用就可以直接使用我们的docker-compose构建，非常简单</p>
+<p>FastGateway支持哪些功能？</p>
+<ul>
+<li><span>&nbsp;</span>登录授权&nbsp;
+<ul>
+<li>通过环境变量简单设置账号密码</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态路由管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态配置证书管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>dashboard监控
+<ul>
+<li>提供了简单数据监控，后续还会提供更完善的功能</li>
+</ul> </li>
+<li><span>&nbsp;</span>静态文件服务代理
+<ul>
+<li>使用中间件简单实现了静态文件代理（Yarp默认是不支持静态文件代理）</li>
+</ul> </li>
+<li><span>&nbsp;</span>穿透隧道功能
+<ul>
+<li>只需要提供一个公网的Gateway服务端，然后下载我们的Gateway的客户端就可以将客户端的局域网的服务映射到外网（只支持http协议的服务）</li>
+</ul> </li>
+<li><span>&nbsp;</span>出入口流量监控
+<ul>
+<li>基于Kestrel实现出入口流量监控，还提供当前服务器的所有网卡的出入流量实时监控</li>
+</ul> </li>
+</ul>
+<h2>技术栈</h2>
+<h3>后端技术栈</h3>
+<ul>
+<li>Asp.Net 8.0 用于提供基础服务</li>
+<li>Yarp 用于提供反向代理服务</li>
+<li>FreeSql 用于提供数据库服务</li>
+<li>JWT 用于提供登录授权服务</li>
+<li>MiniApis 提供WebApi服务</li>
+</ul>
+<h3>前端技术栈</h3>
+<ul>
+<li>reset-css 用于重置浏览器默认样式</li>
+<li>axios 用于发送http请求</li>
+<li>semi 用于提供基础组件</li>
+<li>react-router-dom 用于路由管理</li>
+</ul>
+<h2>镜像执行指令</h2>
+<div>
+<div>
+<pre><span><span>mkdir </span>data</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--name</span> gateway-api <span>-p</span> 8000:8000 <span>-p</span> 8200:8080 <span>-p</span> 8300:8081 <span>-v</span> <span>$(</span><span>pwd</span><span>)</span>/data:/data/ registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--privileged</span> <span>--name</span> gateway-web <span>-p</span> 10800:80 <span>-e</span> <span>api_url</span><span>=</span>http://localhost:8000 registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Docker-Compose文件</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span> <span># 请注意手动创建data目录，负责在Linux下可能出现权限问题导致无法写入</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>build</span><span>:</span></span>
+<span>      <span>context</span><span>:</span> <span>../web</span></span>
+<span>      <span>dockerfile</span><span>:</span> <span>Dockerfile</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>如果并没有提供账号密码则默认</p>
+<p>账号：root</p>
+<p>密码：Aa010426.</p>
+<h2>替换默认的https证书</h2>
+<p>由于需要使用https，为了方便系统默认提供了一个pfx证书，如果你需要提供的话可以按照以下操作进行，如果是Docker执行的话证书的目录则是<span>&nbsp;</span><code>/app/certificates/gateway.pfx</code></p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8200:8080</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>参考上面的docker-compose文件，我们提供了俩个环境变量<code>HTTPS_PASSWORD</code>，<code>HTTPS_FILE</code>，</p>
+<p><code>HTTPS_FILE</code>：</p>
+<ul>
+<li>在系统中已经指定了容器的<code>/app/certificates</code>目录，你只想要挂在目录中的文件名即可</li>
+</ul>
+<p><code>HTTPS_PASSWORD</code>：</p>
+<ul>
+<li>Pfx证书的密码，如果修改了证书请填写证书的密码。</li>
+</ul>
+<p><code>/app/certificates</code>：</p>
+<ul>
+<li>这个是系统证书默认存放目录，如果映射了目录则需要提供自己的证书。</li>
+</ul>
+<h2>使用隧道</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>TUNNEL_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>增加<code>TUNNEL_PASSWORD</code>环境变量，默认为空不设置密码</p>
+<p>下载隧道客户端<span>&nbsp;</span><a href="https://gitee.com/hejiale010426/Gateway/releases">https://gitee.com/hejiale010426/Gateway/releases</a><span>&nbsp;</span>然后解压压缩包，打开appsettings.json文件修改Tunnel节点的Url，如果Gateway使用了TUNNEL_PASSWORD，那么你的URL应该是<code>https://localhost:8081/api/gateway/connect-h2?host=backend1.app&amp;password=dd666666</code>，<span>&nbsp;</span><code>host</code>是在集群中的集群端点的域名，这个域名就是定义到我们的隧道客户端的<code>host</code>的这个参数，请保证值的唯一性，当绑定集群的路由匹配成功以后则会访问图片定义的端点，如果并没有存在节点那么他会直接代理。</p>
+<p><img alt="输入图片说明" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/gitee.com-edc4b4d28b.png"></p>
+<h2>出入流量监控</h2>
+<p>使用环境变量控制是否启用流量监控，使用环境变量<code>ENABLE_FLOW_MONITORING</code>设置我们是否启用流量监控，如果为空则默认启动流量监控，然后可以打开我们的控制面板查看流量监控的数据。</p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>      <span>ENABLE_FLOW_MONITORING</span><span>:</span> <span>true</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span></pre>
+</div>
+</div>
+<p>开源地址：<a href="https://gitee.com/hejiale010426/FastGateway">FastGateway: FastGateway 一个超级简单方便的网关，基于Kestrel+Yarp实现的网关。 支持动态配置路由，支持动态配置集群，支持动态配置HTTPS证书，无需重启即可使用。 (gitee.com)</a></p>
+<p><strong>效果图</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7c3acc1ee3.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-895d1925db.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c53212051.png"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在我本人研究Yarp的时候经常用于公司项目的业务网关代理，这时候就个大佬问我是否可以实现动态加载HTTPS证书？那时候我说不太可能实现，然而在某一天我看到</p>
+<p>微软使用Yarp代替了Nginx吞吐量提升了百分之八十！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd92ebdd28.png"></p>
+<p>这个时候我就萌生了自己使用yarp造一个Gateway的项目，应为我本身也经常使用nginx作为网关，但是nginx的使用总得写conf，然后重启我的nginx，并且还需要配置证书重启，我就在想是否可以实现界面管理，并且完全动态管理？</p>
+<p>然后我们的FastGateway项目就诞生了，下面我们介绍一下我们的FastGateway的项目简单案例</p>
+<p>## FastGateway</p>
+<p>我们的FastGateway提供了俩个容器，一个是代理服务，一个是前端服务</p>
+<p>一般简单使用就可以直接使用我们的docker-compose构建，非常简单</p>
+<p>FastGateway支持哪些功能？</p>
+<ul>
+<li><span>&nbsp;</span>登录授权&nbsp;
+<ul>
+<li>通过环境变量简单设置账号密码</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态路由管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>动态配置证书管理
+<ul>
+<li>完全界面操作并且实时更新</li>
+</ul> </li>
+<li><span>&nbsp;</span>dashboard监控
+<ul>
+<li>提供了简单数据监控，后续还会提供更完善的功能</li>
+</ul> </li>
+<li><span>&nbsp;</span>静态文件服务代理
+<ul>
+<li>使用中间件简单实现了静态文件代理（Yarp默认是不支持静态文件代理）</li>
+</ul> </li>
+<li><span>&nbsp;</span>穿透隧道功能
+<ul>
+<li>只需要提供一个公网的Gateway服务端，然后下载我们的Gateway的客户端就可以将客户端的局域网的服务映射到外网（只支持http协议的服务）</li>
+</ul> </li>
+<li><span>&nbsp;</span>出入口流量监控
+<ul>
+<li>基于Kestrel实现出入口流量监控，还提供当前服务器的所有网卡的出入流量实时监控</li>
+</ul> </li>
+</ul>
+<h2>技术栈</h2>
+<h3>后端技术栈</h3>
+<ul>
+<li>Asp.Net 8.0 用于提供基础服务</li>
+<li>Yarp 用于提供反向代理服务</li>
+<li>FreeSql 用于提供数据库服务</li>
+<li>JWT 用于提供登录授权服务</li>
+<li>MiniApis 提供WebApi服务</li>
+</ul>
+<h3>前端技术栈</h3>
+<ul>
+<li>reset-css 用于重置浏览器默认样式</li>
+<li>axios 用于发送http请求</li>
+<li>semi 用于提供基础组件</li>
+<li>react-router-dom 用于路由管理</li>
+</ul>
+<h2>镜像执行指令</h2>
+<div>
+<div>
+<pre><span><span>mkdir </span>data</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--name</span> gateway-api <span>-p</span> 8000:8000 <span>-p</span> 8200:8080 <span>-p</span> 8300:8081 <span>-v</span> <span>$(</span><span>pwd</span><span>)</span>/data:/data/ registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span>
+<span>docker run <span>-d</span> <span>--restart</span> always <span>--privileged</span> <span>--name</span> gateway-web <span>-p</span> 10800:80 <span>-e</span> <span>api_url</span><span>=</span>http://localhost:8000 registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<h2>Docker-Compose文件</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span> <span># 请注意手动创建data目录，负责在Linux下可能出现权限问题导致无法写入</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>build</span><span>:</span></span>
+<span>      <span>context</span><span>:</span> <span>../web</span></span>
+<span>      <span>dockerfile</span><span>:</span> <span>Dockerfile</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>如果并没有提供账号密码则默认</p>
+<p>账号：root</p>
+<p>密码：Aa010426.</p>
+<h2>替换默认的https证书</h2>
+<p>由于需要使用https，为了方便系统默认提供了一个pfx证书，如果你需要提供的话可以按照以下操作进行，如果是Docker执行的话证书的目录则是<span>&nbsp;</span><code>/app/certificates/gateway.pfx</code></p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8200:8080</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>参考上面的docker-compose文件，我们提供了俩个环境变量<code>HTTPS_PASSWORD</code>，<code>HTTPS_FILE</code>，</p>
+<p><code>HTTPS_FILE</code>：</p>
+<ul>
+<li>在系统中已经指定了容器的<code>/app/certificates</code>目录，你只想要挂在目录中的文件名即可</li>
+</ul>
+<p><code>HTTPS_PASSWORD</code>：</p>
+<ul>
+<li>Pfx证书的密码，如果修改了证书请填写证书的密码。</li>
+</ul>
+<p><code>/app/certificates</code>：</p>
+<ul>
+<li>这个是系统证书默认存放目录，如果映射了目录则需要提供自己的证书。</li>
+</ul>
+<h2>使用隧道</h2>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>TUNNEL_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span>
+</pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>增加<code>TUNNEL_PASSWORD</code>环境变量，默认为空不设置密码</p>
+<p>下载隧道客户端<span>&nbsp;</span><a href="https://gitee.com/hejiale010426/Gateway/releases">https://gitee.com/hejiale010426/Gateway/releases</a><span>&nbsp;</span>然后解压压缩包，打开appsettings.json文件修改Tunnel节点的Url，如果Gateway使用了TUNNEL_PASSWORD，那么你的URL应该是<code>https://localhost:8081/api/gateway/connect-h2?host=backend1.app&amp;password=dd666666</code>，<span>&nbsp;</span><code>host</code>是在集群中的集群端点的域名，这个域名就是定义到我们的隧道客户端的<code>host</code>的这个参数，请保证值的唯一性，当绑定集群的路由匹配成功以后则会访问图片定义的端点，如果并没有存在节点那么他会直接代理。</p>
+<p><img alt="输入图片说明" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/gitee.com-edc4b4d28b.png"></p>
+<h2>出入流量监控</h2>
+<p>使用环境变量控制是否启用流量监控，使用环境变量<code>ENABLE_FLOW_MONITORING</code>设置我们是否启用流量监控，如果为空则默认启动流量监控，然后可以打开我们的控制面板查看流量监控的数据。</p>
+<div>
+<div>
+<pre><span><span>services</span><span>:</span></span>
+<span>  <span>gateway-api</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-api</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-api</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>USER</span><span>:</span> <span>root</span></span>
+<span>      <span>PASS</span><span>:</span> <span>Aa010426.</span></span>
+<span>      <span>HTTPS_PASSWORD</span><span>:</span> <span>dd666666</span></span>
+<span>      <span>HTTPS_FILE</span><span>:</span> <span>gateway.pfx</span></span>
+<span>      <span>ENABLE_FLOW_MONITORING</span><span>:</span> <span>true</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>8000:8000</span> <span># 提供给web端调用的管理接口</span></span>
+<span>      <span>-</span> <span>8200:8080</span> <span># Http代理端口</span></span>
+<span>      <span>-</span> <span>8300:8081</span> <span># Https代理端口</span></span>
+<span>    <span>volumes</span><span>:</span></span>
+<span>      <span>-</span> <span>./data:/data/</span></span>
+<span>      <span>-</span> <span>./app/certificates:/app/certificates</span></span>
+<span>  <span>gateway-web</span><span>:</span></span>
+<span>    <span>image</span><span>:</span> <span>registry.cn-shenzhen.aliyuncs.com/tokengo/gateway-web</span></span>
+<span>    <span>restart</span><span>:</span> <span>always</span></span>
+<span>    <span>container_name</span><span>:</span> <span>gateway-web</span></span>
+<span>    <span>privileged</span><span>:</span> <span>true</span></span>
+<span>    <span>environment</span><span>:</span></span>
+<span>      <span>api_url</span><span>:</span> <span>http://localhost:8000</span></span>
+<span>    <span>ports</span><span>:</span></span>
+<span>      <span>-</span> <span>10800:80</span></span></pre>
+</div>
+</div>
+<p>开源地址：<a href="https://gitee.com/hejiale010426/FastGateway">FastGateway: FastGateway 一个超级简单方便的网关，基于Kestrel+Yarp实现的网关。 支持动态配置路由，支持动态配置集群，支持动态配置HTTPS证书，无需重启即可使用。 (gitee.com)</a></p>
+<p><strong>效果图</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7c3acc1ee3.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-895d1925db.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c53212051.png"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd92ebdd28.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd92ebdd28.png" medium="image"/>
+    <pubDate>Sat, 03 Feb 2024 11:57:05 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[扎克伯格解释 Meta 为什么要开源其 AI 技术]]></title>
+    <link>https://www.oschina.net/news/277568</link>
+    <itunes:title><![CDATA[扎克伯格解释 Meta 为什么要开源其 AI 技术]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在今天的2023 年第四季度财报电话会议中，马克 - 扎克伯格解释 Meta 为什么要开源其 AI 技术。</p>
+<p>Meta开源其 AI 技术是出于推动技术创新、提升模型质量、建立行业标准、吸引人才、增加透明度和支持其长期战略的考虑。这不仅有助于 Meta 在竞争激烈的 AI 领域保持领先地位，也有助于推动整个行业的前进。</p>
+<p>1. <strong>促进行业创新</strong>: 通过开源AI模型，Meta可以鼓励全球的开发者、研究人员和公司利用这些技术进行创新。这种共享精神有助于加速AI技术的进步，并推动新应用和服务的开发。</p>
+<p>2. <strong>提高模型质量</strong>: 开源允许更广泛的社区参与到模型的测试和改进中来。来自全球的贡献可以帮助发现并修复错误，提出改进意见，从而提高模型的性能和可靠性。</p>
+<p>3. <strong>建立行业标准</strong>: 通过将自己的技术开源，Meta有机会塑造行业标准和最佳实践。这种影响力可以确保Meta在AI领域的技术和方法得到广泛接受和使用，从而加强其市场地位。</p>
+<p>4. <strong>吸引和保留人才</strong>: 开源项目通常对研究人员和开发者具有吸引力。通过贡献于开放且受尊重的项目，Meta可以吸引顶尖人才加入，这对于维持其在AI领域的竞争优势至关重要。</p>
+<p>5. <strong>提升安全性和透明度</strong>: 开源AI模型可以提高透明度，让外部研究人员和公众能够更好地理解模型的工作原理和潜在影响。这有助于识别和缓解与AI应用相关的风险和伦理问题，从而增强公众对AI技术的信任。</p>
+<p>6. <strong>支持长期战略</strong>: Meta开源AI技术也是其长期战略的一部分，旨在确保公司在AI和机器学习领域的长期领导地位。通过开源，Meta可以推动整个生态系统的发展，为自己的产品和服务创造更多的创新机会。</p>
+<blockquote>
+<p>本文已获授权。</p>
+<p>完整内容参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fs21.q4cdn.com%2F399680738%2Ffiles%2Fdoc_financials%2F2023%2Fq4%2FMETA-Q4-2023-Earnings-Call-Transcript.pdf" target="_blank">https://s21.q4cdn.com/399680738/files/doc_financials/2023/q4/META-Q4-2023-Earnings-Call-Transcript.pdf</a><br> 译文：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaoyu.io%2Ftranslations%2Fmeta%2Fmark-zuckerberg-explains-why-meta-open-sources-its-ai" target="_blank">https://baoyu.io/translations/meta/mark-zuckerberg-explains-why-meta-open-sources-its-ai</a></p>
+</blockquote>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在今天的2023 年第四季度财报电话会议中，马克 - 扎克伯格解释 Meta 为什么要开源其 AI 技术。</p>
+<p>Meta开源其 AI 技术是出于推动技术创新、提升模型质量、建立行业标准、吸引人才、增加透明度和支持其长期战略的考虑。这不仅有助于 Meta 在竞争激烈的 AI 领域保持领先地位，也有助于推动整个行业的前进。</p>
+<p>1. <strong>促进行业创新</strong>: 通过开源AI模型，Meta可以鼓励全球的开发者、研究人员和公司利用这些技术进行创新。这种共享精神有助于加速AI技术的进步，并推动新应用和服务的开发。</p>
+<p>2. <strong>提高模型质量</strong>: 开源允许更广泛的社区参与到模型的测试和改进中来。来自全球的贡献可以帮助发现并修复错误，提出改进意见，从而提高模型的性能和可靠性。</p>
+<p>3. <strong>建立行业标准</strong>: 通过将自己的技术开源，Meta有机会塑造行业标准和最佳实践。这种影响力可以确保Meta在AI领域的技术和方法得到广泛接受和使用，从而加强其市场地位。</p>
+<p>4. <strong>吸引和保留人才</strong>: 开源项目通常对研究人员和开发者具有吸引力。通过贡献于开放且受尊重的项目，Meta可以吸引顶尖人才加入，这对于维持其在AI领域的竞争优势至关重要。</p>
+<p>5. <strong>提升安全性和透明度</strong>: 开源AI模型可以提高透明度，让外部研究人员和公众能够更好地理解模型的工作原理和潜在影响。这有助于识别和缓解与AI应用相关的风险和伦理问题，从而增强公众对AI技术的信任。</p>
+<p>6. <strong>支持长期战略</strong>: Meta开源AI技术也是其长期战略的一部分，旨在确保公司在AI和机器学习领域的长期领导地位。通过开源，Meta可以推动整个生态系统的发展，为自己的产品和服务创造更多的创新机会。</p>
+<blockquote>
+<p>本文已获授权。</p>
+<p>完整内容参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fs21.q4cdn.com%2F399680738%2Ffiles%2Fdoc_financials%2F2023%2Fq4%2FMETA-Q4-2023-Earnings-Call-Transcript.pdf" target="_blank">https://s21.q4cdn.com/399680738/files/doc_financials/2023/q4/META-Q4-2023-Earnings-Call-Transcript.pdf</a><br> 译文：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaoyu.io%2Ftranslations%2Fmeta%2Fmark-zuckerberg-explains-why-meta-open-sources-its-ai" target="_blank">https://baoyu.io/translations/meta/mark-zuckerberg-explains-why-meta-open-sources-its-ai</a></p>
+</blockquote>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在今天的2023 年第四季度财报电话会议中，马克 - 扎克伯格解释 Meta 为什么要开源其 AI 技术。</p>
+<p>Meta开源其 AI 技术是出于推动技术创新、提升模型质量、建立行业标准、吸引人才、增加透明度和支持其长期战略的考虑。这不仅有助于 Meta 在竞争激烈的 AI 领域保持领先地位，也有助于推动整个行业的前进。</p>
+<p>1. <strong>促进行业创新</strong>: 通过开源AI模型，Meta可以鼓励全球的开发者、研究人员和公司利用这些技术进行创新。这种共享精神有助于加速AI技术的进步，并推动新应用和服务的开发。</p>
+<p>2. <strong>提高模型质量</strong>: 开源允许更广泛的社区参与到模型的测试和改进中来。来自全球的贡献可以帮助发现并修复错误，提出改进意见，从而提高模型的性能和可靠性。</p>
+<p>3. <strong>建立行业标准</strong>: 通过将自己的技术开源，Meta有机会塑造行业标准和最佳实践。这种影响力可以确保Meta在AI领域的技术和方法得到广泛接受和使用，从而加强其市场地位。</p>
+<p>4. <strong>吸引和保留人才</strong>: 开源项目通常对研究人员和开发者具有吸引力。通过贡献于开放且受尊重的项目，Meta可以吸引顶尖人才加入，这对于维持其在AI领域的竞争优势至关重要。</p>
+<p>5. <strong>提升安全性和透明度</strong>: 开源AI模型可以提高透明度，让外部研究人员和公众能够更好地理解模型的工作原理和潜在影响。这有助于识别和缓解与AI应用相关的风险和伦理问题，从而增强公众对AI技术的信任。</p>
+<p>6. <strong>支持长期战略</strong>: Meta开源AI技术也是其长期战略的一部分，旨在确保公司在AI和机器学习领域的长期领导地位。通过开源，Meta可以推动整个生态系统的发展，为自己的产品和服务创造更多的创新机会。</p>
+<blockquote>
+<p>本文已获授权。</p>
+<p>完整内容参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fs21.q4cdn.com%2F399680738%2Ffiles%2Fdoc_financials%2F2023%2Fq4%2FMETA-Q4-2023-Earnings-Call-Transcript.pdf" target="_blank">https://s21.q4cdn.com/399680738/files/doc_financials/2023/q4/META-Q4-2023-Earnings-Call-Transcript.pdf</a><br> 译文：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaoyu.io%2Ftranslations%2Fmeta%2Fmark-zuckerberg-explains-why-meta-open-sources-its-ai" target="_blank">https://baoyu.io/translations/meta/mark-zuckerberg-explains-why-meta-open-sources-its-ai</a></p>
+</blockquote>]]></content:encoded>
+    
+    <pubDate>Sat, 03 Feb 2024 11:01:29 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[谷歌 Bard 支持文本生成图像功能]]></title>
+    <link>https://www.oschina.net/news/277567/bard-ai-image-generation</link>
+    <itunes:title><![CDATA[谷歌 Bard 支持文本生成图像功能]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>谷歌对话式 AI 工具&nbsp;<span>Bard 近日发布了更新，此次更新后将支持文生图和扩展双重检查功能。</span></p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5f687f68d3.png"><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbard.google.com%2Fupdates" target="_blank">https://bard.google.com/updates</a></u></em></p>
+</blockquote>
+<p><strong>Bard 此次新增的图像生成功能将在全球受支持的地区免费提供，由谷歌 Imagen 2 模型提供支持，但需要英语指令</strong>。用户现在可以根据向 Bard 提供的描述生成自定义图像。谷歌承诺，Bard 可提供“高质量、逼真的图像输出”。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e7753cad83.png"></p>
+<p>谷歌表示，Imagen 2 不会生成暴力、攻击性或包含色情内容的图片。此外，Imagen 2 还接受了一些“培训”，可以帮助它避免创建特定人群的图像。为将 Bard 生成的 AI 图片与人类作品区分开来，谷歌将嵌入“像素级别”的数字可识别水印。</p>
+<p>Bard 在此次更新之后，谷歌 Gemini Pro 模型新增了 40 多种语言、230 多个国家和地区的支持。</p>
+<p>谷歌表示，Gemini Pro 增强了 Bard 的理解、总结、推理、创意、协作和规划方面的能力。谷歌还将 Bard 的“双重检查”功能扩展到 40 多种语言，用户可以通过检查整个互联网的内容来验证 AI 所作回答的准确性。在此之前，“双重检查”功能仅限于英语。</p>
+<p>详情查看&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.google%2Ftechnology%2Fai%2Fgoogle-imagen-2%2F" target="_blank">https://blog.google/technology/ai/google-imagen-2/</a></u></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>谷歌对话式 AI 工具&nbsp;<span>Bard 近日发布了更新，此次更新后将支持文生图和扩展双重检查功能。</span></p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5f687f68d3.png"><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbard.google.com%2Fupdates" target="_blank">https://bard.google.com/updates</a></u></em></p>
+</blockquote>
+<p><strong>Bard 此次新增的图像生成功能将在全球受支持的地区免费提供，由谷歌 Imagen 2 模型提供支持，但需要英语指令</strong>。用户现在可以根据向 Bard 提供的描述生成自定义图像。谷歌承诺，Bard 可提供“高质量、逼真的图像输出”。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e7753cad83.png"></p>
+<p>谷歌表示，Imagen 2 不会生成暴力、攻击性或包含色情内容的图片。此外，Imagen 2 还接受了一些“培训”，可以帮助它避免创建特定人群的图像。为将 Bard 生成的 AI 图片与人类作品区分开来，谷歌将嵌入“像素级别”的数字可识别水印。</p>
+<p>Bard 在此次更新之后，谷歌 Gemini Pro 模型新增了 40 多种语言、230 多个国家和地区的支持。</p>
+<p>谷歌表示，Gemini Pro 增强了 Bard 的理解、总结、推理、创意、协作和规划方面的能力。谷歌还将 Bard 的“双重检查”功能扩展到 40 多种语言，用户可以通过检查整个互联网的内容来验证 AI 所作回答的准确性。在此之前，“双重检查”功能仅限于英语。</p>
+<p>详情查看&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.google%2Ftechnology%2Fai%2Fgoogle-imagen-2%2F" target="_blank">https://blog.google/technology/ai/google-imagen-2/</a></u></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>谷歌对话式 AI 工具&nbsp;<span>Bard 近日发布了更新，此次更新后将支持文生图和扩展双重检查功能。</span></p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5f687f68d3.png"><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbard.google.com%2Fupdates" target="_blank">https://bard.google.com/updates</a></u></em></p>
+</blockquote>
+<p><strong>Bard 此次新增的图像生成功能将在全球受支持的地区免费提供，由谷歌 Imagen 2 模型提供支持，但需要英语指令</strong>。用户现在可以根据向 Bard 提供的描述生成自定义图像。谷歌承诺，Bard 可提供“高质量、逼真的图像输出”。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e7753cad83.png"></p>
+<p>谷歌表示，Imagen 2 不会生成暴力、攻击性或包含色情内容的图片。此外，Imagen 2 还接受了一些“培训”，可以帮助它避免创建特定人群的图像。为将 Bard 生成的 AI 图片与人类作品区分开来，谷歌将嵌入“像素级别”的数字可识别水印。</p>
+<p>Bard 在此次更新之后，谷歌 Gemini Pro 模型新增了 40 多种语言、230 多个国家和地区的支持。</p>
+<p>谷歌表示，Gemini Pro 增强了 Bard 的理解、总结、推理、创意、协作和规划方面的能力。谷歌还将 Bard 的“双重检查”功能扩展到 40 多种语言，用户可以通过检查整个互联网的内容来验证 AI 所作回答的准确性。在此之前，“双重检查”功能仅限于英语。</p>
+<p>详情查看&nbsp;<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.google%2Ftechnology%2Fai%2Fgoogle-imagen-2%2F" target="_blank">https://blog.google/technology/ai/google-imagen-2/</a></u></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5f687f68d3.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5f687f68d3.png" medium="image"/>
+    <pubDate>Sat, 03 Feb 2024 10:54:04 +0800</pubDate>
+  </item><item>
     <title><![CDATA[deepin V23 最后一个测试版本 ——Beta3 来了！]]></title>
     <link>https://my.oschina.net/u/5046223/blog/11023703</link>
     <itunes:title><![CDATA[deepin V23 最后一个测试版本 ——Beta3 来了！]]></itunes:title>
@@ -11622,223 +12416,5 @@ print(gen_text[0])</code></pre>
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ce2db6972.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ce2db6972.png" medium="image"/>
     <pubDate>Tue, 30 Jan 2024 11:23:41 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[工信部等七部门联合发文：发展下一代操作系统、推广开源技术、构建开源生态体系]]></title>
-    <link>https://www.oschina.net/news/276882</link>
-    <itunes:title><![CDATA[工信部等七部门联合发文：发展下一代操作系统、推广开源技术、构建开源生态体系]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>工业和信息化部、教育部、科技部、交通运输部、文化和旅游部、国务院国资委、中国科学院等七部门近日联合印发<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gov.cn%2Fzhengce%2Fzhengceku%2F202401%2Fcontent_6929021.htm" target="_blank">《<u>关于推动未来产业创新发展的实施意见</u>》</a></em>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26d29c3495.png"></p>
-<p>其中提到的重点任务包括：</p>
-<ul>
-<li><strong>（一）全面布局未来产业</strong></li>
-<li><strong>（二）加快技术创新和产业化</strong></li>
-<li><strong>（三）打造标志性产品</strong></li>
-<li><strong>（四）壮大产业主体</strong></li>
-<li><strong>（五）丰富应用场景</strong></li>
-<li><strong>（六）优化产业支撑体系</strong></li>
-</ul>
-<p>在“打造标志性产品”章节，意见提出要<strong>做优信息服务产品</strong>：</p>
-<p><strong>发展下一代操作系统，构筑安全可靠的数字底座。推广开源技术，建设开源社区，构建开源生态体系</strong>。探索以区块链为核心技术、以数据为关键要素，构建下一代互联网创新应用和数字化生态。面向新一代移动信息网络、类脑智能等加快软件产品研发，鼓励新产品示范应用，激发信息服务潜能。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe8cf26b73.png"></p>
-<p>原文：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FN9YYFWtcrNfAX1TYqY7G1A" target="_blank">https://mp.weixin.qq.com/s/N9YYFWtcrNfAX1TYqY7G1A</a></u></em></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>工业和信息化部、教育部、科技部、交通运输部、文化和旅游部、国务院国资委、中国科学院等七部门近日联合印发<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gov.cn%2Fzhengce%2Fzhengceku%2F202401%2Fcontent_6929021.htm" target="_blank">《<u>关于推动未来产业创新发展的实施意见</u>》</a></em>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26d29c3495.png"></p>
-<p>其中提到的重点任务包括：</p>
-<ul>
-<li><strong>（一）全面布局未来产业</strong></li>
-<li><strong>（二）加快技术创新和产业化</strong></li>
-<li><strong>（三）打造标志性产品</strong></li>
-<li><strong>（四）壮大产业主体</strong></li>
-<li><strong>（五）丰富应用场景</strong></li>
-<li><strong>（六）优化产业支撑体系</strong></li>
-</ul>
-<p>在“打造标志性产品”章节，意见提出要<strong>做优信息服务产品</strong>：</p>
-<p><strong>发展下一代操作系统，构筑安全可靠的数字底座。推广开源技术，建设开源社区，构建开源生态体系</strong>。探索以区块链为核心技术、以数据为关键要素，构建下一代互联网创新应用和数字化生态。面向新一代移动信息网络、类脑智能等加快软件产品研发，鼓励新产品示范应用，激发信息服务潜能。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe8cf26b73.png"></p>
-<p>原文：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FN9YYFWtcrNfAX1TYqY7G1A" target="_blank">https://mp.weixin.qq.com/s/N9YYFWtcrNfAX1TYqY7G1A</a></u></em></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>工业和信息化部、教育部、科技部、交通运输部、文化和旅游部、国务院国资委、中国科学院等七部门近日联合印发<em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gov.cn%2Fzhengce%2Fzhengceku%2F202401%2Fcontent_6929021.htm" target="_blank">《<u>关于推动未来产业创新发展的实施意见</u>》</a></em>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26d29c3495.png"></p>
-<p>其中提到的重点任务包括：</p>
-<ul>
-<li><strong>（一）全面布局未来产业</strong></li>
-<li><strong>（二）加快技术创新和产业化</strong></li>
-<li><strong>（三）打造标志性产品</strong></li>
-<li><strong>（四）壮大产业主体</strong></li>
-<li><strong>（五）丰富应用场景</strong></li>
-<li><strong>（六）优化产业支撑体系</strong></li>
-</ul>
-<p>在“打造标志性产品”章节，意见提出要<strong>做优信息服务产品</strong>：</p>
-<p><strong>发展下一代操作系统，构筑安全可靠的数字底座。推广开源技术，建设开源社区，构建开源生态体系</strong>。探索以区块链为核心技术、以数据为关键要素，构建下一代互联网创新应用和数字化生态。面向新一代移动信息网络、类脑智能等加快软件产品研发，鼓励新产品示范应用，激发信息服务潜能。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fe8cf26b73.png"></p>
-<p>原文：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FN9YYFWtcrNfAX1TYqY7G1A" target="_blank">https://mp.weixin.qq.com/s/N9YYFWtcrNfAX1TYqY7G1A</a></u></em></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26d29c3495.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26d29c3495.png" medium="image"/>
-    <pubDate>Tue, 30 Jan 2024 11:01:07 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[CodeIgniter 社区 2023 年终总结]]></title>
-    <link>https://www.oschina.net/news/276880/codeigniter-2023</link>
-    <itunes:title><![CDATA[CodeIgniter 社区 2023 年终总结]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>随着我们步入 2024 年，我想借此机会总结过去一年 CodeIgniter 社区所取得的成果，并对所有贡献者的努力表示感谢。CodeIgniter 作为一个社区驱动的项目，每一位贡献者都在促进着我们的发展。</p>
-<p>因为所有工作都是由志愿者完成的，所以贡献者的参与度会因他们的空余时间、工作以及其他生活琐事而有所变动。今年，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fmember.php%3Faction%3Dprofile%26uid%3D90" target="_blank">@kenjis</a> 的突出贡献让人印象深刻，他们在主要的代码仓库和论坛上的辛勤耕耘让整个项目有了质的飞跃。</p>
-<p>以下是一些数据，以侧面展示了我们在 2023 年的活跃程度：</p>
-<ul>
-<li>我们发布了 15 个核心框架版本</li>
-<li>我们的身份验证系统 Shield 发布了 6 个测试版，并在年底前推出了 1.0 的正式版</li>
-<li>推出了两个新的库 - Tasks 和 Queue，虽然还处于 Alpha 阶段，但正朝着第一个正式版稳步前进。他们本身是 CodeIgniter 构建出色软件所需的最后几个关键模块，所以我对他们极其期待。</li>
-<li>我们为 Settings、Shield、Tasks 和 Queue 库新建了文档站点</li>
-</ul>
-<p>如果只看我们的核心框架，我们在过去一年内取得的成果包括：</p>
-<ul>
-<li>每月平均新增两名贡献者</li>
-<li>全年共新增了 26 名新贡献者</li>
-<li>每月平均有 11 名活跃的贡献者</li>
-<li>新贡献者占提交者的 18%</li>
-<li>每月平均有 203 次代码提交</li>
-<li>平均每名提交者每月提交代码 18.45 次</li>
-<li>提交者总数增加了 26 人（从 350 增加到 376）</li>
-<li>平均每月合并 54 个 PR 请求</li>
-</ul>
-<p>这是一份令人印象深刻的成绩单。除此之外，我们还在进行持续的翻译工作，修复了一些严重的安全漏洞，以及将代码质量管理工作做得更加精细，确保无论贡献者数量如何增长，我们都能保持高质量的代码输出。</p>
-<p>我要向今年所有做出贡献的人表示感谢，无论是贡献代码、编写文档还是在论坛上帮助他人。正是你们让这个项目保持了活力。</p>
-<p><strong>那么，CodeIgniter 未来会有什么新变化呢？</strong></p>
-<p>我们正在开发一款全新的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flonnieezell%2Fforum-example" target="_blank">论坛软件</a>，这款软件完全基于 CodeIgniter 构建。这款软件的目标是提供一种符合现代审美，而又为这个社区定制的论坛体验，展示 CodeIgniter 的可能性。它将使用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftailwindcss.com%2F" target="_blank">TailwindCSS</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Falpinejs.dev%2F" target="_blank">AlpineJS</a> 和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2F" target="_blank">HTMX</a>，以提供快速、现代的用户体验。目前我们的团队还在积极开发阶段，如果你愿意加入，我们会很欢迎。</p>
-<p>虽然我不能代表所有团队成员的观点，但是在我看来，我想尝试让 CodeIgniter 的使用更加简化。这是一个宏大主题，但我相信我们很快能就此取得一些进展。</p>
-<p>首先，我们打算简化代码库的贡献过程，让任何有意愿的人都能从自己的电脑开始更便捷地参与进来。虽然现在还没有确定的消息可以公布，但我们希望这样，更多的开发者会愿意加入我们。</p>
-<p>接下来，我们关注用户指南。我们在尝试不丢失任何内容的情况下，将其<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fcodeigniter4%2Fdocs-update" target="_blank">转换为 Markdown 格式</a>，并取得了非常好的进展。我们希望 Markdown 语言的易用性，能让更多的贡献者参与其中。这样，我们的文档就能保持统一的格式和风格，让项目页面显得更加整齐一致。实际上，我们的库已经实现了这一点，核心框架是最后一个待处理的问题。</p>
-<p>我还有其它的一些想法，比如关于 API 和本地化的问题，但是这需要在我完成其它项目后，看我能投入多少时间来做。</p>
-<p>所以，我要再次感谢我们的核心团队、论坛的版主和所有为这个社区做出贡献的你们。期待今年我们能有更好的发展！</p>
-<hr>
-<p>原文作者: kilishan<br> 原文链接: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fshowthread.php%3Ftid%3D89075" target="_blank">https://forum.codeigniter.com/showthread.php?tid=89075</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>随着我们步入 2024 年，我想借此机会总结过去一年 CodeIgniter 社区所取得的成果，并对所有贡献者的努力表示感谢。CodeIgniter 作为一个社区驱动的项目，每一位贡献者都在促进着我们的发展。</p>
-<p>因为所有工作都是由志愿者完成的，所以贡献者的参与度会因他们的空余时间、工作以及其他生活琐事而有所变动。今年，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fmember.php%3Faction%3Dprofile%26uid%3D90" target="_blank">@kenjis</a> 的突出贡献让人印象深刻，他们在主要的代码仓库和论坛上的辛勤耕耘让整个项目有了质的飞跃。</p>
-<p>以下是一些数据，以侧面展示了我们在 2023 年的活跃程度：</p>
-<ul>
-<li>我们发布了 15 个核心框架版本</li>
-<li>我们的身份验证系统 Shield 发布了 6 个测试版，并在年底前推出了 1.0 的正式版</li>
-<li>推出了两个新的库 - Tasks 和 Queue，虽然还处于 Alpha 阶段，但正朝着第一个正式版稳步前进。他们本身是 CodeIgniter 构建出色软件所需的最后几个关键模块，所以我对他们极其期待。</li>
-<li>我们为 Settings、Shield、Tasks 和 Queue 库新建了文档站点</li>
-</ul>
-<p>如果只看我们的核心框架，我们在过去一年内取得的成果包括：</p>
-<ul>
-<li>每月平均新增两名贡献者</li>
-<li>全年共新增了 26 名新贡献者</li>
-<li>每月平均有 11 名活跃的贡献者</li>
-<li>新贡献者占提交者的 18%</li>
-<li>每月平均有 203 次代码提交</li>
-<li>平均每名提交者每月提交代码 18.45 次</li>
-<li>提交者总数增加了 26 人（从 350 增加到 376）</li>
-<li>平均每月合并 54 个 PR 请求</li>
-</ul>
-<p>这是一份令人印象深刻的成绩单。除此之外，我们还在进行持续的翻译工作，修复了一些严重的安全漏洞，以及将代码质量管理工作做得更加精细，确保无论贡献者数量如何增长，我们都能保持高质量的代码输出。</p>
-<p>我要向今年所有做出贡献的人表示感谢，无论是贡献代码、编写文档还是在论坛上帮助他人。正是你们让这个项目保持了活力。</p>
-<p><strong>那么，CodeIgniter 未来会有什么新变化呢？</strong></p>
-<p>我们正在开发一款全新的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flonnieezell%2Fforum-example" target="_blank">论坛软件</a>，这款软件完全基于 CodeIgniter 构建。这款软件的目标是提供一种符合现代审美，而又为这个社区定制的论坛体验，展示 CodeIgniter 的可能性。它将使用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftailwindcss.com%2F" target="_blank">TailwindCSS</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Falpinejs.dev%2F" target="_blank">AlpineJS</a> 和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2F" target="_blank">HTMX</a>，以提供快速、现代的用户体验。目前我们的团队还在积极开发阶段，如果你愿意加入，我们会很欢迎。</p>
-<p>虽然我不能代表所有团队成员的观点，但是在我看来，我想尝试让 CodeIgniter 的使用更加简化。这是一个宏大主题，但我相信我们很快能就此取得一些进展。</p>
-<p>首先，我们打算简化代码库的贡献过程，让任何有意愿的人都能从自己的电脑开始更便捷地参与进来。虽然现在还没有确定的消息可以公布，但我们希望这样，更多的开发者会愿意加入我们。</p>
-<p>接下来，我们关注用户指南。我们在尝试不丢失任何内容的情况下，将其<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fcodeigniter4%2Fdocs-update" target="_blank">转换为 Markdown 格式</a>，并取得了非常好的进展。我们希望 Markdown 语言的易用性，能让更多的贡献者参与其中。这样，我们的文档就能保持统一的格式和风格，让项目页面显得更加整齐一致。实际上，我们的库已经实现了这一点，核心框架是最后一个待处理的问题。</p>
-<p>我还有其它的一些想法，比如关于 API 和本地化的问题，但是这需要在我完成其它项目后，看我能投入多少时间来做。</p>
-<p>所以，我要再次感谢我们的核心团队、论坛的版主和所有为这个社区做出贡献的你们。期待今年我们能有更好的发展！</p>
-<hr>
-<p>原文作者: kilishan<br> 原文链接: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fshowthread.php%3Ftid%3D89075" target="_blank">https://forum.codeigniter.com/showthread.php?tid=89075</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>随着我们步入 2024 年，我想借此机会总结过去一年 CodeIgniter 社区所取得的成果，并对所有贡献者的努力表示感谢。CodeIgniter 作为一个社区驱动的项目，每一位贡献者都在促进着我们的发展。</p>
-<p>因为所有工作都是由志愿者完成的，所以贡献者的参与度会因他们的空余时间、工作以及其他生活琐事而有所变动。今年，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fmember.php%3Faction%3Dprofile%26uid%3D90" target="_blank">@kenjis</a> 的突出贡献让人印象深刻，他们在主要的代码仓库和论坛上的辛勤耕耘让整个项目有了质的飞跃。</p>
-<p>以下是一些数据，以侧面展示了我们在 2023 年的活跃程度：</p>
-<ul>
-<li>我们发布了 15 个核心框架版本</li>
-<li>我们的身份验证系统 Shield 发布了 6 个测试版，并在年底前推出了 1.0 的正式版</li>
-<li>推出了两个新的库 - Tasks 和 Queue，虽然还处于 Alpha 阶段，但正朝着第一个正式版稳步前进。他们本身是 CodeIgniter 构建出色软件所需的最后几个关键模块，所以我对他们极其期待。</li>
-<li>我们为 Settings、Shield、Tasks 和 Queue 库新建了文档站点</li>
-</ul>
-<p>如果只看我们的核心框架，我们在过去一年内取得的成果包括：</p>
-<ul>
-<li>每月平均新增两名贡献者</li>
-<li>全年共新增了 26 名新贡献者</li>
-<li>每月平均有 11 名活跃的贡献者</li>
-<li>新贡献者占提交者的 18%</li>
-<li>每月平均有 203 次代码提交</li>
-<li>平均每名提交者每月提交代码 18.45 次</li>
-<li>提交者总数增加了 26 人（从 350 增加到 376）</li>
-<li>平均每月合并 54 个 PR 请求</li>
-</ul>
-<p>这是一份令人印象深刻的成绩单。除此之外，我们还在进行持续的翻译工作，修复了一些严重的安全漏洞，以及将代码质量管理工作做得更加精细，确保无论贡献者数量如何增长，我们都能保持高质量的代码输出。</p>
-<p>我要向今年所有做出贡献的人表示感谢，无论是贡献代码、编写文档还是在论坛上帮助他人。正是你们让这个项目保持了活力。</p>
-<p><strong>那么，CodeIgniter 未来会有什么新变化呢？</strong></p>
-<p>我们正在开发一款全新的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flonnieezell%2Fforum-example" target="_blank">论坛软件</a>，这款软件完全基于 CodeIgniter 构建。这款软件的目标是提供一种符合现代审美，而又为这个社区定制的论坛体验，展示 CodeIgniter 的可能性。它将使用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftailwindcss.com%2F" target="_blank">TailwindCSS</a>、<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Falpinejs.dev%2F" target="_blank">AlpineJS</a> 和 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2F" target="_blank">HTMX</a>，以提供快速、现代的用户体验。目前我们的团队还在积极开发阶段，如果你愿意加入，我们会很欢迎。</p>
-<p>虽然我不能代表所有团队成员的观点，但是在我看来，我想尝试让 CodeIgniter 的使用更加简化。这是一个宏大主题，但我相信我们很快能就此取得一些进展。</p>
-<p>首先，我们打算简化代码库的贡献过程，让任何有意愿的人都能从自己的电脑开始更便捷地参与进来。虽然现在还没有确定的消息可以公布，但我们希望这样，更多的开发者会愿意加入我们。</p>
-<p>接下来，我们关注用户指南。我们在尝试不丢失任何内容的情况下，将其<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fcodeigniter4%2Fdocs-update" target="_blank">转换为 Markdown 格式</a>，并取得了非常好的进展。我们希望 Markdown 语言的易用性，能让更多的贡献者参与其中。这样，我们的文档就能保持统一的格式和风格，让项目页面显得更加整齐一致。实际上，我们的库已经实现了这一点，核心框架是最后一个待处理的问题。</p>
-<p>我还有其它的一些想法，比如关于 API 和本地化的问题，但是这需要在我完成其它项目后，看我能投入多少时间来做。</p>
-<p>所以，我要再次感谢我们的核心团队、论坛的版主和所有为这个社区做出贡献的你们。期待今年我们能有更好的发展！</p>
-<hr>
-<p>原文作者: kilishan<br> 原文链接: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fforum.codeigniter.com%2Fshowthread.php%3Ftid%3D89075" target="_blank">https://forum.codeigniter.com/showthread.php?tid=89075</a></p>]]></content:encoded>
-    
-    <pubDate>Tue, 30 Jan 2024 10:44:22 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[上海 AI 实验室发布新一代书生·视觉大模型]]></title>
-    <link>https://www.oschina.net/news/276879</link>
-    <itunes:title><![CDATA[上海 AI 实验室发布新一代书生·视觉大模型]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>上海人工智能实验室（上海AI实验室）<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FbdfAJRqOF9tUk8Vy9KC_XQ" target="_blank">宣布</a>联合清华大学、香港中文大学、商汤科技等机构开源新一代书生·视觉大模型（InternVL）。</p>
-<p>新一代“书生·视觉基础”模型的视觉编码器参数量达60亿(InternVL-6B)，首次提出了对比-生成融合的渐进式对齐技术，实现了在互联网级别数据上视觉大模型与语言大模型的精细对齐。</p>
-<p>InternVL-6B不仅能处理复杂图片中细微的视觉信息并完成图生文任务，还可以识别和解读复杂页面中的信息，甚至解决其中的数理问题。</p>
-<p>目前，InternVL全系列模型、代码均已开源，并提供Demo试用。</p>
-<ul>
-<li>开源链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenGVLab%2FInternVL" target="_blank">https://github.com/OpenGVLab/InternVL</a></li>
-<li>论文链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2312.14238" target="_blank">https://arxiv.org/abs/2312.14238</a></li>
-<li>试用Demo：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finternvl.opengvlab.com" target="_blank">https://internvl.opengvlab.com</a></li>
-</ul>
-<p>InternVL-6B具备纯视觉感知、图文检索、图文生成、图文多模态生成和对话等关键能力。谷歌ViT-22B是目前被公认为最强大的专注视觉的基础模型（非开源）。InternVL开源模型以不到1/3的参数量，在纯视觉任务（如ImageNet、ADE20K等）和图生文任务（如NoCaps、MS COCO等）上逼近或超过谷歌ViT-22B。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ffb68acb3.png"></p>
-<p>在视觉感知、图文检索、图文多模态生成和对话等30余个视觉基准测试上，InternVL-6B取得了开源社区的最优性能，超过了Meta、谷歌、微软、LAION等机构的同类开源模型。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f07f9b6c07.png"></p>
-<p>在TinyLVLM 、MMBench等多模态大模型评测上，InternVL-6B取得了优秀的性能。其中，在MMBench-dev上，InternVL-6B达到76.6，虽然综合能力仍有待提高，但个别性能超越了GPT-4V（75.1）和Gemini（75.2）。</p>
-<p>InternVL-6B具备强大的视觉表征和理解能力，尤其表现在面对信息复杂的图片时，模型仍可对细节进行精准捕捉，不仅可在图片或实际场景的复杂画面中捕捉细微的视觉信息，还可从复杂排版的图文页面中整合、解读信息，或辨别伪装外观的物体。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>上海人工智能实验室（上海AI实验室）<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FbdfAJRqOF9tUk8Vy9KC_XQ" target="_blank">宣布</a>联合清华大学、香港中文大学、商汤科技等机构开源新一代书生·视觉大模型（InternVL）。</p>
-<p>新一代“书生·视觉基础”模型的视觉编码器参数量达60亿(InternVL-6B)，首次提出了对比-生成融合的渐进式对齐技术，实现了在互联网级别数据上视觉大模型与语言大模型的精细对齐。</p>
-<p>InternVL-6B不仅能处理复杂图片中细微的视觉信息并完成图生文任务，还可以识别和解读复杂页面中的信息，甚至解决其中的数理问题。</p>
-<p>目前，InternVL全系列模型、代码均已开源，并提供Demo试用。</p>
-<ul>
-<li>开源链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenGVLab%2FInternVL" target="_blank">https://github.com/OpenGVLab/InternVL</a></li>
-<li>论文链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2312.14238" target="_blank">https://arxiv.org/abs/2312.14238</a></li>
-<li>试用Demo：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finternvl.opengvlab.com" target="_blank">https://internvl.opengvlab.com</a></li>
-</ul>
-<p>InternVL-6B具备纯视觉感知、图文检索、图文生成、图文多模态生成和对话等关键能力。谷歌ViT-22B是目前被公认为最强大的专注视觉的基础模型（非开源）。InternVL开源模型以不到1/3的参数量，在纯视觉任务（如ImageNet、ADE20K等）和图生文任务（如NoCaps、MS COCO等）上逼近或超过谷歌ViT-22B。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ffb68acb3.png"></p>
-<p>在视觉感知、图文检索、图文多模态生成和对话等30余个视觉基准测试上，InternVL-6B取得了开源社区的最优性能，超过了Meta、谷歌、微软、LAION等机构的同类开源模型。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f07f9b6c07.png"></p>
-<p>在TinyLVLM 、MMBench等多模态大模型评测上，InternVL-6B取得了优秀的性能。其中，在MMBench-dev上，InternVL-6B达到76.6，虽然综合能力仍有待提高，但个别性能超越了GPT-4V（75.1）和Gemini（75.2）。</p>
-<p>InternVL-6B具备强大的视觉表征和理解能力，尤其表现在面对信息复杂的图片时，模型仍可对细节进行精准捕捉，不仅可在图片或实际场景的复杂画面中捕捉细微的视觉信息，还可从复杂排版的图文页面中整合、解读信息，或辨别伪装外观的物体。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>上海人工智能实验室（上海AI实验室）<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FbdfAJRqOF9tUk8Vy9KC_XQ" target="_blank">宣布</a>联合清华大学、香港中文大学、商汤科技等机构开源新一代书生·视觉大模型（InternVL）。</p>
-<p>新一代“书生·视觉基础”模型的视觉编码器参数量达60亿(InternVL-6B)，首次提出了对比-生成融合的渐进式对齐技术，实现了在互联网级别数据上视觉大模型与语言大模型的精细对齐。</p>
-<p>InternVL-6B不仅能处理复杂图片中细微的视觉信息并完成图生文任务，还可以识别和解读复杂页面中的信息，甚至解决其中的数理问题。</p>
-<p>目前，InternVL全系列模型、代码均已开源，并提供Demo试用。</p>
-<ul>
-<li>开源链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenGVLab%2FInternVL" target="_blank">https://github.com/OpenGVLab/InternVL</a></li>
-<li>论文链接：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2312.14238" target="_blank">https://arxiv.org/abs/2312.14238</a></li>
-<li>试用Demo：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finternvl.opengvlab.com" target="_blank">https://internvl.opengvlab.com</a></li>
-</ul>
-<p>InternVL-6B具备纯视觉感知、图文检索、图文生成、图文多模态生成和对话等关键能力。谷歌ViT-22B是目前被公认为最强大的专注视觉的基础模型（非开源）。InternVL开源模型以不到1/3的参数量，在纯视觉任务（如ImageNet、ADE20K等）和图生文任务（如NoCaps、MS COCO等）上逼近或超过谷歌ViT-22B。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ffb68acb3.png"></p>
-<p>在视觉感知、图文检索、图文多模态生成和对话等30余个视觉基准测试上，InternVL-6B取得了开源社区的最优性能，超过了Meta、谷歌、微软、LAION等机构的同类开源模型。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f07f9b6c07.png"></p>
-<p>在TinyLVLM 、MMBench等多模态大模型评测上，InternVL-6B取得了优秀的性能。其中，在MMBench-dev上，InternVL-6B达到76.6，虽然综合能力仍有待提高，但个别性能超越了GPT-4V（75.1）和Gemini（75.2）。</p>
-<p>InternVL-6B具备强大的视觉表征和理解能力，尤其表现在面对信息复杂的图片时，模型仍可对细节进行精准捕捉，不仅可在图片或实际场景的复杂画面中捕捉细微的视觉信息，还可从复杂排版的图文页面中整合、解读信息，或辨别伪装外观的物体。</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ffb68acb3.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1ffb68acb3.png" medium="image"/>
-    <pubDate>Tue, 30 Jan 2024 10:35:31 +0800</pubDate>
   </item></channel>
 </rss>
