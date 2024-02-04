@@ -30,6 +30,21 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[AI 筆記 - 電腦沒有獨立顯卡，只靠 CPU 也能跑大型語言模型嗎？]]></title>
+    <link>https://blog.darkthread.net/blog/llama-cpp/</link>
+    <itunes:title><![CDATA[AI 筆記 - 電腦沒有獨立顯卡，只靠 CPU 也能跑大型語言模型嗎？]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>當初覺得自己不玩遊戲，用不到獨立顯卡何必浪費錢浪費電？工作機選了<a href="/blog/deskmini-i5/">迷你主機</a>，靠 CPU 內顯應付日常開發已綽綽有餘。殊不知這兩年 AI 議題興起，不管 AI 生圖還是ChatGPT ，全靠數以萬計的 GPU 提供算力。想跟上潮流自己在家裡玩玩 LLM 模型，沒有一張夠力的顯卡，寸步難行。</p> <p>最近研究後有新發現，靠著開源社群的神人加持，在沒有 GPU 的電腦上純用 CPU 跑 LLM，其實也不是那麼遙不可及。我還學到另一件事 - 要執行數百上千億個參數的大型語言模型，有多少 GPU 核心反而不是重點，顯示卡有多少記憶體才是關鍵，大小很重要!!</p> <p>以 FB 公司 Meta 釋出的 LLaMA 2 模型為例，它有 7B、13B、34B 跟 70B 四種參數規模不同的大小模型，參數愈多自然愈聰明，表現愈好。但它們需要的顯卡記憶體容量也極可觀，每個參數為 FP32 浮點數要用掉 4 Bytes，70B 等同 280 GB，目前消費市場最貴的 Nvidia 顯卡 4090 只有 24GB，要 12 張也才有 288GB(就算花得起 80 萬買 12 張 4090，你也找不到可以插 12 張顯卡的主機板啊)，所以這個領域一向是傳說中<a href="/blog/machine-for-ai-training/">八卡機</a>(8 張 A100 80GB，共 640GB)的戰場。</p> <p>所幸，有一些降低硬體需求的技術，能讓大型語言模型有機會飛入尋常百姓家。(註：身為中期才加入湊熱鬧的鄉民，網路上的參考資料超級豐富，下面提到各技術會以前輩的精彩分享為主，簡單帶過)</p> <p>第一個是量化 (Quantization)。參考：<a href="https://ithelp.ithome.com.tw/m/articles/10330372">LLM Note Day 14 - 量化 Quantization by 大歐派蘿莉</a></p> <p>模型訓練一般會使用 32 Bits (FP32) 或 16 Bits 浮點數 (FP16) 儲存數列資料。以 [1.2, 0.3, -0.1, -0.8] FP32 儲存為例，會佔用 16 Bytes，量化概念類似 JPG 照片，是一種有損壓縮縮。方法是透過正規化 (Normalize) 先取得數列的最小值 -0.8 及最大值 1.2，將最小值及最大值對映 -128 及 127，可得公式 (v - -0.8) / (1.2 - -0.8) * 255 - 128 公式將原始數列量化成四個 INT8 (1 Byte) [127, 12, -39, -128]。量化結果並可反向量化回 [1.2, 0.298, -0.102, -0.8]，會損失一些精確度，但空間由 16 Bytes (FP32 * 4) 縮小到 4 Bytes，但需額外記錄 2 個 FP32(最大及最小值)。進一步透過取絕對值再計算(AbsMax Quantization)，額外記錄資料可由最大最小值再減少成單一量化常數(Quantization Constant)。</p> <p>總之，概念就是透過量化，將原本的 32 Bits 空間轉成 16 Bits、8 Bits，甚至 4 Bits，天下沒有白吃的午餐，縮到愈小資料精準度損失愈大，但若你的記憶體有限，這是必要的取捨。</p> <p>目前已發展出一些常見的量化技術，例如 BNB、HF 4-Bit、GPTQ... 等(這些名詞有些會模型資料檔名中出現)，藉此降低顯卡記憶體需求，讓 24GB GPU 顯卡也玩得動 34B 模型 (原本需要 136GB)</p> <p>量化縮小了模型尺寸，但我的電腦沒有獨立顯卡，連 1GB 都沒有該怎麼辦？</p> <p>超級英雄出現了!</p> <p>有位神人 Georgi Gerganov 用 C++ 語言寫一個開源專案 <a href="https://github.com/ggerganov/llama.cpp">llama.cpp</a>，並發明了 GGUF 檔案格式(GG 即 Georgi Gerganov 縮寫)方便儲存及快速載入 LLM 模型，最重要的是 llama.cpp 能只用 CPU 跑 LLM 模型(但也支援用 GPU 運算加速)，讓無顯卡跑 LLM 不再只是夢想。GGUF 有多種量化方式，共有 Q2_K、Q3_K_S、Q3_K_M、Q3_K_L、Q4_0、Q4_K_S、Q4_K_M、Q4_1、Q5_0、Q5_K_S、Q5_K_M、Q5_1、Q6_K、Q8_0 等 14 種選擇，一般推薦使用 Q5_K_M，最能保留模型性能，要省記憶體則可改用 Q4_K_M。參考：<a href="https://ithelp.ithome.com.tw/articles/10331431">[Day 15] - 鋼鐵草泥馬 🦙 LLM chatbot 🤖 (6/10)｜GGML 量化 LLaMa by chihying</a></p> <p>換言之，只要有 llama.cpp 跟拿到 GGUF 檔，就算沒有 40X0 顯卡也能跑 LLM 模型嚐鮮。而提到 GGUF 檔，就不得提另一位佛心的神人 - <a href="https://twitter.com/TheBlokeAI">Tom Jobbins</a>，他固定會將大家常用的 LLM 模型轉成 GPTQ、AWQ、GGUF... 等量化格式放上 <a href="https://huggingface.co/TheBloke">Hugging Face</a> (可想像成 AI 界的 Github) 供大家免費下載，並且持續更新到最新版。</p> <p>總之，學會了 llama.cpp 及 GGUF 檔，我便在迷你電腦上完成 LLaMA 2 處女航，讓<a href="https://huggingface.co/audreyt/Taiwan-LLaMa-v1.0-GGUF">台灣在地版 13B LLaMA 2 模型</a>跟我聊天... 參考：<a href="https://www.linkedin.com/pulse/three-steps-run-llama-2-7b-chat-model-any-cpu-machine-nirmal-patel-3pw9f/">Three steps to run a Llama-2-7B-Chat model on any CPU machine by Nirmal Patel</a>))</p> <p>我先用 CLI 互動模式測試無 Prompt 生成，看一下執行速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638426106667860551.png"></p> <p>工作機的 12 代 i5 CPU 表現差強人意，12 核幾近滿載下差不多一秒一個字：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638426106670251456.gif"></p> <p>為了對照，我試了 32 核的 Azure VM，明顯流暢不少，一秒可輸出兩三個字。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638426106674668390.gif"></p> <p>改跑 llama.cpp 伺服器模式，用 32 核跑網頁介面問答，結果還不錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638426106676970818.png"></p> <p>順便看了 12 代 i5 的速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638426106679254257.gif"></p> <p>台灣版 LLaMA 2 模型蠻酷的(雖然它沒有真的搞懂 PTT 五樓的意思 XD)，而能在我只有內顯的迷你主機跑，更酷! (llama.cpp 好威呀!!)</p> <p>由以上測試，驗證沒有 GPU 也是可以跑 LLM 模型的，但速度很難說流暢(有試跑了 70B，想寫個慘字)，也許真有特定場合可實際上陣，但大部分情況，要得到預期效果還是得課金買裝備吧!(例如：RTX-4090 24GB +9 雙手劍)</p> <p data-slug="llama-cpp" data-fbimg="https://i.imgur.com/lHaxDw3.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>當初覺得自己不玩遊戲，用不到獨立顯卡何必浪費錢浪費電？工作機選了<a href="/blog/deskmini-i5/">迷你主機</a>，靠 CPU 內顯應付日常開發已綽綽有餘。殊不知這兩年 AI 議題興起，不管 AI 生圖還是ChatGPT ，全靠數以萬計的 GPU 提供算力。想跟上潮流自己在家裡玩玩 LLM 模型，沒有一張夠力的顯卡，寸步難行。</p> <p>最近研究後有新發現，靠著開源社群的神人加持，在沒有 GPU 的電腦上純用 CPU 跑 LLM，其實也不是那麼遙不可及。我還學到另一件事 - 要執行數百上千億個參數的大型語言模型，有多少 GPU 核心反而不是重點，顯示卡有多少記憶體才是關鍵，大小很重要!!</p> <p>以 FB 公司 Meta 釋出的 LLaMA 2 模型為例，它有 7B、13B、34B 跟 70B 四種參數規模不同的大小模型，參數愈多自然愈聰明，表現愈好。但它們需要的顯卡記憶體容量也極可觀，每個參數為 FP32 浮點數要用掉 4 Bytes，70B 等同 280 GB，目前消費市場最貴的 Nvidia 顯卡 4090 只有 24GB，要 12 張也才有 288GB(就算花得起 80 萬買 12 張 4090，你也找不到可以插 12 張顯卡的主機板啊)，所以這個領域一向是傳說中<a href="/blog/machine-for-ai-training/">八卡機</a>(8 張 A100 80GB，共 640GB)的戰場。</p> <p>所幸，有一些降低硬體需求的技術，能讓大型語言模型有機會飛入尋常百姓家。(註：身為中期才加入湊熱鬧的鄉民，網路上的參考資料超級豐富，下面提到各技術會以前輩的精彩分享為主，簡單帶過)</p> <p>第一個是量化 (Quantization)。參考：<a href="https://ithelp.ithome.com.tw/m/articles/10330372">LLM Note Day 14 - 量化 Quantization by 大歐派蘿莉</a></p> <p>模型訓練一般會使用 32 Bits (FP32) 或 16 Bits 浮點數 (FP16) 儲存數列資料。以 [1.2, 0.3, -0.1, -0.8] FP32 儲存為例，會佔用 16 Bytes，量化概念類似 JPG 照片，是一種有損壓縮縮。方法是透過正規化 (Normalize) 先取得數列的最小值 -0.8 及最大值 1.2，將最小值及最大值對映 -128 及 127，可得公式 (v - -0.8) / (1.2 - -0.8) * 255 - 128 公式將原始數列量化成四個 INT8 (1 Byte) [127, 12, -39, -128]。量化結果並可反向量化回 [1.2, 0.298, -0.102, -0.8]，會損失一些精確度，但空間由 16 Bytes (FP32 * 4) 縮小到 4 Bytes，但需額外記錄 2 個 FP32(最大及最小值)。進一步透過取絕對值再計算(AbsMax Quantization)，額外記錄資料可由最大最小值再減少成單一量化常數(Quantization Constant)。</p> <p>總之，概念就是透過量化，將原本的 32 Bits 空間轉成 16 Bits、8 Bits，甚至 4 Bits，天下沒有白吃的午餐，縮到愈小資料精準度損失愈大，但若你的記憶體有限，這是必要的取捨。</p> <p>目前已發展出一些常見的量化技術，例如 BNB、HF 4-Bit、GPTQ... 等(這些名詞有些會模型資料檔名中出現)，藉此降低顯卡記憶體需求，讓 24GB GPU 顯卡也玩得動 34B 模型 (原本需要 136GB)</p> <p>量化縮小了模型尺寸，但我的電腦沒有獨立顯卡，連 1GB 都沒有該怎麼辦？</p> <p>超級英雄出現了!</p> <p>有位神人 Georgi Gerganov 用 C++ 語言寫一個開源專案 <a href="https://github.com/ggerganov/llama.cpp">llama.cpp</a>，並發明了 GGUF 檔案格式(GG 即 Georgi Gerganov 縮寫)方便儲存及快速載入 LLM 模型，最重要的是 llama.cpp 能只用 CPU 跑 LLM 模型(但也支援用 GPU 運算加速)，讓無顯卡跑 LLM 不再只是夢想。GGUF 有多種量化方式，共有 Q2_K、Q3_K_S、Q3_K_M、Q3_K_L、Q4_0、Q4_K_S、Q4_K_M、Q4_1、Q5_0、Q5_K_S、Q5_K_M、Q5_1、Q6_K、Q8_0 等 14 種選擇，一般推薦使用 Q5_K_M，最能保留模型性能，要省記憶體則可改用 Q4_K_M。參考：<a href="https://ithelp.ithome.com.tw/articles/10331431">[Day 15] - 鋼鐵草泥馬 🦙 LLM chatbot 🤖 (6/10)｜GGML 量化 LLaMa by chihying</a></p> <p>換言之，只要有 llama.cpp 跟拿到 GGUF 檔，就算沒有 40X0 顯卡也能跑 LLM 模型嚐鮮。而提到 GGUF 檔，就不得提另一位佛心的神人 - <a href="https://twitter.com/TheBlokeAI">Tom Jobbins</a>，他固定會將大家常用的 LLM 模型轉成 GPTQ、AWQ、GGUF... 等量化格式放上 <a href="https://huggingface.co/TheBloke">Hugging Face</a> (可想像成 AI 界的 Github) 供大家免費下載，並且持續更新到最新版。</p> <p>總之，學會了 llama.cpp 及 GGUF 檔，我便在迷你電腦上完成 LLaMA 2 處女航，讓<a href="https://huggingface.co/audreyt/Taiwan-LLaMa-v1.0-GGUF">台灣在地版 13B LLaMA 2 模型</a>跟我聊天... 參考：<a href="https://www.linkedin.com/pulse/three-steps-run-llama-2-7b-chat-model-any-cpu-machine-nirmal-patel-3pw9f/">Three steps to run a Llama-2-7B-Chat model on any CPU machine by Nirmal Patel</a>))</p> <p>我先用 CLI 互動模式測試無 Prompt 生成，看一下執行速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638426106667860551.png"></p> <p>工作機的 12 代 i5 CPU 表現差強人意，12 核幾近滿載下差不多一秒一個字：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638426106670251456.gif"></p> <p>為了對照，我試了 32 核的 Azure VM，明顯流暢不少，一秒可輸出兩三個字。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638426106674668390.gif"></p> <p>改跑 llama.cpp 伺服器模式，用 32 核跑網頁介面問答，結果還不錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638426106676970818.png"></p> <p>順便看了 12 代 i5 的速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638426106679254257.gif"></p> <p>台灣版 LLaMA 2 模型蠻酷的(雖然它沒有真的搞懂 PTT 五樓的意思 XD)，而能在我只有內顯的迷你主機跑，更酷! (llama.cpp 好威呀!!)</p> <p>由以上測試，驗證沒有 GPU 也是可以跑 LLM 模型的，但速度很難說流暢(有試跑了 70B，想寫個慘字)，也許真有特定場合可實際上陣，但大部分情況，要得到預期效果還是得課金買裝備吧!(例如：RTX-4090 24GB +9 雙手劍)</p> <p data-slug="llama-cpp" data-fbimg="https://i.imgur.com/lHaxDw3.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>當初覺得自己不玩遊戲，用不到獨立顯卡何必浪費錢浪費電？工作機選了<a href="/blog/deskmini-i5/">迷你主機</a>，靠 CPU 內顯應付日常開發已綽綽有餘。殊不知這兩年 AI 議題興起，不管 AI 生圖還是ChatGPT ，全靠數以萬計的 GPU 提供算力。想跟上潮流自己在家裡玩玩 LLM 模型，沒有一張夠力的顯卡，寸步難行。</p> <p>最近研究後有新發現，靠著開源社群的神人加持，在沒有 GPU 的電腦上純用 CPU 跑 LLM，其實也不是那麼遙不可及。我還學到另一件事 - 要執行數百上千億個參數的大型語言模型，有多少 GPU 核心反而不是重點，顯示卡有多少記憶體才是關鍵，大小很重要!!</p> <p>以 FB 公司 Meta 釋出的 LLaMA 2 模型為例，它有 7B、13B、34B 跟 70B 四種參數規模不同的大小模型，參數愈多自然愈聰明，表現愈好。但它們需要的顯卡記憶體容量也極可觀，每個參數為 FP32 浮點數要用掉 4 Bytes，70B 等同 280 GB，目前消費市場最貴的 Nvidia 顯卡 4090 只有 24GB，要 12 張也才有 288GB(就算花得起 80 萬買 12 張 4090，你也找不到可以插 12 張顯卡的主機板啊)，所以這個領域一向是傳說中<a href="/blog/machine-for-ai-training/">八卡機</a>(8 張 A100 80GB，共 640GB)的戰場。</p> <p>所幸，有一些降低硬體需求的技術，能讓大型語言模型有機會飛入尋常百姓家。(註：身為中期才加入湊熱鬧的鄉民，網路上的參考資料超級豐富，下面提到各技術會以前輩的精彩分享為主，簡單帶過)</p> <p>第一個是量化 (Quantization)。參考：<a href="https://ithelp.ithome.com.tw/m/articles/10330372">LLM Note Day 14 - 量化 Quantization by 大歐派蘿莉</a></p> <p>模型訓練一般會使用 32 Bits (FP32) 或 16 Bits 浮點數 (FP16) 儲存數列資料。以 [1.2, 0.3, -0.1, -0.8] FP32 儲存為例，會佔用 16 Bytes，量化概念類似 JPG 照片，是一種有損壓縮縮。方法是透過正規化 (Normalize) 先取得數列的最小值 -0.8 及最大值 1.2，將最小值及最大值對映 -128 及 127，可得公式 (v - -0.8) / (1.2 - -0.8) * 255 - 128 公式將原始數列量化成四個 INT8 (1 Byte) [127, 12, -39, -128]。量化結果並可反向量化回 [1.2, 0.298, -0.102, -0.8]，會損失一些精確度，但空間由 16 Bytes (FP32 * 4) 縮小到 4 Bytes，但需額外記錄 2 個 FP32(最大及最小值)。進一步透過取絕對值再計算(AbsMax Quantization)，額外記錄資料可由最大最小值再減少成單一量化常數(Quantization Constant)。</p> <p>總之，概念就是透過量化，將原本的 32 Bits 空間轉成 16 Bits、8 Bits，甚至 4 Bits，天下沒有白吃的午餐，縮到愈小資料精準度損失愈大，但若你的記憶體有限，這是必要的取捨。</p> <p>目前已發展出一些常見的量化技術，例如 BNB、HF 4-Bit、GPTQ... 等(這些名詞有些會模型資料檔名中出現)，藉此降低顯卡記憶體需求，讓 24GB GPU 顯卡也玩得動 34B 模型 (原本需要 136GB)</p> <p>量化縮小了模型尺寸，但我的電腦沒有獨立顯卡，連 1GB 都沒有該怎麼辦？</p> <p>超級英雄出現了!</p> <p>有位神人 Georgi Gerganov 用 C++ 語言寫一個開源專案 <a href="https://github.com/ggerganov/llama.cpp">llama.cpp</a>，並發明了 GGUF 檔案格式(GG 即 Georgi Gerganov 縮寫)方便儲存及快速載入 LLM 模型，最重要的是 llama.cpp 能只用 CPU 跑 LLM 模型(但也支援用 GPU 運算加速)，讓無顯卡跑 LLM 不再只是夢想。GGUF 有多種量化方式，共有 Q2_K、Q3_K_S、Q3_K_M、Q3_K_L、Q4_0、Q4_K_S、Q4_K_M、Q4_1、Q5_0、Q5_K_S、Q5_K_M、Q5_1、Q6_K、Q8_0 等 14 種選擇，一般推薦使用 Q5_K_M，最能保留模型性能，要省記憶體則可改用 Q4_K_M。參考：<a href="https://ithelp.ithome.com.tw/articles/10331431">[Day 15] - 鋼鐵草泥馬 🦙 LLM chatbot 🤖 (6/10)｜GGML 量化 LLaMa by chihying</a></p> <p>換言之，只要有 llama.cpp 跟拿到 GGUF 檔，就算沒有 40X0 顯卡也能跑 LLM 模型嚐鮮。而提到 GGUF 檔，就不得提另一位佛心的神人 - <a href="https://twitter.com/TheBlokeAI">Tom Jobbins</a>，他固定會將大家常用的 LLM 模型轉成 GPTQ、AWQ、GGUF... 等量化格式放上 <a href="https://huggingface.co/TheBloke">Hugging Face</a> (可想像成 AI 界的 Github) 供大家免費下載，並且持續更新到最新版。</p> <p>總之，學會了 llama.cpp 及 GGUF 檔，我便在迷你電腦上完成 LLaMA 2 處女航，讓<a href="https://huggingface.co/audreyt/Taiwan-LLaMa-v1.0-GGUF">台灣在地版 13B LLaMA 2 模型</a>跟我聊天... 參考：<a href="https://www.linkedin.com/pulse/three-steps-run-llama-2-7b-chat-model-any-cpu-machine-nirmal-patel-3pw9f/">Three steps to run a Llama-2-7B-Chat model on any CPU machine by Nirmal Patel</a>))</p> <p>我先用 CLI 互動模式測試無 Prompt 生成，看一下執行速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638426106667860551.png"></p> <p>工作機的 12 代 i5 CPU 表現差強人意，12 核幾近滿載下差不多一秒一個字：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638426106670251456.gif"></p> <p>為了對照，我試了 32 核的 Azure VM，明顯流暢不少，一秒可輸出兩三個字。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638426106674668390.gif"></p> <p>改跑 llama.cpp 伺服器模式，用 32 核跑網頁介面問答，結果還不錯。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638426106676970818.png"></p> <p>順便看了 12 代 i5 的速度：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638426106679254257.gif"></p> <p>台灣版 LLaMA 2 模型蠻酷的(雖然它沒有真的搞懂 PTT 五樓的意思 XD)，而能在我只有內顯的迷你主機跑，更酷! (llama.cpp 好威呀!!)</p> <p>由以上測試，驗證沒有 GPU 也是可以跑 LLM 模型的，但速度很難說流暢(有試跑了 70B，想寫個慘字)，也許真有特定場合可實際上陣，但大部分情況，要得到預期效果還是得課金買裝備吧!(例如：RTX-4090 24GB +9 雙手劍)</p> <p data-slug="llama-cpp" data-fbimg="https://i.imgur.com/lHaxDw3.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638426106667860551.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638426106667860551.png" medium="image"/>
+    <pubDate>Sun, 04 Feb 2024 02:20:20 GMT</pubDate>
+  </item><item>
     <title><![CDATA[PQC 筆記 2 - 簡單認識後量子時代密碼學演算法]]></title>
     <link>https://blog.darkthread.net/blog/pqc-notes2-algorithms/</link>
     <itunes:title><![CDATA[PQC 筆記 2 - 簡單認識後量子時代密碼學演算法]]></itunes:title>
@@ -1589,89 +1604,5 @@ writer.WriteEndObject();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png" medium="image"/>
     <pubDate>Tue, 23 Jan 2024 13:50:42 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.csproj PreBuildEvent/PostBuildEvent 抓不到 $(TargetDir) 參數]]></title>
-    <link>https://blog.darkthread.net/blog/postbuildevent-no-build-var/</link>
-    <itunes:title><![CDATA[.csproj PreBuildEvent/PostBuildEvent 抓不到 $(TargetDir) 參數]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;/Project&gt;
-</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;!-- 舊寫法 --&gt;
-&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;!-- 建議寫法 --&gt;
-&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
-&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
-&lt;/Target&gt;
-&lt;/Project&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;/Project&gt;
-</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;!-- 舊寫法 --&gt;
-&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;!-- 建議寫法 --&gt;
-&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
-&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
-&lt;/Target&gt;
-&lt;/Project&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>在參考某個開源專案 .csproj 看到類似 <code>&lt;PostBuildEvent&gt;copy $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;</code> 發現它會被觸發，但 $(TargetDir) 抓不到輸出路徑而是空值。</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;PostBuildEvent&gt;COPY $(TargetDir)Blah.dll D:\&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;/Project&gt;
-</code></pre> <p>爬文發現是個<a href="https://github.com/dotnet/sdk/issues/1055#issuecomment-292792445">已知問題</a>，PreBuildEvent/PostBuildEvent 在 .NET Core/.NET 6+ 預計會停用 (但還沒停用會被執行，只是變數功能失效)，建議改用 <code>&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;</code>。以下是對照測試：</p> <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-&lt;PropertyGroup&gt;
-&lt;OutputType&gt;Exe&lt;/OutputType&gt;
-&lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-&lt;Nullable&gt;enable&lt;/Nullable&gt;
-&lt;!-- 舊寫法 --&gt;
-&lt;PostBuildEvent&gt;echo PostBuildEvent Element - $(TargetDir)&lt;/PostBuildEvent&gt;
-&lt;/PropertyGroup&gt;
-&lt;!-- 建議寫法 --&gt;
-&lt;Target Name="PostBuild" AfterTargets="PostBuildEvent"&gt;
-&lt;Exec Command="echo Target Element - $(TargetDir)" /&gt;
-&lt;/Target&gt;
-&lt;/Project&gt;
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"></p> <p>如上圖，新舊寫法都有執行，但舊寫法找不到 $(TargetDir)。</p> <p data-slug="postbuildevent-no-build-var" data-title-en="PostBuildEvent in csproj failed to read $(TargetDir)" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Issue of PreBuildEvent and PostBuildEvent failed to read build variables (ex: $(TargetDir)).</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638415293091526534.png" medium="image"/>
-    <pubDate>Mon, 22 Jan 2024 16:04:11 GMT</pubDate>
   </item></channel>
 </rss>
