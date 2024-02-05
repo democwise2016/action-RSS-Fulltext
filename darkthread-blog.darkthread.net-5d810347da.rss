@@ -30,6 +30,87 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 小技巧 - 將 List/Dictionary 設為唯讀防止誤用]]></title>
+    <link>https://blog.darkthread.net/blog/ireadonlylist-and-ireadonlydictionary/</link>
+    <itunes:title><![CDATA[.NET 小技巧 - 將 List/Dictionary 設為唯讀防止誤用]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>今天踩到的低級錯誤，用以下範例重現。</p> <p>假設有物件 Foo，建構時傳入字串，透過 <code>List&lt;string&gt; List</code> 與 <code>Dictionary&lt;string, int&gt; Stats</code> 兩個唯讀屬性傳回包含字元清單及出現次數統計：</p> <pre><code>public class Foo {
+public List&lt;string&gt; List =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.Select(g =&gt; g.Key.ToString())
+.ToList();
+public Dictionary&lt;string, int&gt; Stats =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.ToDictionary(g =&gt; g.Key.ToString(), g =&gt; g.Count());
+string rawData ;
+public Foo(string data)
+{
+rawData = data;
+}
+}
+</code></pre> <p>每次讀取重新統計有損效能，但原始情境很單純又，只有一處程式用到，兩個屬性也只會讀一次，簡單寫寫就好。</p> <p>不過呢，你永遠料想不到別人會怎麼用你的元件(這裡的別人包含未來的自己)。在其他模組借用了這顆元件，看到元件傳回 <code>List&lt;string&gt;</code> 的是 ``Dictionary&lt;string, int&gt;`，依直覺加工後想用在別的地方：</p> <pre><code>var foo = new Foo("AADBDACABC");
+foo.List.Add("E");
+foo.Stats.Add("E", 2);
+Console.WriteLine(string.Join(", ",
+foo.Stats.Select(o=&gt; $"{o.Key}:{o.Value}")));
+Console.WriteLine(string.Join(", ", foo.List));
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638427368511716539.png"></p> <p>結局是：明明用 Add() 做了修改，實際輸出卻什麼都沒變，追了一會兒才猛然想起問題出「List 跟 Stats 是現點現做的」。</p> <p>先不探究這類別介面設計得有問題，把焦點放在「若規格就是要 List 或 Dictionary，有沒有辦法將其設成唯讀防止呼叫端誤用」？</p> <p>心血來潮，這回不 Google 求解，改問<del>神奇海螺</del> Github Copilot 看能否得到答案？</p> <p>使用 Copilot Chat[1]，用 <code>how to prevent user from altering the properties or elements of readonly properties (ex: Stats and List)?</code> 提問[2]，由 Copilot 回答我學到 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlylist-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyList</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlydictionary-2?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyDictionary</a>，而 <code>Dictionary&lt;T,T&gt;</code>、<code>List&lt;T&gt;</code> 都支援 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.collectionextensions.asreadonly?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">AsReadOnly()</a> 傳回 <code>ReadOnlyDictionary&lt;TKey,TValue&gt;</code>、<code>ReadOnlyCollection&lt;T&gt;</code>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638427368518040232.png"></p> <p>另一種更快的做法是，選取 List 與 Stats 屬性的程式片段[1]，按 Ctrl - I 叫出提示輸入列，請 Copilot 將二者換成唯讀版[2]，Copilot 會直接改寫，按下 Accept 即可套用，而套用前已可預覽修改後上方的兩個 Add() 出現紅蚯蚓[3]無法編譯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638427368520286698.png"></p> <p>注意：IReadOnlyList、IReadOnlyDictionary 只防止對清單跟雜湊表進行增刪或置換，無法防止清單或雜湊元素被修改，如下例：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638427368522510001.png"></p> <p data-slug="ireadonlylist-and-ireadonlydictionary" data-title-en="IReadOnlyList and IReadOnlyDictionary" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Example of using IReadOnlyList and IReadOnlyDictionary to prevent modifictaion.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>今天踩到的低級錯誤，用以下範例重現。</p> <p>假設有物件 Foo，建構時傳入字串，透過 <code>List&lt;string&gt; List</code> 與 <code>Dictionary&lt;string, int&gt; Stats</code> 兩個唯讀屬性傳回包含字元清單及出現次數統計：</p> <pre><code>public class Foo {
+public List&lt;string&gt; List =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.Select(g =&gt; g.Key.ToString())
+.ToList();
+public Dictionary&lt;string, int&gt; Stats =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.ToDictionary(g =&gt; g.Key.ToString(), g =&gt; g.Count());
+string rawData ;
+public Foo(string data)
+{
+rawData = data;
+}
+}
+</code></pre> <p>每次讀取重新統計有損效能，但原始情境很單純又，只有一處程式用到，兩個屬性也只會讀一次，簡單寫寫就好。</p> <p>不過呢，你永遠料想不到別人會怎麼用你的元件(這裡的別人包含未來的自己)。在其他模組借用了這顆元件，看到元件傳回 <code>List&lt;string&gt;</code> 的是 ``Dictionary&lt;string, int&gt;`，依直覺加工後想用在別的地方：</p> <pre><code>var foo = new Foo("AADBDACABC");
+foo.List.Add("E");
+foo.Stats.Add("E", 2);
+Console.WriteLine(string.Join(", ",
+foo.Stats.Select(o=&gt; $"{o.Key}:{o.Value}")));
+Console.WriteLine(string.Join(", ", foo.List));
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638427368511716539.png"></p> <p>結局是：明明用 Add() 做了修改，實際輸出卻什麼都沒變，追了一會兒才猛然想起問題出「List 跟 Stats 是現點現做的」。</p> <p>先不探究這類別介面設計得有問題，把焦點放在「若規格就是要 List 或 Dictionary，有沒有辦法將其設成唯讀防止呼叫端誤用」？</p> <p>心血來潮，這回不 Google 求解，改問<del>神奇海螺</del> Github Copilot 看能否得到答案？</p> <p>使用 Copilot Chat[1]，用 <code>how to prevent user from altering the properties or elements of readonly properties (ex: Stats and List)?</code> 提問[2]，由 Copilot 回答我學到 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlylist-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyList</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlydictionary-2?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyDictionary</a>，而 <code>Dictionary&lt;T,T&gt;</code>、<code>List&lt;T&gt;</code> 都支援 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.collectionextensions.asreadonly?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">AsReadOnly()</a> 傳回 <code>ReadOnlyDictionary&lt;TKey,TValue&gt;</code>、<code>ReadOnlyCollection&lt;T&gt;</code>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638427368518040232.png"></p> <p>另一種更快的做法是，選取 List 與 Stats 屬性的程式片段[1]，按 Ctrl - I 叫出提示輸入列，請 Copilot 將二者換成唯讀版[2]，Copilot 會直接改寫，按下 Accept 即可套用，而套用前已可預覽修改後上方的兩個 Add() 出現紅蚯蚓[3]無法編譯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638427368520286698.png"></p> <p>注意：IReadOnlyList、IReadOnlyDictionary 只防止對清單跟雜湊表進行增刪或置換，無法防止清單或雜湊元素被修改，如下例：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638427368522510001.png"></p> <p data-slug="ireadonlylist-and-ireadonlydictionary" data-title-en="IReadOnlyList and IReadOnlyDictionary" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Example of using IReadOnlyList and IReadOnlyDictionary to prevent modifictaion.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>今天踩到的低級錯誤，用以下範例重現。</p> <p>假設有物件 Foo，建構時傳入字串，透過 <code>List&lt;string&gt; List</code> 與 <code>Dictionary&lt;string, int&gt; Stats</code> 兩個唯讀屬性傳回包含字元清單及出現次數統計：</p> <pre><code>public class Foo {
+public List&lt;string&gt; List =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.Select(g =&gt; g.Key.ToString())
+.ToList();
+public Dictionary&lt;string, int&gt; Stats =&gt;
+rawData.ToCharArray().GroupBy(c =&gt; c)
+.OrderBy(g =&gt; g.Key)
+.ToDictionary(g =&gt; g.Key.ToString(), g =&gt; g.Count());
+string rawData ;
+public Foo(string data)
+{
+rawData = data;
+}
+}
+</code></pre> <p>每次讀取重新統計有損效能，但原始情境很單純又，只有一處程式用到，兩個屬性也只會讀一次，簡單寫寫就好。</p> <p>不過呢，你永遠料想不到別人會怎麼用你的元件(這裡的別人包含未來的自己)。在其他模組借用了這顆元件，看到元件傳回 <code>List&lt;string&gt;</code> 的是 ``Dictionary&lt;string, int&gt;`，依直覺加工後想用在別的地方：</p> <pre><code>var foo = new Foo("AADBDACABC");
+foo.List.Add("E");
+foo.Stats.Add("E", 2);
+Console.WriteLine(string.Join(", ",
+foo.Stats.Select(o=&gt; $"{o.Key}:{o.Value}")));
+Console.WriteLine(string.Join(", ", foo.List));
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638427368511716539.png"></p> <p>結局是：明明用 Add() 做了修改，實際輸出卻什麼都沒變，追了一會兒才猛然想起問題出「List 跟 Stats 是現點現做的」。</p> <p>先不探究這類別介面設計得有問題，把焦點放在「若規格就是要 List 或 Dictionary，有沒有辦法將其設成唯讀防止呼叫端誤用」？</p> <p>心血來潮，這回不 Google 求解，改問<del>神奇海螺</del> Github Copilot 看能否得到答案？</p> <p>使用 Copilot Chat[1]，用 <code>how to prevent user from altering the properties or elements of readonly properties (ex: Stats and List)?</code> 提問[2]，由 Copilot 回答我學到 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlylist-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyList</a> 及 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.ireadonlydictionary-2?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">IReadOnlyDictionary</a>，而 <code>Dictionary&lt;T,T&gt;</code>、<code>List&lt;T&gt;</code> 都支援 <a href="https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.collectionextensions.asreadonly?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">AsReadOnly()</a> 傳回 <code>ReadOnlyDictionary&lt;TKey,TValue&gt;</code>、<code>ReadOnlyCollection&lt;T&gt;</code>。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638427368518040232.png"></p> <p>另一種更快的做法是，選取 List 與 Stats 屬性的程式片段[1]，按 Ctrl - I 叫出提示輸入列，請 Copilot 將二者換成唯讀版[2]，Copilot 會直接改寫，按下 Accept 即可套用，而套用前已可預覽修改後上方的兩個 Add() 出現紅蚯蚓[3]無法編譯：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638427368520286698.png"></p> <p>注意：IReadOnlyList、IReadOnlyDictionary 只防止對清單跟雜湊表進行增刪或置換，無法防止清單或雜湊元素被修改，如下例：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638427368522510001.png"></p> <p data-slug="ireadonlylist-and-ireadonlydictionary" data-title-en="IReadOnlyList and IReadOnlyDictionary" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2015/01/08/13/01/kettle-bell-592905_960_720.jpg#960#720">Example of using IReadOnlyList and IReadOnlyDictionary to prevent modifictaion.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638427368511716539.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638427368511716539.png" medium="image"/>
+    <pubDate>Mon, 05 Feb 2024 13:35:30 GMT</pubDate>
+  </item><item>
     <title><![CDATA[AI 筆記 - 電腦沒有獨立顯卡，只靠 CPU 也能跑大型語言模型嗎？]]></title>
     <link>https://blog.darkthread.net/blog/llama-cpp/</link>
     <itunes:title><![CDATA[AI 筆記 - 電腦沒有獨立顯卡，只靠 CPU 也能跑大型語言模型嗎？]]></itunes:title>
@@ -1448,161 +1529,5 @@ td.style.textAlign = 'left';
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png" medium="image"/>
     <pubDate>Thu, 25 Jan 2024 11:56:12 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[.NET 原始碼產生器應用 - JSON 序列化加速與去除 Reflection 依賴]]></title>
-    <link>https://blog.darkthread.net/blog/json-src-gen/</link>
-    <itunes:title><![CDATA[.NET 原始碼產生器應用 - JSON 序列化加速與去除 Reflection 依賴]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>源碼產生器(Source Generation)是 .NET 5 加入的新功能，能在編譯過程正在編譯的 C# 原始碼進行增補，動態加入額外原始碼，最後再一起編譯進結果，在某些應用場合可發揮神奇效果。(延伸閱讀：<a href="https://blog.miniasp.com/post/2020/11/30/Introducing-Roslyn-Source-Generators">新手上路 C# 原始碼產生器 (Source Generators) by 保哥</a>)</p> <p>JSON 序列化傳統會使用 Reflection 技術列舉序列化對象的屬性，逐一對映成 JSON 結構，反序列化則需要取得建構式、屬性及欄位資訊建立物件填入屬性值，除此外有些屬性會標註 JsonIgnore 等 Attribute 加入客製化行為。JSON 程式庫通常會在第一次序列化或反序列化時透過 Reflection 蒐集前述 Metadata 資訊並快取到記憶體以重複使用。</p> <p>Reflection 效能較差眾所皆知，且快取 Metadata 會耗用記憶體，又容易導致<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/trimming/trim-self-contained?WT.mc_id=DOP-MVP-37580">組件修剪(Trim)</a>失敗，而最重要的是 <a href="https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT</a> 不支援 Refletion，會導致 JSON 轉換失敗。 (延伸閱讀：<a href="/blog/native-aot-w-python/">用 .NET 開發程式庫供 Python 呼叫 - Native AOT 應用</a>)</p> <p>不信，可在 Native AOT 專案跑看看 <code>System.Text.Json.JsonSerializer.Serialize(someString)</code>，編譯過程會有以下警示：(原因是 Serialize(object) 這個 Overloading 被標註了 RequiresUnreferencedCodeAttribute，標示會導致 Trim 失敗)</p> <blockquote> <p>Trim analysis warning IL2026: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize&lt;String&gt;(String,JsonSerializerOptions )' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a JsonTypeInfo or JsonSerializerContext, or make sure all of the required types are preserved.<br> AOT analysis warning IL3050: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize<string>(String,JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications.</string></p><p> </p></blockquote> <p>執行則會發生以下錯誤 <code>Unhandled Exception: System.InvalidOperationException: Reflection-based serialization has been disabled for this application. Either use the source generator APIs or explicitly configure the 'JsonSerializerOptions.TypeInfoResolver' property.</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png"></p> <p>System.Text.Json 自 .NET 6 開始支援<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/reflection-vs-source-generation?WT.mc_id=DOP-MVP-37580">應用 Source Generation 技術取代 Reflection</a>，它有兩種模式：Metabase-Based 及 Serialization-Optimization (Fast Path)。</p> <p>啟用 Metabase-Based 模式後，System.Text.Json 會在編譯期間蒐集序列化所需 Metadata 轉成相關程式碼 (依據<a href="https://devblogs.microsoft.com/dotnet/try-the-new-system-text-json-source-generator/?WT.mc_id=DOP-MVP-37580#how-source-generation-provides-benefits">效能測試</a>可加快 40%，並大幅減少記憶體用量)。Serialization-Optimization 模式則可進一步產生用 Utf8JsonWriter 直接輸出 JSON 的程式碼，有效提升效能。</p> <p>要用 Source Generation 輔助 System.Text.Json，做法很簡單，繼承 JsonSerializerContext 實作自訂型別(要用 partial class)，型別不必實作方法，用 [JsonSerializable(typeof(T))] 標註序列化會涉及的型別即可，預設會<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580#use-source-generation-defaults">同時啟用 Metabase-Based 及 Serialization-Optimization 模式</a>。用描述的很難說明白，直接看 Code 就清楚了，以下是個簡單練習：(<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>有更詳細說明)</p> <pre><code>using System.Text.Json;
-using System.Text.Json.Serialization;
-var s = "Hello World!";
-// JsonTypeInfo&lt;T&gt;
-Console.WriteLine(JsonSerializer.Serialize(s, MyJsonSerializerContext.Default.String));
-// JsonSerializerContext
-Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), MyJsonSerializerContext.Default));
-// JsonSerializerOptions
-var jsonOptions = new JsonSerializerOptions {
-TypeInfoResolver  = MyJsonSerializerContext.Default
-};
-// 以下兩種寫法可成功，但會有 RequiresUnreferencedCodeAttribute 警告，不推
-//Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), jsonOptions));
-//Console.WriteLine(JsonSerializer.Serialize(s, jsonOptions));
-var p = new Player {
-Name = "Jeffrey",
-RegDate = DateTime.Today,
-Score = 32767
-};
-var json = JsonSerializer.Serialize(p, MyJsonSerializerContext.Default.Player);
-Console.WriteLine(json);
-// 反序列化
-var restored = JsonSerializer.Deserialize&lt;Player&gt;(json, MyJsonSerializerContext.Default.Player);
-Console.WriteLine($"{restored.Name} == {p.Name}");
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(Player))]
-internal partial class MyJsonSerializerContext : JsonSerializerContext
-{
-}
-public class Player {
-public string Name { get; set; }
-public DateTime RegDate { get; set;}
-public int Score { get; set; }
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638416147704781900.png"></p> <p>最後，試著反組譯，看看 MyJsonSerializerContext 產生出來的原始碼長什麼樣子：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638416147707041551.png"></p> <p>前面說到用 Utf8JsonWriter 直接輸出 JSON，程式碼如下，要輸出哪些屬性寫死成固定程式碼，難怪速度完全碾壓 Reflection。</p> <pre><code>private void PlayerSerializeHandler(global::System.Text.Json.Utf8JsonWriter writer, global::Player? value)
-{
-if (value == null)
-{
-writer.WriteNullValue();
-return;
-}
-writer.WriteStartObject();
-writer.WriteString(PropName_Name, ((global::Player)value).Name);
-writer.WriteString(PropName_RegDate, ((global::Player)value).RegDate);
-writer.WriteNumber(PropName_Score, ((global::Player)value).Score);
-writer.WriteEndObject();
-}
-</code></pre> <p>就醬，又學到新東西了。而編譯時自動產生程式碼這招很威，我已想到一些有趣的應用，有機會再來試玩看看。</p> <p data-slug="json-src-gen" data-title-en="Source generation in Sytem.Text.Json" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">Introduce to using source generation to improve the performance of System.Text.Json serialization and deserialization and make it support AOT.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>源碼產生器(Source Generation)是 .NET 5 加入的新功能，能在編譯過程正在編譯的 C# 原始碼進行增補，動態加入額外原始碼，最後再一起編譯進結果，在某些應用場合可發揮神奇效果。(延伸閱讀：<a href="https://blog.miniasp.com/post/2020/11/30/Introducing-Roslyn-Source-Generators">新手上路 C# 原始碼產生器 (Source Generators) by 保哥</a>)</p> <p>JSON 序列化傳統會使用 Reflection 技術列舉序列化對象的屬性，逐一對映成 JSON 結構，反序列化則需要取得建構式、屬性及欄位資訊建立物件填入屬性值，除此外有些屬性會標註 JsonIgnore 等 Attribute 加入客製化行為。JSON 程式庫通常會在第一次序列化或反序列化時透過 Reflection 蒐集前述 Metadata 資訊並快取到記憶體以重複使用。</p> <p>Reflection 效能較差眾所皆知，且快取 Metadata 會耗用記憶體，又容易導致<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/trimming/trim-self-contained?WT.mc_id=DOP-MVP-37580">組件修剪(Trim)</a>失敗，而最重要的是 <a href="https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT</a> 不支援 Refletion，會導致 JSON 轉換失敗。 (延伸閱讀：<a href="/blog/native-aot-w-python/">用 .NET 開發程式庫供 Python 呼叫 - Native AOT 應用</a>)</p> <p>不信，可在 Native AOT 專案跑看看 <code>System.Text.Json.JsonSerializer.Serialize(someString)</code>，編譯過程會有以下警示：(原因是 Serialize(object) 這個 Overloading 被標註了 RequiresUnreferencedCodeAttribute，標示會導致 Trim 失敗)</p> <blockquote> <p>Trim analysis warning IL2026: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize&lt;String&gt;(String,JsonSerializerOptions )' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a JsonTypeInfo or JsonSerializerContext, or make sure all of the required types are preserved.<br> AOT analysis warning IL3050: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize<string>(String,JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications.</string></p><p> </p></blockquote> <p>執行則會發生以下錯誤 <code>Unhandled Exception: System.InvalidOperationException: Reflection-based serialization has been disabled for this application. Either use the source generator APIs or explicitly configure the 'JsonSerializerOptions.TypeInfoResolver' property.</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png"></p> <p>System.Text.Json 自 .NET 6 開始支援<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/reflection-vs-source-generation?WT.mc_id=DOP-MVP-37580">應用 Source Generation 技術取代 Reflection</a>，它有兩種模式：Metabase-Based 及 Serialization-Optimization (Fast Path)。</p> <p>啟用 Metabase-Based 模式後，System.Text.Json 會在編譯期間蒐集序列化所需 Metadata 轉成相關程式碼 (依據<a href="https://devblogs.microsoft.com/dotnet/try-the-new-system-text-json-source-generator/?WT.mc_id=DOP-MVP-37580#how-source-generation-provides-benefits">效能測試</a>可加快 40%，並大幅減少記憶體用量)。Serialization-Optimization 模式則可進一步產生用 Utf8JsonWriter 直接輸出 JSON 的程式碼，有效提升效能。</p> <p>要用 Source Generation 輔助 System.Text.Json，做法很簡單，繼承 JsonSerializerContext 實作自訂型別(要用 partial class)，型別不必實作方法，用 [JsonSerializable(typeof(T))] 標註序列化會涉及的型別即可，預設會<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580#use-source-generation-defaults">同時啟用 Metabase-Based 及 Serialization-Optimization 模式</a>。用描述的很難說明白，直接看 Code 就清楚了，以下是個簡單練習：(<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>有更詳細說明)</p> <pre><code>using System.Text.Json;
-using System.Text.Json.Serialization;
-var s = "Hello World!";
-// JsonTypeInfo&lt;T&gt;
-Console.WriteLine(JsonSerializer.Serialize(s, MyJsonSerializerContext.Default.String));
-// JsonSerializerContext
-Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), MyJsonSerializerContext.Default));
-// JsonSerializerOptions
-var jsonOptions = new JsonSerializerOptions {
-TypeInfoResolver  = MyJsonSerializerContext.Default
-};
-// 以下兩種寫法可成功，但會有 RequiresUnreferencedCodeAttribute 警告，不推
-//Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), jsonOptions));
-//Console.WriteLine(JsonSerializer.Serialize(s, jsonOptions));
-var p = new Player {
-Name = "Jeffrey",
-RegDate = DateTime.Today,
-Score = 32767
-};
-var json = JsonSerializer.Serialize(p, MyJsonSerializerContext.Default.Player);
-Console.WriteLine(json);
-// 反序列化
-var restored = JsonSerializer.Deserialize&lt;Player&gt;(json, MyJsonSerializerContext.Default.Player);
-Console.WriteLine($"{restored.Name} == {p.Name}");
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(Player))]
-internal partial class MyJsonSerializerContext : JsonSerializerContext
-{
-}
-public class Player {
-public string Name { get; set; }
-public DateTime RegDate { get; set;}
-public int Score { get; set; }
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638416147704781900.png"></p> <p>最後，試著反組譯，看看 MyJsonSerializerContext 產生出來的原始碼長什麼樣子：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638416147707041551.png"></p> <p>前面說到用 Utf8JsonWriter 直接輸出 JSON，程式碼如下，要輸出哪些屬性寫死成固定程式碼，難怪速度完全碾壓 Reflection。</p> <pre><code>private void PlayerSerializeHandler(global::System.Text.Json.Utf8JsonWriter writer, global::Player? value)
-{
-if (value == null)
-{
-writer.WriteNullValue();
-return;
-}
-writer.WriteStartObject();
-writer.WriteString(PropName_Name, ((global::Player)value).Name);
-writer.WriteString(PropName_RegDate, ((global::Player)value).RegDate);
-writer.WriteNumber(PropName_Score, ((global::Player)value).Score);
-writer.WriteEndObject();
-}
-</code></pre> <p>就醬，又學到新東西了。而編譯時自動產生程式碼這招很威，我已想到一些有趣的應用，有機會再來試玩看看。</p> <p data-slug="json-src-gen" data-title-en="Source generation in Sytem.Text.Json" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">Introduce to using source generation to improve the performance of System.Text.Json serialization and deserialization and make it support AOT.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>源碼產生器(Source Generation)是 .NET 5 加入的新功能，能在編譯過程正在編譯的 C# 原始碼進行增補，動態加入額外原始碼，最後再一起編譯進結果，在某些應用場合可發揮神奇效果。(延伸閱讀：<a href="https://blog.miniasp.com/post/2020/11/30/Introducing-Roslyn-Source-Generators">新手上路 C# 原始碼產生器 (Source Generators) by 保哥</a>)</p> <p>JSON 序列化傳統會使用 Reflection 技術列舉序列化對象的屬性，逐一對映成 JSON 結構，反序列化則需要取得建構式、屬性及欄位資訊建立物件填入屬性值，除此外有些屬性會標註 JsonIgnore 等 Attribute 加入客製化行為。JSON 程式庫通常會在第一次序列化或反序列化時透過 Reflection 蒐集前述 Metadata 資訊並快取到記憶體以重複使用。</p> <p>Reflection 效能較差眾所皆知，且快取 Metadata 會耗用記憶體，又容易導致<a href="https://learn.microsoft.com/zh-tw/dotnet/core/deploying/trimming/trim-self-contained?WT.mc_id=DOP-MVP-37580">組件修剪(Trim)</a>失敗，而最重要的是 <a href="https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=net7%2Cwindows&amp;WT.mc_id=DOP-MVP-37580">Native AOT</a> 不支援 Refletion，會導致 JSON 轉換失敗。 (延伸閱讀：<a href="/blog/native-aot-w-python/">用 .NET 開發程式庫供 Python 呼叫 - Native AOT 應用</a>)</p> <p>不信，可在 Native AOT 專案跑看看 <code>System.Text.Json.JsonSerializer.Serialize(someString)</code>，編譯過程會有以下警示：(原因是 Serialize(object) 這個 Overloading 被標註了 RequiresUnreferencedCodeAttribute，標示會導致 Trim 失敗)</p> <blockquote> <p>Trim analysis warning IL2026: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize&lt;String&gt;(String,JsonSerializerOptions )' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a JsonTypeInfo or JsonSerializerContext, or make sure all of the required types are preserved.<br> AOT analysis warning IL3050: Program.&lt;Main&gt;$(String[]): Using member 'System.Text.Json.JsonSerializer.Serialize<string>(String,JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications.</string></p><p> </p></blockquote> <p>執行則會發生以下錯誤 <code>Unhandled Exception: System.InvalidOperationException: Reflection-based serialization has been disabled for this application. Either use the source generator APIs or explicitly configure the 'JsonSerializerOptions.TypeInfoResolver' property.</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png"></p> <p>System.Text.Json 自 .NET 6 開始支援<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/reflection-vs-source-generation?WT.mc_id=DOP-MVP-37580">應用 Source Generation 技術取代 Reflection</a>，它有兩種模式：Metabase-Based 及 Serialization-Optimization (Fast Path)。</p> <p>啟用 Metabase-Based 模式後，System.Text.Json 會在編譯期間蒐集序列化所需 Metadata 轉成相關程式碼 (依據<a href="https://devblogs.microsoft.com/dotnet/try-the-new-system-text-json-source-generator/?WT.mc_id=DOP-MVP-37580#how-source-generation-provides-benefits">效能測試</a>可加快 40%，並大幅減少記憶體用量)。Serialization-Optimization 模式則可進一步產生用 Utf8JsonWriter 直接輸出 JSON 的程式碼，有效提升效能。</p> <p>要用 Source Generation 輔助 System.Text.Json，做法很簡單，繼承 JsonSerializerContext 實作自訂型別(要用 partial class)，型別不必實作方法，用 [JsonSerializable(typeof(T))] 標註序列化會涉及的型別即可，預設會<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580#use-source-generation-defaults">同時啟用 Metabase-Based 及 Serialization-Optimization 模式</a>。用描述的很難說明白，直接看 Code 就清楚了，以下是個簡單練習：(<a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation?pivots=dotnet-8-0&amp;WT.mc_id=DOP-MVP-37580">官方文件</a>有更詳細說明)</p> <pre><code>using System.Text.Json;
-using System.Text.Json.Serialization;
-var s = "Hello World!";
-// JsonTypeInfo&lt;T&gt;
-Console.WriteLine(JsonSerializer.Serialize(s, MyJsonSerializerContext.Default.String));
-// JsonSerializerContext
-Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), MyJsonSerializerContext.Default));
-// JsonSerializerOptions
-var jsonOptions = new JsonSerializerOptions {
-TypeInfoResolver  = MyJsonSerializerContext.Default
-};
-// 以下兩種寫法可成功，但會有 RequiresUnreferencedCodeAttribute 警告，不推
-//Console.WriteLine(JsonSerializer.Serialize(s, typeof(string), jsonOptions));
-//Console.WriteLine(JsonSerializer.Serialize(s, jsonOptions));
-var p = new Player {
-Name = "Jeffrey",
-RegDate = DateTime.Today,
-Score = 32767
-};
-var json = JsonSerializer.Serialize(p, MyJsonSerializerContext.Default.Player);
-Console.WriteLine(json);
-// 反序列化
-var restored = JsonSerializer.Deserialize&lt;Player&gt;(json, MyJsonSerializerContext.Default.Player);
-Console.WriteLine($"{restored.Name} == {p.Name}");
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(Player))]
-internal partial class MyJsonSerializerContext : JsonSerializerContext
-{
-}
-public class Player {
-public string Name { get; set; }
-public DateTime RegDate { get; set;}
-public int Score { get; set; }
-}
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638416147704781900.png"></p> <p>最後，試著反組譯，看看 MyJsonSerializerContext 產生出來的原始碼長什麼樣子：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638416147707041551.png"></p> <p>前面說到用 Utf8JsonWriter 直接輸出 JSON，程式碼如下，要輸出哪些屬性寫死成固定程式碼，難怪速度完全碾壓 Reflection。</p> <pre><code>private void PlayerSerializeHandler(global::System.Text.Json.Utf8JsonWriter writer, global::Player? value)
-{
-if (value == null)
-{
-writer.WriteNullValue();
-return;
-}
-writer.WriteStartObject();
-writer.WriteString(PropName_Name, ((global::Player)value).Name);
-writer.WriteString(PropName_RegDate, ((global::Player)value).RegDate);
-writer.WriteNumber(PropName_Score, ((global::Player)value).Score);
-writer.WriteEndObject();
-}
-</code></pre> <p>就醬，又學到新東西了。而編譯時自動產生程式碼這招很威，我已想到一些有趣的應用，有機會再來試玩看看。</p> <p data-slug="json-src-gen" data-title-en="Source generation in Sytem.Text.Json" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">Introduce to using source generation to improve the performance of System.Text.Json serialization and deserialization and make it support AOT.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638416147700588492.png" medium="image"/>
-    <pubDate>Tue, 23 Jan 2024 13:50:42 GMT</pubDate>
   </item></channel>
 </rss>
