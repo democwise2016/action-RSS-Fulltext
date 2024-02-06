@@ -30,6 +30,69 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[在遠端 Linux 執行 Jupyter Notebook]]></title>
+    <link>https://blog.darkthread.net/blog/jupyter-on-remote-linux/</link>
+    <itunes:title><![CDATA[在遠端 Linux 執行 Jupyter Notebook]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
+bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
+</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
+conda init
+# 用以下指令啟用或關閉自動啟用 conda
+conda config --set auto_activate_base True
+conda config --set auto_activate_base False
+</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
+conda update jupyter
+# 在伺服器啟動 Jupyter Notebook
+jupyter notebook --no-browser --port=9527
+# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
+# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
+# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
+ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
+</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
+bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
+</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
+conda init
+# 用以下指令啟用或關閉自動啟用 conda
+conda config --set auto_activate_base True
+conda config --set auto_activate_base False
+</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
+conda update jupyter
+# 在伺服器啟動 Jupyter Notebook
+jupyter notebook --no-browser --port=9527
+# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
+# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
+# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
+ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
+</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
+bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
+</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
+conda init
+# 用以下指令啟用或關閉自動啟用 conda
+conda config --set auto_activate_base True
+conda config --set auto_activate_base False
+</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
+conda update jupyter
+# 在伺服器啟動 Jupyter Notebook
+jupyter notebook --no-browser --port=9527
+# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
+# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
+# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
+ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
+</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png" medium="image"/>
+    <pubDate>Tue, 06 Feb 2024 11:54:29 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 小技巧 - 將 List/Dictionary 設為唯讀防止誤用]]></title>
     <link>https://blog.darkthread.net/blog/ireadonlylist-and-ireadonlydictionary/</link>
     <itunes:title><![CDATA[.NET 小技巧 - 將 List/Dictionary 設為唯讀防止誤用]]></itunes:title>
@@ -1460,74 +1523,5 @@ tds[4].innerHTML = `&lt;pre&gt;${tds[1].textContent}&lt;/pre&gt;`;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638418801122638062.png" medium="image"/>
     <pubDate>Fri, 26 Jan 2024 15:34:40 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[JavaScript 雜技 - 遇文字折行自動縮小字體與靠左對齊]]></title>
-    <link>https://blog.darkthread.net/blog/small-font-when-word-wrap/</link>
-    <itunes:title><![CDATA[JavaScript 雜技 - 遇文字折行自動縮小字體與靠左對齊]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>說一下我的需求，有個寬度有限的 HTML 表格欄位，內容文字長度不一，大部分都放得下，但偶爾文字過長會折行使列高加倍，造成排版雜亂且不易閱讀。增加欄位是最簡單的解法，但但因表格欄位眾多難再增大。換個思路，既然無法增加欄寬就讓字小一點，若還是擠不下也別勉強，多行就多行；但另外有個問題，原本文字置中，遇折行時應該要改成靠左比較好。</p> <p>循著以上思路，我想出「用 JavaScript 檢查 &lt;TD&gt; 內含文字是否折行，若是就將 font-size 設為 smaller。若縮小後還是會折行，就將 text-align 改為 left」的解法，如下圖所示。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png"></p> <p>要如何偵測文字折行呢？問 ChatGPT 跟 Github Copilot 得到用 scrollHeight、offsetHeight 相比的建議，實際上並不可行。最後我在一則 <a href="https://stackoverflow.com/a/46817067/288936">Stackoverflow 討論的冷門回覆</a>找到通關密碼 - <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/getClientRects">getClientRects</a>。</p> <p>getClientRects() 可找出元素在頁面上所佔的矩形區塊大小及位置，當 SPAN 折行時，便會出現兩個以上的矩形區塊，因此我們可以用 <code>spanElement.getClientRects().length &gt; 1</code> 偵測 SPAN 是否折行。如下圖所示，SPAN 「管理員PC」未折行，getClientReacts() 只傳回一個 DOMRect [1]、SPN [辦公區網路印表機]過長折行，getClientReacts() 傳回兩個 DOMRect，分別對映到「辦公區網路印」及「表機」兩個矩形區塊的座標與大小：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638417806092625386.png"></p> <p>自動調字形大小的 JavaScript 範例如下，若需要縮小字形，會在該 TD 加上 data-sf Attribute 註記，稍後再檢查一次這些 TD (<code>td[data-sf]</code>)，若縮小後內容還是折行便其 text-align 切換成 left：(2024-01-25 更新，感謝讀者 Red 分享，若為純文字內容，折行時靠左對齊可使用 Flex 排版 + justify-content: center 實現，細節可參考留言)</p> <pre><code>const isWordWrapped = (elem) =&gt; (elem.getClientRects &amp;&amp; elem.getClientRects().length &gt; 1);
-function AutoSmallerFont() {
-const elems = [...document.querySelector('tbody').querySelectorAll('tr td:first-child')];
-const flagName = 'data-sf';
-// set smaller font size if any word wrapped
-elems.forEach((td) =&gt; {
-td.removeAttribute(flagName);
-if ([...td.querySelectorAll('span')].some(isWordWrapped)) {
-td.style.fontSize = 'smaller';
-td.setAttribute(flagName, '');
-}
-});
-// set text-align to left if still word wrapped after font size reduced
-elems.filter(e =&gt; e.hasAttribute('data-sf')).forEach(td =&gt; {
-if ([...td.querySelectorAll('span')].some(isWordWrapped))
-td.style.textAlign = 'left';
-});
-}
-</code></pre> <p>實測效果如下：<a href="https://output.jsbin.com/curibup">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638417806097141049.gif"></p> <p>又學會一個 JavaScript 小把戲。</p> <p data-slug="small-font-when-word-wrap" data-title-en="Auto reduce font size to prevent word wrap by JavaScript" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/05/20/13/59/artist-775460_960_720.jpg#960#720">Detecting word-wrapped HTML elements and reduce font-size to prevent word wrapping by JavaScript</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>說一下我的需求，有個寬度有限的 HTML 表格欄位，內容文字長度不一，大部分都放得下，但偶爾文字過長會折行使列高加倍，造成排版雜亂且不易閱讀。增加欄位是最簡單的解法，但但因表格欄位眾多難再增大。換個思路，既然無法增加欄寬就讓字小一點，若還是擠不下也別勉強，多行就多行；但另外有個問題，原本文字置中，遇折行時應該要改成靠左比較好。</p> <p>循著以上思路，我想出「用 JavaScript 檢查 &lt;TD&gt; 內含文字是否折行，若是就將 font-size 設為 smaller。若縮小後還是會折行，就將 text-align 改為 left」的解法，如下圖所示。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png"></p> <p>要如何偵測文字折行呢？問 ChatGPT 跟 Github Copilot 得到用 scrollHeight、offsetHeight 相比的建議，實際上並不可行。最後我在一則 <a href="https://stackoverflow.com/a/46817067/288936">Stackoverflow 討論的冷門回覆</a>找到通關密碼 - <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/getClientRects">getClientRects</a>。</p> <p>getClientRects() 可找出元素在頁面上所佔的矩形區塊大小及位置，當 SPAN 折行時，便會出現兩個以上的矩形區塊，因此我們可以用 <code>spanElement.getClientRects().length &gt; 1</code> 偵測 SPAN 是否折行。如下圖所示，SPAN 「管理員PC」未折行，getClientReacts() 只傳回一個 DOMRect [1]、SPN [辦公區網路印表機]過長折行，getClientReacts() 傳回兩個 DOMRect，分別對映到「辦公區網路印」及「表機」兩個矩形區塊的座標與大小：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638417806092625386.png"></p> <p>自動調字形大小的 JavaScript 範例如下，若需要縮小字形，會在該 TD 加上 data-sf Attribute 註記，稍後再檢查一次這些 TD (<code>td[data-sf]</code>)，若縮小後內容還是折行便其 text-align 切換成 left：(2024-01-25 更新，感謝讀者 Red 分享，若為純文字內容，折行時靠左對齊可使用 Flex 排版 + justify-content: center 實現，細節可參考留言)</p> <pre><code>const isWordWrapped = (elem) =&gt; (elem.getClientRects &amp;&amp; elem.getClientRects().length &gt; 1);
-function AutoSmallerFont() {
-const elems = [...document.querySelector('tbody').querySelectorAll('tr td:first-child')];
-const flagName = 'data-sf';
-// set smaller font size if any word wrapped
-elems.forEach((td) =&gt; {
-td.removeAttribute(flagName);
-if ([...td.querySelectorAll('span')].some(isWordWrapped)) {
-td.style.fontSize = 'smaller';
-td.setAttribute(flagName, '');
-}
-});
-// set text-align to left if still word wrapped after font size reduced
-elems.filter(e =&gt; e.hasAttribute('data-sf')).forEach(td =&gt; {
-if ([...td.querySelectorAll('span')].some(isWordWrapped))
-td.style.textAlign = 'left';
-});
-}
-</code></pre> <p>實測效果如下：<a href="https://output.jsbin.com/curibup">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638417806097141049.gif"></p> <p>又學會一個 JavaScript 小把戲。</p> <p data-slug="small-font-when-word-wrap" data-title-en="Auto reduce font size to prevent word wrap by JavaScript" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/05/20/13/59/artist-775460_960_720.jpg#960#720">Detecting word-wrapped HTML elements and reduce font-size to prevent word wrapping by JavaScript</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>說一下我的需求，有個寬度有限的 HTML 表格欄位，內容文字長度不一，大部分都放得下，但偶爾文字過長會折行使列高加倍，造成排版雜亂且不易閱讀。增加欄位是最簡單的解法，但但因表格欄位眾多難再增大。換個思路，既然無法增加欄寬就讓字小一點，若還是擠不下也別勉強，多行就多行；但另外有個問題，原本文字置中，遇折行時應該要改成靠左比較好。</p> <p>循著以上思路，我想出「用 JavaScript 檢查 &lt;TD&gt; 內含文字是否折行，若是就將 font-size 設為 smaller。若縮小後還是會折行，就將 text-align 改為 left」的解法，如下圖所示。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png"></p> <p>要如何偵測文字折行呢？問 ChatGPT 跟 Github Copilot 得到用 scrollHeight、offsetHeight 相比的建議，實際上並不可行。最後我在一則 <a href="https://stackoverflow.com/a/46817067/288936">Stackoverflow 討論的冷門回覆</a>找到通關密碼 - <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/getClientRects">getClientRects</a>。</p> <p>getClientRects() 可找出元素在頁面上所佔的矩形區塊大小及位置，當 SPAN 折行時，便會出現兩個以上的矩形區塊，因此我們可以用 <code>spanElement.getClientRects().length &gt; 1</code> 偵測 SPAN 是否折行。如下圖所示，SPAN 「管理員PC」未折行，getClientReacts() 只傳回一個 DOMRect [1]、SPN [辦公區網路印表機]過長折行，getClientReacts() 傳回兩個 DOMRect，分別對映到「辦公區網路印」及「表機」兩個矩形區塊的座標與大小：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638417806092625386.png"></p> <p>自動調字形大小的 JavaScript 範例如下，若需要縮小字形，會在該 TD 加上 data-sf Attribute 註記，稍後再檢查一次這些 TD (<code>td[data-sf]</code>)，若縮小後內容還是折行便其 text-align 切換成 left：(2024-01-25 更新，感謝讀者 Red 分享，若為純文字內容，折行時靠左對齊可使用 Flex 排版 + justify-content: center 實現，細節可參考留言)</p> <pre><code>const isWordWrapped = (elem) =&gt; (elem.getClientRects &amp;&amp; elem.getClientRects().length &gt; 1);
-function AutoSmallerFont() {
-const elems = [...document.querySelector('tbody').querySelectorAll('tr td:first-child')];
-const flagName = 'data-sf';
-// set smaller font size if any word wrapped
-elems.forEach((td) =&gt; {
-td.removeAttribute(flagName);
-if ([...td.querySelectorAll('span')].some(isWordWrapped)) {
-td.style.fontSize = 'smaller';
-td.setAttribute(flagName, '');
-}
-});
-// set text-align to left if still word wrapped after font size reduced
-elems.filter(e =&gt; e.hasAttribute('data-sf')).forEach(td =&gt; {
-if ([...td.querySelectorAll('span')].some(isWordWrapped))
-td.style.textAlign = 'left';
-});
-}
-</code></pre> <p>實測效果如下：<a href="https://output.jsbin.com/curibup">線上展示</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638417806097141049.gif"></p> <p>又學會一個 JavaScript 小把戲。</p> <p data-slug="small-font-when-word-wrap" data-title-en="Auto reduce font size to prevent word wrap by JavaScript" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2015/05/20/13/59/artist-775460_960_720.jpg#960#720">Detecting word-wrapped HTML elements and reduce font-size to prevent word wrapping by JavaScript</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig3_638417806088486866.png" medium="image"/>
-    <pubDate>Thu, 25 Jan 2024 11:56:12 GMT</pubDate>
   </item></channel>
 </rss>
