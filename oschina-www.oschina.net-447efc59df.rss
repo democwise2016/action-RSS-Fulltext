@@ -30,6 +30,1526 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[每日一博 | 亿级流量高并发春晚互动前端技术揭秘]]></title>
+    <link>https://my.oschina.net/u/4090830/blog/11032956</link>
+    <itunes:title><![CDATA[每日一博 | 亿级流量高并发春晚互动前端技术揭秘]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h1><span><span><span>前言</span></span></span></h1>
+<p><span><span><span>2022年1月，京东成为央视总台2022年春节联欢晚会独家互动合作伙伴，双方在红包互动、电商等方面展开全方位深度合作。在除夕当天产生691亿次互动，送出15亿元红包好物。</span></span></span></p>
+<p><span><span><span>如何在这种大规模、高并发的场景下，确保系统的稳定性和性能，</span></span></span><span><span><span>为用户提供稳定流畅的互动体验</span></span></span><span><span><span>，成为了我们亟待解决的问题。</span></span></span></p>
+<p><span><span><span>接下来我们主要从静态资源优化、缓存、容错、工程化几个方面来详细介绍前端团队所做的努力和创新。</span></span></span></p>
+<h1><span><span><span>静态资源优化</span></span></span></h1>
+<h2><span><span><span>首屏资源加载策略</span></span></span></h2>
+<p><span><span><span>在春晚主持人口播之后，大量用户会集中在一段时间内涌入互动页面，这会导致流量峰值。为了降低页面打开时的请求次数和资源体积，我们根据页面交互，将所需资源分为三类：首屏、次屏以及操作后。</span></span></span></p>
+<p><span><span><span>首屏资源主要包括：HTML文档、JavaScript、CSS以及样式图片。由于这是单页面应用，我们可以通过常规技术将JS和CSS进行打包。对于样式图片，我们可以通过按需加载的方式，显著减小首屏资源体积。</span></span></span></p>
+<p><span><span><span>页面包含两个楼层，首屏的互动楼层和次屏的万券齐发楼层。其中，首屏会展示两排优惠券，因此，我们需要在首屏加载这部分券楼层的样式图片。互动主玩法中主要包括抽奖弹窗、邀人弹窗和击鼓游戏。通过拆分优化，首屏的样式图片体积减少约41%。再加上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>参数的优化，样式图片的体积可以降低到178KB。</span></span></span></p>
+<p><span><span><span>同时，我们将需要单独加载的击鼓游戏精灵动画图从首屏加载清单中剥离，使得首屏样式图片的加载次数从2次减少到1次。这样一来，用户在打开页面时，所需的请求次数和资源体积都得到了显著降低，进而提高了用户体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>动画图片低损压缩</span></span></span></h2>
+<p><span><span><span>动画是页面资源消耗的主要部分。在春晚页面中，我们需平衡用户交互体验与资源优化。经过与设计和</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>团队多次沟通，我们决定采用技术手段降低资源消耗，同时保证用户体验。</span></span></span></p>
+<p><span><span><span>首先是确定技术方案。设计团队最初提议使用3D模型，需借助</span></span></span><span><span><code><span>WebGL</span></code></span></span><span><span><span>进行渲染。但这存在两个问题：一是资源消耗大，3D模型通常包含3～4个文件，首屏加载请求数增加；二是兼容性问题，WebGL在低端机型上表现不佳。考虑到观众范围广泛，我们决定选用兼容性更好的方案。</span></span></span></p>
+<p><span><span><span>经过技术调研，我们最终确定采用帧动画方案：设计团队将3D动画转化为精灵图，并将不变部分（如鼓架）单独抽离。精灵图仅包含运动部分（如鼓面敲击动画），有效降低资源消耗。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-7be97a8f81.jpg">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>在确定方案后，设计团队导出了第一版资源文件。然而，精灵图大小为1236KB，主光效也有400KB，离我们的目标还有一定差距。经过双方反复尝试，我们通过抽帧方式将击鼓精灵图从24帧降至4帧，大小从1236KB降至265KB。结合降质参数和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式，最终大小仅为78KB，下降了93%。此外，我们将主光效换成放大一倍的一倍图，并通过CSS属性scale实现放大，进一步节省资源。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>雪碧图方案的演进</span></span></span></h2>
+<p><span><span><span>元素背景图使用雪碧图模式，是前端基本优化手段，可以显著降低请求次数。我们在首屏资源拆分后的情况下，可以将18个样式背景图合并成1个。相较于常规方案，春晚红包还扩展了2个功能：</span></span></span></p>
+<p><span><span><span>1、css雪碧图在运行时为图片URL添加</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质参数和webp格式转换参数（someimage.png!q70.webp），极限降低CDN带宽。我们扩展开发了自动雪碧图脚本，可以支持自动生成2套</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>样式代码，分别对应普通图片URL和带!q70.webp的URL。通过运行时检测webp支持特性，切换HTML标签上的class名，来使对应的后代选择器的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性生效。对于</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>的特性检测的技术方案，我们考虑过如下两种方案：</span></span></span></p>
+<p><span><span><span>a、通过版本判断，从caniuse看，可以按照只有iOS14以下不支持webp来作为判断依据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-33536460ad.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>b、通过创建一个Image对象，其src为一个基于base64的webp图片，根据load是否成功来判断是否支持webp。</span></span></span></p>
+<p><span><span><span>比较这2个方案，方案a的优势是通过UA判断系统版本是同步执行的，可以在调用渲染页面前的任意地方执行并修改HTML标签的class属性。确保内容渲染后有正确的背景图css生效。不会对原有渲染逻辑产生入侵性修改。而方案b的优势是经过大规模实践，判断逻辑的可靠性较高，缺点是异步逻辑的，需要修改原来的渲染逻辑。由于我们这次需要支持全国亿万用户，为确保稳定可靠，所以最终选择方案b。</span></span></span></p>
+<p><span><span><span>css文件中的背景图样式，是在渲染相应DOM的时候才发起请求，又由于React渲染是同步的，</span></span></span><span><span><span>我们需要调整执行render的时机</span></span></span><span><span><span>，以确保在渲染页面内容之前完成HTML的class属性设置，</span></span></span><span><span><span>避免请求两次图片</span></span></span><span><span><span>。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-bdf0d304a8.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>2、动态雪碧图。</span></span></span><span><span><span>万券齐发楼层首屏露出2排8个坑位，对应8次logo图片请求，由于券和logo的数据是通过接口下发的，所以无法使用编译时雪碧图方案。为了将图片请求次数减少到1次，我们和后台、视觉、产品沟通后，设计了一套多团队协作的方案。</span></span></span><span><span><span>设计同学可以根据产品提前确认的券位置将logo图合并成雪碧图，并上传到云存储。展示如下：</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-6364315d00.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>雪碧图规格确定后，通过固定的</span></span></span><span><span><code><span>background-position</span></code></span></span><span><span><span>属性，以及动态设置logo元素的</span></span></span><span><span><code><span>className</span></code></span></span><span><span><span>和背景图，即可实现动态雪碧图。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-e546075c88.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>自动衍生WebP背景图css代码</span></span></span></h2>
+<p><span><span><span>上面提到运行时判断是否使用webp背景图，那对应的css代码就需要两套，利用PostCSS插件可以在编译时自动基于原有背景图样式代码生成webp背景图的代码，在紧张的开发过程中避免出错和遗漏。通过使用</span></span></span><span><span><span>PostCSS插件中，</span></span></span><span><span><span>CSS对象的</span></span></span><span><span><code><span>walkDecls</span></code></span></span><span><span><span>方法，我们可以遍历所有的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性。然后，使用正则表达式匹配对应的样式，在编译打包时生成一套</span></span></span><span><span><span>.webp .origin-class</span></span></span><span><span><span>选择器的样式。在运行时，如果HTML标签具有</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>属性，系统将后代选择器的样式覆盖原有样式。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-c726184226.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>除了img标签，我们在背景图也进行了webp优化，使得全站图片由902.4kb减小到512.6kb，经过多种流量和兼容性测试效果表现良好。</span></span></span><span><span><span>由此可见，在项目中大量使用图片时，</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式已成为一个不容忽视的性能优化关键。</span></span></span></p>
+<h1><span><span><span>降低服务器成本及风险</span></span></span></h1>
+<p><span><span><span>春晚活动是一个典型的秒杀业务场景：随着春晚主持人一声令下，全国观众会同一时间涌入活动页面，给接口带来超高的流量压力。下面将从流量削峰、降级处理两个个方面介绍前端如何与后台合作应对这类高并发场景。</span></span></span></p>
+<h2><span><span><span>流量削峰</span></span></span></h2>
+<p><span><span><span>在高并发场景下，流量削峰有助于系统平稳度过流量高峰。本次活动中，初始化接口和击鼓抽奖接口流量最大，因此我们主要针对这两个接口进行削峰。</span></span></span></p>
+<p><span><span><span>1.初始化接口：在页面加载之前，即资源位入口，配置一个“加载中”页面链接。这个页面随机加载1-3秒后跳转到活动页面。当流量超过系统承载能力时，开启灰度开关，部分用户进入此页面，然后等待几秒后进入活动页面。</span></span></span></p>
+<p><span><span><span>2.击鼓抽奖接口：本次活动的核心玩法接口。如果仅仅是简单地随机延时几秒请求，会极大地影响用户体验。我们采用更精细化的处理方式。已知击鼓交互在用户敲击满次数或倒计时结束时触发抽奖接口，因此，随机设定敲鼓次数，将原本集中在1-2秒内的请求打散至10秒区间，用户几乎无感知。</span></span></span></p>
+<h2><span><span><span>即时状态的本地存储</span></span></span></h2>
+<p><span><span><span>针对用户优惠券领取状态的保存问题，权衡了多种因素，如活动规模、服务器端压力和活动持续时长等。最终，我们决定采用前端本地缓存来保存用户领券状态，从而提升性能并优化用户体验。</span></span></span></p>
+<p><span><span><span>我们对比了前端常用的本地存储机制，如</span></span></span><span><span><code><span>cookie</span></code></span></span><span><span><span>、</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>和</span></span></span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>。然而，这些机制各有优缺点：</span></span></span></p>
+<div>
+<span>1.</span>
+<span><span><span><code><span>cookie</span></code></span></span><span><span><span>存储空间较小（4K），且在与服务端通信时会占用请求头部，可能导致请求头过大，超过服务端设置的最大值，进而引发报错，并增加不必要的网络消耗。</span></span></span></span>
+</div>
+<div>
+<span>2.</span>
+<span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>生命周期较短，仅适用于会话期间。</span></span></span></span>
+</div>
+<p><span><span><span>综合考虑后，我们选择了</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为优化方案。它具有较长的生命周期和较大的储存空间（2.5M-4M），能满足业务需求。采用</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>缓存数据，不仅可以简化调用链路、降低风险和节约成本，还能直接从本地读取券的领取状态，避免网络延迟导致的响应时间过长，提升用户体验。</span></span></span></p>
+<h1><span><span><span>工程化</span></span></span></h1>
+<p><span><span><span>为了使业务开发人员能更专注于自身业务开发，我们将手机兼容性、设备分级、环境判断、自动合成雪碧图、自动图片压缩、自动上传云存储、合并代码文件等通用解决方案统一纳入工程化层面处理。</span></span></span></p>
+<p><span><span><span>通过工程化，可以最大程度的释放生产力和创造力。上述的各种前端各种优化方案，离不开工程化的助力，与此同时保证了在快速开发交付的效率和稳定性。</span></span></span></p>
+<h2><span><span><span>提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境</span></span></span></h2>
+<p><span><span><span>我们搭建了一个拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，以在短时间内模拟所需场景，确保在任意场景下都能提供友好交互。该环境1:1还原了服务端的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，能快速模拟正常数据，同时还能模拟请求超时、HTTP状态码异常、数据结构异常、非常规业务异常码等场景。在ajax模块中，我们采用透明转发方式，降低业务开发同学创作mock数据的成本，避免mock数据进入生产环境。如图所示，</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>开发环境与联调开发环境对比，可以看出mock环境对业务开发来说是透明且无副作用的，同时又能快速</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>数据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-4c2093bb72.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>编写稳定高效的发布脚本</span></span></span></h2>
+<p><span><span><span>春晚参与用户的设备种类繁多，我们需在不同设备上实现极致体验，同时减轻</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>过高</span></span></span><span><span><code><span>QPS</span></code></span></span><span><span><span>的压力。为此，我们与客户端团队联合，根据不同设备的不同版本，提供了内置包、离线包和线上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>包等多套环境。结合多轮内测和公测，在短短27天内，需部署10多套环境。线上环境部署错综复杂，还包括资源收集和大小计算等工作。若采用人工方式，极易出现误操作，带来不良后果。幸运的是，项目初期便引入了环境变量，通过环境变量解决不同环境间的差异。此外，在编译前后加入了一系列脚本，替代人工拷贝上传、资源收集、大小计算等操作，避免人工操作失误，提高稳定性，确保每个环境稳定部署。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-5768a8ea22.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>工程化的目标，始终是提升开发效率，降低开发难度，分离关注点，让业务研发同学更专注于自身业务的开发。</span></span></span></p>
+<h1><span><span><span>容灾</span></span></span></h1>
+<p><span><span><span>作为一档全球直播节目，现场不免会出现各种状况，需要做好各种紧急预案。降级处理分为主动降级和被动降级两类：</span></span></span></p>
+<p><span><span><span>1.</span></span></span><span><span><code><span>主动降级：各个资源位和交互按钮上添加降级开关，上游接口或下游页面出现紧急情况时，可通过配置CMS快速打开降级开关。</span></code></span></span></p>
+<p><span><span><span>2.被动降级：通过不同样式和文案提示区分各类接口异常码及系统环境，快速定位问题原因。这样一来，客服同学可以第一时间安抚客户，并提供相应处理方案。</span></span></span></p>
+<h1><span><span><span>总结</span></span></span></h1>
+<p><span><span><span>2022年央视春晚互动项目是一次大规模、高并发的挑战，前端团队通过静态资源优化、缓存、容错和工程化等方面的努力和创新，确保了系统的稳定性和性能，为用户提供了一个稳定流畅的互动体验。在静态资源优化方面，团队通过首屏资源拆分、帧动画方案替代3D模型、动态雪碧图和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式优化等技术手段，显著降低了资源消耗和请求次数。在降低服务器成本及风险方面，选择</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为非常规优化方案，提升用户体验。在容错方面，流量削峰和降级处理，确保系统稳定运行。在工程化方面，统一处理通用解决方案、提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境和编写稳定高效的发布脚本，降低开发难度，确保每个环境稳定部署。通过这些技术手段和创新，前端团队成功应对了春晚互动项目带来的技术难题，为用户提供了一个稳定流畅的互动体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p>作者：京东零售 赵越</p>
+<p>来源：京东云开发者社区 转载请注明来源</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h1><span><span><span>前言</span></span></span></h1>
+<p><span><span><span>2022年1月，京东成为央视总台2022年春节联欢晚会独家互动合作伙伴，双方在红包互动、电商等方面展开全方位深度合作。在除夕当天产生691亿次互动，送出15亿元红包好物。</span></span></span></p>
+<p><span><span><span>如何在这种大规模、高并发的场景下，确保系统的稳定性和性能，</span></span></span><span><span><span>为用户提供稳定流畅的互动体验</span></span></span><span><span><span>，成为了我们亟待解决的问题。</span></span></span></p>
+<p><span><span><span>接下来我们主要从静态资源优化、缓存、容错、工程化几个方面来详细介绍前端团队所做的努力和创新。</span></span></span></p>
+<h1><span><span><span>静态资源优化</span></span></span></h1>
+<h2><span><span><span>首屏资源加载策略</span></span></span></h2>
+<p><span><span><span>在春晚主持人口播之后，大量用户会集中在一段时间内涌入互动页面，这会导致流量峰值。为了降低页面打开时的请求次数和资源体积，我们根据页面交互，将所需资源分为三类：首屏、次屏以及操作后。</span></span></span></p>
+<p><span><span><span>首屏资源主要包括：HTML文档、JavaScript、CSS以及样式图片。由于这是单页面应用，我们可以通过常规技术将JS和CSS进行打包。对于样式图片，我们可以通过按需加载的方式，显著减小首屏资源体积。</span></span></span></p>
+<p><span><span><span>页面包含两个楼层，首屏的互动楼层和次屏的万券齐发楼层。其中，首屏会展示两排优惠券，因此，我们需要在首屏加载这部分券楼层的样式图片。互动主玩法中主要包括抽奖弹窗、邀人弹窗和击鼓游戏。通过拆分优化，首屏的样式图片体积减少约41%。再加上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>参数的优化，样式图片的体积可以降低到178KB。</span></span></span></p>
+<p><span><span><span>同时，我们将需要单独加载的击鼓游戏精灵动画图从首屏加载清单中剥离，使得首屏样式图片的加载次数从2次减少到1次。这样一来，用户在打开页面时，所需的请求次数和资源体积都得到了显著降低，进而提高了用户体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>动画图片低损压缩</span></span></span></h2>
+<p><span><span><span>动画是页面资源消耗的主要部分。在春晚页面中，我们需平衡用户交互体验与资源优化。经过与设计和</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>团队多次沟通，我们决定采用技术手段降低资源消耗，同时保证用户体验。</span></span></span></p>
+<p><span><span><span>首先是确定技术方案。设计团队最初提议使用3D模型，需借助</span></span></span><span><span><code><span>WebGL</span></code></span></span><span><span><span>进行渲染。但这存在两个问题：一是资源消耗大，3D模型通常包含3～4个文件，首屏加载请求数增加；二是兼容性问题，WebGL在低端机型上表现不佳。考虑到观众范围广泛，我们决定选用兼容性更好的方案。</span></span></span></p>
+<p><span><span><span>经过技术调研，我们最终确定采用帧动画方案：设计团队将3D动画转化为精灵图，并将不变部分（如鼓架）单独抽离。精灵图仅包含运动部分（如鼓面敲击动画），有效降低资源消耗。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-7be97a8f81.jpg">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>在确定方案后，设计团队导出了第一版资源文件。然而，精灵图大小为1236KB，主光效也有400KB，离我们的目标还有一定差距。经过双方反复尝试，我们通过抽帧方式将击鼓精灵图从24帧降至4帧，大小从1236KB降至265KB。结合降质参数和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式，最终大小仅为78KB，下降了93%。此外，我们将主光效换成放大一倍的一倍图，并通过CSS属性scale实现放大，进一步节省资源。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>雪碧图方案的演进</span></span></span></h2>
+<p><span><span><span>元素背景图使用雪碧图模式，是前端基本优化手段，可以显著降低请求次数。我们在首屏资源拆分后的情况下，可以将18个样式背景图合并成1个。相较于常规方案，春晚红包还扩展了2个功能：</span></span></span></p>
+<p><span><span><span>1、css雪碧图在运行时为图片URL添加</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质参数和webp格式转换参数（someimage.png!q70.webp），极限降低CDN带宽。我们扩展开发了自动雪碧图脚本，可以支持自动生成2套</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>样式代码，分别对应普通图片URL和带!q70.webp的URL。通过运行时检测webp支持特性，切换HTML标签上的class名，来使对应的后代选择器的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性生效。对于</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>的特性检测的技术方案，我们考虑过如下两种方案：</span></span></span></p>
+<p><span><span><span>a、通过版本判断，从caniuse看，可以按照只有iOS14以下不支持webp来作为判断依据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-33536460ad.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>b、通过创建一个Image对象，其src为一个基于base64的webp图片，根据load是否成功来判断是否支持webp。</span></span></span></p>
+<p><span><span><span>比较这2个方案，方案a的优势是通过UA判断系统版本是同步执行的，可以在调用渲染页面前的任意地方执行并修改HTML标签的class属性。确保内容渲染后有正确的背景图css生效。不会对原有渲染逻辑产生入侵性修改。而方案b的优势是经过大规模实践，判断逻辑的可靠性较高，缺点是异步逻辑的，需要修改原来的渲染逻辑。由于我们这次需要支持全国亿万用户，为确保稳定可靠，所以最终选择方案b。</span></span></span></p>
+<p><span><span><span>css文件中的背景图样式，是在渲染相应DOM的时候才发起请求，又由于React渲染是同步的，</span></span></span><span><span><span>我们需要调整执行render的时机</span></span></span><span><span><span>，以确保在渲染页面内容之前完成HTML的class属性设置，</span></span></span><span><span><span>避免请求两次图片</span></span></span><span><span><span>。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-bdf0d304a8.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>2、动态雪碧图。</span></span></span><span><span><span>万券齐发楼层首屏露出2排8个坑位，对应8次logo图片请求，由于券和logo的数据是通过接口下发的，所以无法使用编译时雪碧图方案。为了将图片请求次数减少到1次，我们和后台、视觉、产品沟通后，设计了一套多团队协作的方案。</span></span></span><span><span><span>设计同学可以根据产品提前确认的券位置将logo图合并成雪碧图，并上传到云存储。展示如下：</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-6364315d00.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>雪碧图规格确定后，通过固定的</span></span></span><span><span><code><span>background-position</span></code></span></span><span><span><span>属性，以及动态设置logo元素的</span></span></span><span><span><code><span>className</span></code></span></span><span><span><span>和背景图，即可实现动态雪碧图。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-e546075c88.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>自动衍生WebP背景图css代码</span></span></span></h2>
+<p><span><span><span>上面提到运行时判断是否使用webp背景图，那对应的css代码就需要两套，利用PostCSS插件可以在编译时自动基于原有背景图样式代码生成webp背景图的代码，在紧张的开发过程中避免出错和遗漏。通过使用</span></span></span><span><span><span>PostCSS插件中，</span></span></span><span><span><span>CSS对象的</span></span></span><span><span><code><span>walkDecls</span></code></span></span><span><span><span>方法，我们可以遍历所有的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性。然后，使用正则表达式匹配对应的样式，在编译打包时生成一套</span></span></span><span><span><span>.webp .origin-class</span></span></span><span><span><span>选择器的样式。在运行时，如果HTML标签具有</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>属性，系统将后代选择器的样式覆盖原有样式。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-c726184226.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>除了img标签，我们在背景图也进行了webp优化，使得全站图片由902.4kb减小到512.6kb，经过多种流量和兼容性测试效果表现良好。</span></span></span><span><span><span>由此可见，在项目中大量使用图片时，</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式已成为一个不容忽视的性能优化关键。</span></span></span></p>
+<h1><span><span><span>降低服务器成本及风险</span></span></span></h1>
+<p><span><span><span>春晚活动是一个典型的秒杀业务场景：随着春晚主持人一声令下，全国观众会同一时间涌入活动页面，给接口带来超高的流量压力。下面将从流量削峰、降级处理两个个方面介绍前端如何与后台合作应对这类高并发场景。</span></span></span></p>
+<h2><span><span><span>流量削峰</span></span></span></h2>
+<p><span><span><span>在高并发场景下，流量削峰有助于系统平稳度过流量高峰。本次活动中，初始化接口和击鼓抽奖接口流量最大，因此我们主要针对这两个接口进行削峰。</span></span></span></p>
+<p><span><span><span>1.初始化接口：在页面加载之前，即资源位入口，配置一个“加载中”页面链接。这个页面随机加载1-3秒后跳转到活动页面。当流量超过系统承载能力时，开启灰度开关，部分用户进入此页面，然后等待几秒后进入活动页面。</span></span></span></p>
+<p><span><span><span>2.击鼓抽奖接口：本次活动的核心玩法接口。如果仅仅是简单地随机延时几秒请求，会极大地影响用户体验。我们采用更精细化的处理方式。已知击鼓交互在用户敲击满次数或倒计时结束时触发抽奖接口，因此，随机设定敲鼓次数，将原本集中在1-2秒内的请求打散至10秒区间，用户几乎无感知。</span></span></span></p>
+<h2><span><span><span>即时状态的本地存储</span></span></span></h2>
+<p><span><span><span>针对用户优惠券领取状态的保存问题，权衡了多种因素，如活动规模、服务器端压力和活动持续时长等。最终，我们决定采用前端本地缓存来保存用户领券状态，从而提升性能并优化用户体验。</span></span></span></p>
+<p><span><span><span>我们对比了前端常用的本地存储机制，如</span></span></span><span><span><code><span>cookie</span></code></span></span><span><span><span>、</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>和</span></span></span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>。然而，这些机制各有优缺点：</span></span></span></p>
+<div>
+<span>1.</span>
+<span><span><span><code><span>cookie</span></code></span></span><span><span><span>存储空间较小（4K），且在与服务端通信时会占用请求头部，可能导致请求头过大，超过服务端设置的最大值，进而引发报错，并增加不必要的网络消耗。</span></span></span></span>
+</div>
+<div>
+<span>2.</span>
+<span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>生命周期较短，仅适用于会话期间。</span></span></span></span>
+</div>
+<p><span><span><span>综合考虑后，我们选择了</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为优化方案。它具有较长的生命周期和较大的储存空间（2.5M-4M），能满足业务需求。采用</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>缓存数据，不仅可以简化调用链路、降低风险和节约成本，还能直接从本地读取券的领取状态，避免网络延迟导致的响应时间过长，提升用户体验。</span></span></span></p>
+<h1><span><span><span>工程化</span></span></span></h1>
+<p><span><span><span>为了使业务开发人员能更专注于自身业务开发，我们将手机兼容性、设备分级、环境判断、自动合成雪碧图、自动图片压缩、自动上传云存储、合并代码文件等通用解决方案统一纳入工程化层面处理。</span></span></span></p>
+<p><span><span><span>通过工程化，可以最大程度的释放生产力和创造力。上述的各种前端各种优化方案，离不开工程化的助力，与此同时保证了在快速开发交付的效率和稳定性。</span></span></span></p>
+<h2><span><span><span>提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境</span></span></span></h2>
+<p><span><span><span>我们搭建了一个拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，以在短时间内模拟所需场景，确保在任意场景下都能提供友好交互。该环境1:1还原了服务端的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，能快速模拟正常数据，同时还能模拟请求超时、HTTP状态码异常、数据结构异常、非常规业务异常码等场景。在ajax模块中，我们采用透明转发方式，降低业务开发同学创作mock数据的成本，避免mock数据进入生产环境。如图所示，</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>开发环境与联调开发环境对比，可以看出mock环境对业务开发来说是透明且无副作用的，同时又能快速</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>数据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-4c2093bb72.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>编写稳定高效的发布脚本</span></span></span></h2>
+<p><span><span><span>春晚参与用户的设备种类繁多，我们需在不同设备上实现极致体验，同时减轻</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>过高</span></span></span><span><span><code><span>QPS</span></code></span></span><span><span><span>的压力。为此，我们与客户端团队联合，根据不同设备的不同版本，提供了内置包、离线包和线上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>包等多套环境。结合多轮内测和公测，在短短27天内，需部署10多套环境。线上环境部署错综复杂，还包括资源收集和大小计算等工作。若采用人工方式，极易出现误操作，带来不良后果。幸运的是，项目初期便引入了环境变量，通过环境变量解决不同环境间的差异。此外，在编译前后加入了一系列脚本，替代人工拷贝上传、资源收集、大小计算等操作，避免人工操作失误，提高稳定性，确保每个环境稳定部署。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-5768a8ea22.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>工程化的目标，始终是提升开发效率，降低开发难度，分离关注点，让业务研发同学更专注于自身业务的开发。</span></span></span></p>
+<h1><span><span><span>容灾</span></span></span></h1>
+<p><span><span><span>作为一档全球直播节目，现场不免会出现各种状况，需要做好各种紧急预案。降级处理分为主动降级和被动降级两类：</span></span></span></p>
+<p><span><span><span>1.</span></span></span><span><span><code><span>主动降级：各个资源位和交互按钮上添加降级开关，上游接口或下游页面出现紧急情况时，可通过配置CMS快速打开降级开关。</span></code></span></span></p>
+<p><span><span><span>2.被动降级：通过不同样式和文案提示区分各类接口异常码及系统环境，快速定位问题原因。这样一来，客服同学可以第一时间安抚客户，并提供相应处理方案。</span></span></span></p>
+<h1><span><span><span>总结</span></span></span></h1>
+<p><span><span><span>2022年央视春晚互动项目是一次大规模、高并发的挑战，前端团队通过静态资源优化、缓存、容错和工程化等方面的努力和创新，确保了系统的稳定性和性能，为用户提供了一个稳定流畅的互动体验。在静态资源优化方面，团队通过首屏资源拆分、帧动画方案替代3D模型、动态雪碧图和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式优化等技术手段，显著降低了资源消耗和请求次数。在降低服务器成本及风险方面，选择</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为非常规优化方案，提升用户体验。在容错方面，流量削峰和降级处理，确保系统稳定运行。在工程化方面，统一处理通用解决方案、提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境和编写稳定高效的发布脚本，降低开发难度，确保每个环境稳定部署。通过这些技术手段和创新，前端团队成功应对了春晚互动项目带来的技术难题，为用户提供了一个稳定流畅的互动体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p>作者：京东零售 赵越</p>
+<p>来源：京东云开发者社区 转载请注明来源</p>]]>
+    </description>
+    <content:encoded><![CDATA[<h1><span><span><span>前言</span></span></span></h1>
+<p><span><span><span>2022年1月，京东成为央视总台2022年春节联欢晚会独家互动合作伙伴，双方在红包互动、电商等方面展开全方位深度合作。在除夕当天产生691亿次互动，送出15亿元红包好物。</span></span></span></p>
+<p><span><span><span>如何在这种大规模、高并发的场景下，确保系统的稳定性和性能，</span></span></span><span><span><span>为用户提供稳定流畅的互动体验</span></span></span><span><span><span>，成为了我们亟待解决的问题。</span></span></span></p>
+<p><span><span><span>接下来我们主要从静态资源优化、缓存、容错、工程化几个方面来详细介绍前端团队所做的努力和创新。</span></span></span></p>
+<h1><span><span><span>静态资源优化</span></span></span></h1>
+<h2><span><span><span>首屏资源加载策略</span></span></span></h2>
+<p><span><span><span>在春晚主持人口播之后，大量用户会集中在一段时间内涌入互动页面，这会导致流量峰值。为了降低页面打开时的请求次数和资源体积，我们根据页面交互，将所需资源分为三类：首屏、次屏以及操作后。</span></span></span></p>
+<p><span><span><span>首屏资源主要包括：HTML文档、JavaScript、CSS以及样式图片。由于这是单页面应用，我们可以通过常规技术将JS和CSS进行打包。对于样式图片，我们可以通过按需加载的方式，显著减小首屏资源体积。</span></span></span></p>
+<p><span><span><span>页面包含两个楼层，首屏的互动楼层和次屏的万券齐发楼层。其中，首屏会展示两排优惠券，因此，我们需要在首屏加载这部分券楼层的样式图片。互动主玩法中主要包括抽奖弹窗、邀人弹窗和击鼓游戏。通过拆分优化，首屏的样式图片体积减少约41%。再加上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>参数的优化，样式图片的体积可以降低到178KB。</span></span></span></p>
+<p><span><span><span>同时，我们将需要单独加载的击鼓游戏精灵动画图从首屏加载清单中剥离，使得首屏样式图片的加载次数从2次减少到1次。这样一来，用户在打开页面时，所需的请求次数和资源体积都得到了显著降低，进而提高了用户体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>动画图片低损压缩</span></span></span></h2>
+<p><span><span><span>动画是页面资源消耗的主要部分。在春晚页面中，我们需平衡用户交互体验与资源优化。经过与设计和</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>团队多次沟通，我们决定采用技术手段降低资源消耗，同时保证用户体验。</span></span></span></p>
+<p><span><span><span>首先是确定技术方案。设计团队最初提议使用3D模型，需借助</span></span></span><span><span><code><span>WebGL</span></code></span></span><span><span><span>进行渲染。但这存在两个问题：一是资源消耗大，3D模型通常包含3～4个文件，首屏加载请求数增加；二是兼容性问题，WebGL在低端机型上表现不佳。考虑到观众范围广泛，我们决定选用兼容性更好的方案。</span></span></span></p>
+<p><span><span><span>经过技术调研，我们最终确定采用帧动画方案：设计团队将3D动画转化为精灵图，并将不变部分（如鼓架）单独抽离。精灵图仅包含运动部分（如鼓面敲击动画），有效降低资源消耗。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-7be97a8f81.jpg">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>在确定方案后，设计团队导出了第一版资源文件。然而，精灵图大小为1236KB，主光效也有400KB，离我们的目标还有一定差距。经过双方反复尝试，我们通过抽帧方式将击鼓精灵图从24帧降至4帧，大小从1236KB降至265KB。结合降质参数和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式，最终大小仅为78KB，下降了93%。此外，我们将主光效换成放大一倍的一倍图，并通过CSS属性scale实现放大，进一步节省资源。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>雪碧图方案的演进</span></span></span></h2>
+<p><span><span><span>元素背景图使用雪碧图模式，是前端基本优化手段，可以显著降低请求次数。我们在首屏资源拆分后的情况下，可以将18个样式背景图合并成1个。相较于常规方案，春晚红包还扩展了2个功能：</span></span></span></p>
+<p><span><span><span>1、css雪碧图在运行时为图片URL添加</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>降质参数和webp格式转换参数（someimage.png!q70.webp），极限降低CDN带宽。我们扩展开发了自动雪碧图脚本，可以支持自动生成2套</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>样式代码，分别对应普通图片URL和带!q70.webp的URL。通过运行时检测webp支持特性，切换HTML标签上的class名，来使对应的后代选择器的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性生效。对于</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>的特性检测的技术方案，我们考虑过如下两种方案：</span></span></span></p>
+<p><span><span><span>a、通过版本判断，从caniuse看，可以按照只有iOS14以下不支持webp来作为判断依据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-33536460ad.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>b、通过创建一个Image对象，其src为一个基于base64的webp图片，根据load是否成功来判断是否支持webp。</span></span></span></p>
+<p><span><span><span>比较这2个方案，方案a的优势是通过UA判断系统版本是同步执行的，可以在调用渲染页面前的任意地方执行并修改HTML标签的class属性。确保内容渲染后有正确的背景图css生效。不会对原有渲染逻辑产生入侵性修改。而方案b的优势是经过大规模实践，判断逻辑的可靠性较高，缺点是异步逻辑的，需要修改原来的渲染逻辑。由于我们这次需要支持全国亿万用户，为确保稳定可靠，所以最终选择方案b。</span></span></span></p>
+<p><span><span><span>css文件中的背景图样式，是在渲染相应DOM的时候才发起请求，又由于React渲染是同步的，</span></span></span><span><span><span>我们需要调整执行render的时机</span></span></span><span><span><span>，以确保在渲染页面内容之前完成HTML的class属性设置，</span></span></span><span><span><span>避免请求两次图片</span></span></span><span><span><span>。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-bdf0d304a8.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>2、动态雪碧图。</span></span></span><span><span><span>万券齐发楼层首屏露出2排8个坑位，对应8次logo图片请求，由于券和logo的数据是通过接口下发的，所以无法使用编译时雪碧图方案。为了将图片请求次数减少到1次，我们和后台、视觉、产品沟通后，设计了一套多团队协作的方案。</span></span></span><span><span><span>设计同学可以根据产品提前确认的券位置将logo图合并成雪碧图，并上传到云存储。展示如下：</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-6364315d00.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>雪碧图规格确定后，通过固定的</span></span></span><span><span><code><span>background-position</span></code></span></span><span><span><span>属性，以及动态设置logo元素的</span></span></span><span><span><code><span>className</span></code></span></span><span><span><span>和背景图，即可实现动态雪碧图。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-e546075c88.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>自动衍生WebP背景图css代码</span></span></span></h2>
+<p><span><span><span>上面提到运行时判断是否使用webp背景图，那对应的css代码就需要两套，利用PostCSS插件可以在编译时自动基于原有背景图样式代码生成webp背景图的代码，在紧张的开发过程中避免出错和遗漏。通过使用</span></span></span><span><span><span>PostCSS插件中，</span></span></span><span><span><span>CSS对象的</span></span></span><span><span><code><span>walkDecls</span></code></span></span><span><span><span>方法，我们可以遍历所有的</span></span></span><span><span><code><span>background-image</span></code></span></span><span><span><span>属性。然后，使用正则表达式匹配对应的样式，在编译打包时生成一套</span></span></span><span><span><span>.webp .origin-class</span></span></span><span><span><span>选择器的样式。在运行时，如果HTML标签具有</span></span></span><span><span><code><span>webp</span></code></span></span><span><span><span>属性，系统将后代选择器的样式覆盖原有样式。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-c726184226.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>除了img标签，我们在背景图也进行了webp优化，使得全站图片由902.4kb减小到512.6kb，经过多种流量和兼容性测试效果表现良好。</span></span></span><span><span><span>由此可见，在项目中大量使用图片时，</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式已成为一个不容忽视的性能优化关键。</span></span></span></p>
+<h1><span><span><span>降低服务器成本及风险</span></span></span></h1>
+<p><span><span><span>春晚活动是一个典型的秒杀业务场景：随着春晚主持人一声令下，全国观众会同一时间涌入活动页面，给接口带来超高的流量压力。下面将从流量削峰、降级处理两个个方面介绍前端如何与后台合作应对这类高并发场景。</span></span></span></p>
+<h2><span><span><span>流量削峰</span></span></span></h2>
+<p><span><span><span>在高并发场景下，流量削峰有助于系统平稳度过流量高峰。本次活动中，初始化接口和击鼓抽奖接口流量最大，因此我们主要针对这两个接口进行削峰。</span></span></span></p>
+<p><span><span><span>1.初始化接口：在页面加载之前，即资源位入口，配置一个“加载中”页面链接。这个页面随机加载1-3秒后跳转到活动页面。当流量超过系统承载能力时，开启灰度开关，部分用户进入此页面，然后等待几秒后进入活动页面。</span></span></span></p>
+<p><span><span><span>2.击鼓抽奖接口：本次活动的核心玩法接口。如果仅仅是简单地随机延时几秒请求，会极大地影响用户体验。我们采用更精细化的处理方式。已知击鼓交互在用户敲击满次数或倒计时结束时触发抽奖接口，因此，随机设定敲鼓次数，将原本集中在1-2秒内的请求打散至10秒区间，用户几乎无感知。</span></span></span></p>
+<h2><span><span><span>即时状态的本地存储</span></span></span></h2>
+<p><span><span><span>针对用户优惠券领取状态的保存问题，权衡了多种因素，如活动规模、服务器端压力和活动持续时长等。最终，我们决定采用前端本地缓存来保存用户领券状态，从而提升性能并优化用户体验。</span></span></span></p>
+<p><span><span><span>我们对比了前端常用的本地存储机制，如</span></span></span><span><span><code><span>cookie</span></code></span></span><span><span><span>、</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>和</span></span></span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>。然而，这些机制各有优缺点：</span></span></span></p>
+<div>
+<span>1.</span>
+<span><span><span><code><span>cookie</span></code></span></span><span><span><span>存储空间较小（4K），且在与服务端通信时会占用请求头部，可能导致请求头过大，超过服务端设置的最大值，进而引发报错，并增加不必要的网络消耗。</span></span></span></span>
+</div>
+<div>
+<span>2.</span>
+<span><span><span><code><span>sessionStorage</span></code></span></span><span><span><span>生命周期较短，仅适用于会话期间。</span></span></span></span>
+</div>
+<p><span><span><span>综合考虑后，我们选择了</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为优化方案。它具有较长的生命周期和较大的储存空间（2.5M-4M），能满足业务需求。采用</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>缓存数据，不仅可以简化调用链路、降低风险和节约成本，还能直接从本地读取券的领取状态，避免网络延迟导致的响应时间过长，提升用户体验。</span></span></span></p>
+<h1><span><span><span>工程化</span></span></span></h1>
+<p><span><span><span>为了使业务开发人员能更专注于自身业务开发，我们将手机兼容性、设备分级、环境判断、自动合成雪碧图、自动图片压缩、自动上传云存储、合并代码文件等通用解决方案统一纳入工程化层面处理。</span></span></span></p>
+<p><span><span><span>通过工程化，可以最大程度的释放生产力和创造力。上述的各种前端各种优化方案，离不开工程化的助力，与此同时保证了在快速开发交付的效率和稳定性。</span></span></span></p>
+<h2><span><span><span>提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境</span></span></span></h2>
+<p><span><span><span>我们搭建了一个拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，以在短时间内模拟所需场景，确保在任意场景下都能提供友好交互。该环境1:1还原了服务端的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境，能快速模拟正常数据，同时还能模拟请求超时、HTTP状态码异常、数据结构异常、非常规业务异常码等场景。在ajax模块中，我们采用透明转发方式，降低业务开发同学创作mock数据的成本，避免mock数据进入生产环境。如图所示，</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>开发环境与联调开发环境对比，可以看出mock环境对业务开发来说是透明且无副作用的，同时又能快速</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>数据。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-4c2093bb72.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<h2><span><span><span>编写稳定高效的发布脚本</span></span></span></h2>
+<p><span><span><span>春晚参与用户的设备种类繁多，我们需在不同设备上实现极致体验，同时减轻</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>过高</span></span></span><span><span><code><span>QPS</span></code></span></span><span><span><span>的压力。为此，我们与客户端团队联合，根据不同设备的不同版本，提供了内置包、离线包和线上</span></span></span><span><span><code><span>CDN</span></code></span></span><span><span><span>包等多套环境。结合多轮内测和公测，在短短27天内，需部署10多套环境。线上环境部署错综复杂，还包括资源收集和大小计算等工作。若采用人工方式，极易出现误操作，带来不良后果。幸运的是，项目初期便引入了环境变量，通过环境变量解决不同环境间的差异。此外，在编译前后加入了一系列脚本，替代人工拷贝上传、资源收集、大小计算等操作，避免人工操作失误，提高稳定性，确保每个环境稳定部署。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-5768a8ea22.png">
+</div>
+<p><span><span><span><span>﻿</span></span></span></span><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p><span><span><span>工程化的目标，始终是提升开发效率，降低开发难度，分离关注点，让业务研发同学更专注于自身业务的开发。</span></span></span></p>
+<h1><span><span><span>容灾</span></span></span></h1>
+<p><span><span><span>作为一档全球直播节目，现场不免会出现各种状况，需要做好各种紧急预案。降级处理分为主动降级和被动降级两类：</span></span></span></p>
+<p><span><span><span>1.</span></span></span><span><span><code><span>主动降级：各个资源位和交互按钮上添加降级开关，上游接口或下游页面出现紧急情况时，可通过配置CMS快速打开降级开关。</span></code></span></span></p>
+<p><span><span><span>2.被动降级：通过不同样式和文案提示区分各类接口异常码及系统环境，快速定位问题原因。这样一来，客服同学可以第一时间安抚客户，并提供相应处理方案。</span></span></span></p>
+<h1><span><span><span>总结</span></span></span></h1>
+<p><span><span><span>2022年央视春晚互动项目是一次大规模、高并发的挑战，前端团队通过静态资源优化、缓存、容错和工程化等方面的努力和创新，确保了系统的稳定性和性能，为用户提供了一个稳定流畅的互动体验。在静态资源优化方面，团队通过首屏资源拆分、帧动画方案替代3D模型、动态雪碧图和</span></span></span><span><span><code><span>WebP</span></code></span></span><span><span><span>格式优化等技术手段，显著降低了资源消耗和请求次数。在降低服务器成本及风险方面，选择</span></span></span><span><span><code><span>localStorage</span></code></span></span><span><span><span>作为非常规优化方案，提升用户体验。在容错方面，流量削峰和降级处理，确保系统稳定运行。在工程化方面，统一处理通用解决方案、提供拟真的</span></span></span><span><span><code><span>MOCK</span></code></span></span><span><span><span>环境和编写稳定高效的发布脚本，降低开发难度，确保每个环境稳定部署。通过这些技术手段和创新，前端团队成功应对了春晚互动项目带来的技术难题，为用户提供了一个稳定流畅的互动体验。</span></span></span></p>
+<p><span><span><span>﻿</span></span></span></p>
+<p>作者：京东零售 赵越</p>
+<p>来源：京东云开发者社区 转载请注明来源</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-7be97a8f81.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/s3.cn-north-1.jdcloud-oss.com-7be97a8f81.jpg" medium="image"/>
+    <pubDate>Wed, 07 Feb 2024 14:18:14 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[超越 MyBatis 的 ORM 框架 dbVisitor 5.4.1 发布]]></title>
+    <link>https://www.oschina.net/news/278107/dbvisitor-5-4-1-released</link>
+    <itunes:title><![CDATA[超越 MyBatis 的 ORM 框架 dbVisitor 5.4.1 发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h2>介绍</h2>
+<p>dbVisitor 是一个全功能数据库访问 ORM 工具，提供对象映射、丰富的类型处理、动态 SQL、存储过程、 内置分页方言 20+、 支持嵌套事务、多数据源、条件构造器、INSERT 策略、多语句 / 多结果。并兼容 Spring 及 MyBatis 用法。 它不依赖任何其它框架，因此可以很方便的和任意一个框架整合在一起使用。</p>
+<h2>依赖</h2>
+<div>
+<div>
+<pre><code><span><span><span>&lt;</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span><span>net.hasor</span><span><span>&lt;/</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span><span>dbvisitor</span><span><span>&lt;/</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span><span>5.4.1</span><span><span>&lt;/</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span>
+</span><span><span><span>&lt;/</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span></span></code></pre>
+</div>
+</div>
+<h2><span>修复</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Freleases%2F5.1.x%2Fv5.1.0%23%25E4%25BC%2598%25E5%258C%2596" target="_blank">​</a></h2>
+<ul>
+<li>修复：DataSourceUtils 在动态 DataSource 情况下的内存泄漏问题</li>
+<li>修复：OracleDialect 拼写 tableName 时 catalog/schema 的处理问题</li>
+</ul>
+<h2>功能特性</h2>
+<ul>
+<li> <p>熟悉的方式</p>
+<ul>
+<li>JdbcTemplate 接口方式（高度兼容 Spring JDBC）</li>
+<li>Mapper 文件方式（高度兼容 MyBatis）</li>
+<li>LambdaTemplate （高度接近 MyBatis Plus、jOOQ 和 BeetlSQL）</li>
+<li>@Insert、@Update、@Delete、@Query、@Callable 注解（类似 JPA）</li>
+</ul> </li>
+<li> <p>事务支持</p>
+<ul>
+<li>支持 5 个事务隔离级别、7 个事务传播行为（与 Spring tx 相同）</li>
+<li>提供 TransactionTemplate、TransactionManager 接口方式声明式事务控制能力（用法与 Spring 相同）</li>
+</ul> </li>
+<li> <p>特色优势</p>
+<ul>
+<li>支持 分页查询 并且提供多种数据库方言（20+）</li>
+<li>支持 INSERT 策略（INTO、UPDATE、IGNORE）</li>
+<li>更加丰富的 TypeHandler（MyBatis 40+，dbVisitor 60+）</li>
+<li>Mapper XML 支持多语句、多结果</li>
+<li>提供独特的<span>&nbsp;</span><code>@{xxx, expr , xxxxx }</code><span>&nbsp;</span>规则扩展机制，让动态 SQL 更加简单</li>
+<li>支持 存储过程</li>
+<li>支持 JDBC 4.2 和 Java8 中时间类型</li>
+<li>支持多数据源</li>
+</ul> </li>
+</ul>
+<h2>执行 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%2589%25A7%25E8%25A1%258C-sql" target="_blank">​</a></h2>
+<p>使用 SQL 的方式读取数据，<code>PrintUtils</code><span>&nbsp;</span>和<span>&nbsp;</span><code>DsUtils.java</code><span>&nbsp;</span>两个工具类可以在<span>&nbsp;</span><a href="https://gitee.com/zycgit/dbvisitor/tree/main/dbvisitor-example/" target="_blank">例子工程</a><span>&nbsp;</span>中找到</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><em>// 创建 JdbcTemplate 对象</em>
+</span><span><span>JdbcTemplate</span><span> jdbcTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>JdbcTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 加载测试数据脚本</em>
+</span><span><span>jdbcTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据并 Map 形式返回</em>
+</span><span><span>List</span><span>&lt;</span><span>Map</span><span>&lt;</span><span>String</span><span>,</span><span> </span><span>Object</span><span>&gt;</span><span>&gt;</span><span> mapList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 打印测试数据</em>
+</span><span><span>PrintUtils</span><span>.</span><span>printMapList</span><span>(</span><span>mapList</span><span>)</span><span>;</span>
+</span></code></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>控制台可以得到如下结果</p>
+<div>
+<div>
+<pre><code><span><span>/--------------------------------------------\</span>
+</span><span><span>| id | name    | age | create_time           |</span>
+</span><span><span>|--------------------------------------------|</span>
+</span><span><span>| 1  | mali    | 26  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 2  | dative  | 32  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 3  | jon wes | 41  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 4  | mary    | 66  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 5  | matt    | 25  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>\--------------------------------------------/</span></span></code></pre>
+</div>
+</div>
+<p>如果想使用 DTO 对象接收数据，则需要创建一个 DTO 对象。</p>
+<div>
+<div>
+<pre><code><span><em>// 因此可以简单的通过 @Table 注解声明一下</em>
+</span><span><em>//  - `test_user` 通过驼峰转换后可以得到类名 `TestUser`</em>
+</span><span><span>@Table</span><span>(</span><span>mapUnderscoreToCamelCase </span><span>=</span><span> </span><span>true</span><span>)</span>
+</span><span><span>public</span><span> </span><span>class</span><span> </span><span>TestUser</span><span> </span><span>{</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> id</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>String</span><span>  name</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> age</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Date</span><span>    createTime</span><span>;</span>
+</span>
+<span><span>  </span><em>// getters and setters omitted</em>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>然后通过<span>&nbsp;</span><code>queryForList</code><span>&nbsp;</span>方法直接查询</p>
+<div>
+<div>
+<pre><code><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>,</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>单表 CRUD<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%258D%2595%25E8%25A1%25A8-crud" target="_blank">​</a></h2>
+<p>对于单表 CRUD 操作可以使用<span>&nbsp;</span><code>JdbcTemplate</code><span>&nbsp;</span>的子类<span>&nbsp;</span><code>LambdaTemplate</code></p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 LambdaTemplate 对象和创建 JdbcTemplate 一样</em>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询，所有数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaInsert</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>applyEntity</span><span>(</span><span>newUser</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>executeSumResult</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>1</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>updateBySample</span><span>(</span><span>sample</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doUpdate</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>2</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doDelete</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>通用 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E9%2580%259A%25E7%2594%25A8-mapper" target="_blank">​</a></h3>
+<p>通用 Mapper 接口来完成一些基本操作，仍然以单表 CRUD 为例。</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建通用 DAO</em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> baseMapper </span><span>=</span><span> session</span><span>.</span><span>createBaseMapper</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span>
+</span>
+<span><em>// 初始化一些数据</em>
+</span><span><span>baseMapper</span><span>.</span><span>template</span><span>(</span><span>)</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> baseMapper</span><span>.</span><span>query</span><span>(</span><span>)</span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>PrintUtils</span><span>.</span><span>printObjectList</span><span>(</span><span>dtoList</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>insert</span><span>(</span><span>newUser</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> baseMapper</span><span>.</span><span>queryById</span><span>(</span><span>1</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>updateById</span><span>(</span><span>sample</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>deleteById</span><span>(</span><span>2</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>注解化 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%25B3%25A8%25E8%25A7%25A3%25E5%258C%2596-mapper" target="_blank">​</a></h3>
+<p>作为 Mapper 可以定义自己的方法，并通过注解具体执行的 SQL 语句。</p>
+<div>
+<div>
+<pre><code><span><em>// BaseMapper 是可选的，继承它相当于多了一组单表 CURD 的扩展功能。</em>
+</span><span><span>@SimpleMapper</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>@Insert</span><span>(</span><span>"insert into `test_user` (name,age,create_time) values (#{name}, #{age}, now())"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Update</span><span>(</span><span>"update `test_user` set age = #{age} where id = #{id}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Delete</span><span>(</span><span>"delete from `test_user` where age &gt; #{age}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Query</span><span>(</span><span>value </span><span>=</span><span> </span><span>"select * from `test_user` where  #{beginAge} &lt; age and age &lt; #{endAge}"</span><span>,</span>
+</span><span><span>           resultType </span><span>=</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+<pre><code><span><em>//创建 Session </em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 Mapper 接口</em>
+</span><span><span>TestUserMapper</span><span> userDAO </span><span>=</span><span> session</span><span>.</span><span>createMapper</span><span>(</span><span>TestUserMapper</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>使用 XML 管理 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E4%25BD%25BF%25E7%2594%25A8-xml-%25E7%25AE%25A1%25E7%2590%2586-sql" target="_blank">​</a></h3>
+<p>统一管理 SQL 的最佳场所仍然是 Mapper 文件，而且 dbVisitor 的 Mapper 文件高度兼容 MyBatis 学习成本极低。</p>
+<div>
+<div>
+<pre><code><span><em>// 利用 @RefMapper 注解将 Mapper 文件和 接口类联系起来（继承 BaseMapper 是可选的）</em>
+</span><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_dao3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>为了更好了解和使用 dbVisitor 的 Mapper 文件建议增加 DTD加以验证。另外 dbVisitor 兼容 MyBatis3 的 DTD 对于绝大部分 MyBatis 工程都可以正常兼容。</p>
+<div>
+<div>
+<pre><code><span><em>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</em>
+</span><span><em>&lt;!</em><em>DOCTYPE</em><em> </em><em>mapper</em><em> </em><em>PUBLIC</em><em> </em><em>"-//dbvisitor.net//DTD Mapper 1.0//EN"</em>
+</span><span><em>                        </em><em>"https://www.dbvisitor.net/schema/dbvisitor-mapper.dtd"</em><em>&gt;</em>
+</span><span><span>&lt;</span><span>mapper</span><span> </span><span>namespace</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUserDAO</span><span>"</span><span>&gt;</span>
+</span><span><span>    </span><span>&lt;</span><span>resultMap</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span> </span><span>type</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>id</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>id</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>name</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>name</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>age</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>age</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>create_time</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>createTime</span><span>"</span><span>/&gt;</span>
+</span><span><span>    </span><span>&lt;/</span><span>resultMap</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>sql</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>&gt;</span>
+</span><span><span>        name,age,create_time</span>
+</span><span><span>    </span><span>&lt;/</span><span>sql</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>insert</span><span> </span><span>id</span><span>=</span><span>"</span><span>insertUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        insert into `test_user` (</span>
+</span><span><span>            </span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        ) values (</span>
+</span><span><span>            #{name}, #{age}, now()</span>
+</span><span><span>        )</span>
+</span><span><span>    </span><span>&lt;/</span><span>insert</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>update</span><span> </span><span>id</span><span>=</span><span>"</span><span>updateAge</span><span>"</span><span>&gt;</span>
+</span><span><span>        update `test_user` set age = #{age} where id = #{id}</span>
+</span><span><span>    </span><span>&lt;/</span><span>update</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>delete</span><span> </span><span>id</span><span>=</span><span>"</span><span>deleteByAge</span><span>"</span><span>&gt;</span><em>&lt;![CDATA[</em>
+</span><span><em>        delete from `test_user` where age &gt; #{age}</em>
+</span><span><em>    ]]&gt;</em><span>&lt;/</span><span>delete</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryByAge</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>        where #{beginAge} </span><span>&amp;lt;</span><span> age and age </span><span>&amp;lt;</span><span> #{endAge}</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryAll</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span><span><span>&lt;/</span><span>mapper</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h3>利用规则简化 XML 配置<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%25A9%25E7%2594%25A8%25E8%25A7%2584%25E5%2588%2599%25E7%25AE%2580%25E5%258C%2596-xml-%25E9%2585%258D%25E7%25BD%25AE" target="_blank">​</a></h3>
+<p>规则是将一组语句操作封装成为一个规则函数，通过引用规则而减少 SQL 配置。</p>
+<div>
+<div>
+使用 and 规则
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    @{and, age = :age}</span>
+</span><span><span>    @{and, id in (:list)}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+原始的 mybatis 方式处理
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    where 1 = 1</span>
+</span><span><span>    </span><span>&lt;</span><span>if</span><span> </span><span>test</span><span>=</span><span>"</span><span>age != null</span><span>"</span><span>&gt;</span>
+</span><span><span>        and age = #{age}</span>
+</span><span><span>    </span><span>&lt;/</span><span>if</span><span>&gt;</span>
+</span><span><span>    and id in </span><span>&lt;</span><span>foreach</span><span> </span><span>item</span><span>=</span><span>"</span><span>item</span><span>"</span><span> </span><span>index</span><span>=</span><span>"</span><span>index</span><span>"</span><span> </span><span>collection</span><span>=</span><span>"</span><span>list</span><span>"</span>
+</span><span><span>             </span><span>open</span><span>=</span><span>"</span><span>(</span><span>"</span><span> </span><span>separator</span><span>=</span><span>"</span><span>,</span><span>"</span><span> </span><span>close</span><span>=</span><span>"</span><span>)</span><span>"</span><span>&gt;</span>
+</span><span><span>      #{item}</span>
+</span><span><span>    </span><span>&lt;/</span><span>foreach</span><span>&gt;</span>
+</span><span><span>  #{item}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h2>分页查询<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%2586%25E9%25A1%25B5%25E6%259F%25A5%25E8%25AF%25A2" target="_blank">​</a></h2>
+<div>
+<div>
+LambdaTemplate 单表分页查询
+</div>
+<div>
+<pre><code><span><em>// 构造 LambdaTemplate 和初始化一些数据</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>lambdaTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 构建分页对象，每页 3 条数据(默认第一页的页码为 0)</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData1 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询下一页数据</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData2 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+Mapper 文件分页查询
+</div>
+<div>
+<pre><code><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_page3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><em>// 可以直接返回分页之后的数据结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><em>// 也可以返回包含分页信息的分页结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>}</span>
+</span>
+<span><em>// 构建分页条件</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>相关链接</h2>
+<p>官方网站：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2F" target="_blank">https://www.dbvisitor.net/</a><br> 源码地址：<a href="https://gitee.com/zycgit/dbvisitor">https://gitee.com/zycgit/dbvisitor</a><br> Spring Boot 整合手册，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fintegration%2Fwith-springboot" target="_blank">https://www.dbvisitor.net/docs/integration/with-springboot</a><br> 快速上手：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart" target="_blank">https://www.dbvisitor.net/docs/guides/quickstart</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h2>介绍</h2>
+<p>dbVisitor 是一个全功能数据库访问 ORM 工具，提供对象映射、丰富的类型处理、动态 SQL、存储过程、 内置分页方言 20+、 支持嵌套事务、多数据源、条件构造器、INSERT 策略、多语句 / 多结果。并兼容 Spring 及 MyBatis 用法。 它不依赖任何其它框架，因此可以很方便的和任意一个框架整合在一起使用。</p>
+<h2>依赖</h2>
+<div>
+<div>
+<pre><code><span><span><span>&lt;</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span><span>net.hasor</span><span><span>&lt;/</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span><span>dbvisitor</span><span><span>&lt;/</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span><span>5.4.1</span><span><span>&lt;/</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span>
+</span><span><span><span>&lt;/</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span></span></code></pre>
+</div>
+</div>
+<h2><span>修复</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Freleases%2F5.1.x%2Fv5.1.0%23%25E4%25BC%2598%25E5%258C%2596" target="_blank">​</a></h2>
+<ul>
+<li>修复：DataSourceUtils 在动态 DataSource 情况下的内存泄漏问题</li>
+<li>修复：OracleDialect 拼写 tableName 时 catalog/schema 的处理问题</li>
+</ul>
+<h2>功能特性</h2>
+<ul>
+<li> <p>熟悉的方式</p>
+<ul>
+<li>JdbcTemplate 接口方式（高度兼容 Spring JDBC）</li>
+<li>Mapper 文件方式（高度兼容 MyBatis）</li>
+<li>LambdaTemplate （高度接近 MyBatis Plus、jOOQ 和 BeetlSQL）</li>
+<li>@Insert、@Update、@Delete、@Query、@Callable 注解（类似 JPA）</li>
+</ul> </li>
+<li> <p>事务支持</p>
+<ul>
+<li>支持 5 个事务隔离级别、7 个事务传播行为（与 Spring tx 相同）</li>
+<li>提供 TransactionTemplate、TransactionManager 接口方式声明式事务控制能力（用法与 Spring 相同）</li>
+</ul> </li>
+<li> <p>特色优势</p>
+<ul>
+<li>支持 分页查询 并且提供多种数据库方言（20+）</li>
+<li>支持 INSERT 策略（INTO、UPDATE、IGNORE）</li>
+<li>更加丰富的 TypeHandler（MyBatis 40+，dbVisitor 60+）</li>
+<li>Mapper XML 支持多语句、多结果</li>
+<li>提供独特的<span>&nbsp;</span><code>@{xxx, expr , xxxxx }</code><span>&nbsp;</span>规则扩展机制，让动态 SQL 更加简单</li>
+<li>支持 存储过程</li>
+<li>支持 JDBC 4.2 和 Java8 中时间类型</li>
+<li>支持多数据源</li>
+</ul> </li>
+</ul>
+<h2>执行 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%2589%25A7%25E8%25A1%258C-sql" target="_blank">​</a></h2>
+<p>使用 SQL 的方式读取数据，<code>PrintUtils</code><span>&nbsp;</span>和<span>&nbsp;</span><code>DsUtils.java</code><span>&nbsp;</span>两个工具类可以在<span>&nbsp;</span><a href="https://gitee.com/zycgit/dbvisitor/tree/main/dbvisitor-example/" target="_blank">例子工程</a><span>&nbsp;</span>中找到</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><em>// 创建 JdbcTemplate 对象</em>
+</span><span><span>JdbcTemplate</span><span> jdbcTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>JdbcTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 加载测试数据脚本</em>
+</span><span><span>jdbcTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据并 Map 形式返回</em>
+</span><span><span>List</span><span>&lt;</span><span>Map</span><span>&lt;</span><span>String</span><span>,</span><span> </span><span>Object</span><span>&gt;</span><span>&gt;</span><span> mapList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 打印测试数据</em>
+</span><span><span>PrintUtils</span><span>.</span><span>printMapList</span><span>(</span><span>mapList</span><span>)</span><span>;</span>
+</span></code></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>控制台可以得到如下结果</p>
+<div>
+<div>
+<pre><code><span><span>/--------------------------------------------\</span>
+</span><span><span>| id | name    | age | create_time           |</span>
+</span><span><span>|--------------------------------------------|</span>
+</span><span><span>| 1  | mali    | 26  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 2  | dative  | 32  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 3  | jon wes | 41  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 4  | mary    | 66  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 5  | matt    | 25  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>\--------------------------------------------/</span></span></code></pre>
+</div>
+</div>
+<p>如果想使用 DTO 对象接收数据，则需要创建一个 DTO 对象。</p>
+<div>
+<div>
+<pre><code><span><em>// 因此可以简单的通过 @Table 注解声明一下</em>
+</span><span><em>//  - `test_user` 通过驼峰转换后可以得到类名 `TestUser`</em>
+</span><span><span>@Table</span><span>(</span><span>mapUnderscoreToCamelCase </span><span>=</span><span> </span><span>true</span><span>)</span>
+</span><span><span>public</span><span> </span><span>class</span><span> </span><span>TestUser</span><span> </span><span>{</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> id</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>String</span><span>  name</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> age</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Date</span><span>    createTime</span><span>;</span>
+</span>
+<span><span>  </span><em>// getters and setters omitted</em>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>然后通过<span>&nbsp;</span><code>queryForList</code><span>&nbsp;</span>方法直接查询</p>
+<div>
+<div>
+<pre><code><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>,</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>单表 CRUD<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%258D%2595%25E8%25A1%25A8-crud" target="_blank">​</a></h2>
+<p>对于单表 CRUD 操作可以使用<span>&nbsp;</span><code>JdbcTemplate</code><span>&nbsp;</span>的子类<span>&nbsp;</span><code>LambdaTemplate</code></p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 LambdaTemplate 对象和创建 JdbcTemplate 一样</em>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询，所有数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaInsert</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>applyEntity</span><span>(</span><span>newUser</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>executeSumResult</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>1</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>updateBySample</span><span>(</span><span>sample</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doUpdate</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>2</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doDelete</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>通用 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E9%2580%259A%25E7%2594%25A8-mapper" target="_blank">​</a></h3>
+<p>通用 Mapper 接口来完成一些基本操作，仍然以单表 CRUD 为例。</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建通用 DAO</em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> baseMapper </span><span>=</span><span> session</span><span>.</span><span>createBaseMapper</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span>
+</span>
+<span><em>// 初始化一些数据</em>
+</span><span><span>baseMapper</span><span>.</span><span>template</span><span>(</span><span>)</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> baseMapper</span><span>.</span><span>query</span><span>(</span><span>)</span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>PrintUtils</span><span>.</span><span>printObjectList</span><span>(</span><span>dtoList</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>insert</span><span>(</span><span>newUser</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> baseMapper</span><span>.</span><span>queryById</span><span>(</span><span>1</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>updateById</span><span>(</span><span>sample</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>deleteById</span><span>(</span><span>2</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>注解化 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%25B3%25A8%25E8%25A7%25A3%25E5%258C%2596-mapper" target="_blank">​</a></h3>
+<p>作为 Mapper 可以定义自己的方法，并通过注解具体执行的 SQL 语句。</p>
+<div>
+<div>
+<pre><code><span><em>// BaseMapper 是可选的，继承它相当于多了一组单表 CURD 的扩展功能。</em>
+</span><span><span>@SimpleMapper</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>@Insert</span><span>(</span><span>"insert into `test_user` (name,age,create_time) values (#{name}, #{age}, now())"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Update</span><span>(</span><span>"update `test_user` set age = #{age} where id = #{id}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Delete</span><span>(</span><span>"delete from `test_user` where age &gt; #{age}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Query</span><span>(</span><span>value </span><span>=</span><span> </span><span>"select * from `test_user` where  #{beginAge} &lt; age and age &lt; #{endAge}"</span><span>,</span>
+</span><span><span>           resultType </span><span>=</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+<pre><code><span><em>//创建 Session </em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 Mapper 接口</em>
+</span><span><span>TestUserMapper</span><span> userDAO </span><span>=</span><span> session</span><span>.</span><span>createMapper</span><span>(</span><span>TestUserMapper</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>使用 XML 管理 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E4%25BD%25BF%25E7%2594%25A8-xml-%25E7%25AE%25A1%25E7%2590%2586-sql" target="_blank">​</a></h3>
+<p>统一管理 SQL 的最佳场所仍然是 Mapper 文件，而且 dbVisitor 的 Mapper 文件高度兼容 MyBatis 学习成本极低。</p>
+<div>
+<div>
+<pre><code><span><em>// 利用 @RefMapper 注解将 Mapper 文件和 接口类联系起来（继承 BaseMapper 是可选的）</em>
+</span><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_dao3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>为了更好了解和使用 dbVisitor 的 Mapper 文件建议增加 DTD加以验证。另外 dbVisitor 兼容 MyBatis3 的 DTD 对于绝大部分 MyBatis 工程都可以正常兼容。</p>
+<div>
+<div>
+<pre><code><span><em>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</em>
+</span><span><em>&lt;!</em><em>DOCTYPE</em><em> </em><em>mapper</em><em> </em><em>PUBLIC</em><em> </em><em>"-//dbvisitor.net//DTD Mapper 1.0//EN"</em>
+</span><span><em>                        </em><em>"https://www.dbvisitor.net/schema/dbvisitor-mapper.dtd"</em><em>&gt;</em>
+</span><span><span>&lt;</span><span>mapper</span><span> </span><span>namespace</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUserDAO</span><span>"</span><span>&gt;</span>
+</span><span><span>    </span><span>&lt;</span><span>resultMap</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span> </span><span>type</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>id</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>id</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>name</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>name</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>age</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>age</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>create_time</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>createTime</span><span>"</span><span>/&gt;</span>
+</span><span><span>    </span><span>&lt;/</span><span>resultMap</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>sql</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>&gt;</span>
+</span><span><span>        name,age,create_time</span>
+</span><span><span>    </span><span>&lt;/</span><span>sql</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>insert</span><span> </span><span>id</span><span>=</span><span>"</span><span>insertUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        insert into `test_user` (</span>
+</span><span><span>            </span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        ) values (</span>
+</span><span><span>            #{name}, #{age}, now()</span>
+</span><span><span>        )</span>
+</span><span><span>    </span><span>&lt;/</span><span>insert</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>update</span><span> </span><span>id</span><span>=</span><span>"</span><span>updateAge</span><span>"</span><span>&gt;</span>
+</span><span><span>        update `test_user` set age = #{age} where id = #{id}</span>
+</span><span><span>    </span><span>&lt;/</span><span>update</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>delete</span><span> </span><span>id</span><span>=</span><span>"</span><span>deleteByAge</span><span>"</span><span>&gt;</span><em>&lt;![CDATA[</em>
+</span><span><em>        delete from `test_user` where age &gt; #{age}</em>
+</span><span><em>    ]]&gt;</em><span>&lt;/</span><span>delete</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryByAge</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>        where #{beginAge} </span><span>&amp;lt;</span><span> age and age </span><span>&amp;lt;</span><span> #{endAge}</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryAll</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span><span><span>&lt;/</span><span>mapper</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h3>利用规则简化 XML 配置<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%25A9%25E7%2594%25A8%25E8%25A7%2584%25E5%2588%2599%25E7%25AE%2580%25E5%258C%2596-xml-%25E9%2585%258D%25E7%25BD%25AE" target="_blank">​</a></h3>
+<p>规则是将一组语句操作封装成为一个规则函数，通过引用规则而减少 SQL 配置。</p>
+<div>
+<div>
+使用 and 规则
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    @{and, age = :age}</span>
+</span><span><span>    @{and, id in (:list)}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+原始的 mybatis 方式处理
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    where 1 = 1</span>
+</span><span><span>    </span><span>&lt;</span><span>if</span><span> </span><span>test</span><span>=</span><span>"</span><span>age != null</span><span>"</span><span>&gt;</span>
+</span><span><span>        and age = #{age}</span>
+</span><span><span>    </span><span>&lt;/</span><span>if</span><span>&gt;</span>
+</span><span><span>    and id in </span><span>&lt;</span><span>foreach</span><span> </span><span>item</span><span>=</span><span>"</span><span>item</span><span>"</span><span> </span><span>index</span><span>=</span><span>"</span><span>index</span><span>"</span><span> </span><span>collection</span><span>=</span><span>"</span><span>list</span><span>"</span>
+</span><span><span>             </span><span>open</span><span>=</span><span>"</span><span>(</span><span>"</span><span> </span><span>separator</span><span>=</span><span>"</span><span>,</span><span>"</span><span> </span><span>close</span><span>=</span><span>"</span><span>)</span><span>"</span><span>&gt;</span>
+</span><span><span>      #{item}</span>
+</span><span><span>    </span><span>&lt;/</span><span>foreach</span><span>&gt;</span>
+</span><span><span>  #{item}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h2>分页查询<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%2586%25E9%25A1%25B5%25E6%259F%25A5%25E8%25AF%25A2" target="_blank">​</a></h2>
+<div>
+<div>
+LambdaTemplate 单表分页查询
+</div>
+<div>
+<pre><code><span><em>// 构造 LambdaTemplate 和初始化一些数据</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>lambdaTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 构建分页对象，每页 3 条数据(默认第一页的页码为 0)</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData1 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询下一页数据</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData2 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+Mapper 文件分页查询
+</div>
+<div>
+<pre><code><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_page3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><em>// 可以直接返回分页之后的数据结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><em>// 也可以返回包含分页信息的分页结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>}</span>
+</span>
+<span><em>// 构建分页条件</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>相关链接</h2>
+<p>官方网站：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2F" target="_blank">https://www.dbvisitor.net/</a><br> 源码地址：<a href="https://gitee.com/zycgit/dbvisitor">https://gitee.com/zycgit/dbvisitor</a><br> Spring Boot 整合手册，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fintegration%2Fwith-springboot" target="_blank">https://www.dbvisitor.net/docs/integration/with-springboot</a><br> 快速上手：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart" target="_blank">https://www.dbvisitor.net/docs/guides/quickstart</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<h2>介绍</h2>
+<p>dbVisitor 是一个全功能数据库访问 ORM 工具，提供对象映射、丰富的类型处理、动态 SQL、存储过程、 内置分页方言 20+、 支持嵌套事务、多数据源、条件构造器、INSERT 策略、多语句 / 多结果。并兼容 Spring 及 MyBatis 用法。 它不依赖任何其它框架，因此可以很方便的和任意一个框架整合在一起使用。</p>
+<h2>依赖</h2>
+<div>
+<div>
+<pre><code><span><span><span>&lt;</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span><span>net.hasor</span><span><span>&lt;/</span></span><span><span><span>groupId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span><span>dbvisitor</span><span><span>&lt;/</span></span><span><span><span>artifactId</span></span></span><span><span>&gt;</span></span>
+</span><span><span>    </span><span><span>&lt;</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span><span>5.4.1</span><span><span>&lt;/</span></span><span><span><span>version</span></span></span><span><span>&gt;</span></span>
+</span><span><span><span>&lt;/</span></span><span><span><span>dependency</span></span></span><span><span>&gt;</span></span></span></code></pre>
+</div>
+</div>
+<h2><span>修复</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Freleases%2F5.1.x%2Fv5.1.0%23%25E4%25BC%2598%25E5%258C%2596" target="_blank">​</a></h2>
+<ul>
+<li>修复：DataSourceUtils 在动态 DataSource 情况下的内存泄漏问题</li>
+<li>修复：OracleDialect 拼写 tableName 时 catalog/schema 的处理问题</li>
+</ul>
+<h2>功能特性</h2>
+<ul>
+<li> <p>熟悉的方式</p>
+<ul>
+<li>JdbcTemplate 接口方式（高度兼容 Spring JDBC）</li>
+<li>Mapper 文件方式（高度兼容 MyBatis）</li>
+<li>LambdaTemplate （高度接近 MyBatis Plus、jOOQ 和 BeetlSQL）</li>
+<li>@Insert、@Update、@Delete、@Query、@Callable 注解（类似 JPA）</li>
+</ul> </li>
+<li> <p>事务支持</p>
+<ul>
+<li>支持 5 个事务隔离级别、7 个事务传播行为（与 Spring tx 相同）</li>
+<li>提供 TransactionTemplate、TransactionManager 接口方式声明式事务控制能力（用法与 Spring 相同）</li>
+</ul> </li>
+<li> <p>特色优势</p>
+<ul>
+<li>支持 分页查询 并且提供多种数据库方言（20+）</li>
+<li>支持 INSERT 策略（INTO、UPDATE、IGNORE）</li>
+<li>更加丰富的 TypeHandler（MyBatis 40+，dbVisitor 60+）</li>
+<li>Mapper XML 支持多语句、多结果</li>
+<li>提供独特的<span>&nbsp;</span><code>@{xxx, expr , xxxxx }</code><span>&nbsp;</span>规则扩展机制，让动态 SQL 更加简单</li>
+<li>支持 存储过程</li>
+<li>支持 JDBC 4.2 和 Java8 中时间类型</li>
+<li>支持多数据源</li>
+</ul> </li>
+</ul>
+<h2>执行 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%2589%25A7%25E8%25A1%258C-sql" target="_blank">​</a></h2>
+<p>使用 SQL 的方式读取数据，<code>PrintUtils</code><span>&nbsp;</span>和<span>&nbsp;</span><code>DsUtils.java</code><span>&nbsp;</span>两个工具类可以在<span>&nbsp;</span><a href="https://gitee.com/zycgit/dbvisitor/tree/main/dbvisitor-example/" target="_blank">例子工程</a><span>&nbsp;</span>中找到</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><em>// 创建 JdbcTemplate 对象</em>
+</span><span><span>JdbcTemplate</span><span> jdbcTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>JdbcTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 加载测试数据脚本</em>
+</span><span><span>jdbcTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据并 Map 形式返回</em>
+</span><span><span>List</span><span>&lt;</span><span>Map</span><span>&lt;</span><span>String</span><span>,</span><span> </span><span>Object</span><span>&gt;</span><span>&gt;</span><span> mapList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 打印测试数据</em>
+</span><span><span>PrintUtils</span><span>.</span><span>printMapList</span><span>(</span><span>mapList</span><span>)</span><span>;</span>
+</span></code></pre>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<p>控制台可以得到如下结果</p>
+<div>
+<div>
+<pre><code><span><span>/--------------------------------------------\</span>
+</span><span><span>| id | name    | age | create_time           |</span>
+</span><span><span>|--------------------------------------------|</span>
+</span><span><span>| 1  | mali    | 26  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 2  | dative  | 32  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 3  | jon wes | 41  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 4  | mary    | 66  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>| 5  | matt    | 25  | 2021-11-12 19:14:06.0 |</span>
+</span><span><span>\--------------------------------------------/</span></span></code></pre>
+</div>
+</div>
+<p>如果想使用 DTO 对象接收数据，则需要创建一个 DTO 对象。</p>
+<div>
+<div>
+<pre><code><span><em>// 因此可以简单的通过 @Table 注解声明一下</em>
+</span><span><em>//  - `test_user` 通过驼峰转换后可以得到类名 `TestUser`</em>
+</span><span><span>@Table</span><span>(</span><span>mapUnderscoreToCamelCase </span><span>=</span><span> </span><span>true</span><span>)</span>
+</span><span><span>public</span><span> </span><span>class</span><span> </span><span>TestUser</span><span> </span><span>{</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> id</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>String</span><span>  name</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Integer</span><span> age</span><span>;</span>
+</span><span><span>  </span><span>private</span><span> </span><span>Date</span><span>    createTime</span><span>;</span>
+</span>
+<span><span>  </span><em>// getters and setters omitted</em>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>然后通过<span>&nbsp;</span><code>queryForList</code><span>&nbsp;</span>方法直接查询</p>
+<div>
+<div>
+<pre><code><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> jdbcTemplate</span><span>.</span><span>queryForList</span><span>(</span><span>"select * from test_user"</span><span>,</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>单表 CRUD<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%258D%2595%25E8%25A1%25A8-crud" target="_blank">​</a></h2>
+<p>对于单表 CRUD 操作可以使用<span>&nbsp;</span><code>JdbcTemplate</code><span>&nbsp;</span>的子类<span>&nbsp;</span><code>LambdaTemplate</code></p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 LambdaTemplate 对象和创建 JdbcTemplate 一样</em>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询，所有数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaInsert</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>applyEntity</span><span>(</span><span>newUser</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>executeSumResult</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>1</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>updateBySample</span><span>(</span><span>sample</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doUpdate</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaUpdate</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>eq</span><span>(</span><span>TestUser</span><span>::</span><span>getId</span><span>,</span><span> </span><span>2</span><span>)</span>
+</span><span><span>                </span><span>.</span><span>doDelete</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>通用 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E9%2580%259A%25E7%2594%25A8-mapper" target="_blank">​</a></h3>
+<p>通用 Mapper 接口来完成一些基本操作，仍然以单表 CRUD 为例。</p>
+<div>
+<div>
+<pre><code><span><em>// 创建数据源</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建通用 DAO</em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> baseMapper </span><span>=</span><span> session</span><span>.</span><span>createBaseMapper</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span><span>;</span>
+</span>
+<span><em>// 初始化一些数据</em>
+</span><span><span>baseMapper</span><span>.</span><span>template</span><span>(</span><span>)</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> dtoList </span><span>=</span><span> baseMapper</span><span>.</span><span>query</span><span>(</span><span>)</span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>PrintUtils</span><span>.</span><span>printObjectList</span><span>(</span><span>dtoList</span><span>)</span><span>;</span>
+</span>
+<span><em>// 插入新数据</em>
+</span><span><span>TestUser</span><span> newUser </span><span>=</span><span> </span><span>new</span><span> </span><span>TestUser</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setName</span><span>(</span><span>"new User"</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setAge</span><span>(</span><span>33</span><span>)</span><span>;</span>
+</span><span><span>newUser</span><span>.</span><span>setCreateTime</span><span>(</span><span>new</span><span> </span><span>Date</span><span>(</span><span>)</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>insert</span><span>(</span><span>newUser</span><span>)</span><span>;</span>
+</span>
+<span><em>// 更新，将name 从 mali 更新为 mala</em>
+</span><span><span>TestUser</span><span> sample </span><span>=</span><span> baseMapper</span><span>.</span><span>queryById</span><span>(</span><span>1</span><span>)</span><span>;</span>
+</span><span><span>sample</span><span>.</span><span>setName</span><span>(</span><span>"mala"</span><span>)</span><span>;</span>
+</span>
+<span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>updateById</span><span>(</span><span>sample</span><span>)</span><span>;</span>
+</span>
+<span><em>// 删除，ID 为 2 的数据</em>
+</span><span><span>int</span><span> result </span><span>=</span><span> baseMapper</span><span>.</span><span>deleteById</span><span>(</span><span>2</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>注解化 Mapper<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E6%25B3%25A8%25E8%25A7%25A3%25E5%258C%2596-mapper" target="_blank">​</a></h3>
+<p>作为 Mapper 可以定义自己的方法，并通过注解具体执行的 SQL 语句。</p>
+<div>
+<div>
+<pre><code><span><em>// BaseMapper 是可选的，继承它相当于多了一组单表 CURD 的扩展功能。</em>
+</span><span><span>@SimpleMapper</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>@Insert</span><span>(</span><span>"insert into `test_user` (name,age,create_time) values (#{name}, #{age}, now())"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Update</span><span>(</span><span>"update `test_user` set age = #{age} where id = #{id}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Delete</span><span>(</span><span>"delete from `test_user` where age &gt; #{age}"</span><span>)</span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>@Query</span><span>(</span><span>value </span><span>=</span><span> </span><span>"select * from `test_user` where  #{beginAge} &lt; age and age &lt; #{endAge}"</span><span>,</span>
+</span><span><span>           resultType </span><span>=</span><span> </span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+<pre><code><span><em>//创建 Session </em>
+</span><span><span>DalSession</span><span> session </span><span>=</span><span> </span><span>new</span><span> </span><span>DalSession</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span>
+<span><em>// 创建 Mapper 接口</em>
+</span><span><span>TestUserMapper</span><span> userDAO </span><span>=</span><span> session</span><span>.</span><span>createMapper</span><span>(</span><span>TestUserMapper</span><span>.</span><span>class</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h3>使用 XML 管理 SQL<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E4%25BD%25BF%25E7%2594%25A8-xml-%25E7%25AE%25A1%25E7%2590%2586-sql" target="_blank">​</a></h3>
+<p>统一管理 SQL 的最佳场所仍然是 Mapper 文件，而且 dbVisitor 的 Mapper 文件高度兼容 MyBatis 学习成本极低。</p>
+<div>
+<div>
+<pre><code><span><em>// 利用 @RefMapper 注解将 Mapper 文件和 接口类联系起来（继承 BaseMapper 是可选的）</em>
+</span><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_dao3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><span>int</span><span> </span><span>insertUser</span><span>(</span><span>@Param</span><span>(</span><span>"name"</span><span>)</span><span> </span><span>String</span><span> name</span><span>,</span><span> </span>
+</span><span><span>                   </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>updateAge</span><span>(</span><span>@Param</span><span>(</span><span>"id"</span><span>)</span><span> </span><span>int</span><span> userId</span><span>,</span><span> </span>
+</span><span><span>                  </span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> newAge</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>int</span><span> </span><span>deleteByAge</span><span>(</span><span>@Param</span><span>(</span><span>"age"</span><span>)</span><span> </span><span>int</span><span> age</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>)</span><span>;</span>
+</span><span><span>}</span></span></code></pre>
+</div>
+</div>
+<p>为了更好了解和使用 dbVisitor 的 Mapper 文件建议增加 DTD加以验证。另外 dbVisitor 兼容 MyBatis3 的 DTD 对于绝大部分 MyBatis 工程都可以正常兼容。</p>
+<div>
+<div>
+<pre><code><span><em>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</em>
+</span><span><em>&lt;!</em><em>DOCTYPE</em><em> </em><em>mapper</em><em> </em><em>PUBLIC</em><em> </em><em>"-//dbvisitor.net//DTD Mapper 1.0//EN"</em>
+</span><span><em>                        </em><em>"https://www.dbvisitor.net/schema/dbvisitor-mapper.dtd"</em><em>&gt;</em>
+</span><span><span>&lt;</span><span>mapper</span><span> </span><span>namespace</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUserDAO</span><span>"</span><span>&gt;</span>
+</span><span><span>    </span><span>&lt;</span><span>resultMap</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span> </span><span>type</span><span>=</span><span>"</span><span>com.example.demo.quick.dao3.TestUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>id</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>id</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>name</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>name</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>age</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>age</span><span>"</span><span>/&gt;</span>
+</span><span><span>        </span><span>&lt;</span><span>result</span><span> </span><span>column</span><span>=</span><span>"</span><span>create_time</span><span>"</span><span> </span><span>property</span><span>=</span><span>"</span><span>createTime</span><span>"</span><span>/&gt;</span>
+</span><span><span>    </span><span>&lt;/</span><span>resultMap</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>sql</span><span> </span><span>id</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>&gt;</span>
+</span><span><span>        name,age,create_time</span>
+</span><span><span>    </span><span>&lt;/</span><span>sql</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>insert</span><span> </span><span>id</span><span>=</span><span>"</span><span>insertUser</span><span>"</span><span>&gt;</span>
+</span><span><span>        insert into `test_user` (</span>
+</span><span><span>            </span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        ) values (</span>
+</span><span><span>            #{name}, #{age}, now()</span>
+</span><span><span>        )</span>
+</span><span><span>    </span><span>&lt;/</span><span>insert</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>update</span><span> </span><span>id</span><span>=</span><span>"</span><span>updateAge</span><span>"</span><span>&gt;</span>
+</span><span><span>        update `test_user` set age = #{age} where id = #{id}</span>
+</span><span><span>    </span><span>&lt;/</span><span>update</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>delete</span><span> </span><span>id</span><span>=</span><span>"</span><span>deleteByAge</span><span>"</span><span>&gt;</span><em>&lt;![CDATA[</em>
+</span><span><em>        delete from `test_user` where age &gt; #{age}</em>
+</span><span><em>    ]]&gt;</em><span>&lt;/</span><span>delete</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryByAge</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>        where #{beginAge} </span><span>&amp;lt;</span><span> age and age </span><span>&amp;lt;</span><span> #{endAge}</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span>
+<span><span>    </span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryAll</span><span>"</span><span> </span><span>resultMap</span><span>=</span><span>"</span><span>testuser_resultMap</span><span>"</span><span>&gt;</span>
+</span><span><span>        select id,</span><span>&lt;</span><span>include</span><span> </span><span>refid</span><span>=</span><span>"</span><span>testuser_columns</span><span>"</span><span>/&gt;</span>
+</span><span><span>        from `test_user`</span>
+</span><span><span>    </span><span>&lt;/</span><span>select</span><span>&gt;</span>
+</span><span><span>&lt;/</span><span>mapper</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h3>利用规则简化 XML 配置<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%25A9%25E7%2594%25A8%25E8%25A7%2584%25E5%2588%2599%25E7%25AE%2580%25E5%258C%2596-xml-%25E9%2585%258D%25E7%25BD%25AE" target="_blank">​</a></h3>
+<p>规则是将一组语句操作封装成为一个规则函数，通过引用规则而减少 SQL 配置。</p>
+<div>
+<div>
+使用 and 规则
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    @{and, age = :age}</span>
+</span><span><span>    @{and, id in (:list)}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+原始的 mybatis 方式处理
+</div>
+<div>
+<pre><code><span><span>&lt;</span><span>select</span><span> </span><span>id</span><span>=</span><span>"</span><span>queryUser</span><span>"</span><span>&gt;</span>
+</span><span><span>    select * from `test_user`</span>
+</span><span><span>    where 1 = 1</span>
+</span><span><span>    </span><span>&lt;</span><span>if</span><span> </span><span>test</span><span>=</span><span>"</span><span>age != null</span><span>"</span><span>&gt;</span>
+</span><span><span>        and age = #{age}</span>
+</span><span><span>    </span><span>&lt;/</span><span>if</span><span>&gt;</span>
+</span><span><span>    and id in </span><span>&lt;</span><span>foreach</span><span> </span><span>item</span><span>=</span><span>"</span><span>item</span><span>"</span><span> </span><span>index</span><span>=</span><span>"</span><span>index</span><span>"</span><span> </span><span>collection</span><span>=</span><span>"</span><span>list</span><span>"</span>
+</span><span><span>             </span><span>open</span><span>=</span><span>"</span><span>(</span><span>"</span><span> </span><span>separator</span><span>=</span><span>"</span><span>,</span><span>"</span><span> </span><span>close</span><span>=</span><span>"</span><span>)</span><span>"</span><span>&gt;</span>
+</span><span><span>      #{item}</span>
+</span><span><span>    </span><span>&lt;/</span><span>foreach</span><span>&gt;</span>
+</span><span><span>  #{item}</span>
+</span><span><span>&lt;/</span><span>select</span><span>&gt;</span></span></code></pre>
+</div>
+</div>
+<h2>分页查询<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart%23%25E5%2588%2586%25E9%25A1%25B5%25E6%259F%25A5%25E8%25AF%25A2" target="_blank">​</a></h2>
+<div>
+<div>
+LambdaTemplate 单表分页查询
+</div>
+<div>
+<pre><code><span><em>// 构造 LambdaTemplate 和初始化一些数据</em>
+</span><span><span>DataSource</span><span> dataSource </span><span>=</span><span> </span><span>DsUtils</span><span>.</span><span>dsMySql</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>LambdaTemplate</span><span> lambdaTemplate </span><span>=</span><span> </span><span>new</span><span> </span><span>LambdaTemplate</span><span>(</span><span>dataSource</span><span>)</span><span>;</span>
+</span><span><span>lambdaTemplate</span><span>.</span><span>loadSQL</span><span>(</span><span>"CreateDB.sql"</span><span>)</span><span>;</span>
+</span>
+<span><em>// 构建分页对象，每页 3 条数据(默认第一页的页码为 0)</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询数据</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData1 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页查询下一页数据</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> pageData2 </span><span>=</span><span> lambdaTemplate</span><span>.</span><span>lambdaQuery</span><span>(</span><span>TestUser</span><span>.</span><span>class</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>usePage</span><span>(</span><span>pageInfo</span><span>)</span>
+</span><span><span>    </span><span>.</span><span>queryForList</span><span>(</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<div>
+<div>
+Mapper 文件分页查询
+</div>
+<div>
+<pre><code><span><span>@RefMapper</span><span>(</span><span>"/mapper/quick_page3/TestUserMapper.xml"</span><span>)</span>
+</span><span><span>public</span><span> </span><span>interface</span><span> </span><span>TestUserDAO</span><span> </span><span>extends</span><span> </span><span>BaseMapper</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>{</span>
+</span><span><span>    </span><em>// 可以直接返回分页之后的数据结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>    </span>
+</span><span><span>    </span><em>// 也可以返回包含分页信息的分页结果</em>
+</span><span><span>    </span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> </span><span>queryByAge</span><span>(</span><span>@Param</span><span>(</span><span>"beginAge"</span><span>)</span><span> </span><span>int</span><span> beginAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>@Param</span><span>(</span><span>"endAge"</span><span>)</span><span> </span><span>int</span><span> endAge</span><span>,</span><span> </span>
+</span><span><span>                              </span><span>Page</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>}</span>
+</span>
+<span><em>// 构建分页条件</em>
+</span><span><span>Page</span><span> pageInfo </span><span>=</span><span> </span><span>new</span><span> </span><span>PageObject</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>pageInfo</span><span>.</span><span>setPageSize</span><span>(</span><span>3</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page1 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span>
+<span><em>// 分页方式查询 mapper 中的查询</em>
+</span><span><span>pageInfo</span><span>.</span><span>nextPage</span><span>(</span><span>)</span><span>;</span>
+</span><span><span>List</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> data2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span>
+</span><span><span>PageResult</span><span>&lt;</span><span>TestUser</span><span>&gt;</span><span> page2 </span><span>=</span><span> userDAO</span><span>.</span><span>queryByAge2</span><span>(</span><span>25</span><span>,</span><span> </span><span>100</span><span>,</span><span> pageInfo</span><span>)</span><span>;</span></span></code></pre>
+</div>
+</div>
+<h2>相关链接</h2>
+<p>官方网站：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2F" target="_blank">https://www.dbvisitor.net/</a><br> 源码地址：<a href="https://gitee.com/zycgit/dbvisitor">https://gitee.com/zycgit/dbvisitor</a><br> Spring Boot 整合手册，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fintegration%2Fwith-springboot" target="_blank">https://www.dbvisitor.net/docs/integration/with-springboot</a><br> 快速上手：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.dbvisitor.net%2Fdocs%2Fguides%2Fquickstart" target="_blank">https://www.dbvisitor.net/docs/guides/quickstart</a></p>]]></content:encoded>
+    
+    <pubDate>Wed, 07 Feb 2024 10:22:12 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[曾被 Mozilla 放弃的 Web 引擎项目“Servo”在 2024 年迎来重生]]></title>
+    <link>https://www.oschina.net/news/278103</link>
+    <itunes:title><![CDATA[曾被 Mozilla 放弃的 Web 引擎项目“Servo”在 2024 年迎来重生]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8734fbd881.png"></p>
+<p>Servo项目用Rust语言开发，以其内存安全性和模块化的特点备受关注。历经起伏后，该项目于2023年加入了欧洲Linux基金会，即将在新的年份展现出新的活力。</p>
+<p>近期在2024年的FOSDEM大会上，Bernie Innocenti偶然发现Servo项目团队正在展示迄今为止的成果，引起了外界的极大关注。多年以来，曾受到Mozilla资助的Servo项目表现出了忽冷忽热的态势。但当Mozilla放弃继续研发后，这个项目迎来了转机。Igalia的贡献者接手项目维护，为Servo注入了新鲜血液。</p>
+<p>目前，市面上虽有众多基于开源Chrome（Blink引擎）的浏览器替代品，但Servo带来的改变可能会给Blink和Mozilla的Gecko引擎带来竞争压力。Servo项目团队已在过去的几个月中取得了令人瞩目的成绩。2023年9月，在Open Source Summit Europe上，Igalia的Manuel Rego就展示了项目的多项进展，如WebGL支持、跨平台兼容性（包括安卓和Linux移动支持）等。</p>
+<p>Servo不仅能够在Raspberry Pi等嵌入式应用中运行，且相比Chromium显示出更快的速度。对于想深度了解的用户，可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdemo.servo.org" target="_blank">Servo的官方演示</a>页面上体验更多示例。</p>
+<p>除此之外，Servo还在开发一个新的布局引擎，该引擎将增加新功能，提升兼容性。尽管Mozilla已经放弃了这个实验性项目，Firefox实际上仍在使用一些由Servo开发的组件。这让人们不禁猜测，新的Servo布局引擎或者其他组件可能未来也会集成到Firefox中。</p>
+<p>作为一个独立项目，Servo取得的进展已经令人充满期待。其官方网站已经列出了<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fservo%2Fservo%2Fwiki%2FRoadmap" target="_blank">2024年的更新路线图</a>，明确了包括社区管理和项目维护在内的任务。2024年的目标包括完成CSS支持的实现，这意味着Servo布局引擎将提供基础的CSS功能。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-066ad883fe.png"></p>
+<p>另一方面，Servo团队还将完成嵌入式API的定义，与Tauri合作定义Servo的webview API，并为API实现新特性和需求。而最激动人心的是，Servo项目将在安卓平台上推进，预计将在未来某个时间点在官网发布面向现代安卓版本的夜间版本APK。</p>
+<p>这一系列举措不仅让开源界的热心观望者们看到了Servo未来发展的无限可能，也给竞争激烈的浏览器市场带来了新的活力和选择。</p>
+<blockquote>
+<p>本文遵循新闻原始来源It’s FOSS的版权协议，采用“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcreativecommons.org%2Flicenses%2Fby-sa%2F4.0%2Fdeed.zh-hans" target="_blank">CC BY-SA 4.0国际</a>”协议授权。</p>
+</blockquote>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8734fbd881.png"></p>
+<p>Servo项目用Rust语言开发，以其内存安全性和模块化的特点备受关注。历经起伏后，该项目于2023年加入了欧洲Linux基金会，即将在新的年份展现出新的活力。</p>
+<p>近期在2024年的FOSDEM大会上，Bernie Innocenti偶然发现Servo项目团队正在展示迄今为止的成果，引起了外界的极大关注。多年以来，曾受到Mozilla资助的Servo项目表现出了忽冷忽热的态势。但当Mozilla放弃继续研发后，这个项目迎来了转机。Igalia的贡献者接手项目维护，为Servo注入了新鲜血液。</p>
+<p>目前，市面上虽有众多基于开源Chrome（Blink引擎）的浏览器替代品，但Servo带来的改变可能会给Blink和Mozilla的Gecko引擎带来竞争压力。Servo项目团队已在过去的几个月中取得了令人瞩目的成绩。2023年9月，在Open Source Summit Europe上，Igalia的Manuel Rego就展示了项目的多项进展，如WebGL支持、跨平台兼容性（包括安卓和Linux移动支持）等。</p>
+<p>Servo不仅能够在Raspberry Pi等嵌入式应用中运行，且相比Chromium显示出更快的速度。对于想深度了解的用户，可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdemo.servo.org" target="_blank">Servo的官方演示</a>页面上体验更多示例。</p>
+<p>除此之外，Servo还在开发一个新的布局引擎，该引擎将增加新功能，提升兼容性。尽管Mozilla已经放弃了这个实验性项目，Firefox实际上仍在使用一些由Servo开发的组件。这让人们不禁猜测，新的Servo布局引擎或者其他组件可能未来也会集成到Firefox中。</p>
+<p>作为一个独立项目，Servo取得的进展已经令人充满期待。其官方网站已经列出了<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fservo%2Fservo%2Fwiki%2FRoadmap" target="_blank">2024年的更新路线图</a>，明确了包括社区管理和项目维护在内的任务。2024年的目标包括完成CSS支持的实现，这意味着Servo布局引擎将提供基础的CSS功能。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-066ad883fe.png"></p>
+<p>另一方面，Servo团队还将完成嵌入式API的定义，与Tauri合作定义Servo的webview API，并为API实现新特性和需求。而最激动人心的是，Servo项目将在安卓平台上推进，预计将在未来某个时间点在官网发布面向现代安卓版本的夜间版本APK。</p>
+<p>这一系列举措不仅让开源界的热心观望者们看到了Servo未来发展的无限可能，也给竞争激烈的浏览器市场带来了新的活力和选择。</p>
+<blockquote>
+<p>本文遵循新闻原始来源It’s FOSS的版权协议，采用“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcreativecommons.org%2Flicenses%2Fby-sa%2F4.0%2Fdeed.zh-hans" target="_blank">CC BY-SA 4.0国际</a>”协议授权。</p>
+</blockquote>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8734fbd881.png"></p>
+<p>Servo项目用Rust语言开发，以其内存安全性和模块化的特点备受关注。历经起伏后，该项目于2023年加入了欧洲Linux基金会，即将在新的年份展现出新的活力。</p>
+<p>近期在2024年的FOSDEM大会上，Bernie Innocenti偶然发现Servo项目团队正在展示迄今为止的成果，引起了外界的极大关注。多年以来，曾受到Mozilla资助的Servo项目表现出了忽冷忽热的态势。但当Mozilla放弃继续研发后，这个项目迎来了转机。Igalia的贡献者接手项目维护，为Servo注入了新鲜血液。</p>
+<p>目前，市面上虽有众多基于开源Chrome（Blink引擎）的浏览器替代品，但Servo带来的改变可能会给Blink和Mozilla的Gecko引擎带来竞争压力。Servo项目团队已在过去的几个月中取得了令人瞩目的成绩。2023年9月，在Open Source Summit Europe上，Igalia的Manuel Rego就展示了项目的多项进展，如WebGL支持、跨平台兼容性（包括安卓和Linux移动支持）等。</p>
+<p>Servo不仅能够在Raspberry Pi等嵌入式应用中运行，且相比Chromium显示出更快的速度。对于想深度了解的用户，可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdemo.servo.org" target="_blank">Servo的官方演示</a>页面上体验更多示例。</p>
+<p>除此之外，Servo还在开发一个新的布局引擎，该引擎将增加新功能，提升兼容性。尽管Mozilla已经放弃了这个实验性项目，Firefox实际上仍在使用一些由Servo开发的组件。这让人们不禁猜测，新的Servo布局引擎或者其他组件可能未来也会集成到Firefox中。</p>
+<p>作为一个独立项目，Servo取得的进展已经令人充满期待。其官方网站已经列出了<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fservo%2Fservo%2Fwiki%2FRoadmap" target="_blank">2024年的更新路线图</a>，明确了包括社区管理和项目维护在内的任务。2024年的目标包括完成CSS支持的实现，这意味着Servo布局引擎将提供基础的CSS功能。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-066ad883fe.png"></p>
+<p>另一方面，Servo团队还将完成嵌入式API的定义，与Tauri合作定义Servo的webview API，并为API实现新特性和需求。而最激动人心的是，Servo项目将在安卓平台上推进，预计将在未来某个时间点在官网发布面向现代安卓版本的夜间版本APK。</p>
+<p>这一系列举措不仅让开源界的热心观望者们看到了Servo未来发展的无限可能，也给竞争激烈的浏览器市场带来了新的活力和选择。</p>
+<blockquote>
+<p>本文遵循新闻原始来源It’s FOSS的版权协议，采用“<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcreativecommons.org%2Flicenses%2Fby-sa%2F4.0%2Fdeed.zh-hans" target="_blank">CC BY-SA 4.0国际</a>”协议授权。</p>
+</blockquote>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8734fbd881.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8734fbd881.png" medium="image"/>
+    <pubDate>Wed, 07 Feb 2024 09:14:24 +0800</pubDate>
+  </item><item>
     <title><![CDATA[央行发布《金融业开源软件应用 评估规范》]]></title>
     <link>https://www.oschina.net/news/278033</link>
     <itunes:title><![CDATA[央行发布《金融业开源软件应用 评估规范》]]></itunes:title>
