@@ -30,6 +30,204 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[筆記 - SonarQube Docker 安裝與 .NET 6+ 專案掃瞄]]></title>
+    <link>https://blog.darkthread.net/blog/sonarqube-docker/</link>
+    <itunes:title><![CDATA[筆記 - SonarQube Docker 安裝與 .NET 6+ 專案掃瞄]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.sonarsource.com/products/sonarqube/">SonarQube</a> 是一套程式碼品質掃瞄工具，可以分析你的程式的寫法是否存在 Bug、漏洞或<a href="https://zh.wikipedia.org/zh-tw/%E4%BB%A3%E7%A0%81%E5%BC%82%E5%91%B3">不好的寫法(Code Smell)</a>。</p> <p>這篇簡單記錄我如何在 Linux 主機上安裝 SonarQube Docker，並用它在 Linux 掃瞄 .NET 專案。</p> <p>安裝步驟我主要參考這篇：<a href="https://learningsky.io/building-sonarqube-community-edition-on-ubuntu-using-docker/">於 Ubuntu 透過 Docker 建置 SonarQube Community Edition by Archer</a>，記錄重點如下：</p> <ol><li>調整 Linux 作業系統<a href="https://docs.sonarsource.com/sonarqube/9.9/requirements/prerequisites-and-overview/#linux">記憶體及檔案參數</a><br> <code>vm.max_map_count</code> 要大於 524288、<code>fs.file-max</code> 大於 131072</li> <li>docker-compose.yml 如下： <pre><code>version: "3"
+services:
+sonarqube:
+image: sonarqube:community
+depends_on:
+- db
+environment:
+SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+SONAR_JDBC_USERNAME: sonar
+SONAR_JDBC_PASSWORD: sonar
+volumes:
+- sonarqube_data:/opt/sonarqube/data
+- sonarqube_extensions:/opt/sonarqube/extensions
+- sonarqube_logs:/opt/sonarqube/logs
+ports:
+- "9000:9000"
+db:
+image: postgres:12
+environment:
+POSTGRES_USER: sonar
+POSTGRES_PASSWORD: sonar
+volumes:
+- postgresql:/var/lib/postgresql
+- postgresql_data:/var/lib/postgresql/data
+volumes:
+sonarqube_data:
+sonarqube_extensions:
+sonarqube_logs:
+postgresql:
+postgresql_data:
+</code></pre> </li></ol> <p>之後開啟 <code>http://localhost:9000</code> 用 admin/admin 登入並修改密碼，即可開始使用 SonarQube。</p> <p>SonarQube 的最佳用法是串接 Azure DevOps、Github... 等版控系統，每次 Commit 後進行掃瞄實現 CI/CD。新建專案介面會提示你設登入版控系統：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638429815938407673.png"></p> <p>但我是掃瞄本地專案，故要下載安裝 SonarScanner CLI。Linux 下載路徑可由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/">官方網站</a>取得，使用 curl 或 wget 下載 ZIP 檔並解壓縮，將檔案移至 opt 目錄，在 .bashrc 設定 $PATH 方便從任意目錄執行：參考 <a href="https://pccicblog.wordpress.com/2021/12/14/sonarqube-%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%93%81%E8%B3%AA%E5%88%86%E6%9E%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%95%99%E5%AD%B8/">SonarQube 程式碼品質分析工具使用教學 by 張志合</a></p> <pre><code># 下載 zip
+wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+# 解壓縮
+unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+# 將 SonarScanner 資料夾搬到 /opt/ 目錄
+sudo mv sonar-scanner-5.0.1.3006-linux /opt/
+# 將 SonarScanner 資料夾加入程式搜尋路徑
+echo 'export PATH=$PATH:/opt/sonar-scanner-5.0.1.3006-linux/bin' &gt;&gt; ~/.bashrc
+# 重載生效
+source ~/.bashrc
+# 檢查是否可執行 SonarScanner
+sonar-scanner -h
+</code></pre> <p>執行 SonarScanner CLI 時需指定 SonarQuber 伺服器 URL 及 Access Token，若想簡化可修改 /opt/sonar-scanner-5.0.1.3006-linux/conf/sonar-scanner.properties 加入以下設定：</p> <pre><code>#----- Default SonarQube server
+sonar.host.url=http://localhost:9000
+</code></pre> <p>Access Token 有<a href="https://docs.sonarsource.com/sonarqube/latest/user-guide/user-account/generating-and-using-tokens/">三種</a>，User Token (用於存取 WebAPI，多配合 IntelliJ、VS、VSCode、Eclipse 使用)、Project Analysis Token (範圍只限該專案，較安全) 以及 Global Analysis Token (可分析任何專案，適合批次或服務)。若不想每次掃瞄傳 Access Token 參數，可將其設成環境變數 <code>export SONAR_TOKEN="sqa_85d63b6c71d9325e5bef822e8db32316948726a1"</code>。</p> <p>使用 sonar-scanner 掃瞄 .NET 8 專案，故意用有問題的寫法卻掃不出來，健檢一切正常。摸索一陣子才發現我搞錯了，.NET 專案不能直接用 SonarScanner CLI 掃，需另外透過專用工具 - <a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">SonarScanner for .NET</a> 間接呼叫。(線索在 sonar-scanner 輸出訊息，有條 <code>INFO: Sensor C# [csharp] WARN: Your project contains C# files which cannot be analyzed with the scanner you are using. To analyze C# or VB.NET, you must use the SonarScanner for .NET 5.x or higher, see https://redirect.sonarsource.com/doc/install-configure-scanner-msbuild.html</code>，從掃瞄結果完全看不出來，不過是我沒耐性把文件看過一遍，算我的責任失分)</p> <p>SonarScanner for .NET 要分別安裝 .NET Core Global Tool 及 SonarScanner 程式。.NET Core Global Tool 使用 dotnet 指令安裝 <code>dotnet tool install --global dotnet-sonarscanner --version 6.1.0</code>，SonarScanner 程式則需由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">網站</a>下載，</p> <pre><code>sudo unzip sonar-scanner-6.1.0.83647-net.zip -d /opt/sonar-scanner-6.1.0.83647-net
+sudo chmod +x /opt/sonar-scanner-6.1.0.83647-net/sonar-scanner-5.0.1.3006/bin/*
+echo 'export PATH=$PATH:/opt/sonar-scanner-6.1.0.83647-net' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+# 需要 Java Runtime，default-jre 不行，要裝 55+ 版本
+sudo apt install -y openjdk-18-jre-headless
+</code></pre> <p>.NET 版的 SonarQube 網址及 Access Token 設定位置在 /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml，這樣可不用每次都帶 Access Token 參數。</p> <pre><code>&lt;SonarQubeAnalysisProperties  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.sonarsource.com/msbuild/integration/2015/1"&gt;
+&lt;Property Name="sonar.host.url"&gt;http://localhost:9000&lt;/Property&gt;
+&lt;Property Name="sonar.token"&gt;sqa_85...a1&lt;/Property&gt;
+&lt;/SonarQubeAnalysisProperties&gt;
+</code></pre> <p>.NET 掃瞄程序較麻煩，要先 dotnet sonarscanner begin、dotnet build，再 dotnet sonarscanner end，官方範例如下：</p> <pre><code>dotnet sonarscanner begin /k:"project-key" /d:sonar.token="&lt;token&gt;"
+dotnet build &lt;path to project file or .sln file&gt; --no-incremental
+dotnet sonarscanner end /d:sonar.token="&lt;token&gt;"
+</code></pre> <p>我有在 SonarQube.Analysis.xml 設定 sonar.token，理論上會自動抓設定檔，但實測不 OK 得指定設定檔路徑 <code>/s:&lt;path-to-onarQube.Analysis.xml&gt;</code> 才會生效。 <a href="https://community.sonarsource.com/t/sonarqube-analysis-xml-being-ignored/45087/3">參考</a></p> <p>我的解法是用 <code>ln -s /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml /home/jeffrey/sqconf.xml</code> 將檔案連結到 ~/sqconf.xml，然後將以下指令存成 sca.sh：</p> <pre><code>#!/bin/bash
+dotnet sonarscanner begin /k:my:vulerable-sample /s:"$HOME/sqconf.xml"
+dotnet build --no-incremental
+dotnet sonarscanner end
+</code></pre> <p>這樣就能成功掃瞄囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638429815943182578.png"></p> <p>掃瞄結果有抓到 SQL Injection 問題點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638429815945978605.png"></p> <p>歷經波折，再學會一件新工具。</p> <p data-slug="sonarqube-docker" data-title-en="Using SonarQube docker to scan .NET 6+ project" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/289927/pexels-photo-289927.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Tutorial of installing Sonar docker and using it to scan .NET 6+ projects.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.sonarsource.com/products/sonarqube/">SonarQube</a> 是一套程式碼品質掃瞄工具，可以分析你的程式的寫法是否存在 Bug、漏洞或<a href="https://zh.wikipedia.org/zh-tw/%E4%BB%A3%E7%A0%81%E5%BC%82%E5%91%B3">不好的寫法(Code Smell)</a>。</p> <p>這篇簡單記錄我如何在 Linux 主機上安裝 SonarQube Docker，並用它在 Linux 掃瞄 .NET 專案。</p> <p>安裝步驟我主要參考這篇：<a href="https://learningsky.io/building-sonarqube-community-edition-on-ubuntu-using-docker/">於 Ubuntu 透過 Docker 建置 SonarQube Community Edition by Archer</a>，記錄重點如下：</p> <ol><li>調整 Linux 作業系統<a href="https://docs.sonarsource.com/sonarqube/9.9/requirements/prerequisites-and-overview/#linux">記憶體及檔案參數</a><br> <code>vm.max_map_count</code> 要大於 524288、<code>fs.file-max</code> 大於 131072</li> <li>docker-compose.yml 如下： <pre><code>version: "3"
+services:
+sonarqube:
+image: sonarqube:community
+depends_on:
+- db
+environment:
+SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+SONAR_JDBC_USERNAME: sonar
+SONAR_JDBC_PASSWORD: sonar
+volumes:
+- sonarqube_data:/opt/sonarqube/data
+- sonarqube_extensions:/opt/sonarqube/extensions
+- sonarqube_logs:/opt/sonarqube/logs
+ports:
+- "9000:9000"
+db:
+image: postgres:12
+environment:
+POSTGRES_USER: sonar
+POSTGRES_PASSWORD: sonar
+volumes:
+- postgresql:/var/lib/postgresql
+- postgresql_data:/var/lib/postgresql/data
+volumes:
+sonarqube_data:
+sonarqube_extensions:
+sonarqube_logs:
+postgresql:
+postgresql_data:
+</code></pre> </li></ol> <p>之後開啟 <code>http://localhost:9000</code> 用 admin/admin 登入並修改密碼，即可開始使用 SonarQube。</p> <p>SonarQube 的最佳用法是串接 Azure DevOps、Github... 等版控系統，每次 Commit 後進行掃瞄實現 CI/CD。新建專案介面會提示你設登入版控系統：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638429815938407673.png"></p> <p>但我是掃瞄本地專案，故要下載安裝 SonarScanner CLI。Linux 下載路徑可由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/">官方網站</a>取得，使用 curl 或 wget 下載 ZIP 檔並解壓縮，將檔案移至 opt 目錄，在 .bashrc 設定 $PATH 方便從任意目錄執行：參考 <a href="https://pccicblog.wordpress.com/2021/12/14/sonarqube-%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%93%81%E8%B3%AA%E5%88%86%E6%9E%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%95%99%E5%AD%B8/">SonarQube 程式碼品質分析工具使用教學 by 張志合</a></p> <pre><code># 下載 zip
+wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+# 解壓縮
+unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+# 將 SonarScanner 資料夾搬到 /opt/ 目錄
+sudo mv sonar-scanner-5.0.1.3006-linux /opt/
+# 將 SonarScanner 資料夾加入程式搜尋路徑
+echo 'export PATH=$PATH:/opt/sonar-scanner-5.0.1.3006-linux/bin' &gt;&gt; ~/.bashrc
+# 重載生效
+source ~/.bashrc
+# 檢查是否可執行 SonarScanner
+sonar-scanner -h
+</code></pre> <p>執行 SonarScanner CLI 時需指定 SonarQuber 伺服器 URL 及 Access Token，若想簡化可修改 /opt/sonar-scanner-5.0.1.3006-linux/conf/sonar-scanner.properties 加入以下設定：</p> <pre><code>#----- Default SonarQube server
+sonar.host.url=http://localhost:9000
+</code></pre> <p>Access Token 有<a href="https://docs.sonarsource.com/sonarqube/latest/user-guide/user-account/generating-and-using-tokens/">三種</a>，User Token (用於存取 WebAPI，多配合 IntelliJ、VS、VSCode、Eclipse 使用)、Project Analysis Token (範圍只限該專案，較安全) 以及 Global Analysis Token (可分析任何專案，適合批次或服務)。若不想每次掃瞄傳 Access Token 參數，可將其設成環境變數 <code>export SONAR_TOKEN="sqa_85d63b6c71d9325e5bef822e8db32316948726a1"</code>。</p> <p>使用 sonar-scanner 掃瞄 .NET 8 專案，故意用有問題的寫法卻掃不出來，健檢一切正常。摸索一陣子才發現我搞錯了，.NET 專案不能直接用 SonarScanner CLI 掃，需另外透過專用工具 - <a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">SonarScanner for .NET</a> 間接呼叫。(線索在 sonar-scanner 輸出訊息，有條 <code>INFO: Sensor C# [csharp] WARN: Your project contains C# files which cannot be analyzed with the scanner you are using. To analyze C# or VB.NET, you must use the SonarScanner for .NET 5.x or higher, see https://redirect.sonarsource.com/doc/install-configure-scanner-msbuild.html</code>，從掃瞄結果完全看不出來，不過是我沒耐性把文件看過一遍，算我的責任失分)</p> <p>SonarScanner for .NET 要分別安裝 .NET Core Global Tool 及 SonarScanner 程式。.NET Core Global Tool 使用 dotnet 指令安裝 <code>dotnet tool install --global dotnet-sonarscanner --version 6.1.0</code>，SonarScanner 程式則需由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">網站</a>下載，</p> <pre><code>sudo unzip sonar-scanner-6.1.0.83647-net.zip -d /opt/sonar-scanner-6.1.0.83647-net
+sudo chmod +x /opt/sonar-scanner-6.1.0.83647-net/sonar-scanner-5.0.1.3006/bin/*
+echo 'export PATH=$PATH:/opt/sonar-scanner-6.1.0.83647-net' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+# 需要 Java Runtime，default-jre 不行，要裝 55+ 版本
+sudo apt install -y openjdk-18-jre-headless
+</code></pre> <p>.NET 版的 SonarQube 網址及 Access Token 設定位置在 /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml，這樣可不用每次都帶 Access Token 參數。</p> <pre><code>&lt;SonarQubeAnalysisProperties  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.sonarsource.com/msbuild/integration/2015/1"&gt;
+&lt;Property Name="sonar.host.url"&gt;http://localhost:9000&lt;/Property&gt;
+&lt;Property Name="sonar.token"&gt;sqa_85...a1&lt;/Property&gt;
+&lt;/SonarQubeAnalysisProperties&gt;
+</code></pre> <p>.NET 掃瞄程序較麻煩，要先 dotnet sonarscanner begin、dotnet build，再 dotnet sonarscanner end，官方範例如下：</p> <pre><code>dotnet sonarscanner begin /k:"project-key" /d:sonar.token="&lt;token&gt;"
+dotnet build &lt;path to project file or .sln file&gt; --no-incremental
+dotnet sonarscanner end /d:sonar.token="&lt;token&gt;"
+</code></pre> <p>我有在 SonarQube.Analysis.xml 設定 sonar.token，理論上會自動抓設定檔，但實測不 OK 得指定設定檔路徑 <code>/s:&lt;path-to-onarQube.Analysis.xml&gt;</code> 才會生效。 <a href="https://community.sonarsource.com/t/sonarqube-analysis-xml-being-ignored/45087/3">參考</a></p> <p>我的解法是用 <code>ln -s /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml /home/jeffrey/sqconf.xml</code> 將檔案連結到 ~/sqconf.xml，然後將以下指令存成 sca.sh：</p> <pre><code>#!/bin/bash
+dotnet sonarscanner begin /k:my:vulerable-sample /s:"$HOME/sqconf.xml"
+dotnet build --no-incremental
+dotnet sonarscanner end
+</code></pre> <p>這樣就能成功掃瞄囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638429815943182578.png"></p> <p>掃瞄結果有抓到 SQL Injection 問題點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638429815945978605.png"></p> <p>歷經波折，再學會一件新工具。</p> <p data-slug="sonarqube-docker" data-title-en="Using SonarQube docker to scan .NET 6+ project" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/289927/pexels-photo-289927.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Tutorial of installing Sonar docker and using it to scan .NET 6+ projects.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.sonarsource.com/products/sonarqube/">SonarQube</a> 是一套程式碼品質掃瞄工具，可以分析你的程式的寫法是否存在 Bug、漏洞或<a href="https://zh.wikipedia.org/zh-tw/%E4%BB%A3%E7%A0%81%E5%BC%82%E5%91%B3">不好的寫法(Code Smell)</a>。</p> <p>這篇簡單記錄我如何在 Linux 主機上安裝 SonarQube Docker，並用它在 Linux 掃瞄 .NET 專案。</p> <p>安裝步驟我主要參考這篇：<a href="https://learningsky.io/building-sonarqube-community-edition-on-ubuntu-using-docker/">於 Ubuntu 透過 Docker 建置 SonarQube Community Edition by Archer</a>，記錄重點如下：</p> <ol><li>調整 Linux 作業系統<a href="https://docs.sonarsource.com/sonarqube/9.9/requirements/prerequisites-and-overview/#linux">記憶體及檔案參數</a><br> <code>vm.max_map_count</code> 要大於 524288、<code>fs.file-max</code> 大於 131072</li> <li>docker-compose.yml 如下： <pre><code>version: "3"
+services:
+sonarqube:
+image: sonarqube:community
+depends_on:
+- db
+environment:
+SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+SONAR_JDBC_USERNAME: sonar
+SONAR_JDBC_PASSWORD: sonar
+volumes:
+- sonarqube_data:/opt/sonarqube/data
+- sonarqube_extensions:/opt/sonarqube/extensions
+- sonarqube_logs:/opt/sonarqube/logs
+ports:
+- "9000:9000"
+db:
+image: postgres:12
+environment:
+POSTGRES_USER: sonar
+POSTGRES_PASSWORD: sonar
+volumes:
+- postgresql:/var/lib/postgresql
+- postgresql_data:/var/lib/postgresql/data
+volumes:
+sonarqube_data:
+sonarqube_extensions:
+sonarqube_logs:
+postgresql:
+postgresql_data:
+</code></pre> </li></ol> <p>之後開啟 <code>http://localhost:9000</code> 用 admin/admin 登入並修改密碼，即可開始使用 SonarQube。</p> <p>SonarQube 的最佳用法是串接 Azure DevOps、Github... 等版控系統，每次 Commit 後進行掃瞄實現 CI/CD。新建專案介面會提示你設登入版控系統：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638429815938407673.png"></p> <p>但我是掃瞄本地專案，故要下載安裝 SonarScanner CLI。Linux 下載路徑可由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/">官方網站</a>取得，使用 curl 或 wget 下載 ZIP 檔並解壓縮，將檔案移至 opt 目錄，在 .bashrc 設定 $PATH 方便從任意目錄執行：參考 <a href="https://pccicblog.wordpress.com/2021/12/14/sonarqube-%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%93%81%E8%B3%AA%E5%88%86%E6%9E%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%95%99%E5%AD%B8/">SonarQube 程式碼品質分析工具使用教學 by 張志合</a></p> <pre><code># 下載 zip
+wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+# 解壓縮
+unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+# 將 SonarScanner 資料夾搬到 /opt/ 目錄
+sudo mv sonar-scanner-5.0.1.3006-linux /opt/
+# 將 SonarScanner 資料夾加入程式搜尋路徑
+echo 'export PATH=$PATH:/opt/sonar-scanner-5.0.1.3006-linux/bin' &gt;&gt; ~/.bashrc
+# 重載生效
+source ~/.bashrc
+# 檢查是否可執行 SonarScanner
+sonar-scanner -h
+</code></pre> <p>執行 SonarScanner CLI 時需指定 SonarQuber 伺服器 URL 及 Access Token，若想簡化可修改 /opt/sonar-scanner-5.0.1.3006-linux/conf/sonar-scanner.properties 加入以下設定：</p> <pre><code>#----- Default SonarQube server
+sonar.host.url=http://localhost:9000
+</code></pre> <p>Access Token 有<a href="https://docs.sonarsource.com/sonarqube/latest/user-guide/user-account/generating-and-using-tokens/">三種</a>，User Token (用於存取 WebAPI，多配合 IntelliJ、VS、VSCode、Eclipse 使用)、Project Analysis Token (範圍只限該專案，較安全) 以及 Global Analysis Token (可分析任何專案，適合批次或服務)。若不想每次掃瞄傳 Access Token 參數，可將其設成環境變數 <code>export SONAR_TOKEN="sqa_85d63b6c71d9325e5bef822e8db32316948726a1"</code>。</p> <p>使用 sonar-scanner 掃瞄 .NET 8 專案，故意用有問題的寫法卻掃不出來，健檢一切正常。摸索一陣子才發現我搞錯了，.NET 專案不能直接用 SonarScanner CLI 掃，需另外透過專用工具 - <a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">SonarScanner for .NET</a> 間接呼叫。(線索在 sonar-scanner 輸出訊息，有條 <code>INFO: Sensor C# [csharp] WARN: Your project contains C# files which cannot be analyzed with the scanner you are using. To analyze C# or VB.NET, you must use the SonarScanner for .NET 5.x or higher, see https://redirect.sonarsource.com/doc/install-configure-scanner-msbuild.html</code>，從掃瞄結果完全看不出來，不過是我沒耐性把文件看過一遍，算我的責任失分)</p> <p>SonarScanner for .NET 要分別安裝 .NET Core Global Tool 及 SonarScanner 程式。.NET Core Global Tool 使用 dotnet 指令安裝 <code>dotnet tool install --global dotnet-sonarscanner --version 6.1.0</code>，SonarScanner 程式則需由<a href="https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner-for-dotnet/">網站</a>下載，</p> <pre><code>sudo unzip sonar-scanner-6.1.0.83647-net.zip -d /opt/sonar-scanner-6.1.0.83647-net
+sudo chmod +x /opt/sonar-scanner-6.1.0.83647-net/sonar-scanner-5.0.1.3006/bin/*
+echo 'export PATH=$PATH:/opt/sonar-scanner-6.1.0.83647-net' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+# 需要 Java Runtime，default-jre 不行，要裝 55+ 版本
+sudo apt install -y openjdk-18-jre-headless
+</code></pre> <p>.NET 版的 SonarQube 網址及 Access Token 設定位置在 /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml，這樣可不用每次都帶 Access Token 參數。</p> <pre><code>&lt;SonarQubeAnalysisProperties  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.sonarsource.com/msbuild/integration/2015/1"&gt;
+&lt;Property Name="sonar.host.url"&gt;http://localhost:9000&lt;/Property&gt;
+&lt;Property Name="sonar.token"&gt;sqa_85...a1&lt;/Property&gt;
+&lt;/SonarQubeAnalysisProperties&gt;
+</code></pre> <p>.NET 掃瞄程序較麻煩，要先 dotnet sonarscanner begin、dotnet build，再 dotnet sonarscanner end，官方範例如下：</p> <pre><code>dotnet sonarscanner begin /k:"project-key" /d:sonar.token="&lt;token&gt;"
+dotnet build &lt;path to project file or .sln file&gt; --no-incremental
+dotnet sonarscanner end /d:sonar.token="&lt;token&gt;"
+</code></pre> <p>我有在 SonarQube.Analysis.xml 設定 sonar.token，理論上會自動抓設定檔，但實測不 OK 得指定設定檔路徑 <code>/s:&lt;path-to-onarQube.Analysis.xml&gt;</code> 才會生效。 <a href="https://community.sonarsource.com/t/sonarqube-analysis-xml-being-ignored/45087/3">參考</a></p> <p>我的解法是用 <code>ln -s /opt/sonar-scanner-6.1.0.83647-net/SonarQube.Analysis.xml /home/jeffrey/sqconf.xml</code> 將檔案連結到 ~/sqconf.xml，然後將以下指令存成 sca.sh：</p> <pre><code>#!/bin/bash
+dotnet sonarscanner begin /k:my:vulerable-sample /s:"$HOME/sqconf.xml"
+dotnet build --no-incremental
+dotnet sonarscanner end
+</code></pre> <p>這樣就能成功掃瞄囉~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638429815943182578.png"></p> <p>掃瞄結果有抓到 SQL Injection 問題點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638429815945978605.png"></p> <p>歷經波折，再學會一件新工具。</p> <p data-slug="sonarqube-docker" data-title-en="Using SonarQube docker to scan .NET 6+ project" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/289927/pexels-photo-289927.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650">Tutorial of installing Sonar docker and using it to scan .NET 6+ projects.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638429815938407673.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638429815938407673.png" medium="image"/>
+    <pubDate>Thu, 08 Feb 2024 09:21:49 GMT</pubDate>
+  </item><item>
     <title><![CDATA[使用 VSCode 完美遠端開發與測試 Linux 專案]]></title>
     <link>https://blog.darkthread.net/blog/vscode-remote-ssh/</link>
     <itunes:title><![CDATA[使用 VSCode 完美遠端開發與測試 Linux 專案]]></itunes:title>
@@ -1100,20 +1298,5 @@ Console.WriteLine(response);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png" medium="image"/>
     <pubDate>Tue, 30 Jan 2024 13:32:47 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[閒聊 - 除了 Active Directory，企業還會用什麼管理員工帳號？]]></title>
-    <link>https://blog.darkthread.net/blog/ent-directory-solution-survey/</link>
-    <itunes:title><![CDATA[閒聊 - 除了 Active Directory，企業還會用什麼管理員工帳號？]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>打我進職場以來，接觸過的企業組織，只要稍具規模(一百人以上)清一色都是用 Active Directory 建網域管理電腦及人員帳號。(UNIX/Linux 帳號則自成一格)</p> <p>AD 提供帳號、群組、主機管理，是標準的 IAM (Identity and Access Management，也有人縮寫 IdAM) 服務。所謂 IAM，其涵蓋存取控制框架 - Authentication 驗證、Authorization 授權、Accounting 審計(記錄使用者活動軌跡)，讓企業能輕鬆設定(或自動同步)帳號狀態與群組關係，以即時反映人員到職、離職、職務調動等人事異動。並可做為企業內各式系統、網站的統一帳號來源，實現 SSO 單一登入。<a href="https://www.strongdm.com/iam">參考</a></p> <p>我心中的疑問是：AD 的普及率到底有多高？除了 AD 之外，還有其他 IAM 解決方案嗎？</p> <p>依照慣例，爬文找答案。</p> <p>2020 文章 <a href="https://www.frost.com/frost-perspectives/active-directory-holds-the-keys-to-your-kingdom-but-is-it-secure/">Active Directory Holds the Keys to your Kingdom, but is it Secure?</a></p> <blockquote> <p>Microsoft’s Active Directory (AD) is widely used by enterprises around the world to connect and manage individual endpoints inside corporate networks. The use of AD is so common that approximately 90% of the Global Fortune 1000 companies use it as a primary method to provide seamless authentication and authorization.<br> 財星 1000 的公司有 90% 使用 AD 做身分驗證與授權管理</p> </blockquote> <p>2019 文章 <a href="https://www.exabeam.com/information-security/cybersecurity-calendar-active-directory/">Active Directory: a New Product for a New Millennium</a></p> <blockquote> <p>When it comes to identity management Active Directory is still widely used, enjoying a 95 percent market share among Fortune 500 companies.<br> 財星 500 公司 95% 使用 AD</p> </blockquote> <p>市場分析預測公司 6sense 調查 350,372 間使用 IAM 的公司(北美歐洲印度及澳洲)，統計使用身分認證管理系統的比例如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638420064026349985.png"><br> <a href="https://6sense.com/tech/identity-and-access-management">來源</a></p> <p>AD 家族包辦了 70% 以上，剩下的兩個大咖為 <a href="https://aws.amazon.com/tw/iam/">AWS Identity and Access Management</a> 及 <a href="https://auth0.com/">Auth0</a>，其他項目市佔超過 1% 的有 <a href="https://www.metaage.com.tw/brand_solution/142">AirWatch by VMware</a>、<a href="https://aws.amazon.com/tw/pm/cognito/">Amazon Cognito</a>、<a href="https://www.keycloak.org/">Keycloak</a>、<a href="https://www.cisco.com/c/zh_tw/products/security/identity-services-engine/index.html">Cisco Identity Services Engine</a>、<a href="https://www.sailpoint.com/zh-hant/">SailPoint</a>、Microsoft 365 Business。</p> <p>問 ChatGPT，它又補充了幾個：<a href="https://www.okta.com/">Okta</a>、<a href="https://cloud.google.com/identity?hl=zh-TW">Google Colud Identity</a>、<a href="https://www.ibm.com/docs/en/sim/7.0.1.13?topic=overview-security-identity-manager">IBM Security Identity Manager</a>、<a href="https://www.oracle.com/security/identity-management/">Oracle Identity Management</a>、<a href="https://www.onelogin.com/">OneLogin</a>、<a href="https://www.pingidentity.com/en.html">Ping Identity</a>、<a href="https://www.rsa.com/products/securid/">RSA SecurID Suite</a>。</p> <p>除了上面提到的眾多商業軟體，也不能漏掉開源專案，我找到一些實作：</p> <ul><li><a href="https://zh.wikipedia.org/zh-tw/OpenLDAP">OpenLDAP</a>，主流 Linux 發行版本都有內附，CLI 操作</li> <li><a href="https://directory.apache.org/apacheds/">ApacheDS</a>，看起來功能頗完整，支援 Kerberos、X500、密碼原則</li></ul> <p>雲端服務如 Azure、AWS 有雲端專屬 IAM 不意外，但看起來地端(On-Premises) IAM 除了 AD 以外還真有不少選擇，只是我沒機會接觸到。</p> <p>最後想問問大家，有人的工作環境在地端用 Active Directory 以外的系統管理人員帳號嗎？</p> <p data-slug="ent-directory-solution-survey" data-fbimg="https://cdn.pixabay.com/photo/2018/03/08/23/18/fruit-3210171_960_720.jpg#960#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>打我進職場以來，接觸過的企業組織，只要稍具規模(一百人以上)清一色都是用 Active Directory 建網域管理電腦及人員帳號。(UNIX/Linux 帳號則自成一格)</p> <p>AD 提供帳號、群組、主機管理，是標準的 IAM (Identity and Access Management，也有人縮寫 IdAM) 服務。所謂 IAM，其涵蓋存取控制框架 - Authentication 驗證、Authorization 授權、Accounting 審計(記錄使用者活動軌跡)，讓企業能輕鬆設定(或自動同步)帳號狀態與群組關係，以即時反映人員到職、離職、職務調動等人事異動。並可做為企業內各式系統、網站的統一帳號來源，實現 SSO 單一登入。<a href="https://www.strongdm.com/iam">參考</a></p> <p>我心中的疑問是：AD 的普及率到底有多高？除了 AD 之外，還有其他 IAM 解決方案嗎？</p> <p>依照慣例，爬文找答案。</p> <p>2020 文章 <a href="https://www.frost.com/frost-perspectives/active-directory-holds-the-keys-to-your-kingdom-but-is-it-secure/">Active Directory Holds the Keys to your Kingdom, but is it Secure?</a></p> <blockquote> <p>Microsoft’s Active Directory (AD) is widely used by enterprises around the world to connect and manage individual endpoints inside corporate networks. The use of AD is so common that approximately 90% of the Global Fortune 1000 companies use it as a primary method to provide seamless authentication and authorization.<br> 財星 1000 的公司有 90% 使用 AD 做身分驗證與授權管理</p> </blockquote> <p>2019 文章 <a href="https://www.exabeam.com/information-security/cybersecurity-calendar-active-directory/">Active Directory: a New Product for a New Millennium</a></p> <blockquote> <p>When it comes to identity management Active Directory is still widely used, enjoying a 95 percent market share among Fortune 500 companies.<br> 財星 500 公司 95% 使用 AD</p> </blockquote> <p>市場分析預測公司 6sense 調查 350,372 間使用 IAM 的公司(北美歐洲印度及澳洲)，統計使用身分認證管理系統的比例如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638420064026349985.png"><br> <a href="https://6sense.com/tech/identity-and-access-management">來源</a></p> <p>AD 家族包辦了 70% 以上，剩下的兩個大咖為 <a href="https://aws.amazon.com/tw/iam/">AWS Identity and Access Management</a> 及 <a href="https://auth0.com/">Auth0</a>，其他項目市佔超過 1% 的有 <a href="https://www.metaage.com.tw/brand_solution/142">AirWatch by VMware</a>、<a href="https://aws.amazon.com/tw/pm/cognito/">Amazon Cognito</a>、<a href="https://www.keycloak.org/">Keycloak</a>、<a href="https://www.cisco.com/c/zh_tw/products/security/identity-services-engine/index.html">Cisco Identity Services Engine</a>、<a href="https://www.sailpoint.com/zh-hant/">SailPoint</a>、Microsoft 365 Business。</p> <p>問 ChatGPT，它又補充了幾個：<a href="https://www.okta.com/">Okta</a>、<a href="https://cloud.google.com/identity?hl=zh-TW">Google Colud Identity</a>、<a href="https://www.ibm.com/docs/en/sim/7.0.1.13?topic=overview-security-identity-manager">IBM Security Identity Manager</a>、<a href="https://www.oracle.com/security/identity-management/">Oracle Identity Management</a>、<a href="https://www.onelogin.com/">OneLogin</a>、<a href="https://www.pingidentity.com/en.html">Ping Identity</a>、<a href="https://www.rsa.com/products/securid/">RSA SecurID Suite</a>。</p> <p>除了上面提到的眾多商業軟體，也不能漏掉開源專案，我找到一些實作：</p> <ul><li><a href="https://zh.wikipedia.org/zh-tw/OpenLDAP">OpenLDAP</a>，主流 Linux 發行版本都有內附，CLI 操作</li> <li><a href="https://directory.apache.org/apacheds/">ApacheDS</a>，看起來功能頗完整，支援 Kerberos、X500、密碼原則</li></ul> <p>雲端服務如 Azure、AWS 有雲端專屬 IAM 不意外，但看起來地端(On-Premises) IAM 除了 AD 以外還真有不少選擇，只是我沒機會接觸到。</p> <p>最後想問問大家，有人的工作環境在地端用 Active Directory 以外的系統管理人員帳號嗎？</p> <p data-slug="ent-directory-solution-survey" data-fbimg="https://cdn.pixabay.com/photo/2018/03/08/23/18/fruit-3210171_960_720.jpg#960#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>打我進職場以來，接觸過的企業組織，只要稍具規模(一百人以上)清一色都是用 Active Directory 建網域管理電腦及人員帳號。(UNIX/Linux 帳號則自成一格)</p> <p>AD 提供帳號、群組、主機管理，是標準的 IAM (Identity and Access Management，也有人縮寫 IdAM) 服務。所謂 IAM，其涵蓋存取控制框架 - Authentication 驗證、Authorization 授權、Accounting 審計(記錄使用者活動軌跡)，讓企業能輕鬆設定(或自動同步)帳號狀態與群組關係，以即時反映人員到職、離職、職務調動等人事異動。並可做為企業內各式系統、網站的統一帳號來源，實現 SSO 單一登入。<a href="https://www.strongdm.com/iam">參考</a></p> <p>我心中的疑問是：AD 的普及率到底有多高？除了 AD 之外，還有其他 IAM 解決方案嗎？</p> <p>依照慣例，爬文找答案。</p> <p>2020 文章 <a href="https://www.frost.com/frost-perspectives/active-directory-holds-the-keys-to-your-kingdom-but-is-it-secure/">Active Directory Holds the Keys to your Kingdom, but is it Secure?</a></p> <blockquote> <p>Microsoft’s Active Directory (AD) is widely used by enterprises around the world to connect and manage individual endpoints inside corporate networks. The use of AD is so common that approximately 90% of the Global Fortune 1000 companies use it as a primary method to provide seamless authentication and authorization.<br> 財星 1000 的公司有 90% 使用 AD 做身分驗證與授權管理</p> </blockquote> <p>2019 文章 <a href="https://www.exabeam.com/information-security/cybersecurity-calendar-active-directory/">Active Directory: a New Product for a New Millennium</a></p> <blockquote> <p>When it comes to identity management Active Directory is still widely used, enjoying a 95 percent market share among Fortune 500 companies.<br> 財星 500 公司 95% 使用 AD</p> </blockquote> <p>市場分析預測公司 6sense 調查 350,372 間使用 IAM 的公司(北美歐洲印度及澳洲)，統計使用身分認證管理系統的比例如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638420064026349985.png"><br> <a href="https://6sense.com/tech/identity-and-access-management">來源</a></p> <p>AD 家族包辦了 70% 以上，剩下的兩個大咖為 <a href="https://aws.amazon.com/tw/iam/">AWS Identity and Access Management</a> 及 <a href="https://auth0.com/">Auth0</a>，其他項目市佔超過 1% 的有 <a href="https://www.metaage.com.tw/brand_solution/142">AirWatch by VMware</a>、<a href="https://aws.amazon.com/tw/pm/cognito/">Amazon Cognito</a>、<a href="https://www.keycloak.org/">Keycloak</a>、<a href="https://www.cisco.com/c/zh_tw/products/security/identity-services-engine/index.html">Cisco Identity Services Engine</a>、<a href="https://www.sailpoint.com/zh-hant/">SailPoint</a>、Microsoft 365 Business。</p> <p>問 ChatGPT，它又補充了幾個：<a href="https://www.okta.com/">Okta</a>、<a href="https://cloud.google.com/identity?hl=zh-TW">Google Colud Identity</a>、<a href="https://www.ibm.com/docs/en/sim/7.0.1.13?topic=overview-security-identity-manager">IBM Security Identity Manager</a>、<a href="https://www.oracle.com/security/identity-management/">Oracle Identity Management</a>、<a href="https://www.onelogin.com/">OneLogin</a>、<a href="https://www.pingidentity.com/en.html">Ping Identity</a>、<a href="https://www.rsa.com/products/securid/">RSA SecurID Suite</a>。</p> <p>除了上面提到的眾多商業軟體，也不能漏掉開源專案，我找到一些實作：</p> <ul><li><a href="https://zh.wikipedia.org/zh-tw/OpenLDAP">OpenLDAP</a>，主流 Linux 發行版本都有內附，CLI 操作</li> <li><a href="https://directory.apache.org/apacheds/">ApacheDS</a>，看起來功能頗完整，支援 Kerberos、X500、密碼原則</li></ul> <p>雲端服務如 Azure、AWS 有雲端專屬 IAM 不意外，但看起來地端(On-Premises) IAM 除了 AD 以外還真有不少選擇，只是我沒機會接觸到。</p> <p>最後想問問大家，有人的工作環境在地端用 Active Directory 以外的系統管理人員帳號嗎？</p> <p data-slug="ent-directory-solution-survey" data-fbimg="https://cdn.pixabay.com/photo/2018/03/08/23/18/fruit-3210171_960_720.jpg#960#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638420064026349985.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638420064026349985.png" medium="image"/>
-    <pubDate>Sun, 28 Jan 2024 02:36:15 GMT</pubDate>
   </item></channel>
 </rss>
