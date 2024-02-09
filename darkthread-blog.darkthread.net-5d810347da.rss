@@ -30,6 +30,222 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[源碼檢測軟體冷門選擇 - PVS-Studio]]></title>
+    <link>https://blog.darkthread.net/blog/pvs-studio-survey/</link>
+    <itunes:title><![CDATA[源碼檢測軟體冷門選擇 - PVS-Studio]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
+sudo apt-key add -
+sudo wget -O /etc/apt/sources.list.d/viva64.list \
+https://cdn.pvs-studio.com/etc/viva64.list
+sudo apt-get update
+sudo apt-get install pvs-studio-dotnet
+# 若看到版號代表安裝完成
+pvs-studio-dotnet --version
+</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
+# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
+# https://pvs-studio.com/en/order/for-students/
+pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
+# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
+# https://pvs-studio.com/en/order/open-source-license/
+</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+&lt;!-- ... --&gt;
+&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
+&lt;!-- ... --&gt;
+&lt;/ApplicationSettings&gt;
+</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
+</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
+var db = new DBHelper();
+db.ProcessUserInfo(args[0]);
+public class DBHelper
+{
+string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+public void ProcessUserInfo(String userName)
+{
+var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
+ExecuteCommand(command);
+}
+private void ExecuteCommand(String rawCommand)
+{
+using (SqlConnection connection = new SqlConnection(_connectionString))
+{
+using (var sqlCommand = new SqlCommand(rawCommand, connection))
+{
+using (var reader = sqlCommand.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+}
+}
+</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
+Test(args[0]);
+void Test(string userName)
+{
+var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+using (var cn = new SqlConnection(cnStr))
+{
+cn.Open();
+var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
+using (var reader = cmd.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
+sudo apt-key add -
+sudo wget -O /etc/apt/sources.list.d/viva64.list \
+https://cdn.pvs-studio.com/etc/viva64.list
+sudo apt-get update
+sudo apt-get install pvs-studio-dotnet
+# 若看到版號代表安裝完成
+pvs-studio-dotnet --version
+</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
+# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
+# https://pvs-studio.com/en/order/for-students/
+pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
+# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
+# https://pvs-studio.com/en/order/open-source-license/
+</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+&lt;!-- ... --&gt;
+&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
+&lt;!-- ... --&gt;
+&lt;/ApplicationSettings&gt;
+</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
+</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
+var db = new DBHelper();
+db.ProcessUserInfo(args[0]);
+public class DBHelper
+{
+string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+public void ProcessUserInfo(String userName)
+{
+var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
+ExecuteCommand(command);
+}
+private void ExecuteCommand(String rawCommand)
+{
+using (SqlConnection connection = new SqlConnection(_connectionString))
+{
+using (var sqlCommand = new SqlCommand(rawCommand, connection))
+{
+using (var reader = sqlCommand.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+}
+}
+</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
+Test(args[0]);
+void Test(string userName)
+{
+var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+using (var cn = new SqlConnection(cnStr))
+{
+cn.Open();
+var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
+using (var reader = cmd.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
+sudo apt-key add -
+sudo wget -O /etc/apt/sources.list.d/viva64.list \
+https://cdn.pvs-studio.com/etc/viva64.list
+sudo apt-get update
+sudo apt-get install pvs-studio-dotnet
+# 若看到版號代表安裝完成
+pvs-studio-dotnet --version
+</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
+# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
+# https://pvs-studio.com/en/order/for-students/
+pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
+# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
+# https://pvs-studio.com/en/order/open-source-license/
+</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+&lt;!-- ... --&gt;
+&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
+&lt;!-- ... --&gt;
+&lt;/ApplicationSettings&gt;
+</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
+</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
+var db = new DBHelper();
+db.ProcessUserInfo(args[0]);
+public class DBHelper
+{
+string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+public void ProcessUserInfo(String userName)
+{
+var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
+ExecuteCommand(command);
+}
+private void ExecuteCommand(String rawCommand)
+{
+using (SqlConnection connection = new SqlConnection(_connectionString))
+{
+using (var sqlCommand = new SqlCommand(rawCommand, connection))
+{
+using (var reader = sqlCommand.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+}
+}
+</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
+Test(args[0]);
+void Test(string userName)
+{
+var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
+using (var cn = new SqlConnection(cnStr))
+{
+cn.Open();
+var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
+using (var reader = cmd.ExecuteReader())
+{
+while (reader.Read())
+{
+// Process the data
+}
+}
+}
+}
+</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png" medium="image"/>
+    <pubDate>Fri, 09 Feb 2024 01:50:12 GMT</pubDate>
+  </item><item>
     <title><![CDATA[筆記 - SonarQube Docker 安裝與 .NET 6+ 專案掃瞄]]></title>
     <link>https://blog.darkthread.net/blog/sonarqube-docker/</link>
     <itunes:title><![CDATA[筆記 - SonarQube Docker 安裝與 .NET 6+ 專案掃瞄]]></itunes:title>
@@ -977,326 +1193,5 @@ return this.OrderByDescending(o =&gt; o.MaskBits)
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638423913892831700.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638423913892831700.png" medium="image"/>
     <pubDate>Thu, 01 Feb 2024 13:36:15 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[文字轉 ChatGPT Token 之實驗與觀察]]></title>
-    <link>https://blog.darkthread.net/blog/conv-gpt-token/</link>
-    <itunes:title><![CDATA[文字轉 ChatGPT Token 之實驗與觀察]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
-"type": "object",
-"properties": {
-"completion_tokens": {
-"type": "number",
-"format": "int32"
-},
-"prompt_tokens": {
-"type": "number",
-"format": "int32"
-},
-"total_tokens": {
-"type": "number",
-"format": "int32"
-}
-},
-"required": [
-"prompt_tokens",
-"total_tokens",
-"completion_tokens"
-]
-}
-</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
-var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
-</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
-using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-Action&lt;string&gt; showTokens = (input) =&gt;
-{
-var tokens = encoding.Encode(input);
-var queue = new List&lt;int&gt;();
-tokens.ForEach(t =&gt;
-{
-queue.Add(t);
-var tryDecode = encoding.Decode(queue);
-if (tryDecode != "�")
-{
-Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
-queue.Clear();
-}
-});
-Console.WriteLine();
-Console.WriteLine("Tokens Count: " + tokens.Count);
-};
-showTokens("To be, or not to be, that is the question.");
-showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
-showTokens("我達達的馬蹄是美麗的錯誤");
-showTokens("逃げるは恥だが役に立つ");
-showTokens("Szégyen a futás, de hasznos");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
-{
-var chatMessages = new List&lt;ChatMessage&gt;() {
-new ChatMessage(ChatRole.System, SystemPrompt)
-};
-chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
-m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
-m.Message
-)));
-Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
-deploymentOrModelName: DeployName,
-new ChatCompletionsOptions(chatMessages)
-{
-Temperature = Temperature,
-MaxTokens = MaxTokens,
-NucleusSamplingFactor = NucleusSamplingFactor,
-FrequencyPenalty = FrequencyPenalty,
-PresencePenalty = PresencePenalty
-});
-ChatCompletions completions = response.Value;
-var result = completions.Choices.First().Message.Content;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
-").ToArray());
-var promptTokens = encoding.Encode(promptMsg);
-var reslutTokens = encoding.Encode(result);
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(promptMsg);
-var stats = @$"
-Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
-Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(stats);
-Console.WriteLine();
-Console.ResetColor();
-return result;
-}
-/* ... 略 ... */
-var gpt = new ChatGptService();
-var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
-逃げるは恥だが役に立つ");
-Console.WriteLine(response);
-response = await gpt.Generate(@"指出以下程式碼的錯誤
-```js
-for (var i = 0; i &lt; 10; i--) {
-Console.WriteLine(i);
-}
-``
-");
-Console.WriteLine(response);
-</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
-" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
-"type": "object",
-"properties": {
-"completion_tokens": {
-"type": "number",
-"format": "int32"
-},
-"prompt_tokens": {
-"type": "number",
-"format": "int32"
-},
-"total_tokens": {
-"type": "number",
-"format": "int32"
-}
-},
-"required": [
-"prompt_tokens",
-"total_tokens",
-"completion_tokens"
-]
-}
-</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
-var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
-</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
-using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-Action&lt;string&gt; showTokens = (input) =&gt;
-{
-var tokens = encoding.Encode(input);
-var queue = new List&lt;int&gt;();
-tokens.ForEach(t =&gt;
-{
-queue.Add(t);
-var tryDecode = encoding.Decode(queue);
-if (tryDecode != "�")
-{
-Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
-queue.Clear();
-}
-});
-Console.WriteLine();
-Console.WriteLine("Tokens Count: " + tokens.Count);
-};
-showTokens("To be, or not to be, that is the question.");
-showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
-showTokens("我達達的馬蹄是美麗的錯誤");
-showTokens("逃げるは恥だが役に立つ");
-showTokens("Szégyen a futás, de hasznos");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
-{
-var chatMessages = new List&lt;ChatMessage&gt;() {
-new ChatMessage(ChatRole.System, SystemPrompt)
-};
-chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
-m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
-m.Message
-)));
-Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
-deploymentOrModelName: DeployName,
-new ChatCompletionsOptions(chatMessages)
-{
-Temperature = Temperature,
-MaxTokens = MaxTokens,
-NucleusSamplingFactor = NucleusSamplingFactor,
-FrequencyPenalty = FrequencyPenalty,
-PresencePenalty = PresencePenalty
-});
-ChatCompletions completions = response.Value;
-var result = completions.Choices.First().Message.Content;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
-").ToArray());
-var promptTokens = encoding.Encode(promptMsg);
-var reslutTokens = encoding.Encode(result);
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(promptMsg);
-var stats = @$"
-Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
-Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(stats);
-Console.WriteLine();
-Console.ResetColor();
-return result;
-}
-/* ... 略 ... */
-var gpt = new ChatGptService();
-var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
-逃げるは恥だが役に立つ");
-Console.WriteLine(response);
-response = await gpt.Generate(@"指出以下程式碼的錯誤
-```js
-for (var i = 0; i &lt; 10; i--) {
-Console.WriteLine(i);
-}
-``
-");
-Console.WriteLine(response);
-</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
-" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>使用 ChatGPT API 時，掌握提問內容 Token 數很重要。</p> <p>ChatGPT API 處理 Prompt 時不是以字元或字詞為單位，而是會把文字拆解為一個個 Token。Token 不一定從單詞 (Word) 開頭或結尾處分割，並可以包括尾隨空格甚至是子詞 (Sub-Words)，OpenAI 有一份文字長度對映 Token 數量的粗估：</p> <ul><li>1 個 Token ~= 英文中的4個字符</li> <li>1 個 Token ~= ¾個單詞</li> <li>100 個 Token ~= 75個單詞</li></ul> <p>或者</p> <ul><li>1-2句 ~= 30 個 Token</li> <li>1 段落 ~= 100 個 Token</li> <li>1,500 單詞 ~= 2048 個 Token</li></ul> <p>細節可以看 Open AI 這篇文章：<a href="https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them">What are tokens and how to count them?</a></p> <p>開發 ChatGPT 應用程式之所以在意 Token 數，原因有二：第一，不同模型可接受 Prompt + Completion 的 Token 數量上限不同，送出前先試算可在超過上限時做前置處理；第二則是 ChatGPT API 是依據 Prompt 及 Completion (生成結果) 的 Token 數量計費，知道 Token 數有助於估算成本。(下圖為 Azure Open AI 的 Prompt Token 上限及計費標準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"></p> <p><a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=DOP-MVP-37580#completions">自動完成(Completion) API</a> 在傳回結果會一併帶回三個使用量數據 prompt_tokens、completion_tokens、total_tokens：<a href="https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview/inference.json">參考</a></p> <pre><code>"usage": {
-"type": "object",
-"properties": {
-"completion_tokens": {
-"type": "number",
-"format": "int32"
-},
-"prompt_tokens": {
-"type": "number",
-"format": "int32"
-},
-"total_tokens": {
-"type": "number",
-"format": "int32"
-}
-},
-"required": [
-"prompt_tokens",
-"total_tokens",
-"completion_tokens"
-]
-}
-</code></pre> <p>但這些要執行完才會知道，想事先估算，OpenAI 有提供一個線上介面 - <a href="https://platform.openai.com/tokenizer">Tokenizer</a> 以及 Python 程式庫 - <a href="https://github.com/openai/tiktoken">tiktoken</a>，程式庫也有被移植成 C#、Java、JavaScript、PHP 版本。<a href="https://stackoverflow.com/a/75804651/288936">參考</a></p> <p>以 .NET 為例，要分析 gpt-4、gpt-3.5-turbo 的 Token 數(二者都是用 cl100k_base 編碼詞表)，可使用 <a href="https://github.com/dmitry-brazhenko/SharpToken">SharpToken</a> 程式庫，用 <code>dotnet add package SharpToken</code> 安裝，建立 Encoding 物件，用 Encode() 將字串轉為 Token 陣列，用 Decode() 還原，沒什麼難度。</p> <pre><code>using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var encoded = encoding.Encode("Hello, world!"); // Output: [9906, 11, 1917, 0]
-var decoded = encoding.Decode(encoded); // Output: "Hello, world!"
-</code></pre> <p>先來個簡單測試，將英文、中文、日文、匈牙利文轉成 Token，並試著還原回原始字詞，觀察 Token 與字詞的對應內容：</p> <pre><code>using System.Text;
-using SharpToken;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-Action&lt;string&gt; showTokens = (input) =&gt;
-{
-var tokens = encoding.Encode(input);
-var queue = new List&lt;int&gt;();
-tokens.ForEach(t =&gt;
-{
-queue.Add(t);
-var tryDecode = encoding.Decode(queue);
-if (tryDecode != "�")
-{
-Console.Write($"\x1b[33m{tryDecode}(\x1b[36m{string.Join(",", queue.Select(o =&gt; o.ToString()).ToArray())}\x1b[0m)");
-queue.Clear();
-}
-});
-Console.WriteLine();
-Console.WriteLine("Tokens Count: " + tokens.Count);
-};
-showTokens("To be, or not to be, that is the question.");
-showTokens("The class library annotated with UnmanagedCallersOnlyAttribute with a non-null EntryPoint field.");
-showTokens("我達達的馬蹄是美麗的錯誤");
-showTokens("逃げるは恥だが役に立つ");
-showTokens("Szégyen a futás, de hasznos");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638422187402876051.png"></p> <p>英文幾乎可以做到一個 Word 對映一個 Token，有些常用的片段也會有對映，像是 <code>-null</code>(61441)、<code>ers</code>(388)。中文的話，常用字如<code>我</code>(37046)、<code>的</code>(9554)、<code>是</code>(21043)、<code>美</code>(58666)為單字一個 Token，大部分一個中文字會解成兩到三個 Token。 日文的部分平假名片假名是一對一，漢字比照中文會用到 2 ~ 3 個 Token。匈牙利文則是單字會拆成多節，像是 Szégyen 就分成 Sz、é、gy、en 共四個 Token。</p> <p>最後來實測一下 SharpToken 估算結果是否與 ChatGPT API 的統計一致。(程式碼修改自<a href="/blog/chatgpt-console-chat/">ChatGPT 聊天程式練習</a>)</p> <pre><code>    public async Task&lt;string&gt; Generate(IEnumerable&lt;ChatRecord&gt; contextMessags)
-{
-var chatMessages = new List&lt;ChatMessage&gt;() {
-new ChatMessage(ChatRole.System, SystemPrompt)
-};
-chatMessages.AddRange(contextMessags.Select(m =&gt; new ChatMessage(
-m.Role == "A" ? ChatRole.Assistant : ChatRole.User,
-m.Message
-)));
-Response&lt;ChatCompletions&gt; response = await client.GetChatCompletionsAsync(
-deploymentOrModelName: DeployName,
-new ChatCompletionsOptions(chatMessages)
-{
-Temperature = Temperature,
-MaxTokens = MaxTokens,
-NucleusSamplingFactor = NucleusSamplingFactor,
-FrequencyPenalty = FrequencyPenalty,
-PresencePenalty = PresencePenalty
-});
-ChatCompletions completions = response.Value;
-var result = completions.Choices.First().Message.Content;
-var encoding = GptEncoding.GetEncodingForModel("gpt-4");
-var promptMsg = string.Join(string.Empty, chatMessages.Select(m =&gt; $"role={m.Role.ToString()} content={m.Content}
-").ToArray());
-var promptTokens = encoding.Encode(promptMsg);
-var reslutTokens = encoding.Encode(result);
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine(promptMsg);
-var stats = @$"
-Est Tokens: {promptTokens.Count}|{reslutTokens.Count}|{promptTokens.Count + reslutTokens.Count}
-Act Tokens: {completions.Usage.PromptTokens}|{completions.Usage.CompletionTokens}|{completions.Usage.TotalTokens}";
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(stats);
-Console.WriteLine();
-Console.ResetColor();
-return result;
-}
-/* ... 略 ... */
-var gpt = new ChatGptService();
-var response = await gpt.Generate(@"請將以下內容翻譯成zh-tw：
-逃げるは恥だが役に立つ");
-Console.WriteLine(response);
-response = await gpt.Generate(@"指出以下程式碼的錯誤
-```js
-for (var i = 0; i &lt; 10; i--) {
-Console.WriteLine(i);
-}
-``
-");
-Console.WriteLine(response);
-</code></pre> <p>GetChatCompletionsAsync() 會傳入多組聊天記錄，在 REST API 是用 JSON <code>[{ "role": "system", "content": "..." }, { ... }]</code> 形式傳送，但實測用 JSON 估算 Prompt Token 數偏多，我測試 "role=system content=...
-" 格式較接近 API 回傳的數字，箭頭所指的三個數字分別為 Prompt、Completion、Prompt+Completion Token 數，SharpToken 的預測結果與 API 回傳值幾乎一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638422187406046707.png"></p> <p>掌握了這個技巧，未來處理冗長 Prompt 便能事先判斷是否會超過上限以及估算成本囉。</p> <p data-slug="conv-gpt-token" data-title-en="Using SharpToken to get token number for ChatGPT" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2022/01/30/10/56/knife-6980428_960_720.jpg#960#720">Example of using SharpToken to encode text as tokens.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638422187399498542.png" medium="image"/>
-    <pubDate>Tue, 30 Jan 2024 13:32:47 GMT</pubDate>
   </item></channel>
 </rss>
