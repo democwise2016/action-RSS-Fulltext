@@ -30,6 +30,447 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - 實現 -2 * 1/3 + 3/4 = 1/12 分數運算]]></title>
+    <link>https://blog.darkthread.net/blog/cs-fraction-type/</link>
+    <itunes:title><![CDATA[Coding4Fun - 實現 -2 * 1/3 + 3/4 = 1/12 分數運算]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+// -2 * 1/3 + 3/4 = 1/12
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
+</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
+{
+private readonly int num;
+private readonly int den;
+// 標準建構式：分子、分母
+public Frac(int numerator, int denominator)
+{
+if (denominator == 0)
+{
+throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
+}
+if (denominator &lt; 0)
+{
+numerator = -numerator;
+denominator = -denominator;
+}
+num = numerator;
+den = denominator;
+}
+// ValueTuple 建構式
+public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
+// 由字串解析分子分母
+static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
+{
+var parts = fracStr.Split('/');
+if (parts.Length != 2)
+{
+throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
+}
+return (int.Parse(parts[0]), int.Parse(parts[1]));
+};
+// 使用字串建立分數
+public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
+public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
+// 使用整數建立分數
+public Frac(int number) : this(number, 1) { }
+public static implicit operator Frac(int number) =&gt; new Frac(number);
+// 正、負、加減乘除
+public static Frac operator +(Frac a) =&gt; a;
+public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
+public static Frac operator +(Frac a, Frac b)
+=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
+public static Frac operator -(Frac a, Frac b)
+=&gt; a + (-b);
+public static Frac operator *(Frac a, Frac b)
+=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
+public static Frac operator /(Frac a, Frac b)
+{
+if (b.num == 0)
+{
+throw new DivideByZeroException();
+}
+return new Frac(a.num * b.den, a.den * b.num).Simplify();
+}
+// 指定分母
+public Frac WithDenominator(int newDenominator)
+{
+// 若無法整除，則無法指定分母
+if (newDenominator == 0 || newDenominator % den != 0)
+{
+throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
+}
+return new Frac(num * newDenominator / den, newDenominator);
+}
+public override string ToString() =&gt;
+den == 1 ? num.ToString() : $"{num}/{den}";
+// 約分
+public Frac Simplify()
+{
+int gcd = Gcd(num, den);
+return new Frac(num / gcd, den / gcd);
+}
+// 通分
+public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
+{
+int lcm = Lcm(a.den, b.den);
+return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
+}
+// 最大公約数
+private static int Gcd(int a, int b)
+{
+if (b == 0)
+{
+return a;
+}
+return Gcd(b, a % b);
+}
+// 最小公倍数
+private static int Lcm(int a, int b)
+{
+return a * b / Gcd(a, b);
+}
+// 相等比較 (先約分再比較)
+// 註：Equals、GetHashCode、==、!= 要一起實作
+public override bool Equals(object? obj) =&gt; obj is Frac other
+&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
+public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
+public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
+public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
+// 大小比較 (先通分再比較) 註：大於小放要一起實作
+public static bool operator &lt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
+public static bool operator &gt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
+public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
+public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
+}
+</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
+Frac a = new Frac(1, 2);
+Frac b = new Frac("3/4");
+Frac c = new Frac(2);
+Frac d = "2/3";
+Frac e = 3;
+Frac f = "4/6";
+Console.WriteLine($"a = {a}"); // 1 / 2
+Console.WriteLine($"正號 +a = {a}"); // 1 / 2
+Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
+Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
+Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
+Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
+Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
+Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
+Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
+Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
+Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
+Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
+Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
+Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
+Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
+try {
+Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
+}
+catch (ArgumentException ex)
+{
+Console.WriteLine(ex.Message);
+}
+// -2 * 1/3 + 3/4 = 1/12
+Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+// -2 * 1/3 + 3/4 = 1/12
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
+</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
+{
+private readonly int num;
+private readonly int den;
+// 標準建構式：分子、分母
+public Frac(int numerator, int denominator)
+{
+if (denominator == 0)
+{
+throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
+}
+if (denominator &lt; 0)
+{
+numerator = -numerator;
+denominator = -denominator;
+}
+num = numerator;
+den = denominator;
+}
+// ValueTuple 建構式
+public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
+// 由字串解析分子分母
+static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
+{
+var parts = fracStr.Split('/');
+if (parts.Length != 2)
+{
+throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
+}
+return (int.Parse(parts[0]), int.Parse(parts[1]));
+};
+// 使用字串建立分數
+public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
+public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
+// 使用整數建立分數
+public Frac(int number) : this(number, 1) { }
+public static implicit operator Frac(int number) =&gt; new Frac(number);
+// 正、負、加減乘除
+public static Frac operator +(Frac a) =&gt; a;
+public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
+public static Frac operator +(Frac a, Frac b)
+=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
+public static Frac operator -(Frac a, Frac b)
+=&gt; a + (-b);
+public static Frac operator *(Frac a, Frac b)
+=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
+public static Frac operator /(Frac a, Frac b)
+{
+if (b.num == 0)
+{
+throw new DivideByZeroException();
+}
+return new Frac(a.num * b.den, a.den * b.num).Simplify();
+}
+// 指定分母
+public Frac WithDenominator(int newDenominator)
+{
+// 若無法整除，則無法指定分母
+if (newDenominator == 0 || newDenominator % den != 0)
+{
+throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
+}
+return new Frac(num * newDenominator / den, newDenominator);
+}
+public override string ToString() =&gt;
+den == 1 ? num.ToString() : $"{num}/{den}";
+// 約分
+public Frac Simplify()
+{
+int gcd = Gcd(num, den);
+return new Frac(num / gcd, den / gcd);
+}
+// 通分
+public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
+{
+int lcm = Lcm(a.den, b.den);
+return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
+}
+// 最大公約数
+private static int Gcd(int a, int b)
+{
+if (b == 0)
+{
+return a;
+}
+return Gcd(b, a % b);
+}
+// 最小公倍数
+private static int Lcm(int a, int b)
+{
+return a * b / Gcd(a, b);
+}
+// 相等比較 (先約分再比較)
+// 註：Equals、GetHashCode、==、!= 要一起實作
+public override bool Equals(object? obj) =&gt; obj is Frac other
+&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
+public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
+public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
+public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
+// 大小比較 (先通分再比較) 註：大於小放要一起實作
+public static bool operator &lt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
+public static bool operator &gt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
+public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
+public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
+}
+</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
+Frac a = new Frac(1, 2);
+Frac b = new Frac("3/4");
+Frac c = new Frac(2);
+Frac d = "2/3";
+Frac e = 3;
+Frac f = "4/6";
+Console.WriteLine($"a = {a}"); // 1 / 2
+Console.WriteLine($"正號 +a = {a}"); // 1 / 2
+Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
+Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
+Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
+Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
+Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
+Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
+Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
+Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
+Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
+Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
+Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
+Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
+Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
+try {
+Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
+}
+catch (ArgumentException ex)
+{
+Console.WriteLine(ex.Message);
+}
+// -2 * 1/3 + 3/4 = 1/12
+Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+// -2 * 1/3 + 3/4 = 1/12
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
+</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
+{
+private readonly int num;
+private readonly int den;
+// 標準建構式：分子、分母
+public Frac(int numerator, int denominator)
+{
+if (denominator == 0)
+{
+throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
+}
+if (denominator &lt; 0)
+{
+numerator = -numerator;
+denominator = -denominator;
+}
+num = numerator;
+den = denominator;
+}
+// ValueTuple 建構式
+public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
+// 由字串解析分子分母
+static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
+{
+var parts = fracStr.Split('/');
+if (parts.Length != 2)
+{
+throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
+}
+return (int.Parse(parts[0]), int.Parse(parts[1]));
+};
+// 使用字串建立分數
+public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
+public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
+// 使用整數建立分數
+public Frac(int number) : this(number, 1) { }
+public static implicit operator Frac(int number) =&gt; new Frac(number);
+// 正、負、加減乘除
+public static Frac operator +(Frac a) =&gt; a;
+public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
+public static Frac operator +(Frac a, Frac b)
+=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
+public static Frac operator -(Frac a, Frac b)
+=&gt; a + (-b);
+public static Frac operator *(Frac a, Frac b)
+=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
+public static Frac operator /(Frac a, Frac b)
+{
+if (b.num == 0)
+{
+throw new DivideByZeroException();
+}
+return new Frac(a.num * b.den, a.den * b.num).Simplify();
+}
+// 指定分母
+public Frac WithDenominator(int newDenominator)
+{
+// 若無法整除，則無法指定分母
+if (newDenominator == 0 || newDenominator % den != 0)
+{
+throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
+}
+return new Frac(num * newDenominator / den, newDenominator);
+}
+public override string ToString() =&gt;
+den == 1 ? num.ToString() : $"{num}/{den}";
+// 約分
+public Frac Simplify()
+{
+int gcd = Gcd(num, den);
+return new Frac(num / gcd, den / gcd);
+}
+// 通分
+public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
+{
+int lcm = Lcm(a.den, b.den);
+return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
+}
+// 最大公約数
+private static int Gcd(int a, int b)
+{
+if (b == 0)
+{
+return a;
+}
+return Gcd(b, a % b);
+}
+// 最小公倍数
+private static int Lcm(int a, int b)
+{
+return a * b / Gcd(a, b);
+}
+// 相等比較 (先約分再比較)
+// 註：Equals、GetHashCode、==、!= 要一起實作
+public override bool Equals(object? obj) =&gt; obj is Frac other
+&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
+public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
+public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
+public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
+// 大小比較 (先通分再比較) 註：大於小放要一起實作
+public static bool operator &lt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
+public static bool operator &gt;(Frac a, Frac b) =&gt;
+CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
+public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
+public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
+}
+</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
+Frac a = new Frac(1, 2);
+Frac b = new Frac("3/4");
+Frac c = new Frac(2);
+Frac d = "2/3";
+Frac e = 3;
+Frac f = "4/6";
+Console.WriteLine($"a = {a}"); // 1 / 2
+Console.WriteLine($"正號 +a = {a}"); // 1 / 2
+Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
+Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
+Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
+Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
+Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
+Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
+Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
+Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
+Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
+Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
+Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
+Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
+Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
+try {
+Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
+}
+catch (ArgumentException ex)
+{
+Console.WriteLine(ex.Message);
+}
+// -2 * 1/3 + 3/4 = 1/12
+Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
+Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png" medium="image"/>
+    <pubDate>Sun, 11 Feb 2024 14:48:14 GMT</pubDate>
+  </item><item>
     <title><![CDATA[AI 共筆 - 台灣本土版語言模型 - Taiwan LLM 是怎麼煉成的？]]></title>
     <link>https://blog.darkthread.net/blog/how-taiwan-llm-trained/</link>
     <itunes:title><![CDATA[AI 共筆 - 台灣本土版語言模型 - Taiwan LLM 是怎麼煉成的？]]></itunes:title>
@@ -662,536 +1103,5 @@ Console.WriteLine(string.Join(", ", foo.List));
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig3_638425243009805707.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig3_638425243009805707.png" medium="image"/>
     <pubDate>Sat, 03 Feb 2024 02:20:36 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[C# 基本練習 - 識別 IP 所屬網段 (物件導向寫法)]]></title>
-    <link>https://blog.darkthread.net/blog/cidr-match/</link>
-    <itunes:title><![CDATA[C# 基本練習 - 識別 IP 所屬網段 (物件導向寫法)]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
-"10.0.0.0/8\tSvr-ALL\t10 網段",
-"10.10.0.0/16\tSvr-10\t10.10 網段",
-"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
-"172.17.0.0/16\tOffice-17\t172.17 網段",
-"192.168.0.0/16\tNetDevice\t192.168 網段"
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var maxMaskBits = 0;
-var matchNetZone = "Undefined";
-var ipUint = IPToUint(ip);
-foreach (var netZone in netZones)
-{
-var p = netZone.Split('\t');
-var cidr = p[0];
-var zoneCode = p[1];
-var comment = p[2];
-p = cidr.Split('/');
-var maskBits = int.Parse(p[1]);
-var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
-if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
-{
-if (maskBits &gt; maxMaskBits) {
-maxMaskBits = maskBits;
-matchNetZone = netZone;
-}
-}
-}
-Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
-{
-new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
-new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
-new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
-new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
-new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var netZone = netZones.Match(ip);
-Console.WriteLine($"{ip,-15} =&gt; {netZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-namespace netmask_lab
-{
-/// &lt;summary&gt;
-/// 網段定義
-/// &lt;/summary&gt;
-public class NetworkZone
-{
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址
-/// &lt;/summary&gt;
-public string IP = "0.0.0.0";
-[JsonIgnore]
-/// &lt;summary&gt;
-/// 子網路遮罩位元數
-/// &lt;/summary&gt;
-public int MaskBits = 32;
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址轉為 uint
-/// &lt;/summary&gt;
-public uint UintVal = 0;
-/// &lt;summary&gt;
-/// 是否為未定義網段
-/// &lt;/summary&gt;
-public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
-/// &lt;summary&gt;
-/// 子網段識別(CIDR)
-/// &lt;/summary&gt;
-public string Cidr { get; set; } = "0.0.0.0/32";
-/// &lt;summary&gt;
-/// 網段代碼
-/// &lt;/summary&gt;
-public string ZoneCode { get; set; } = "NA";
-/// &lt;summary&gt;
-/// 網段說明
-/// &lt;/summary&gt;
-public string Comment { get; set; } = "Undefined";
-/// &lt;summary&gt;
-/// 將 IP 轉為 uint，方便 Mask 計算
-/// &lt;/summary&gt;
-/// &lt;param name="ip"&gt;&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-public static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-void Init()
-{
-if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
-throw new Exception("CIDR format error.");
-IP = Cidr.Split('/').First();
-MaskBits = int.Parse(Cidr.Split('/').Last());
-UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
-}
-public NetworkZone()
-{
-Init();
-}
-public NetworkZone(string cidr, string zoneCode, string comment)
-{
-this.Cidr = cidr;
-this.ZoneCode = zoneCode;
-this.Comment = comment;
-Init();
-}
-public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
-public bool Match(string ip) =&gt; Match(IPToUint(ip));
-override public string ToString()
-{
-if (IsUndefined) return Comment;
-return $"{Cidr} ({ZoneCode} {Comment})";
-}
-}
-public class NetworkZoneTable : List&lt;NetworkZone&gt;
-{
-public NetworkZone Match(string ip)
-{
-var ipUint = NetworkZone.IPToUint(ip);
-return this.OrderByDescending(o =&gt; o.MaskBits)
-.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
-}
-}
-}
-</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
-"10.0.0.0/8\tSvr-ALL\t10 網段",
-"10.10.0.0/16\tSvr-10\t10.10 網段",
-"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
-"172.17.0.0/16\tOffice-17\t172.17 網段",
-"192.168.0.0/16\tNetDevice\t192.168 網段"
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var maxMaskBits = 0;
-var matchNetZone = "Undefined";
-var ipUint = IPToUint(ip);
-foreach (var netZone in netZones)
-{
-var p = netZone.Split('\t');
-var cidr = p[0];
-var zoneCode = p[1];
-var comment = p[2];
-p = cidr.Split('/');
-var maskBits = int.Parse(p[1]);
-var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
-if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
-{
-if (maskBits &gt; maxMaskBits) {
-maxMaskBits = maskBits;
-matchNetZone = netZone;
-}
-}
-}
-Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
-{
-new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
-new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
-new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
-new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
-new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var netZone = netZones.Match(ip);
-Console.WriteLine($"{ip,-15} =&gt; {netZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-namespace netmask_lab
-{
-/// &lt;summary&gt;
-/// 網段定義
-/// &lt;/summary&gt;
-public class NetworkZone
-{
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址
-/// &lt;/summary&gt;
-public string IP = "0.0.0.0";
-[JsonIgnore]
-/// &lt;summary&gt;
-/// 子網路遮罩位元數
-/// &lt;/summary&gt;
-public int MaskBits = 32;
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址轉為 uint
-/// &lt;/summary&gt;
-public uint UintVal = 0;
-/// &lt;summary&gt;
-/// 是否為未定義網段
-/// &lt;/summary&gt;
-public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
-/// &lt;summary&gt;
-/// 子網段識別(CIDR)
-/// &lt;/summary&gt;
-public string Cidr { get; set; } = "0.0.0.0/32";
-/// &lt;summary&gt;
-/// 網段代碼
-/// &lt;/summary&gt;
-public string ZoneCode { get; set; } = "NA";
-/// &lt;summary&gt;
-/// 網段說明
-/// &lt;/summary&gt;
-public string Comment { get; set; } = "Undefined";
-/// &lt;summary&gt;
-/// 將 IP 轉為 uint，方便 Mask 計算
-/// &lt;/summary&gt;
-/// &lt;param name="ip"&gt;&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-public static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-void Init()
-{
-if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
-throw new Exception("CIDR format error.");
-IP = Cidr.Split('/').First();
-MaskBits = int.Parse(Cidr.Split('/').Last());
-UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
-}
-public NetworkZone()
-{
-Init();
-}
-public NetworkZone(string cidr, string zoneCode, string comment)
-{
-this.Cidr = cidr;
-this.ZoneCode = zoneCode;
-this.Comment = comment;
-Init();
-}
-public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
-public bool Match(string ip) =&gt; Match(IPToUint(ip));
-override public string ToString()
-{
-if (IsUndefined) return Comment;
-return $"{Cidr} ({ZoneCode} {Comment})";
-}
-}
-public class NetworkZoneTable : List&lt;NetworkZone&gt;
-{
-public NetworkZone Match(string ip)
-{
-var ipUint = NetworkZone.IPToUint(ip);
-return this.OrderByDescending(o =&gt; o.MaskBits)
-.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
-}
-}
-}
-</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>專案上的小需求，公司內網依實體網路架構區分了多個網段，系統有網段清單，已知不同 CIDR (Classless Inter-Domain Routing) 格式(例如：192.168.1.0/24、10.0.0.0/8) 對映的代碼及說明。系統在接收到任一 IP 地址時，需識別出其隸屬哪一個網段。有個小眉角是子網段範圍有大小之分，例如同時定義了 10.0.0.0/8 以及 10.10.0.0/16，要能識別除了 10.10.* 以外的 10.0-255.* 是前者，10.10.* 為後者。</p> <p>這邏輯說來不難，但我想用物件導向一點的方式來寫。</p> <p>傳統平鋪直述寫法應該會寫一個迴圈，用 IP 跟每個網段 CIDR 相比，檢查套用遮罩後的結果是否相符，然後要注意兩個範圍不同網段重疊時以範圍小的優先... 等細節，程式寫起來類似這樣：</p> <pre><code>var netZones = new string[] {
-"10.0.0.0/8\tSvr-ALL\t10 網段",
-"10.10.0.0/16\tSvr-10\t10.10 網段",
-"172.16.0.8/12\tOffice-ALL\t172.16-31 網段",
-"172.17.0.0/16\tOffice-17\t172.17 網段",
-"192.168.0.0/16\tNetDevice\t192.168 網段"
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var maxMaskBits = 0;
-var matchNetZone = "Undefined";
-var ipUint = IPToUint(ip);
-foreach (var netZone in netZones)
-{
-var p = netZone.Split('\t');
-var cidr = p[0];
-var zoneCode = p[1];
-var comment = p[2];
-p = cidr.Split('/');
-var maskBits = int.Parse(p[1]);
-var netUint = IPToUint(p[0]) &amp; (uint.MaxValue &lt;&lt; (32 - maskBits));
-if ((ipUint &amp; (uint.MaxValue &lt;&lt; (32 - maskBits))) == netUint)
-{
-if (maskBits &gt; maxMaskBits) {
-maxMaskBits = maskBits;
-matchNetZone = netZone;
-}
-}
-}
-Console.WriteLine($"{ip,-15} =&gt; {matchNetZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-</code></pre> <p>如果用物件導向寫法，我們可讓每個網段是一個 NetworkZone 物件，用 bool Match(string ip) 判斷是否屬於該網段；而所有 NetworkZone 集合也寫成物件 - NetworkZoneTable，提供一個 NetworkZone(string ip) 方法，傳入任意 IP 可判斷其屬於何網段。</p> <p>使用起來會像這樣：</p> <pre><code>var netZones = new NetworkZoneTable
-{
-new NetworkZone("10.0.0.0/8", "Svr-ALL", "10 網段"),
-new NetworkZone("10.10.0.0/16", "Svr-10", "10.10 網段"),
-new NetworkZone("172.16.0.8/12", "Office-ALL", "172.16-31 網段"),
-new NetworkZone("172.17.0.0/16", "Office-17", "172.17 網段"),
-new NetworkZone("192.168.0.0/16", "NetDevice", "192.168 網段")
-};
-Action&lt;string&gt; test = (ip) =&gt;
-{
-var netZone = netZones.Match(ip);
-Console.WriteLine($"{ip,-15} =&gt; {netZone}");
-};
-test("10.10.123.123");
-test("10.123.123.123");
-test("192.168.1.1");
-test("172.28.1.1");
-test("172.16.1.1");
-test("172.17.1.1");
-test("8.8.8.8");
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"></p> <p>NetworkZone 及 NetworkZoneTable 寫法如下：</p> <pre><code>using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-namespace netmask_lab
-{
-/// &lt;summary&gt;
-/// 網段定義
-/// &lt;/summary&gt;
-public class NetworkZone
-{
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址
-/// &lt;/summary&gt;
-public string IP = "0.0.0.0";
-[JsonIgnore]
-/// &lt;summary&gt;
-/// 子網路遮罩位元數
-/// &lt;/summary&gt;
-public int MaskBits = 32;
-[JsonIgnore]
-/// &lt;summary&gt;
-/// IP 位址轉為 uint
-/// &lt;/summary&gt;
-public uint UintVal = 0;
-/// &lt;summary&gt;
-/// 是否為未定義網段
-/// &lt;/summary&gt;
-public bool IsUndefined =&gt; UintVal == 0 &amp;&amp; MaskBits == 32;
-/// &lt;summary&gt;
-/// 子網段識別(CIDR)
-/// &lt;/summary&gt;
-public string Cidr { get; set; } = "0.0.0.0/32";
-/// &lt;summary&gt;
-/// 網段代碼
-/// &lt;/summary&gt;
-public string ZoneCode { get; set; } = "NA";
-/// &lt;summary&gt;
-/// 網段說明
-/// &lt;/summary&gt;
-public string Comment { get; set; } = "Undefined";
-/// &lt;summary&gt;
-/// 將 IP 轉為 uint，方便 Mask 計算
-/// &lt;/summary&gt;
-/// &lt;param name="ip"&gt;&lt;/param&gt;
-/// &lt;returns&gt;&lt;/returns&gt;
-public static uint IPToUint(string ip)
-{
-var segments = ip.Split('.');
-if (segments.Length != 4) return 0;
-try
-{
-return (uint.Parse(segments[0]) &lt;&lt; 24)
-| (uint.Parse(segments[1]) &lt;&lt; 16)
-| (uint.Parse(segments[2]) &lt;&lt; 8)
-| uint.Parse(segments[3]);
-}
-catch (Exception)
-{
-return 0;
-}
-}
-void Init()
-{
-if (!Regex.IsMatch(Cidr, @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$"))
-throw new Exception("CIDR format error.");
-IP = Cidr.Split('/').First();
-MaskBits = int.Parse(Cidr.Split('/').Last());
-UintVal = IPToUint(IP) &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits));
-}
-public NetworkZone()
-{
-Init();
-}
-public NetworkZone(string cidr, string zoneCode, string comment)
-{
-this.Cidr = cidr;
-this.ZoneCode = zoneCode;
-this.Comment = comment;
-Init();
-}
-public bool Match(uint ip) =&gt; (ip &amp; (uint.MaxValue &lt;&lt; (32 - MaskBits))) == UintVal;
-public bool Match(string ip) =&gt; Match(IPToUint(ip));
-override public string ToString()
-{
-if (IsUndefined) return Comment;
-return $"{Cidr} ({ZoneCode} {Comment})";
-}
-}
-public class NetworkZoneTable : List&lt;NetworkZone&gt;
-{
-public NetworkZone Match(string ip)
-{
-var ipUint = NetworkZone.IPToUint(ip);
-return this.OrderByDescending(o =&gt; o.MaskBits)
-.ThenBy(o =&gt; o.IP).FirstOrDefault(z =&gt; z.Match(ipUint)) ?? new NetworkZone();
-}
-}
-}
-</code></pre> <p>補充幾個小地方：</p> <ol><li>網段判別主要靠兩個 IP 套用網段遮罩後比對是否一致。我採用的做法是將 IP 的四個 0-255 轉成 Unsigned Integer 的四個 Bytes，用 <code>Uint_Value_of_IP &amp; uint.MaxValue &lt;&lt; (32 - MaskBits)</code> 套用遮罩。</li> <li>每個 NetworkZone 有個 public bool Match(uint ip)，依序比對遇到 true 時代表該 IP 屬於此網段。由於要先比範圍小的再比範圍大的，故比對順序會依 <code>.OrderByDescending(o =&gt; o.MaskBits).ThenBy(o =&gt; o.IP)</code> 排序。</li> <li>NetworkZoneTable 骨子裡是個 IList&lt;NetworkZone&gt;，只差在多了一個 public NetworkZone Match(string ip)。<code>public class NetworkZoneTable : List&lt;NetworkZone&gt;</code> 繼承 <a href="https://learn.microsoft.com/zh-tw/dotnet/api/system.collections.generic.list-1?view=net-8.0&amp;WT.mc_id=DOP-MVP-37580">List&lt;T&gt;</a> 可直接獲得 List&lt;NetworkZone&gt; 的所有屬性、方法，如開始的程式碼，能用 new NetworkZoneTable { new NetworkZone(...), new NetworkZone(...) } 以<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/programming-guide/classes-and-structs/object-and-collection-initializers?WT.mc_id=DOP-MVP-37580#collection-initializers">集合初始設定式</a>指定內容。</li></ol> <p data-slug="cidr-match" data-title-en="Matching CIDR in C# object-oriented approach" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A requirement to compare CIDR and find out the subnet it belongs to, implemented using C# object-oriented approach.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638424866362503338.png" medium="image"/>
-    <pubDate>Fri, 02 Feb 2024 15:58:27 GMT</pubDate>
   </item></channel>
 </rss>
