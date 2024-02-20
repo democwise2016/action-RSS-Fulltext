@@ -30,6 +30,120 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[IIS AlwaysRunning 深入研究 - 幽靈排程與自動啟動行為]]></title>
+    <link>https://blog.darkthread.net/blog/iis-always-running-tips/</link>
+    <itunes:title><![CDATA[IIS AlwaysRunning 深入研究 - 幽靈排程與自動啟動行為]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Threading" %&gt;
+&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
+&lt;%@ Import Namespace="System.Diagnostics" %&gt;
+&lt;script RunAt="server"&gt;
+CancellationTokenSource cts;
+void Log(string msg)
+{
+System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
+Process.GetCurrentProcess().Id +
+"#" + AppDomain.CurrentDomain.Id +
+" - " + msg + "
+");
+}
+void Application_Start(object sender, EventArgs e)
+{
+Log("Application Start");
+cts = new CancellationTokenSource();
+Task.Run(async () =&gt;
+{
+while (!cts.Token.IsCancellationRequested)
+{
+Log(DateTime.Now.ToString("HH:mm:ss"));
+await Task.Delay(1000, cts.Token);
+}
+});
+}
+void Application_End(object sender, EventArgs e)
+{
+cts.Cancel();
+Log("Application End");
+}
+&lt;/script&gt;
+</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Threading" %&gt;
+&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
+&lt;%@ Import Namespace="System.Diagnostics" %&gt;
+&lt;script RunAt="server"&gt;
+CancellationTokenSource cts;
+void Log(string msg)
+{
+System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
+Process.GetCurrentProcess().Id +
+"#" + AppDomain.CurrentDomain.Id +
+" - " + msg + "
+");
+}
+void Application_Start(object sender, EventArgs e)
+{
+Log("Application Start");
+cts = new CancellationTokenSource();
+Task.Run(async () =&gt;
+{
+while (!cts.Token.IsCancellationRequested)
+{
+Log(DateTime.Now.ToString("HH:mm:ss"));
+await Task.Delay(1000, cts.Token);
+}
+});
+}
+void Application_End(object sender, EventArgs e)
+{
+cts.Cancel();
+Log("Application End");
+}
+&lt;/script&gt;
+</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
+&lt;%@ Import Namespace="System.Threading" %&gt;
+&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
+&lt;%@ Import Namespace="System.Diagnostics" %&gt;
+&lt;script RunAt="server"&gt;
+CancellationTokenSource cts;
+void Log(string msg)
+{
+System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
+Process.GetCurrentProcess().Id +
+"#" + AppDomain.CurrentDomain.Id +
+" - " + msg + "
+");
+}
+void Application_Start(object sender, EventArgs e)
+{
+Log("Application Start");
+cts = new CancellationTokenSource();
+Task.Run(async () =&gt;
+{
+while (!cts.Token.IsCancellationRequested)
+{
+Log(DateTime.Now.ToString("HH:mm:ss"));
+await Task.Delay(1000, cts.Token);
+}
+});
+}
+void Application_End(object sender, EventArgs e)
+{
+cts.Cancel();
+Log("Application End");
+}
+&lt;/script&gt;
+</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png" medium="image"/>
+    <pubDate>Tue, 20 Feb 2024 15:31:13 GMT</pubDate>
+  </item><item>
     <title><![CDATA[前端小技巧 - 在網頁 Ctrl-V 貼圖片上傳檔案]]></title>
     <link>https://blog.darkthread.net/blog/paste-to-upload/</link>
     <itunes:title><![CDATA[前端小技巧 - 在網頁 Ctrl-V 貼圖片上傳檔案]]></itunes:title>
@@ -1823,68 +1937,5 @@ dotnet sonarscanner end
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638428658982070858.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638428658982070858.png" medium="image"/>
     <pubDate>Wed, 07 Feb 2024 01:19:05 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[在遠端 Linux 執行 Jupyter Notebook]]></title>
-    <link>https://blog.darkthread.net/blog/jupyter-on-remote-linux/</link>
-    <itunes:title><![CDATA[在遠端 Linux 執行 Jupyter Notebook]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
-curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
-bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
-</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
-conda init
-# 用以下指令啟用或關閉自動啟用 conda
-conda config --set auto_activate_base True
-conda config --set auto_activate_base False
-</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
-conda update jupyter
-# 在伺服器啟動 Jupyter Notebook
-jupyter notebook --no-browser --port=9527
-# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
-# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
-# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
-ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
-</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
-curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
-bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
-</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
-conda init
-# 用以下指令啟用或關閉自動啟用 conda
-conda config --set auto_activate_base True
-conda config --set auto_activate_base False
-</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
-conda update jupyter
-# 在伺服器啟動 Jupyter Notebook
-jupyter notebook --no-browser --port=9527
-# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
-# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
-# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
-ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
-</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>最近想試試從 Windows 工作機遠端連上 Linux 伺服器跑 Python，ssh 連上去用終端機跑當然沒問題，但許多學習資源是 <a href="/blog/jupyter-notebook/">Jupyter Notebook</a>，要怎麼從 Windows 在 Linux 跑 Jupyter Notebook 呢？</p> <p>啟用 RDP 或 VNC 走遠端桌面是無腦解法，但實務上可能因權限不足、無 GUI 環境或防火牆限制無法實現。Jupyter Notebook 本身是個網站，故在 Linux 跑 Jupyter Notebook 再用 SSH Tunneling 連上去也是個解法，只需開通 SSH Port 即可使用。</p> <p>以下是我的安裝設定筆記。</p> <p>我選擇在 Linux 上安裝 Anaconda，依據官方文件：<a href="https://docs.anaconda.com/free/anaconda/install/linux/">Installing Anaconda on Linux</a>，先在 <a href="https://repo.anaconda.com/archive/">Repo 網頁</a>查最新版本是 2023-09-0，使用以下指令下載安裝：</p> <pre><code>sudo apt-get install libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
-curl -O https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
-bash ./Anaconda3-2023.09-0-Linux-x86_64.sh
-</code></pre> <p>安裝過程注意事項如下：</p> <ol><li>安裝程式會顯示版權同意書，按 Enter 開始，空白鍵下一頁，最後輸入 yes 按 Enter 表示同意。</li> <li>預設會安裝在 <code>/home/&lt;username&gt;/anaconda3</code>，沒特殊考量的話就用預設路徑</li> <li>下載安裝要花個幾分鐘：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"></li> <li>最後步驟是設定每次登入後自動啟用 conda，輸入 yes 同意：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638428177245270826.png"><br> 註：若選擇不自動啟用 conda，手動指令如下： <pre><code>source ~/anaconda3/bin/activate
-conda init
-# 用以下指令啟用或關閉自動啟用 conda
-conda config --set auto_activate_base True
-conda config --set auto_activate_base False
-</code></pre> </li> <li>重新登入或 <code>source ~/.bashrc</code> 啟動 conda</li></ol> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638428177247427041.png"></p> <p>conda 啟用後，終端機提示指令前方會出現 (base) 顯示目前所在虛擬環境，執行 <code>conda list</code> 顯示目前安裝的套件及版本，代表安裝成功。</p> <p>開始前先將 jupyter 升級到新版(不然一直有升級提示，頗煩)，用 <code>jupyter notebook</code> 啟動 Notebook，Windows 端則另開一個 ssh 啟用 Tunneling，將 Linux 的 Jupyter Notebook TCP Port 導向到 Windows 來。</p> <pre><code># 將 jupyter 升級到新版 (7)
-conda update jupyter
-# 在伺服器啟動 Jupyter Notebook
-jupyter notebook --no-browser --port=9527
-# 在本機執行 ssh 啟用 Tunneling 將遠端 9527 Port 導向本機 9527 Port
-# 註：兩邊 Port 設一樣，開啟 Notebook URL 可直接用較方便
-# 參數 -L local-port:remote-ip:remote-port、-N 不執行指令
-ssh -N -L 9527:localhost:9527 &lt;user&gt;@&lt;host&gt;
-</code></pre> <p>上面有提到本機跟 Linux 的 Port 設一樣會比較方便，理由是瀏覽器開啟 Jupyter Notebook 需要帶一個 token 參數，在 Linux 跑 jupyter notebook 顯示訊息會有連結(下圖箭頭處)，Port 相同的話可直接點選連結在 Windows 開啟。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638428177251760526.png"></p> <p>這樣就能從本機在 Linux 伺服器跑 Python，充分利用伺服器的算力。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638428177253902281.png"></p> <p>不過，身為 Python 新手，沒有 Copilot 的我恐怕剛出新手村就被史萊姆圍毆至死，還是研究一下怎麼用 VSCode 寫 Jupyter Notebook 吧。參考：<a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server">Manage Jupyter Kernels in VS Code</a></p> <p>用 Create: New Jupyter Notebook 建一本新筆記：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638428177256048971.png"></p> <p>點右上側的 Select Kernel / Existing Jupyter Server... 輸入含 token 的 URL：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638428177258625023.gif"></p> <p>並取個好記的簡短名稱：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638428177260749031.png"></p> <p>再選取 Linux 上的 Python Kernel (箭頭即為上一步輸入的名稱)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638428177262890038.png"></p> <p>輸入函數註解，Copilot 手把手教你怎麼用 Python 實作出來，學習新程式語言就該這樣，讓 Copilot 帶你飛~~</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638428177265042455.png"></p> <p>最後實測印出 OS 資訊，證明程式是在 Linux 上執行無誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638428177267217464.png"></p> <p>雖然整體操作的體驗遠不如本機 Jupyter Notebook 流暢，會<a href="https://code.visualstudio.com/docs/datascience/notebooks-web#_limitations">損失一些功能</a>(例如：無法逐行偵錯、不能使用 VSCode 終端介面)，但此種做法方便從 Windows 調用 Linux 主機 CPU/GPU 算力或網路環境進行作業，仍不失為一個選項。</p> <p data-slug="jupyter-on-remote-linux" data-title-en="Running Jupyter Notebook on remote Linux" data-catg="Python" data-fbimg="https://cdn.pixabay.com/photo/2019/05/26/23/00/remote-control-4231492_960_720.jpg#960#720">Notes about how to install Anaconda in Linux box and run Jupyter Notebook from Windows client.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638428177241050909.png" medium="image"/>
-    <pubDate>Tue, 06 Feb 2024 11:54:29 GMT</pubDate>
   </item></channel>
 </rss>
