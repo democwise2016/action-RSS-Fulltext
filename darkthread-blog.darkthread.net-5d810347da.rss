@@ -30,6 +30,549 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></title>
+    <link>https://blog.darkthread.net/blog/python-stats-cahrt/</link>
+    <itunes:title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
+9997242: 0ms
+9997243: 29ms
+9997244: 0ms
+9997245: 1ms
+9997246: 0ms
+9997247: 0ms
+9997248: 1ms
+9997249: 0ms
+...
+</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
+public class LogParser
+{
+// 百分位數
+static double percentile(int[] sorted, float percent)
+{
+if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
+throw new ArgumentException();
+var k = (sorted.Length - 1) * percent / 100.0;
+var i = (int)Math.Floor(k);
+var frac = k - i;
+return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
+}
+public static void Parse()
+{
+var filesNames = Directory.GetFiles("data", "Test-*.txt");
+var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
+Parallel.ForEach(filesNames, fileName =&gt;
+{
+var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
+foreach (var line in File.ReadAllLines(fileName))
+{
+var parts = line.Split(':');
+var idx = (int.Parse(parts[0]) - 1) / 100;
+var dura = int.Parse(parts[1].Replace("ms", string.Empty));
+if (!pool.ContainsKey(idx))
+{
+pool.TryAdd(idx, new List&lt;int&gt;());
+}
+pool[idx].Add(dura);
+}
+foreach (var kvp in pool)
+{
+var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
+var count = sorted.Length;
+var mean = (int)sorted.Average();
+var max = sorted.Max();
+// 標準差
+var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
+var p90 = (int)percentile(sorted, 90);
+var p95 = (int)percentile(sorted, 95);
+var p99 = (int)percentile(sorted, 99);
+data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
+}
+});
+var ordered = data.OrderBy(kvp =&gt; kvp.Key);
+using var sw = new StreamWriter("results\\stats-cs.csv");
+sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
+foreach (var kvp in ordered)
+{
+var v = kvp.Value;
+sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
+}
+}
+}
+</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
+import concurrent.futures
+import statistics
+def parse_file(file):
+with open(file, 'r') as f:
+# 資料格式：12345: 0ms
+lines = f.readlines()
+stats = {}
+for line in lines:
+p = line.split(':')
+seq = int(p[0]) - 1
+# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
+grpSeq = seq//100
+dura = int(p[1].strip('ms
+'))
+# setdefault 可在 Dictionary 無值時建空陣列
+stats.setdefault(grpSeq, []).append((seq, dura))
+# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
+data = []
+for k, v in stats.items():
+duras = [x[1] for x in v]
+duras.sort()
+count = len(v)
+mean = int(statistics.mean(duras))
+maxVal = max(duras)
+std = int(statistics.pstdev(duras, mu=mean))
+p90 = duras[int(count * 0.9) - 1]
+p95 = duras[int(count * 0.95) - 1]
+p99 = duras[int(count * 0.99) - 1]
+data.append((k, mean, maxVal, std, p90, p95, p99))
+return data
+files = glob.glob('.\data\Test-*.txt')
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+# 將結果組合成一個 list
+data = []
+for r in results:
+data += r
+# 依組別排序
+data.sort(key=lambda x: x[0])
+# 輸出成 csv 檔
+with open('results\stats-py.csv', 'w') as f:
+f.write('Index,Mean,Max,StdDev,P90,P95,P99
+')
+for d in data:
+f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
+')
+</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
+import pandas as pd
+import numpy as np
+def parse_file(file):
+df = pd.read_csv(file, sep=":", names=["seq", "dura"])
+df["dura"] = df["dura"].str.strip("ms
+").astype(int)
+df["Index"] = (df["seq"] - 1) // 100
+grouped = df.groupby("Index")["dura"]
+data = pd.concat(
+[
+grouped.mean().astype(int),
+grouped.max(),
+grouped.std().astype(int),
+grouped.quantile(0.9).astype(int),
+grouped.quantile(0.95).astype(int),
+grouped.quantile(0.99).astype(int),
+],
+axis=1,
+)
+data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
+return data.reset_index()
+files = glob.glob(".\data\Test-*.txt")
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+data = pd.concat(results).sort_values("Index")
+data.to_csv("results\stats-py2.csv", index=False)
+</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
+def plot_stats(filename, title):
+with open(filename, "r") as f:
+stats = f.readlines()
+# 略過第一行(Header)
+stats = stats[1:]
+stats = [list(map(int, row.strip().split(","))) for row in stats]
+x = [row[0] for row in stats] # Index
+yMean = [row[1] for row in stats] # Mean
+yMax = [row[2] for row in stats] # Max
+yP99 = [row[6] for row in stats] # P99
+# 設定 12 吋寬、4 吋高
+fig, ax1 = plt.subplots(figsize=(12, 4))
+ax1.plot(x, yMean, alpha=0.8, color="b")
+# 偵測 y 軸的最大值，設定 y 軸刻度
+maxY = max(yMean)
+if maxY &lt; 100:
+tick = 10
+elif maxY &lt; 1000:
+tick = 100
+ax1.set_yticks(range(0, int(maxY * 2), tick))
+ax1.set_ylabel("Avg(ms)", color="b")
+ax1.get_xaxis().set_major_formatter(
+plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
+)
+ax1.set_xlabel("rows (k)")
+# 最大值
+ax2 = ax1.twinx() # 與 ax1 共用 x 軸
+ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
+ax2.set_ylabel("Max/Percentile(ms)")
+# 加上 99 百分位數
+ax3 = ax1.twinx()
+ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
+ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
+plt.title(title)
+plt.show()
+plot_stats("results\stats-cs.csv", "Execution Time")
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
+9997242: 0ms
+9997243: 29ms
+9997244: 0ms
+9997245: 1ms
+9997246: 0ms
+9997247: 0ms
+9997248: 1ms
+9997249: 0ms
+...
+</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
+public class LogParser
+{
+// 百分位數
+static double percentile(int[] sorted, float percent)
+{
+if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
+throw new ArgumentException();
+var k = (sorted.Length - 1) * percent / 100.0;
+var i = (int)Math.Floor(k);
+var frac = k - i;
+return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
+}
+public static void Parse()
+{
+var filesNames = Directory.GetFiles("data", "Test-*.txt");
+var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
+Parallel.ForEach(filesNames, fileName =&gt;
+{
+var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
+foreach (var line in File.ReadAllLines(fileName))
+{
+var parts = line.Split(':');
+var idx = (int.Parse(parts[0]) - 1) / 100;
+var dura = int.Parse(parts[1].Replace("ms", string.Empty));
+if (!pool.ContainsKey(idx))
+{
+pool.TryAdd(idx, new List&lt;int&gt;());
+}
+pool[idx].Add(dura);
+}
+foreach (var kvp in pool)
+{
+var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
+var count = sorted.Length;
+var mean = (int)sorted.Average();
+var max = sorted.Max();
+// 標準差
+var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
+var p90 = (int)percentile(sorted, 90);
+var p95 = (int)percentile(sorted, 95);
+var p99 = (int)percentile(sorted, 99);
+data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
+}
+});
+var ordered = data.OrderBy(kvp =&gt; kvp.Key);
+using var sw = new StreamWriter("results\\stats-cs.csv");
+sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
+foreach (var kvp in ordered)
+{
+var v = kvp.Value;
+sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
+}
+}
+}
+</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
+import concurrent.futures
+import statistics
+def parse_file(file):
+with open(file, 'r') as f:
+# 資料格式：12345: 0ms
+lines = f.readlines()
+stats = {}
+for line in lines:
+p = line.split(':')
+seq = int(p[0]) - 1
+# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
+grpSeq = seq//100
+dura = int(p[1].strip('ms
+'))
+# setdefault 可在 Dictionary 無值時建空陣列
+stats.setdefault(grpSeq, []).append((seq, dura))
+# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
+data = []
+for k, v in stats.items():
+duras = [x[1] for x in v]
+duras.sort()
+count = len(v)
+mean = int(statistics.mean(duras))
+maxVal = max(duras)
+std = int(statistics.pstdev(duras, mu=mean))
+p90 = duras[int(count * 0.9) - 1]
+p95 = duras[int(count * 0.95) - 1]
+p99 = duras[int(count * 0.99) - 1]
+data.append((k, mean, maxVal, std, p90, p95, p99))
+return data
+files = glob.glob('.\data\Test-*.txt')
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+# 將結果組合成一個 list
+data = []
+for r in results:
+data += r
+# 依組別排序
+data.sort(key=lambda x: x[0])
+# 輸出成 csv 檔
+with open('results\stats-py.csv', 'w') as f:
+f.write('Index,Mean,Max,StdDev,P90,P95,P99
+')
+for d in data:
+f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
+')
+</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
+import pandas as pd
+import numpy as np
+def parse_file(file):
+df = pd.read_csv(file, sep=":", names=["seq", "dura"])
+df["dura"] = df["dura"].str.strip("ms
+").astype(int)
+df["Index"] = (df["seq"] - 1) // 100
+grouped = df.groupby("Index")["dura"]
+data = pd.concat(
+[
+grouped.mean().astype(int),
+grouped.max(),
+grouped.std().astype(int),
+grouped.quantile(0.9).astype(int),
+grouped.quantile(0.95).astype(int),
+grouped.quantile(0.99).astype(int),
+],
+axis=1,
+)
+data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
+return data.reset_index()
+files = glob.glob(".\data\Test-*.txt")
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+data = pd.concat(results).sort_values("Index")
+data.to_csv("results\stats-py2.csv", index=False)
+</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
+def plot_stats(filename, title):
+with open(filename, "r") as f:
+stats = f.readlines()
+# 略過第一行(Header)
+stats = stats[1:]
+stats = [list(map(int, row.strip().split(","))) for row in stats]
+x = [row[0] for row in stats] # Index
+yMean = [row[1] for row in stats] # Mean
+yMax = [row[2] for row in stats] # Max
+yP99 = [row[6] for row in stats] # P99
+# 設定 12 吋寬、4 吋高
+fig, ax1 = plt.subplots(figsize=(12, 4))
+ax1.plot(x, yMean, alpha=0.8, color="b")
+# 偵測 y 軸的最大值，設定 y 軸刻度
+maxY = max(yMean)
+if maxY &lt; 100:
+tick = 10
+elif maxY &lt; 1000:
+tick = 100
+ax1.set_yticks(range(0, int(maxY * 2), tick))
+ax1.set_ylabel("Avg(ms)", color="b")
+ax1.get_xaxis().set_major_formatter(
+plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
+)
+ax1.set_xlabel("rows (k)")
+# 最大值
+ax2 = ax1.twinx() # 與 ax1 共用 x 軸
+ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
+ax2.set_ylabel("Max/Percentile(ms)")
+# 加上 99 百分位數
+ax3 = ax1.twinx()
+ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
+ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
+plt.title(title)
+plt.show()
+plot_stats("results\stats-cs.csv", "Execution Time")
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
+9997242: 0ms
+9997243: 29ms
+9997244: 0ms
+9997245: 1ms
+9997246: 0ms
+9997247: 0ms
+9997248: 1ms
+9997249: 0ms
+...
+</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
+public class LogParser
+{
+// 百分位數
+static double percentile(int[] sorted, float percent)
+{
+if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
+throw new ArgumentException();
+var k = (sorted.Length - 1) * percent / 100.0;
+var i = (int)Math.Floor(k);
+var frac = k - i;
+return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
+}
+public static void Parse()
+{
+var filesNames = Directory.GetFiles("data", "Test-*.txt");
+var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
+Parallel.ForEach(filesNames, fileName =&gt;
+{
+var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
+foreach (var line in File.ReadAllLines(fileName))
+{
+var parts = line.Split(':');
+var idx = (int.Parse(parts[0]) - 1) / 100;
+var dura = int.Parse(parts[1].Replace("ms", string.Empty));
+if (!pool.ContainsKey(idx))
+{
+pool.TryAdd(idx, new List&lt;int&gt;());
+}
+pool[idx].Add(dura);
+}
+foreach (var kvp in pool)
+{
+var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
+var count = sorted.Length;
+var mean = (int)sorted.Average();
+var max = sorted.Max();
+// 標準差
+var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
+var p90 = (int)percentile(sorted, 90);
+var p95 = (int)percentile(sorted, 95);
+var p99 = (int)percentile(sorted, 99);
+data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
+}
+});
+var ordered = data.OrderBy(kvp =&gt; kvp.Key);
+using var sw = new StreamWriter("results\\stats-cs.csv");
+sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
+foreach (var kvp in ordered)
+{
+var v = kvp.Value;
+sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
+}
+}
+}
+</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
+import concurrent.futures
+import statistics
+def parse_file(file):
+with open(file, 'r') as f:
+# 資料格式：12345: 0ms
+lines = f.readlines()
+stats = {}
+for line in lines:
+p = line.split(':')
+seq = int(p[0]) - 1
+# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
+grpSeq = seq//100
+dura = int(p[1].strip('ms
+'))
+# setdefault 可在 Dictionary 無值時建空陣列
+stats.setdefault(grpSeq, []).append((seq, dura))
+# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
+data = []
+for k, v in stats.items():
+duras = [x[1] for x in v]
+duras.sort()
+count = len(v)
+mean = int(statistics.mean(duras))
+maxVal = max(duras)
+std = int(statistics.pstdev(duras, mu=mean))
+p90 = duras[int(count * 0.9) - 1]
+p95 = duras[int(count * 0.95) - 1]
+p99 = duras[int(count * 0.99) - 1]
+data.append((k, mean, maxVal, std, p90, p95, p99))
+return data
+files = glob.glob('.\data\Test-*.txt')
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+# 將結果組合成一個 list
+data = []
+for r in results:
+data += r
+# 依組別排序
+data.sort(key=lambda x: x[0])
+# 輸出成 csv 檔
+with open('results\stats-py.csv', 'w') as f:
+f.write('Index,Mean,Max,StdDev,P90,P95,P99
+')
+for d in data:
+f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
+')
+</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
+import pandas as pd
+import numpy as np
+def parse_file(file):
+df = pd.read_csv(file, sep=":", names=["seq", "dura"])
+df["dura"] = df["dura"].str.strip("ms
+").astype(int)
+df["Index"] = (df["seq"] - 1) // 100
+grouped = df.groupby("Index")["dura"]
+data = pd.concat(
+[
+grouped.mean().astype(int),
+grouped.max(),
+grouped.std().astype(int),
+grouped.quantile(0.9).astype(int),
+grouped.quantile(0.95).astype(int),
+grouped.quantile(0.99).astype(int),
+],
+axis=1,
+)
+data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
+return data.reset_index()
+files = glob.glob(".\data\Test-*.txt")
+with concurrent.futures.ThreadPoolExecutor() as executor:
+results = executor.map(parse_file, files)
+data = pd.concat(results).sort_values("Index")
+data.to_csv("results\stats-py2.csv", index=False)
+</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
+def plot_stats(filename, title):
+with open(filename, "r") as f:
+stats = f.readlines()
+# 略過第一行(Header)
+stats = stats[1:]
+stats = [list(map(int, row.strip().split(","))) for row in stats]
+x = [row[0] for row in stats] # Index
+yMean = [row[1] for row in stats] # Mean
+yMax = [row[2] for row in stats] # Max
+yP99 = [row[6] for row in stats] # P99
+# 設定 12 吋寬、4 吋高
+fig, ax1 = plt.subplots(figsize=(12, 4))
+ax1.plot(x, yMean, alpha=0.8, color="b")
+# 偵測 y 軸的最大值，設定 y 軸刻度
+maxY = max(yMean)
+if maxY &lt; 100:
+tick = 10
+elif maxY &lt; 1000:
+tick = 100
+ax1.set_yticks(range(0, int(maxY * 2), tick))
+ax1.set_ylabel("Avg(ms)", color="b")
+ax1.get_xaxis().set_major_formatter(
+plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
+)
+ax1.set_xlabel("rows (k)")
+# 最大值
+ax2 = ax1.twinx() # 與 ax1 共用 x 軸
+ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
+ax2.set_ylabel("Max/Percentile(ms)")
+# 加上 99 百分位數
+ax3 = ax1.twinx()
+ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
+ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
+plt.title(title)
+plt.show()
+plot_stats("results\stats-cs.csv", "Execution Time")
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png" medium="image"/>
+    <pubDate>Sun, 25 Feb 2024 03:45:12 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Coding4Fun - 計算百分位數]]></title>
     <link>https://blog.darkthread.net/blog/calc-percentile/</link>
     <itunes:title><![CDATA[Coding4Fun - 計算百分位數]]></itunes:title>
@@ -1598,221 +2141,5 @@ Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg" medium="image"/>
     <pubDate>Sat, 10 Feb 2024 15:51:12 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[源碼檢測軟體冷門選擇 - PVS-Studio]]></title>
-    <link>https://blog.darkthread.net/blog/pvs-studio-survey/</link>
-    <itunes:title><![CDATA[源碼檢測軟體冷門選擇 - PVS-Studio]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
-sudo apt-key add -
-sudo wget -O /etc/apt/sources.list.d/viva64.list \
-https://cdn.pvs-studio.com/etc/viva64.list
-sudo apt-get update
-sudo apt-get install pvs-studio-dotnet
-# 若看到版號代表安裝完成
-pvs-studio-dotnet --version
-</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
-# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
-# https://pvs-studio.com/en/order/for-students/
-pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
-# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
-# https://pvs-studio.com/en/order/open-source-license/
-</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
-&lt;!-- ... --&gt;
-&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
-&lt;!-- ... --&gt;
-&lt;/ApplicationSettings&gt;
-</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
-</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
-var db = new DBHelper();
-db.ProcessUserInfo(args[0]);
-public class DBHelper
-{
-string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-public void ProcessUserInfo(String userName)
-{
-var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
-ExecuteCommand(command);
-}
-private void ExecuteCommand(String rawCommand)
-{
-using (SqlConnection connection = new SqlConnection(_connectionString))
-{
-using (var sqlCommand = new SqlCommand(rawCommand, connection))
-{
-using (var reader = sqlCommand.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-}
-}
-</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
-Test(args[0]);
-void Test(string userName)
-{
-var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-using (var cn = new SqlConnection(cnStr))
-{
-cn.Open();
-var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
-using (var reader = cmd.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
-sudo apt-key add -
-sudo wget -O /etc/apt/sources.list.d/viva64.list \
-https://cdn.pvs-studio.com/etc/viva64.list
-sudo apt-get update
-sudo apt-get install pvs-studio-dotnet
-# 若看到版號代表安裝完成
-pvs-studio-dotnet --version
-</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
-# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
-# https://pvs-studio.com/en/order/for-students/
-pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
-# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
-# https://pvs-studio.com/en/order/open-source-license/
-</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
-&lt;!-- ... --&gt;
-&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
-&lt;!-- ... --&gt;
-&lt;/ApplicationSettings&gt;
-</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
-</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
-var db = new DBHelper();
-db.ProcessUserInfo(args[0]);
-public class DBHelper
-{
-string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-public void ProcessUserInfo(String userName)
-{
-var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
-ExecuteCommand(command);
-}
-private void ExecuteCommand(String rawCommand)
-{
-using (SqlConnection connection = new SqlConnection(_connectionString))
-{
-using (var sqlCommand = new SqlCommand(rawCommand, connection))
-{
-using (var reader = sqlCommand.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-}
-}
-</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
-Test(args[0]);
-void Test(string userName)
-{
-var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-using (var cn = new SqlConnection(cnStr))
-{
-cn.Open();
-var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
-using (var reader = cmd.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://pvs-studio.com/en/">PVS-Studio</a> 是一套源碼檢測軟體(小知識：專業術語叫 SCA，(<a href="https://zh.wikipedia.org/zh-tw/%E9%9D%9C%E6%85%8B%E7%A8%8B%E5%BA%8F%E5%88%86%E6%9E%90">Static Code Analysis 靜態程式分析</a>)，知名度遠不及 Fortify、Checkmarx 或 SonarQube，不過，PVS-Studio 專注於 C、C#、C++、Java 四種語言，且有給學生及開源專案免費授權方案，好像也值得試看看。以下是我在 Linux 上安裝並掃瞄 .NET 專案的筆記。</p> <p>官方的安裝及使用說明很清楚，下載及執行方式設計得蠻簡便，下面我這次主要參考的文件：</p> <ul><li><a href="https://pvs-studio.com/en/docs/manual/0051/">PVS-Studio C# installation on Linux and macOS</a></li> <li><a href="https://pvs-studio.com/en/docs/manual/0035/">Analyzing Visual Studio / MSBuild / .NET projects from the command line using PVS-Studio</a></li></ul> <p>安裝設定摘要：(我的測試作業系統為 Ubuntu 22.04)</p> <ol><li>需先<a href="https://learn.microsoft.com/en-us/dotnet/core/install/linux?WT.mc_id=DOP-MVP-37580">安裝 .NET 8 SDK</a></li> <li>PVS-Studio C# Analyzer 依賴 PVS-Studio C++ Analyzer (pvs-studio)，但有包成 apt 套件會一併下載安裝，基本上可無腦完成<br> 執行以下指令新增 apt 套件來源及安裝 <pre><code>wget -q -O - https://cdn.pvs-studio.com/etc/pubkey.txt | \
-sudo apt-key add -
-sudo wget -O /etc/apt/sources.list.d/viva64.list \
-https://cdn.pvs-studio.com/etc/viva64.list
-sudo apt-get update
-sudo apt-get install pvs-studio-dotnet
-# 若看到版號代表安裝完成
-pvs-studio-dotnet --version
-</code></pre> </li> <li>輸入授權序號啟用，授權資料會寫入 <code>~/.config/PVS-Studio/PVS-Studio.lic</code>，<a href="https://pvs-studio.com/en/order/for-students/">學生、教師</a>及<a href="https://pvs-studio.com/en/order/open-source-license/">開源專案開發者</a>可免費使用： <pre><code>pvs-studio-analyzer credentials ${USER_NAME} ${LICENSE_KEY}
-# 學生、教師免費使用之序號設定方式，每個檔案開頭需加指定註解文字
-# https://pvs-studio.com/en/order/for-students/
-pvs-studio-analyzer credentials PVS-Studio Free FREE-FREE-FREE-FREE
-# 開源專案需填表申請，並在 README.md 加註 Credit 資訊
-# https://pvs-studio.com/en/order/open-source-license/
-</code></pre> </li> <li>OWASP 資安掃瞄是停用的，要編輯 <code>~/.config/PVS-Studio/Settings.xml</code> 將 <a href="https://pvs-studio.com/en/docs/manual/6653/">DisableOWASPAnalysisCs 選項</a>設成 false： <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
-&lt;ApplicationSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
-&lt;!-- ... --&gt;
-&lt;DisableOWASPAnalysisCs&gt;false&lt;/DisableOWASPAnalysisCs&gt;
-&lt;!-- ... --&gt;
-&lt;/ApplicationSettings&gt;
-</code></pre> </li> <li>與 SonarQube 相比，PVS-Studio 掃瞄 .NET 專案相對簡單，一行指令搞定，結果會寫成 JSON 或 XML： <pre><code>pvs-studio-dotnet -t vunerable-sample.sln -o result.json --progress
-</code></pre> </li></ol> <p>但實測 PSV-Studio 的偵測能力不如預期，參考官方文件案例，用以下程式片段測試 PVS-Studio 抓得出 SQL Injection：</p> <pre><code>using System.Data.SqlClient;
-var db = new DBHelper();
-db.ProcessUserInfo(args[0]);
-public class DBHelper
-{
-string _connectionString = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-public void ProcessUserInfo(String userName)
-{
-var command = "SELECT * FROM Users WHERE userName = '" + userName + "'";
-ExecuteCommand(command);
-}
-private void ExecuteCommand(String rawCommand)
-{
-using (SqlConnection connection = new SqlConnection(_connectionString))
-{
-using (var sqlCommand = new SqlCommand(rawCommand, connection))
-{
-using (var reader = sqlCommand.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-}
-}
-</code></pre> <p>但改成以下寫法就抓不到了：</p> <pre><code>using System.Data.SqlClient;
-Test(args[0]);
-void Test(string userName)
-{
-var cnStr = "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-using (var cn = new SqlConnection(cnStr))
-{
-cn.Open();
-var cmd = new SqlCommand("SELECT * FROM Users WHERE userName = '" + userName + "'", cn);
-using (var reader = cmd.ExecuteReader())
-{
-while (reader.Read())
-{
-// Process the data
-}
-}
-}
-}
-</code></pre> <p>為了對照，我寫了一個混合版，同時用 PVS-Studio 與 SonarQube 社群版掃瞄，比較結果。</p> <p>PVS-Studio 只抓到 DbHelper.ProcessUserInfo() 的 SQL Injection (Line 31)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"></p> <p>SonarQube 社群版抓到寫死密碼及 Test() 的 SQL Injection，但遺漏了 DbHelper.ProcessUserInfo()：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638430402773642493.png"></p> <p>順便再測了 Github Copilot，表現讓人驚豔，兩處 SQL Injection 跟寫死密碼都有被抓出來：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638430402777722712.png"></p> <p>綜合以上的簡單體驗，PVS-Studio 安裝及批次掃瞄夠簡便，但在簡單 C# SQL Injection 漏洞程式碼測試表現比 SonarQube 社群版(CE)弱些(有可能 PVS-Studio 的強項是 C/C++)，但意外有抓到 SonarQube CE 未檢測到的項目，個人覺得若要使用，<a href="https://pvs-studio.com/en/docs/manual/0037/">整合作為 SonarQube 擴充套件</a>，與 SonarQube 互補盲點是較好的做法。</p> <p data-slug="pvs-studio-survey" data-title-en="SAST tool PVS-Studio survey" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/06/17/18/45/chile-1463830_960_720.jpg#960#720">Simple test of SAST tool - PVS-Studio.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig2_638430402768822402.png" medium="image"/>
-    <pubDate>Fri, 09 Feb 2024 01:50:12 GMT</pubDate>
   </item></channel>
 </rss>
