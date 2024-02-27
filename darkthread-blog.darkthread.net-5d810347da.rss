@@ -30,6 +30,210 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></title>
+    <link>https://blog.darkthread.net/blog/how-guid-clust-index-bad-is/</link>
+    <itunes:title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
+(
+[PK] ASC
+)
+)
+GO
+CREATE TABLE [dbo].[IntClustIdx](
+[SN] [bigint] IDENTITY(1,1) NOT NULL,
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
+(
+[PK] ASC
+),
+CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
+(
+[SN] ASC
+)
+)
+GO
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum {
+GuidClustIdx,
+IntClustIdx
+}
+public static void InsertData(TableNameEnum tableName, long rowCount)
+{
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+}
+logger.Flush();
+logger.Dispose();
+}
+}
+</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
+(
+[PK] ASC
+)
+)
+GO
+CREATE TABLE [dbo].[IntClustIdx](
+[SN] [bigint] IDENTITY(1,1) NOT NULL,
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
+(
+[PK] ASC
+),
+CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
+(
+[SN] ASC
+)
+)
+GO
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum {
+GuidClustIdx,
+IntClustIdx
+}
+public static void InsertData(TableNameEnum tableName, long rowCount)
+{
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+}
+logger.Flush();
+logger.Dispose();
+}
+}
+</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
+(
+[PK] ASC
+)
+)
+GO
+CREATE TABLE [dbo].[IntClustIdx](
+[SN] [bigint] IDENTITY(1,1) NOT NULL,
+[PK] [uniqueidentifier] NOT NULL,
+[LongText] [nvarchar](max) NOT NULL,
+CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
+(
+[PK] ASC
+),
+CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
+(
+[SN] ASC
+)
+)
+GO
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum {
+GuidClustIdx,
+IntClustIdx
+}
+public static void InsertData(TableNameEnum tableName, long rowCount)
+{
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+}
+logger.Flush();
+logger.Dispose();
+}
+}
+</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png" medium="image"/>
+    <pubDate>Tue, 27 Feb 2024 13:51:40 GMT</pubDate>
+  </item><item>
     <title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></title>
     <link>https://blog.darkthread.net/blog/python-stats-cahrt/</link>
     <itunes:title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></itunes:title>
@@ -2126,20 +2330,5 @@ Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png" medium="image"/>
     <pubDate>Sun, 11 Feb 2024 14:48:14 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[AI 共筆 - 台灣本土版語言模型 - Taiwan LLM 是怎麼煉成的？]]></title>
-    <link>https://blog.darkthread.net/blog/how-taiwan-llm-trained/</link>
-    <itunes:title><![CDATA[AI 共筆 - 台灣本土版語言模型 - Taiwan LLM 是怎麼煉成的？]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>2024 新年第一天，拜年文就由 AI 打頭陣吧! 跟風附上 AI 生成圖，祝大家在新的一年神采飛揚，龍光煥發!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg" alt="thumbnail"></p> <p>在<a href="/blog/how-llm-training-burn-money/">訓練大型語言模型有多燒錢？</a>一文學到：標榜最有台灣味的 Taiwan-LLM 語言模型，是以 Meta LLaMA 2 為基礎的全參數微調模型，大幅提升繁體中文能力並融入台灣文化。Taiwan LLM 採用的訓練方式包含 8 x A100 兩週 Continuous Pretraining (接續預訓練，讓 LLaMA 2 學中文) 及 8 x H100 12 小時的 Instruction Fine-Tuning。我對它的訓練方式格外好奇，意外找到 Taiwan LLM 計劃主要參與者，台大博士生林彥廷同學的第一現場報導影片 - <a href="https://www.youtube.com/watch?v=3Y3-79NZQZg">Taiwan LLM 解析台灣第一個大型對話式語言模型</a>，內容還算淺顯，只稍具機器學習基本概念如我，即便看不懂門道，也能有點收獲，特記錄重點備忘。</p> <ol><li>LLaMA 2 不是原本就會講中文？為什麼還要學中文？<br> LLM 的訓練資料繁體中文佔比很低，在全世界的文本可能佔不到 0.1% (英文 54%、西班牙文 30%，中文僅 1%；其中簡體中文 90%，繁體中文 10%)。語言不只是翻譯就好，在文化、價值觀、常識(例如：發票載具)方面也要對齊才算在地化，使用者多聊兩句便能感受這是會講中文的外國機器人，還是真的具有台灣魂？要融入本地語精神，需要用大量台灣文本進行預訓練才能實現。</li> <li>Taiwan LLM 的訓練程序為何？<br> 分為三階段：Continuous-Pretraining (使用台灣語料 Corpus 進行接續預訓練, cPT) -&gt; Supervised Fine Tuning (SFT) -&gt; Real User Interaction and Reinforcement (上網公測，蒐集回饋)</li> <li>Taiwan LLM 用了哪些台灣語料進行 cPT？<br> V1 用維基百科跟網路資料(CommonCrawl)，但發現網路資料品質不佳(包含太多詐騙、色情、政治性)，需要大量事後調校修正。V2 改用社群媒體、法律文件、新聞時事取代網路資料，共 35B。(相較國外文本 1 ~ 2T 起跳，其實還是很少)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638431770931819580.png"><br> V2 拿掉網路資料後，cPT 完的結果價值觀回答方式已經很接近台灣人，偏差小很多，大幅減少微調工程。結論：從源頭控管可以省很多工夫。<br> cPT Context 長度上限 4000 (相當於短期記憶)、每個文本只看一次 (1 Epoch)、加速技巧：Fully Sharded Data Parallel(FSDP、DeepSpeed)、Flash Attention v2 (利用 GPU 結構減少 Memory 搬運次數，A100/H100 支援)、bfloat16 (源自 Meta RD 的血淚心得，bfloat 16 (Range 大，精準度低) + 更多資料 = 效果較好，目前較流行 fp16、bfloat16，開始有人用 fp8)</li> <li>為什麼用 cPT 而非重新訓練？<br> Google DeepMind 研究，<a href="https://www.toolify.ai/ai-news/unveiling-the-scaling-secrets-of-chinchillas-31431">Chinchilla Scaling Laws</a> 一個參數至少要訓練在 20 個 Token 以上，35B / 20 &lt; 2B，這個資料量只能從頭訓練不到 2B 的模型。故以 LLaMA 2 7B、13B 模型為基礎接續訓練，成本效益較好。</li> <li>cPT 過程有遇到什麼困難？<br> 下圖紫線是 Taiwan LLM 的 Loss 曲線，隨 global step 步數增加 Loss 會下降，但會有上下波動的細線叫 Loss Spike，這類不穩定常來自於 Memory 之類的錯誤，解法是 Rollback 忽略會出錯的資料。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638431770934302734.png"></li> <li>SFT 如何進行？<br> 蒐集 Instruction Tuning 資料集(人工蒐集 + ChatGPT 翻譯產生 50 萬條、用史丹佛 Alpaca 手法生成)，共 100 萬條(事後覺得太多，浪費過多算力)。範圍包含：數學題、程式題、知識問答、推理題、文章摘要、創意寫作、翻譯題、角色扮演、閒聊...<br> 初版模型不夠「台」，解法是手寫 100 條 QA，再請 ChatGPT 換句話說衍生資料。</li> <li>Taiwan LLM 有進行公開測試，大家都怎麼跟機器人聊天？<br> 事後分析 Log，互動幾乎都傾向知識問答，幾把機器人考倒為樂。如要商業應用，這是個值得思考的問題，所有聊天服務都被拿來跟 ChatGPT 4 比較，7B/13B 的模型可能會遠低於對方期望。建議明確聲明定位及能力範圍，降低使用者期待。</li> <li>如何客觀評測 Taiwan LLM 表現？<br> 有個資料集叫 Taiwan Trivia QA (MediaTek Research 聯發創新提供，題例：濁水溪、孫越、櫻花勾吻鮭)，Taiwan LLM 小勝 ChatGPT，不如 ChatGPT 4。(註：評測結果未必與體感一致，數字很好看，但使用者感受未必是好的)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638431770936531611.png"><br> 案例：NTU 是什麼的縮寫、22K 是什麼、發票載具是什麼意思</li> <li>Taiwan LLM 的適用場合？ <ol><li>要落地在自家伺服器執行(資料不允許外流) 2) 口袋不夠深玩不起 ChatGPT 微調，改微調 Taiwan LLaMA</li></ol> </li> <li>Mixture of Experts (MoE) 是什麼？<br> 由 Mistral AI 引領風潮，<a href="https://www.jiqizhixin.com/articles/2024-01-22-2">MoE 8x7B</a> 逼近 GPT 4。多個小的 FFN Layer，將任務拆成不同子任務，由 Router 交給不同專長的 FFN 處理。Taiwan LLM MoE 已開始 Pilot Run。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638431770938801072.png"><br> 硬體支援問題：MoE 不宜跨節點，是現行數量不超過 8 的原因(八卡機)，未來應會有突破。</li> <li>有無可能蒐集更多台灣語料 (Corpus)？<br> 電子書是個好來源，但因著作權問題，在現行法律下難以引用，或許可從法令解釋面解套。</li></ol> <p data-slug="how-taiwan-llm-trained" data-fbimg="https://i.imgur.com/UVrVDqX.png#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>2024 新年第一天，拜年文就由 AI 打頭陣吧! 跟風附上 AI 生成圖，祝大家在新的一年神采飛揚，龍光煥發!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg" alt="thumbnail"></p> <p>在<a href="/blog/how-llm-training-burn-money/">訓練大型語言模型有多燒錢？</a>一文學到：標榜最有台灣味的 Taiwan-LLM 語言模型，是以 Meta LLaMA 2 為基礎的全參數微調模型，大幅提升繁體中文能力並融入台灣文化。Taiwan LLM 採用的訓練方式包含 8 x A100 兩週 Continuous Pretraining (接續預訓練，讓 LLaMA 2 學中文) 及 8 x H100 12 小時的 Instruction Fine-Tuning。我對它的訓練方式格外好奇，意外找到 Taiwan LLM 計劃主要參與者，台大博士生林彥廷同學的第一現場報導影片 - <a href="https://www.youtube.com/watch?v=3Y3-79NZQZg">Taiwan LLM 解析台灣第一個大型對話式語言模型</a>，內容還算淺顯，只稍具機器學習基本概念如我，即便看不懂門道，也能有點收獲，特記錄重點備忘。</p> <ol><li>LLaMA 2 不是原本就會講中文？為什麼還要學中文？<br> LLM 的訓練資料繁體中文佔比很低，在全世界的文本可能佔不到 0.1% (英文 54%、西班牙文 30%，中文僅 1%；其中簡體中文 90%，繁體中文 10%)。語言不只是翻譯就好，在文化、價值觀、常識(例如：發票載具)方面也要對齊才算在地化，使用者多聊兩句便能感受這是會講中文的外國機器人，還是真的具有台灣魂？要融入本地語精神，需要用大量台灣文本進行預訓練才能實現。</li> <li>Taiwan LLM 的訓練程序為何？<br> 分為三階段：Continuous-Pretraining (使用台灣語料 Corpus 進行接續預訓練, cPT) -&gt; Supervised Fine Tuning (SFT) -&gt; Real User Interaction and Reinforcement (上網公測，蒐集回饋)</li> <li>Taiwan LLM 用了哪些台灣語料進行 cPT？<br> V1 用維基百科跟網路資料(CommonCrawl)，但發現網路資料品質不佳(包含太多詐騙、色情、政治性)，需要大量事後調校修正。V2 改用社群媒體、法律文件、新聞時事取代網路資料，共 35B。(相較國外文本 1 ~ 2T 起跳，其實還是很少)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638431770931819580.png"><br> V2 拿掉網路資料後，cPT 完的結果價值觀回答方式已經很接近台灣人，偏差小很多，大幅減少微調工程。結論：從源頭控管可以省很多工夫。<br> cPT Context 長度上限 4000 (相當於短期記憶)、每個文本只看一次 (1 Epoch)、加速技巧：Fully Sharded Data Parallel(FSDP、DeepSpeed)、Flash Attention v2 (利用 GPU 結構減少 Memory 搬運次數，A100/H100 支援)、bfloat16 (源自 Meta RD 的血淚心得，bfloat 16 (Range 大，精準度低) + 更多資料 = 效果較好，目前較流行 fp16、bfloat16，開始有人用 fp8)</li> <li>為什麼用 cPT 而非重新訓練？<br> Google DeepMind 研究，<a href="https://www.toolify.ai/ai-news/unveiling-the-scaling-secrets-of-chinchillas-31431">Chinchilla Scaling Laws</a> 一個參數至少要訓練在 20 個 Token 以上，35B / 20 &lt; 2B，這個資料量只能從頭訓練不到 2B 的模型。故以 LLaMA 2 7B、13B 模型為基礎接續訓練，成本效益較好。</li> <li>cPT 過程有遇到什麼困難？<br> 下圖紫線是 Taiwan LLM 的 Loss 曲線，隨 global step 步數增加 Loss 會下降，但會有上下波動的細線叫 Loss Spike，這類不穩定常來自於 Memory 之類的錯誤，解法是 Rollback 忽略會出錯的資料。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638431770934302734.png"></li> <li>SFT 如何進行？<br> 蒐集 Instruction Tuning 資料集(人工蒐集 + ChatGPT 翻譯產生 50 萬條、用史丹佛 Alpaca 手法生成)，共 100 萬條(事後覺得太多，浪費過多算力)。範圍包含：數學題、程式題、知識問答、推理題、文章摘要、創意寫作、翻譯題、角色扮演、閒聊...<br> 初版模型不夠「台」，解法是手寫 100 條 QA，再請 ChatGPT 換句話說衍生資料。</li> <li>Taiwan LLM 有進行公開測試，大家都怎麼跟機器人聊天？<br> 事後分析 Log，互動幾乎都傾向知識問答，幾把機器人考倒為樂。如要商業應用，這是個值得思考的問題，所有聊天服務都被拿來跟 ChatGPT 4 比較，7B/13B 的模型可能會遠低於對方期望。建議明確聲明定位及能力範圍，降低使用者期待。</li> <li>如何客觀評測 Taiwan LLM 表現？<br> 有個資料集叫 Taiwan Trivia QA (MediaTek Research 聯發創新提供，題例：濁水溪、孫越、櫻花勾吻鮭)，Taiwan LLM 小勝 ChatGPT，不如 ChatGPT 4。(註：評測結果未必與體感一致，數字很好看，但使用者感受未必是好的)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638431770936531611.png"><br> 案例：NTU 是什麼的縮寫、22K 是什麼、發票載具是什麼意思</li> <li>Taiwan LLM 的適用場合？ <ol><li>要落地在自家伺服器執行(資料不允許外流) 2) 口袋不夠深玩不起 ChatGPT 微調，改微調 Taiwan LLaMA</li></ol> </li> <li>Mixture of Experts (MoE) 是什麼？<br> 由 Mistral AI 引領風潮，<a href="https://www.jiqizhixin.com/articles/2024-01-22-2">MoE 8x7B</a> 逼近 GPT 4。多個小的 FFN Layer，將任務拆成不同子任務，由 Router 交給不同專長的 FFN 處理。Taiwan LLM MoE 已開始 Pilot Run。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638431770938801072.png"><br> 硬體支援問題：MoE 不宜跨節點，是現行數量不超過 8 的原因(八卡機)，未來應會有突破。</li> <li>有無可能蒐集更多台灣語料 (Corpus)？<br> 電子書是個好來源，但因著作權問題，在現行法律下難以引用，或許可從法令解釋面解套。</li></ol> <p data-slug="how-taiwan-llm-trained" data-fbimg="https://i.imgur.com/UVrVDqX.png#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>2024 新年第一天，拜年文就由 AI 打頭陣吧! 跟風附上 AI 生成圖，祝大家在新的一年神采飛揚，龍光煥發!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg" alt="thumbnail"></p> <p>在<a href="/blog/how-llm-training-burn-money/">訓練大型語言模型有多燒錢？</a>一文學到：標榜最有台灣味的 Taiwan-LLM 語言模型，是以 Meta LLaMA 2 為基礎的全參數微調模型，大幅提升繁體中文能力並融入台灣文化。Taiwan LLM 採用的訓練方式包含 8 x A100 兩週 Continuous Pretraining (接續預訓練，讓 LLaMA 2 學中文) 及 8 x H100 12 小時的 Instruction Fine-Tuning。我對它的訓練方式格外好奇，意外找到 Taiwan LLM 計劃主要參與者，台大博士生林彥廷同學的第一現場報導影片 - <a href="https://www.youtube.com/watch?v=3Y3-79NZQZg">Taiwan LLM 解析台灣第一個大型對話式語言模型</a>，內容還算淺顯，只稍具機器學習基本概念如我，即便看不懂門道，也能有點收獲，特記錄重點備忘。</p> <ol><li>LLaMA 2 不是原本就會講中文？為什麼還要學中文？<br> LLM 的訓練資料繁體中文佔比很低，在全世界的文本可能佔不到 0.1% (英文 54%、西班牙文 30%，中文僅 1%；其中簡體中文 90%，繁體中文 10%)。語言不只是翻譯就好，在文化、價值觀、常識(例如：發票載具)方面也要對齊才算在地化，使用者多聊兩句便能感受這是會講中文的外國機器人，還是真的具有台灣魂？要融入本地語精神，需要用大量台灣文本進行預訓練才能實現。</li> <li>Taiwan LLM 的訓練程序為何？<br> 分為三階段：Continuous-Pretraining (使用台灣語料 Corpus 進行接續預訓練, cPT) -&gt; Supervised Fine Tuning (SFT) -&gt; Real User Interaction and Reinforcement (上網公測，蒐集回饋)</li> <li>Taiwan LLM 用了哪些台灣語料進行 cPT？<br> V1 用維基百科跟網路資料(CommonCrawl)，但發現網路資料品質不佳(包含太多詐騙、色情、政治性)，需要大量事後調校修正。V2 改用社群媒體、法律文件、新聞時事取代網路資料，共 35B。(相較國外文本 1 ~ 2T 起跳，其實還是很少)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638431770931819580.png"><br> V2 拿掉網路資料後，cPT 完的結果價值觀回答方式已經很接近台灣人，偏差小很多，大幅減少微調工程。結論：從源頭控管可以省很多工夫。<br> cPT Context 長度上限 4000 (相當於短期記憶)、每個文本只看一次 (1 Epoch)、加速技巧：Fully Sharded Data Parallel(FSDP、DeepSpeed)、Flash Attention v2 (利用 GPU 結構減少 Memory 搬運次數，A100/H100 支援)、bfloat16 (源自 Meta RD 的血淚心得，bfloat 16 (Range 大，精準度低) + 更多資料 = 效果較好，目前較流行 fp16、bfloat16，開始有人用 fp8)</li> <li>為什麼用 cPT 而非重新訓練？<br> Google DeepMind 研究，<a href="https://www.toolify.ai/ai-news/unveiling-the-scaling-secrets-of-chinchillas-31431">Chinchilla Scaling Laws</a> 一個參數至少要訓練在 20 個 Token 以上，35B / 20 &lt; 2B，這個資料量只能從頭訓練不到 2B 的模型。故以 LLaMA 2 7B、13B 模型為基礎接續訓練，成本效益較好。</li> <li>cPT 過程有遇到什麼困難？<br> 下圖紫線是 Taiwan LLM 的 Loss 曲線，隨 global step 步數增加 Loss 會下降，但會有上下波動的細線叫 Loss Spike，這類不穩定常來自於 Memory 之類的錯誤，解法是 Rollback 忽略會出錯的資料。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638431770934302734.png"></li> <li>SFT 如何進行？<br> 蒐集 Instruction Tuning 資料集(人工蒐集 + ChatGPT 翻譯產生 50 萬條、用史丹佛 Alpaca 手法生成)，共 100 萬條(事後覺得太多，浪費過多算力)。範圍包含：數學題、程式題、知識問答、推理題、文章摘要、創意寫作、翻譯題、角色扮演、閒聊...<br> 初版模型不夠「台」，解法是手寫 100 條 QA，再請 ChatGPT 換句話說衍生資料。</li> <li>Taiwan LLM 有進行公開測試，大家都怎麼跟機器人聊天？<br> 事後分析 Log，互動幾乎都傾向知識問答，幾把機器人考倒為樂。如要商業應用，這是個值得思考的問題，所有聊天服務都被拿來跟 ChatGPT 4 比較，7B/13B 的模型可能會遠低於對方期望。建議明確聲明定位及能力範圍，降低使用者期待。</li> <li>如何客觀評測 Taiwan LLM 表現？<br> 有個資料集叫 Taiwan Trivia QA (MediaTek Research 聯發創新提供，題例：濁水溪、孫越、櫻花勾吻鮭)，Taiwan LLM 小勝 ChatGPT，不如 ChatGPT 4。(註：評測結果未必與體感一致，數字很好看，但使用者感受未必是好的)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638431770936531611.png"><br> 案例：NTU 是什麼的縮寫、22K 是什麼、發票載具是什麼意思</li> <li>Taiwan LLM 的適用場合？ <ol><li>要落地在自家伺服器執行(資料不允許外流) 2) 口袋不夠深玩不起 ChatGPT 微調，改微調 Taiwan LLaMA</li></ol> </li> <li>Mixture of Experts (MoE) 是什麼？<br> 由 Mistral AI 引領風潮，<a href="https://www.jiqizhixin.com/articles/2024-01-22-2">MoE 8x7B</a> 逼近 GPT 4。多個小的 FFN Layer，將任務拆成不同子任務，由 Router 交給不同專長的 FFN 處理。Taiwan LLM MoE 已開始 Pilot Run。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638431770938801072.png"><br> 硬體支援問題：MoE 不宜跨節點，是現行數量不超過 8 的原因(八卡機)，未來應會有突破。</li> <li>有無可能蒐集更多台灣語料 (Corpus)？<br> 電子書是個好來源，但因著作權問題，在現行法律下難以引用，或許可從法令解釋面解套。</li></ol> <p data-slug="how-taiwan-llm-trained" data-fbimg="https://i.imgur.com/UVrVDqX.png#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig5_638431770929064733.jpg" medium="image"/>
-    <pubDate>Sat, 10 Feb 2024 15:51:12 GMT</pubDate>
   </item></channel>
 </rss>
