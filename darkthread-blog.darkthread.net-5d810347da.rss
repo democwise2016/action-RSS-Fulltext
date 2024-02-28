@@ -30,6 +30,84 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></title>
+    <link>https://blog.darkthread.net/blog/guid-clust-idx-frag-n-space/</link>
+    <itunes:title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
+si.name,
+dt.index_level,
+dt.avg_fragmentation_in_percent,
+dt.avg_page_space_used_in_percent,
+dt.record_count,
+dt.avg_record_size_in_bytes
+FROM
+(SELECT object_id,
+index_id,
+index_level,
+avg_fragmentation_in_percent,
+avg_page_space_used_in_percent,
+record_count,
+avg_record_size_in_bytes
+FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
+WHERE   index_id &lt;&gt; 0
+) AS dt --does not return information about heaps
+INNER JOIN sys.indexes si
+ON     si.object_id = dt.object_id
+AND si.index_id  = dt.index_id
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
+si.name,
+dt.index_level,
+dt.avg_fragmentation_in_percent,
+dt.avg_page_space_used_in_percent,
+dt.record_count,
+dt.avg_record_size_in_bytes
+FROM
+(SELECT object_id,
+index_id,
+index_level,
+avg_fragmentation_in_percent,
+avg_page_space_used_in_percent,
+record_count,
+avg_record_size_in_bytes
+FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
+WHERE   index_id &lt;&gt; 0
+) AS dt --does not return information about heaps
+INNER JOIN sys.indexes si
+ON     si.object_id = dt.object_id
+AND si.index_id  = dt.index_id
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
+si.name,
+dt.index_level,
+dt.avg_fragmentation_in_percent,
+dt.avg_page_space_used_in_percent,
+dt.record_count,
+dt.avg_record_size_in_bytes
+FROM
+(SELECT object_id,
+index_id,
+index_level,
+avg_fragmentation_in_percent,
+avg_page_space_used_in_percent,
+record_count,
+avg_record_size_in_bytes
+FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
+WHERE   index_id &lt;&gt; 0
+) AS dt --does not return information about heaps
+INNER JOIN sys.indexes si
+ON     si.object_id = dt.object_id
+AND si.index_id  = dt.index_id
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png" medium="image"/>
+    <pubDate>Wed, 28 Feb 2024 14:35:11 GMT</pubDate>
+  </item><item>
     <title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></title>
     <link>https://blog.darkthread.net/blog/how-guid-clust-index-bad-is/</link>
     <itunes:title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></itunes:title>
@@ -1889,446 +1967,5 @@ readData();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png" medium="image"/>
     <pubDate>Tue, 13 Feb 2024 15:33:31 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - 實現 -2 * 1/3 + 3/4 = 1/12 分數運算]]></title>
-    <link>https://blog.darkthread.net/blog/cs-fraction-type/</link>
-    <itunes:title><![CDATA[Coding4Fun - 實現 -2 * 1/3 + 3/4 = 1/12 分數運算]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-// -2 * 1/3 + 3/4 = 1/12
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
-</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
-{
-private readonly int num;
-private readonly int den;
-// 標準建構式：分子、分母
-public Frac(int numerator, int denominator)
-{
-if (denominator == 0)
-{
-throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
-}
-if (denominator &lt; 0)
-{
-numerator = -numerator;
-denominator = -denominator;
-}
-num = numerator;
-den = denominator;
-}
-// ValueTuple 建構式
-public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
-// 由字串解析分子分母
-static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
-{
-var parts = fracStr.Split('/');
-if (parts.Length != 2)
-{
-throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
-}
-return (int.Parse(parts[0]), int.Parse(parts[1]));
-};
-// 使用字串建立分數
-public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
-public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
-// 使用整數建立分數
-public Frac(int number) : this(number, 1) { }
-public static implicit operator Frac(int number) =&gt; new Frac(number);
-// 正、負、加減乘除
-public static Frac operator +(Frac a) =&gt; a;
-public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
-public static Frac operator +(Frac a, Frac b)
-=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
-public static Frac operator -(Frac a, Frac b)
-=&gt; a + (-b);
-public static Frac operator *(Frac a, Frac b)
-=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
-public static Frac operator /(Frac a, Frac b)
-{
-if (b.num == 0)
-{
-throw new DivideByZeroException();
-}
-return new Frac(a.num * b.den, a.den * b.num).Simplify();
-}
-// 指定分母
-public Frac WithDenominator(int newDenominator)
-{
-// 若無法整除，則無法指定分母
-if (newDenominator == 0 || newDenominator % den != 0)
-{
-throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
-}
-return new Frac(num * newDenominator / den, newDenominator);
-}
-public override string ToString() =&gt;
-den == 1 ? num.ToString() : $"{num}/{den}";
-// 約分
-public Frac Simplify()
-{
-int gcd = Gcd(num, den);
-return new Frac(num / gcd, den / gcd);
-}
-// 通分
-public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
-{
-int lcm = Lcm(a.den, b.den);
-return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
-}
-// 最大公約数
-private static int Gcd(int a, int b)
-{
-if (b == 0)
-{
-return a;
-}
-return Gcd(b, a % b);
-}
-// 最小公倍数
-private static int Lcm(int a, int b)
-{
-return a * b / Gcd(a, b);
-}
-// 相等比較 (先約分再比較)
-// 註：Equals、GetHashCode、==、!= 要一起實作
-public override bool Equals(object? obj) =&gt; obj is Frac other
-&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
-public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
-public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
-public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
-// 大小比較 (先通分再比較) 註：大於小放要一起實作
-public static bool operator &lt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
-public static bool operator &gt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
-public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
-public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
-}
-</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
-Frac a = new Frac(1, 2);
-Frac b = new Frac("3/4");
-Frac c = new Frac(2);
-Frac d = "2/3";
-Frac e = 3;
-Frac f = "4/6";
-Console.WriteLine($"a = {a}"); // 1 / 2
-Console.WriteLine($"正號 +a = {a}"); // 1 / 2
-Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
-Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
-Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
-Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
-Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
-Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
-Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
-Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
-Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
-Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
-Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
-Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
-Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
-try {
-Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
-}
-catch (ArgumentException ex)
-{
-Console.WriteLine(ex.Message);
-}
-// -2 * 1/3 + 3/4 = 1/12
-Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-// -2 * 1/3 + 3/4 = 1/12
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
-</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
-{
-private readonly int num;
-private readonly int den;
-// 標準建構式：分子、分母
-public Frac(int numerator, int denominator)
-{
-if (denominator == 0)
-{
-throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
-}
-if (denominator &lt; 0)
-{
-numerator = -numerator;
-denominator = -denominator;
-}
-num = numerator;
-den = denominator;
-}
-// ValueTuple 建構式
-public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
-// 由字串解析分子分母
-static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
-{
-var parts = fracStr.Split('/');
-if (parts.Length != 2)
-{
-throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
-}
-return (int.Parse(parts[0]), int.Parse(parts[1]));
-};
-// 使用字串建立分數
-public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
-public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
-// 使用整數建立分數
-public Frac(int number) : this(number, 1) { }
-public static implicit operator Frac(int number) =&gt; new Frac(number);
-// 正、負、加減乘除
-public static Frac operator +(Frac a) =&gt; a;
-public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
-public static Frac operator +(Frac a, Frac b)
-=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
-public static Frac operator -(Frac a, Frac b)
-=&gt; a + (-b);
-public static Frac operator *(Frac a, Frac b)
-=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
-public static Frac operator /(Frac a, Frac b)
-{
-if (b.num == 0)
-{
-throw new DivideByZeroException();
-}
-return new Frac(a.num * b.den, a.den * b.num).Simplify();
-}
-// 指定分母
-public Frac WithDenominator(int newDenominator)
-{
-// 若無法整除，則無法指定分母
-if (newDenominator == 0 || newDenominator % den != 0)
-{
-throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
-}
-return new Frac(num * newDenominator / den, newDenominator);
-}
-public override string ToString() =&gt;
-den == 1 ? num.ToString() : $"{num}/{den}";
-// 約分
-public Frac Simplify()
-{
-int gcd = Gcd(num, den);
-return new Frac(num / gcd, den / gcd);
-}
-// 通分
-public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
-{
-int lcm = Lcm(a.den, b.den);
-return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
-}
-// 最大公約数
-private static int Gcd(int a, int b)
-{
-if (b == 0)
-{
-return a;
-}
-return Gcd(b, a % b);
-}
-// 最小公倍数
-private static int Lcm(int a, int b)
-{
-return a * b / Gcd(a, b);
-}
-// 相等比較 (先約分再比較)
-// 註：Equals、GetHashCode、==、!= 要一起實作
-public override bool Equals(object? obj) =&gt; obj is Frac other
-&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
-public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
-public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
-public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
-// 大小比較 (先通分再比較) 註：大於小放要一起實作
-public static bool operator &lt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
-public static bool operator &gt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
-public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
-public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
-}
-</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
-Frac a = new Frac(1, 2);
-Frac b = new Frac("3/4");
-Frac c = new Frac(2);
-Frac d = "2/3";
-Frac e = 3;
-Frac f = "4/6";
-Console.WriteLine($"a = {a}"); // 1 / 2
-Console.WriteLine($"正號 +a = {a}"); // 1 / 2
-Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
-Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
-Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
-Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
-Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
-Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
-Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
-Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
-Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
-Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
-Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
-Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
-Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
-try {
-Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
-}
-catch (ArgumentException ex)
-{
-Console.WriteLine(ex.Message);
-}
-// -2 * 1/3 + 3/4 = 1/12
-Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>.NET 內建的數字型別裡有整數、浮點數，但如果我們計算 <code>-2 * 1/3 + 3/4</code> 想得到 <code>1/12</code> 而不是 <code>0.08333333333</code>，該怎麼做？</p> <p>就來寫個可以加減乘除的自訂分數型別吧。就像下面這樣，是不是很酷？</p> <pre><code>Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-// -2 * 1/3 + 3/4 = 1/12
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}");
-</code></pre> <p>看似神奇的效果，不過是用到 C# 隱含轉型及自訂運算子特性，要實作一點也不難。<a href="https://learn.microsoft.com/zh-tw/dotnet/csharp/language-reference/operators/operator-overloading?WT.mc_id=DOP-MVP-37580">官方文件</a>剛好有個雛型範例，已實作了分數加減乘除，我計劃再擴充讓它更完整，包含以下功能：</p> <ul><li>由字串(例："2/3"、"3/4")建立分數物件</li> <li>以整數建立分數物件</li> <li>將字串或整數轉為分數物作，例如：(Frac)"2/3"</li> <li>約分簡化函數 Simpkify() (例：4/6 變成 2/3)</li> <li>指定分母 WithDenominator(n) (例：2/3 指定分母 9 得到 6/9)</li> <li>相等比較 (==、Equals()) (可識別約分後相等，如 2/3 == 4/6)</li> <li>大於小於比較</li></ul> <p>Frac 型別是個唯讀結構(struc)，標示唯讀明確表示資料賦值後即不可變(Immutability)，有助於程式碼理解及推理(不必考慮狀態變化)、避免多執行緒衝突(省去同步化的效能損耗)、減少改變值導致錯誤的風險。我寫了一個簡單範例如下：</p> <pre><code>public readonly struct Frac
-{
-private readonly int num;
-private readonly int den;
-// 標準建構式：分子、分母
-public Frac(int numerator, int denominator)
-{
-if (denominator == 0)
-{
-throw new ArgumentException("Denominator cannot be zero.", nameof(denominator));
-}
-if (denominator &lt; 0)
-{
-numerator = -numerator;
-denominator = -denominator;
-}
-num = numerator;
-den = denominator;
-}
-// ValueTuple 建構式
-public Frac((int numerator, int denominator) frac) : this(frac.numerator, frac.denominator) { }
-// 由字串解析分子分母
-static Func&lt;string, (int numerator, int denominator)&gt; ParseFrac = fracStr =&gt;
-{
-var parts = fracStr.Split('/');
-if (parts.Length != 2)
-{
-throw new ArgumentException("Invalid fraction string.", nameof(fracStr));
-}
-return (int.Parse(parts[0]), int.Parse(parts[1]));
-};
-// 使用字串建立分數
-public Frac(string fracStr) : this(ParseFrac(fracStr)) { }
-public static implicit operator Frac(string fracStr) =&gt; new Frac(fracStr);
-// 使用整數建立分數
-public Frac(int number) : this(number, 1) { }
-public static implicit operator Frac(int number) =&gt; new Frac(number);
-// 正、負、加減乘除
-public static Frac operator +(Frac a) =&gt; a;
-public static Frac operator -(Frac a) =&gt; new Frac(-a.num, a.den);
-public static Frac operator +(Frac a, Frac b)
-=&gt; new Frac(a.num * b.den + b.num * a.den, a.den * b.den).Simplify();
-public static Frac operator -(Frac a, Frac b)
-=&gt; a + (-b);
-public static Frac operator *(Frac a, Frac b)
-=&gt; new Frac(a.num * b.num, a.den * b.den).Simplify();
-public static Frac operator /(Frac a, Frac b)
-{
-if (b.num == 0)
-{
-throw new DivideByZeroException();
-}
-return new Frac(a.num * b.den, a.den * b.num).Simplify();
-}
-// 指定分母
-public Frac WithDenominator(int newDenominator)
-{
-// 若無法整除，則無法指定分母
-if (newDenominator == 0 || newDenominator % den != 0)
-{
-throw new ArgumentException($"Cannot specify the denominator - {newDenominator}.", nameof(newDenominator));
-}
-return new Frac(num * newDenominator / den, newDenominator);
-}
-public override string ToString() =&gt;
-den == 1 ? num.ToString() : $"{num}/{den}";
-// 約分
-public Frac Simplify()
-{
-int gcd = Gcd(num, den);
-return new Frac(num / gcd, den / gcd);
-}
-// 通分
-public static (Frac, Frac) CommonDenominator(Frac a, Frac b)
-{
-int lcm = Lcm(a.den, b.den);
-return (new Frac(a.num * lcm / a.den, lcm), new Frac(b.num * lcm / b.den, lcm));
-}
-// 最大公約数
-private static int Gcd(int a, int b)
-{
-if (b == 0)
-{
-return a;
-}
-return Gcd(b, a % b);
-}
-// 最小公倍数
-private static int Lcm(int a, int b)
-{
-return a * b / Gcd(a, b);
-}
-// 相等比較 (先約分再比較)
-// 註：Equals、GetHashCode、==、!= 要一起實作
-public override bool Equals(object? obj) =&gt; obj is Frac other
-&amp;&amp; this.Simplify().ToString() == other.Simplify().ToString();
-public override int GetHashCode() =&gt; Simplify().ToString().GetHashCode();
-public static bool operator ==(Frac a, Frac b) =&gt; a.Equals(b);
-public static bool operator !=(Frac a, Frac b) =&gt; !a.Equals(b);
-// 大小比較 (先通分再比較) 註：大於小放要一起實作
-public static bool operator &lt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &lt; CommonDenominator(a, b).Item2.num;
-public static bool operator &gt;(Frac a, Frac b) =&gt;
-CommonDenominator(a, b).Item1.num &gt; CommonDenominator(a, b).Item2.num;
-public static bool operator &lt;=(Frac a, Frac b) =&gt; a &lt; b || a == b;
-public static bool operator &gt;=(Frac a, Frac b) =&gt; a &gt; b || a == b;
-}
-</code></pre> <p>驗證程式如下：</p> <pre><code>// 使用自訂分數型別進行數學運算
-Frac a = new Frac(1, 2);
-Frac b = new Frac("3/4");
-Frac c = new Frac(2);
-Frac d = "2/3";
-Frac e = 3;
-Frac f = "4/6";
-Console.WriteLine($"a = {a}"); // 1 / 2
-Console.WriteLine($"正號 +a = {a}"); // 1 / 2
-Console.WriteLine($"負號 -a = {-a}"); // -1 / 2
-Console.WriteLine($"加法 {a} + {b} = {a + b}"); // 5 / 4
-Console.WriteLine($"減法 {a} - {b} = {a - b}"); // -1 / 4
-Console.WriteLine($"乘法 {a} * {b} = {a * b}"); // 3 / 8
-Console.WriteLine($"除法 {a} / {b} = {a / b}"); // 2 / 3
-Console.WriteLine($"乘整數 {b} * -3 = {a * -3}"); // -3 / 2
-Console.WriteLine($"除整數 {b} / 3 = {a / 3}"); // 1 / 6
-Console.WriteLine($"大於 {b} &gt; {d} = {b &gt; d}"); // True
-Console.WriteLine($"小於 {b} &lt; {d} = {b &lt; d}"); // False
-Console.WriteLine($"等於 {d} == {f} = {d == f}"); // True
-Console.WriteLine($"大於等於 {d} &gt;= {f} = {d &gt;= f}"); // True
-Console.WriteLine($"相等 {d}.Equals({f}) = {d.Equals(f)}"); // True
-Console.WriteLine($"指定分母(9) {d} == {d.WithDenominator(9)}"); // 6 / 9
-try {
-Console.WriteLine($"指定分母(7) {d} == {d.WithDenominator(7)}");
-}
-catch (ArgumentException ex)
-{
-Console.WriteLine(ex.Message);
-}
-// -2 * 1/3 + 3/4 = 1/12
-Frac g = -2 * (Frac)"1/3" + new Frac(3, 4);
-Console.WriteLine($"-2 * 1/3 + 3/4 = {g}"); // 1 / 12
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"></p> <p>坦白一件事，以上程式大約只有 30 ~ 40% 由我輸入，其餘都是給個大方向寫個函數名稱 Github Copilot 便幫忙寫完程式邏輯，我再檢查跟微調。成對匹配的項目，像是 == 與 !=，&gt; 跟 &lt;，更是寫完第一個 Copilot 自動補上另一個。而最大公約數 Gcd()、最小公倍數 Lcm() 連同函式名稱含內容都是 Copilot 生出來的。</p> <p>使用 Github 初期有點不太習慣，連公約數公倍數怎麼算還沒想，程式就寫完了，有種被餵飯的感覺，心裡不太踏實。但想想，過去 Intellisense 的出現幫大腦減輕了記憶方法、參數以及打字的負擔；Github Copilot 只是再進一步減輕大腦「記憶及構思演算法細節」的負擔，雖然失去部分鍛練大腦思考的機會，只要確保有看懂邏輯並有能力修正及優化，就安心享受開發加速的快感吧。</p> <p>當改用先進工具已是不可擋的趨勢，討論該不該接受已無意義，不跟進就像人人都用電動起子你堅持用羅賴把鎖螺絲釘，自此失去競爭力。抱持正確心態，別對工具過度依賴，要求自己看懂 Copilot 生成的每一行程式碼，與湊到程式會動不知所以然的開發者形成區隔，方能立於不敗之地。</p> <p data-slug="cs-fraction-type" data-title-en="Writing a C# fraction type" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2020/06/30/15/03/table-5356682_960_720.jpg#960#720">An example using operator overloading and implicit conversion to create a useful fraction structure.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638432598005863202.png" medium="image"/>
-    <pubDate>Sun, 11 Feb 2024 14:48:14 GMT</pubDate>
   </item></channel>
 </rss>
