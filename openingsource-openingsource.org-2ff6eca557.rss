@@ -30,6 +30,1089 @@
     </itunes:owner>
     <itunes:image href="https://openingsource.org/wp-content/uploads/2018/01/cropped-portrait_logo-32x32.png"/>
 <item>
+    <title><![CDATA[开源日报第1120期：React Native通用 UI 《react-native-reusables》]]></title>
+    <link>https://openingsource.org/11698/</link>
+    <itunes:title><![CDATA[开源日报第1120期：React Native通用 UI 《react-native-reusables》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1120期：React Native通用 UI 《react-native-reusables》<br>
+2024年2月29日，开源日报第1120期：<br>
+今日推荐开源项目：《react-native-reusables》<br>
+今日推荐英文原文：《How come I didn’t know this Typescript trick??!》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240229.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-native-reusables》传送门：<a href="https://github.com/mrzachnugent/react-native-reusables?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：React Native的通用shadcn/ui：复制、粘贴和调整组件</p>
+<p>直达链接: rnr-docs.vercel.app</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@emmanuelodii80/how-come-i-didnt-know-this-typescript-trick-650187236229" target="_blank">How come I didn’t know this Typescript trick??!</a></p>
+<p>推荐理由： 如何使用 TypeScript 在组件中接受动态属性，并根据其他属性的值来确定是否显示某些内容这种需求在开发中是常见的，文章这个例子展示如何实现根据用户提供的位置来决定是否提供免费送货服务的功能，代码注释很详细</p>
+<hr>
+<h1>How come I didn’t know this Typescript trick??!</h1>
+<p>Today, I want to show you how to accept dynamic props to any component, (<em>i.e accepting props based on other props value)</em>.</p>
+<p>Assuming you were asked to create a product page that accepts some props <em>(e.g location, productName, etc.).</em> Now, we may want to have a free shipping feature if the user provided their location in the form.</p>
+<p>First, our solution might be creating and adding optional location value to determine the interaface, and then check for the lcoation value to conditionally render the free shipping feature.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}
+const Product = (props: ProductProps) =&gt; {
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{location &amp;&amp;
+&lt;div&gt;{props.isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>This way, we don’t get any type safety on the Page component level on how it is rendering the Product component.<br>
+In the Product component, we checked to see if they provided a location to determine if they are eligble for free shipping.</p>
+<p>🤔 Think for a second, We would want typescript to yell at us if we provide the isEligbleForFreeShipping prop without providing a location, because we only want users that stays within AcceptedCountries to be eligble for free shipping.</p>
+<p>Now, Let’s refactor the ProductProps’ interface to achieve that.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+} &amp; {
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}</code></pre>
+<p>Now, we made an extension to the interfae, this adds another interface to the ProductProps that checks if the user provides a location, and then expose the isEligbleForFreeShipping prop.<br>
+We’re now ready to use this in our application.</p>
+<pre><code>const Product = (props: ProductProps) =&gt; {
+let name, price, isEligbleForFreeShipping;
+if (props.location){
+isEligbleForFreeShipping = props.isEligbleForFreeShipping
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+&lt;div&gt;{isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Now, our business logic is now very synthetic. How?</p>
+<ul>
+<li>We moved the location check to display free shipping message check to Type level</li>
+</ul>
+<p>We are now ready to use this component in the main page:</p>
+<pre><code>const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Here, If we try to pass the isEligbleForFreeShipping prop without providing a location, Typescript throws an error. This way, we are sure of what prop we receive based on the other props value.</p>
+<p>This is the most exciting part. 💃</p>
+<p>We can take this a bit further to give benefits to users in individual countries.<br>
+For example, we want to allow customers from a <strong>Spain</strong> to return the goods ater it has been purchased, while we only want to offer a free shipping to users in <strong>Nigeria</strong>.<br>
+Now, we can modify our codes as follows</p>
+<pre><code>const CountriesWithBenefits = ["Nigeria", "Brazil", "Spain"] as const
+type CountryIsSpain = CountriesWithBenefits[2]
+type CountryIsNigeria = CountriesWithBenefits[0]
+type ProductProps = {
+name: string;
+price: number;
+} &amp; (CanReturnProducts | HasFreeShipping)
+type CanReturnProducts = {
+location: CountryIsSpain
+feedbackText: string
+}
+type HasFreeShipping = {
+location: CountryIsNigeria
+thankYouMessage: string
+}
+const Product = (props: ProductProps) =&gt; {
+let name, price, feedbackText, thankYouMessage;
+if (props.location === "Nigeria"){
+thankYouMessage = props.thankYouMessage
+}
+if (props.location === "Spain"){
+feedbackText = props.feedbackText
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{/** Now, we can use any of the values we iniialized here or in another component*/}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+thankYouMessage={"Hey! Your product would get to you in a few"}
+/&gt;
+{/** Usage for customers in Spain*/}
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Spain"
+feedbackText={"The screen resolution isn't alright :("}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1120期：React Native通用 UI 《react-native-reusables》<br>
+2024年2月29日，开源日报第1120期：<br>
+今日推荐开源项目：《react-native-reusables》<br>
+今日推荐英文原文：《How come I didn’t know this Typescript trick??!》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240229.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-native-reusables》传送门：<a href="https://github.com/mrzachnugent/react-native-reusables?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：React Native的通用shadcn/ui：复制、粘贴和调整组件</p>
+<p>直达链接: rnr-docs.vercel.app</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@emmanuelodii80/how-come-i-didnt-know-this-typescript-trick-650187236229" target="_blank">How come I didn’t know this Typescript trick??!</a></p>
+<p>推荐理由： 如何使用 TypeScript 在组件中接受动态属性，并根据其他属性的值来确定是否显示某些内容这种需求在开发中是常见的，文章这个例子展示如何实现根据用户提供的位置来决定是否提供免费送货服务的功能，代码注释很详细</p>
+<hr>
+<h1>How come I didn’t know this Typescript trick??!</h1>
+<p>Today, I want to show you how to accept dynamic props to any component, (<em>i.e accepting props based on other props value)</em>.</p>
+<p>Assuming you were asked to create a product page that accepts some props <em>(e.g location, productName, etc.).</em> Now, we may want to have a free shipping feature if the user provided their location in the form.</p>
+<p>First, our solution might be creating and adding optional location value to determine the interaface, and then check for the lcoation value to conditionally render the free shipping feature.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}
+const Product = (props: ProductProps) =&gt; {
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{location &amp;&amp;
+&lt;div&gt;{props.isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>This way, we don’t get any type safety on the Page component level on how it is rendering the Product component.<br>
+In the Product component, we checked to see if they provided a location to determine if they are eligble for free shipping.</p>
+<p>🤔 Think for a second, We would want typescript to yell at us if we provide the isEligbleForFreeShipping prop without providing a location, because we only want users that stays within AcceptedCountries to be eligble for free shipping.</p>
+<p>Now, Let’s refactor the ProductProps’ interface to achieve that.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+} &amp; {
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}</code></pre>
+<p>Now, we made an extension to the interfae, this adds another interface to the ProductProps that checks if the user provides a location, and then expose the isEligbleForFreeShipping prop.<br>
+We’re now ready to use this in our application.</p>
+<pre><code>const Product = (props: ProductProps) =&gt; {
+let name, price, isEligbleForFreeShipping;
+if (props.location){
+isEligbleForFreeShipping = props.isEligbleForFreeShipping
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+&lt;div&gt;{isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Now, our business logic is now very synthetic. How?</p>
+<ul>
+<li>We moved the location check to display free shipping message check to Type level</li>
+</ul>
+<p>We are now ready to use this component in the main page:</p>
+<pre><code>const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Here, If we try to pass the isEligbleForFreeShipping prop without providing a location, Typescript throws an error. This way, we are sure of what prop we receive based on the other props value.</p>
+<p>This is the most exciting part. 💃</p>
+<p>We can take this a bit further to give benefits to users in individual countries.<br>
+For example, we want to allow customers from a <strong>Spain</strong> to return the goods ater it has been purchased, while we only want to offer a free shipping to users in <strong>Nigeria</strong>.<br>
+Now, we can modify our codes as follows</p>
+<pre><code>const CountriesWithBenefits = ["Nigeria", "Brazil", "Spain"] as const
+type CountryIsSpain = CountriesWithBenefits[2]
+type CountryIsNigeria = CountriesWithBenefits[0]
+type ProductProps = {
+name: string;
+price: number;
+} &amp; (CanReturnProducts | HasFreeShipping)
+type CanReturnProducts = {
+location: CountryIsSpain
+feedbackText: string
+}
+type HasFreeShipping = {
+location: CountryIsNigeria
+thankYouMessage: string
+}
+const Product = (props: ProductProps) =&gt; {
+let name, price, feedbackText, thankYouMessage;
+if (props.location === "Nigeria"){
+thankYouMessage = props.thankYouMessage
+}
+if (props.location === "Spain"){
+feedbackText = props.feedbackText
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{/** Now, we can use any of the values we iniialized here or in another component*/}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+thankYouMessage={"Hey! Your product would get to you in a few"}
+/&gt;
+{/** Usage for customers in Spain*/}
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Spain"
+feedbackText={"The screen resolution isn't alright :("}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1120期：React Native通用 UI 《react-native-reusables》<br>
+2024年2月29日，开源日报第1120期：<br>
+今日推荐开源项目：《react-native-reusables》<br>
+今日推荐英文原文：《How come I didn’t know this Typescript trick??!》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240229.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《react-native-reusables》传送门：<a href="https://github.com/mrzachnugent/react-native-reusables?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：React Native的通用shadcn/ui：复制、粘贴和调整组件</p>
+<p>直达链接: rnr-docs.vercel.app</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@emmanuelodii80/how-come-i-didnt-know-this-typescript-trick-650187236229" target="_blank">How come I didn’t know this Typescript trick??!</a></p>
+<p>推荐理由： 如何使用 TypeScript 在组件中接受动态属性，并根据其他属性的值来确定是否显示某些内容这种需求在开发中是常见的，文章这个例子展示如何实现根据用户提供的位置来决定是否提供免费送货服务的功能，代码注释很详细</p>
+<hr>
+<h1>How come I didn’t know this Typescript trick??!</h1>
+<p>Today, I want to show you how to accept dynamic props to any component, (<em>i.e accepting props based on other props value)</em>.</p>
+<p>Assuming you were asked to create a product page that accepts some props <em>(e.g location, productName, etc.).</em> Now, we may want to have a free shipping feature if the user provided their location in the form.</p>
+<p>First, our solution might be creating and adding optional location value to determine the interaface, and then check for the lcoation value to conditionally render the free shipping feature.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}
+const Product = (props: ProductProps) =&gt; {
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{location &amp;&amp;
+&lt;div&gt;{props.isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>This way, we don’t get any type safety on the Page component level on how it is rendering the Product component.<br>
+In the Product component, we checked to see if they provided a location to determine if they are eligble for free shipping.</p>
+<p>🤔 Think for a second, We would want typescript to yell at us if we provide the isEligbleForFreeShipping prop without providing a location, because we only want users that stays within AcceptedCountries to be eligble for free shipping.</p>
+<p>Now, Let’s refactor the ProductProps’ interface to achieve that.</p>
+<pre><code>type AcceptedCountries = "Nigeria" | "Brazil" | "Spain";
+type ProductProps = {
+name: string;
+price: number;
+} &amp; {
+location: AcceptedCountries
+isEligbleForFreeShipping: boolean;
+}</code></pre>
+<p>Now, we made an extension to the interfae, this adds another interface to the ProductProps that checks if the user provides a location, and then expose the isEligbleForFreeShipping prop.<br>
+We’re now ready to use this in our application.</p>
+<pre><code>const Product = (props: ProductProps) =&gt; {
+let name, price, isEligbleForFreeShipping;
+if (props.location){
+isEligbleForFreeShipping = props.isEligbleForFreeShipping
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+&lt;div&gt;{isEligbleForFreeShipping
+? "Free Shipping" : "No Free Shipping"}
+&lt;/div&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Now, our business logic is now very synthetic. How?</p>
+<ul>
+<li>We moved the location check to display free shipping message check to Type level</li>
+</ul>
+<p>We are now ready to use this component in the main page:</p>
+<pre><code>const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+isEligbleForFreeShipping={true}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<p>Here, If we try to pass the isEligbleForFreeShipping prop without providing a location, Typescript throws an error. This way, we are sure of what prop we receive based on the other props value.</p>
+<p>This is the most exciting part. 💃</p>
+<p>We can take this a bit further to give benefits to users in individual countries.<br>
+For example, we want to allow customers from a <strong>Spain</strong> to return the goods ater it has been purchased, while we only want to offer a free shipping to users in <strong>Nigeria</strong>.<br>
+Now, we can modify our codes as follows</p>
+<pre><code>const CountriesWithBenefits = ["Nigeria", "Brazil", "Spain"] as const
+type CountryIsSpain = CountriesWithBenefits[2]
+type CountryIsNigeria = CountriesWithBenefits[0]
+type ProductProps = {
+name: string;
+price: number;
+} &amp; (CanReturnProducts | HasFreeShipping)
+type CanReturnProducts = {
+location: CountryIsSpain
+feedbackText: string
+}
+type HasFreeShipping = {
+location: CountryIsNigeria
+thankYouMessage: string
+}
+const Product = (props: ProductProps) =&gt; {
+let name, price, feedbackText, thankYouMessage;
+if (props.location === "Nigeria"){
+thankYouMessage = props.thankYouMessage
+}
+if (props.location === "Spain"){
+feedbackText = props.feedbackText
+}
+return (
+&lt;&gt;
+&lt;div&gt;{props.name}&lt;/div&gt;
+&lt;div&gt;{props.price}&lt;/div&gt;
+{/** Now, we can use any of the values we iniialized here or in another component*/}
+&lt;/&gt;
+)
+}
+const Page = () =&gt; {
+return (
+&lt;&gt;
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Nigeria"
+thankYouMessage={"Hey! Your product would get to you in a few"}
+/&gt;
+{/** Usage for customers in Spain*/}
+&lt;Product
+name="Macbook M2"
+price={2000}
+location="Spain"
+feedbackText={"The screen resolution isn't alright :("}
+/&gt;
+&lt;/&gt;
+)
+}</code></pre>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/03/osd-20240229.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/03/osd-20240229.jpg" medium="image"/>
+    <pubDate>Thu, 29 Feb 2024 03:24:38 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1119期：前端低代码框架 《amis》]]></title>
+    <link>https://openingsource.org/11695/</link>
+    <itunes:title><![CDATA[开源日报第1119期：前端低代码框架 《amis》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年2月28日，开源日报第1119期：<br>
+今日推荐开源项目：《amis》<br>
+今日推荐英文原文：《Compound Components Pattern in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240228.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《amis》传送门：<a href="https://github.com/baidu/amis?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：前端低代码框架，通过 JSON 配置就能生成各种页面</p>
+<p>直达链接: baidu.github.io/amis</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/compound-components-pattern-in-react-4c176c18f9ba" target="_blank">Compound Components Pattern in React</a></p>
+<p>推荐理由： React 中使用复合组件模式来构建可重用、灵活且易于扩展的组件，文章通过一个 简单的 UI 卡片的示例来示范这种方法</p>
+<hr>
+<h1>Compound Components Pattern in React</h1>
+<p>For instance, in this card, if you want to simply switch the position of the social action buttons, you’ll have to add some logic in the component itself but you know that it’s a very special scenario, a one-off condition, and the rest of the application is going to use the original structure of the card. But just because you need to handle this scenario as well, you’ll have to add additional logic to the component. Now imagine a big component with many such flags. Before you even realize it, the component is already bloated and difficult to comprehend. The solution to this problem is pretty straightforward.</p>
+<h2>Compound component pattern</h2>
+<p>We build a suite of reusable components and place them wherever we want based on our convenience. Hell, if you don’t want a specific part, you just remove it without adding any logic. This brings in a lot of flexibility from a devs perspective and scaling the component now becomes much easier.</p>
+<p>The idea is to have two or more components that work together to accomplish a task.</p>
+<h2>A UI Card example using this pattern</h2>
+<p>The entire code base to this example is linked at the bottom.</p>
+<pre><code>import React from 'react'
+import { twMerge } from 'tailwind-merge';
+//tailwind classes for each component
+const cardClasses = 'bg-white min-w-[320px]  rounded-lg flex flex-col items-center justify-center p-5';
+const headerClasses = 'flex justify-between w-full mb-2';
+const nameClasses = 'text-2xl font-bold text-center text-gray-800';
+const roleClasses = 'text-md font-medium text-center text-gray-800';
+const socialsClasses = 'flex items-center justify-center gap-4 my-4';
+const socialButtonClasses = 'text-xl text-gray-400';
+const actionsClasses = 'flex items-center justify-center w-full gap-2 mt-2'
+//Individual components
+const actionButtonClasses = (type) =&gt; twMerge('border-2 px-2 py-1.5 rounded text-sm font-bold w-full', type === 'primary' ? 'bg-sky-700 text-white' : 'text-gray-400 bg-white');
+const Card = ({ children }) =&gt; &lt;div className={cardClasses}&gt; {children} &lt;/div&gt;
+const Header = ({ children }) =&gt; &lt;div className={headerClasses}&gt; {children} &lt;/div&gt;
+const Image = ({ src, alt }) =&gt; &lt;img src={src} alt={alt} width={150} height={150} className='rounded-full' /&gt;
+const Name = ({ children }) =&gt; &lt;h1 className={nameClasses}&gt;{children}&lt;/h1&gt;
+const Role = ({ children }) =&gt; &lt;h3 className={roleClasses}&gt;{children}&lt;/h3&gt;
+const Socials = ({ children }) =&gt; &lt;div className={socialsClasses}&gt; {children} &lt;/div&gt;
+const SocialButton = ({ children }) =&gt; &lt;button className={socialButtonClasses}&gt; {children} &lt;/button&gt;
+const Actions = ({ children }) =&gt; &lt;div className={actionsClasses}&gt; {children} &lt;/div&gt;
+const HeaderButton = ({ children, onClick }) =&gt;
+&lt;button className='text-gray-400' onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+const ActionButton = ({ children, type, onClick }) =&gt;
+&lt;button className={actionButtonClasses(type)} onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+export {
+Card, Header, ActionButton, Actions, HeaderButton, Image, Name, Role, SocialButton, Socials,
+}</code></pre>
+<p>So this is what the card component looks like using this pattern. In here, I create all my components individually with the <code>children</code> prop. Whatever you pass between a tag enclosure counts as its child or children. If I use a <code>div</code> tag and inside I have an <code>h1</code> tag and a <code>p</code> tag, they’ll count as this <code>div</code> tag’s children.</p>
+<p>So by making use of this <code>children</code> prop, I give the user full control on what they want to render inside these components and how they want to do it.</p>
+<p><em>Also, I’ve used some tailwind classes here to make it look pretty. You can copy everything from the codebase linked below.</em></p>
+<p>Inside the <code>App</code> file, I’ll import all these components and structure them according to my needs. I can structure my component based on my use case. I can move them around, or simply remove them from the component without any additional logic and everything would still work as expected. Maximum flexibility.</p>
+<pre><code>&lt;Card&gt;
+&lt;Image src={'https://images.unsplash.com/photo-1592334873219-42ca023e48ce?q=80&amp;w=1000&amp;auto=format&amp;fit=crop&amp;ixlib=rb-4.0.3&amp;ixid=M3wxMjA3fDB8MHxjb2xsZWN0aW9uLXBhZ2V8M3w3NjA4Mjc3NHx8ZW58MHx8fHx8'} alt={'Profile image'} /&gt;
+&lt;div className='mt-4 mb-2'&gt;
+&lt;Name&gt;John Doe&lt;/Name&gt;
+&lt;Role&gt;UX Specialist&lt;/Role&gt;
+&lt;/div&gt;
+&lt;Socials&gt;
+&lt;SocialButton&gt;&lt;IoLogoInstagram /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoLinkedin /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoTwitter /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoYoutube /&gt;&lt;/SocialButton&gt;
+&lt;/Socials&gt;
+&lt;/Card&gt;</code></pre>
+<h2>Tabs component using this example</h2>
+<p>In the case of a tabs component, I’ll need a state variable to keep track of the current active tab. You can pass state using props but sometimes there are chances of having a deeply nested component and drilling the prop to individual components is just ugly. We’ll use the context instead.</p>
+<p>So first things first, let’s build the main Tabs container.</p>
+<pre><code>const TabsContext = createContext();
+const Tabs = ({ children }) =&gt; {
+const [activeTab, setActiveTab] = useState(0);
+const changeTab = (tab) =&gt; setActiveTab(tab);
+return (
+&lt;TabsContext.Provider value={{ activeTab, changeTab }}&gt;
+&lt;div className="w-[600px] rounded shadow-xl"&gt;{children}&lt;/div&gt;
+&lt;/TabsContext.Provider&gt;
+)
+}</code></pre>
+<p>This component is essentially a wrapper that exposes the active tab state and the function that allows you to change the active tab. The context provider acts as the wrapper. So now all the children inside this container can access the <code>activeTab</code> and the setter function using the <code>useContext</code> hook.</p>
+<p>Then let’s add the tab component. This is the button that’ll help you to switch between sections.</p>
+<pre><code>const Tab = ({ index, children }) =&gt; {
+const { activeTab, changeTab } = useContext(TabsContext);
+return (
+&lt;div onClick={() =&gt; changeTab(index)} className={twMerge("py-2 transition tracking-wide text-center w-full bg-gray-200 cursor-pointer px-2 font-black text-gray-600", index === activeTab &amp;&amp; 'bg-sky-700 text-gray-100')} &gt;
+{children}
+&lt;/div&gt;
+)
+}</code></pre>
+<p>On clicking this button, it triggers the <code>changeTab</code> from the context changing the <code>activeTab</code> state. Any other component that’s accessing this state will be re-rendered.</p>
+<p>And finally, the actual tab section. Based on the <code>activeTab</code> from the context, we display the specific tab section.</p>
+<pre><code>const TabPanel = ({ index, children }) =&gt; {
+const { activeTab } = useContext(TabsContext);
+return index === activeTab ? (
+&lt;div className="bg-gray-100 flex justify-center items-center p-10 text-md font-bold tracking-wide text-gray-300"&gt;
+{children}
+&lt;/div&gt;
+) : null
+}</code></pre>
+<p>Finally, we export all of this.</p>
+<pre><code>export { Tabs, Tab, TabPanel };</code></pre>
+<p>If you’d notice other third-party libraries, sometimes the way they export these so-called compound components is a little different. If I open up the <a href="https://www.radix-ui.com/themes/docs/components/hover-card" target="_blank">hover card from radix UI</a>, you’ll see the <code>HoverCard.Trigger</code> and <code>HoverCard.Content</code> inside the main container. Since functions in JavaScript are essentially objects, we can also apply the same pattern in our component. So instead of exporting things directly, we’ll default export the main tabs container and attach the other sub-components to this container. Nothing fancy here, just a different way of exporting that’s all.</p>
+<pre><code>Tabs.Tab = Tab;
+Tabs.TabPanel = TabPanel;
+export default Tabs;</code></pre>
+<p>Now inside the App file, let’s import all our tab components and use them as we please.</p>
+<pre><code>&lt;Tabs&gt;
+&lt;div className='flex'&gt;
+&lt;Tabs.Tab index={0}&gt;Tab 1&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={1}&gt;Tab 2&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={2}&gt;Tab 3&lt;/Tabs.Tab &gt;
+&lt;/div&gt;
+&lt;Tabs.TabPanel index={0}&gt;Tabpanel 1&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={1}&gt;Tabpanel 2&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={2}&gt;Tabpanel 3&lt;/Tabs.TabPanel&gt;
+&lt;/Tabs&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>So that was a brief overview of this compound component pattern. It helps you build a solid design system that’s easier to scale and is much more flexible than the traditional way of building components. You can try it out by building a custom modal component or an accordion component using this pattern and see how it benefits you.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年2月28日，开源日报第1119期：<br>
+今日推荐开源项目：《amis》<br>
+今日推荐英文原文：《Compound Components Pattern in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240228.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《amis》传送门：<a href="https://github.com/baidu/amis?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：前端低代码框架，通过 JSON 配置就能生成各种页面</p>
+<p>直达链接: baidu.github.io/amis</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/compound-components-pattern-in-react-4c176c18f9ba" target="_blank">Compound Components Pattern in React</a></p>
+<p>推荐理由： React 中使用复合组件模式来构建可重用、灵活且易于扩展的组件，文章通过一个 简单的 UI 卡片的示例来示范这种方法</p>
+<hr>
+<h1>Compound Components Pattern in React</h1>
+<p>For instance, in this card, if you want to simply switch the position of the social action buttons, you’ll have to add some logic in the component itself but you know that it’s a very special scenario, a one-off condition, and the rest of the application is going to use the original structure of the card. But just because you need to handle this scenario as well, you’ll have to add additional logic to the component. Now imagine a big component with many such flags. Before you even realize it, the component is already bloated and difficult to comprehend. The solution to this problem is pretty straightforward.</p>
+<h2>Compound component pattern</h2>
+<p>We build a suite of reusable components and place them wherever we want based on our convenience. Hell, if you don’t want a specific part, you just remove it without adding any logic. This brings in a lot of flexibility from a devs perspective and scaling the component now becomes much easier.</p>
+<p>The idea is to have two or more components that work together to accomplish a task.</p>
+<h2>A UI Card example using this pattern</h2>
+<p>The entire code base to this example is linked at the bottom.</p>
+<pre><code>import React from 'react'
+import { twMerge } from 'tailwind-merge';
+//tailwind classes for each component
+const cardClasses = 'bg-white min-w-[320px]  rounded-lg flex flex-col items-center justify-center p-5';
+const headerClasses = 'flex justify-between w-full mb-2';
+const nameClasses = 'text-2xl font-bold text-center text-gray-800';
+const roleClasses = 'text-md font-medium text-center text-gray-800';
+const socialsClasses = 'flex items-center justify-center gap-4 my-4';
+const socialButtonClasses = 'text-xl text-gray-400';
+const actionsClasses = 'flex items-center justify-center w-full gap-2 mt-2'
+//Individual components
+const actionButtonClasses = (type) =&gt; twMerge('border-2 px-2 py-1.5 rounded text-sm font-bold w-full', type === 'primary' ? 'bg-sky-700 text-white' : 'text-gray-400 bg-white');
+const Card = ({ children }) =&gt; &lt;div className={cardClasses}&gt; {children} &lt;/div&gt;
+const Header = ({ children }) =&gt; &lt;div className={headerClasses}&gt; {children} &lt;/div&gt;
+const Image = ({ src, alt }) =&gt; &lt;img src={src} alt={alt} width={150} height={150} className='rounded-full' /&gt;
+const Name = ({ children }) =&gt; &lt;h1 className={nameClasses}&gt;{children}&lt;/h1&gt;
+const Role = ({ children }) =&gt; &lt;h3 className={roleClasses}&gt;{children}&lt;/h3&gt;
+const Socials = ({ children }) =&gt; &lt;div className={socialsClasses}&gt; {children} &lt;/div&gt;
+const SocialButton = ({ children }) =&gt; &lt;button className={socialButtonClasses}&gt; {children} &lt;/button&gt;
+const Actions = ({ children }) =&gt; &lt;div className={actionsClasses}&gt; {children} &lt;/div&gt;
+const HeaderButton = ({ children, onClick }) =&gt;
+&lt;button className='text-gray-400' onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+const ActionButton = ({ children, type, onClick }) =&gt;
+&lt;button className={actionButtonClasses(type)} onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+export {
+Card, Header, ActionButton, Actions, HeaderButton, Image, Name, Role, SocialButton, Socials,
+}</code></pre>
+<p>So this is what the card component looks like using this pattern. In here, I create all my components individually with the <code>children</code> prop. Whatever you pass between a tag enclosure counts as its child or children. If I use a <code>div</code> tag and inside I have an <code>h1</code> tag and a <code>p</code> tag, they’ll count as this <code>div</code> tag’s children.</p>
+<p>So by making use of this <code>children</code> prop, I give the user full control on what they want to render inside these components and how they want to do it.</p>
+<p><em>Also, I’ve used some tailwind classes here to make it look pretty. You can copy everything from the codebase linked below.</em></p>
+<p>Inside the <code>App</code> file, I’ll import all these components and structure them according to my needs. I can structure my component based on my use case. I can move them around, or simply remove them from the component without any additional logic and everything would still work as expected. Maximum flexibility.</p>
+<pre><code>&lt;Card&gt;
+&lt;Image src={'https://images.unsplash.com/photo-1592334873219-42ca023e48ce?q=80&amp;w=1000&amp;auto=format&amp;fit=crop&amp;ixlib=rb-4.0.3&amp;ixid=M3wxMjA3fDB8MHxjb2xsZWN0aW9uLXBhZ2V8M3w3NjA4Mjc3NHx8ZW58MHx8fHx8'} alt={'Profile image'} /&gt;
+&lt;div className='mt-4 mb-2'&gt;
+&lt;Name&gt;John Doe&lt;/Name&gt;
+&lt;Role&gt;UX Specialist&lt;/Role&gt;
+&lt;/div&gt;
+&lt;Socials&gt;
+&lt;SocialButton&gt;&lt;IoLogoInstagram /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoLinkedin /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoTwitter /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoYoutube /&gt;&lt;/SocialButton&gt;
+&lt;/Socials&gt;
+&lt;/Card&gt;</code></pre>
+<h2>Tabs component using this example</h2>
+<p>In the case of a tabs component, I’ll need a state variable to keep track of the current active tab. You can pass state using props but sometimes there are chances of having a deeply nested component and drilling the prop to individual components is just ugly. We’ll use the context instead.</p>
+<p>So first things first, let’s build the main Tabs container.</p>
+<pre><code>const TabsContext = createContext();
+const Tabs = ({ children }) =&gt; {
+const [activeTab, setActiveTab] = useState(0);
+const changeTab = (tab) =&gt; setActiveTab(tab);
+return (
+&lt;TabsContext.Provider value={{ activeTab, changeTab }}&gt;
+&lt;div className="w-[600px] rounded shadow-xl"&gt;{children}&lt;/div&gt;
+&lt;/TabsContext.Provider&gt;
+)
+}</code></pre>
+<p>This component is essentially a wrapper that exposes the active tab state and the function that allows you to change the active tab. The context provider acts as the wrapper. So now all the children inside this container can access the <code>activeTab</code> and the setter function using the <code>useContext</code> hook.</p>
+<p>Then let’s add the tab component. This is the button that’ll help you to switch between sections.</p>
+<pre><code>const Tab = ({ index, children }) =&gt; {
+const { activeTab, changeTab } = useContext(TabsContext);
+return (
+&lt;div onClick={() =&gt; changeTab(index)} className={twMerge("py-2 transition tracking-wide text-center w-full bg-gray-200 cursor-pointer px-2 font-black text-gray-600", index === activeTab &amp;&amp; 'bg-sky-700 text-gray-100')} &gt;
+{children}
+&lt;/div&gt;
+)
+}</code></pre>
+<p>On clicking this button, it triggers the <code>changeTab</code> from the context changing the <code>activeTab</code> state. Any other component that’s accessing this state will be re-rendered.</p>
+<p>And finally, the actual tab section. Based on the <code>activeTab</code> from the context, we display the specific tab section.</p>
+<pre><code>const TabPanel = ({ index, children }) =&gt; {
+const { activeTab } = useContext(TabsContext);
+return index === activeTab ? (
+&lt;div className="bg-gray-100 flex justify-center items-center p-10 text-md font-bold tracking-wide text-gray-300"&gt;
+{children}
+&lt;/div&gt;
+) : null
+}</code></pre>
+<p>Finally, we export all of this.</p>
+<pre><code>export { Tabs, Tab, TabPanel };</code></pre>
+<p>If you’d notice other third-party libraries, sometimes the way they export these so-called compound components is a little different. If I open up the <a href="https://www.radix-ui.com/themes/docs/components/hover-card" target="_blank">hover card from radix UI</a>, you’ll see the <code>HoverCard.Trigger</code> and <code>HoverCard.Content</code> inside the main container. Since functions in JavaScript are essentially objects, we can also apply the same pattern in our component. So instead of exporting things directly, we’ll default export the main tabs container and attach the other sub-components to this container. Nothing fancy here, just a different way of exporting that’s all.</p>
+<pre><code>Tabs.Tab = Tab;
+Tabs.TabPanel = TabPanel;
+export default Tabs;</code></pre>
+<p>Now inside the App file, let’s import all our tab components and use them as we please.</p>
+<pre><code>&lt;Tabs&gt;
+&lt;div className='flex'&gt;
+&lt;Tabs.Tab index={0}&gt;Tab 1&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={1}&gt;Tab 2&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={2}&gt;Tab 3&lt;/Tabs.Tab &gt;
+&lt;/div&gt;
+&lt;Tabs.TabPanel index={0}&gt;Tabpanel 1&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={1}&gt;Tabpanel 2&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={2}&gt;Tabpanel 3&lt;/Tabs.TabPanel&gt;
+&lt;/Tabs&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>So that was a brief overview of this compound component pattern. It helps you build a solid design system that’s easier to scale and is much more flexible than the traditional way of building components. You can try it out by building a custom modal component or an accordion component using this pattern and see how it benefits you.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
+<p>2024年2月28日，开源日报第1119期：<br>
+今日推荐开源项目：《amis》<br>
+今日推荐英文原文：《Compound Components Pattern in React》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240228.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《amis》传送门：<a href="https://github.com/baidu/amis?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：前端低代码框架，通过 JSON 配置就能生成各种页面</p>
+<p>直达链接: baidu.github.io/amis</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/javascript-in-plain-english/compound-components-pattern-in-react-4c176c18f9ba" target="_blank">Compound Components Pattern in React</a></p>
+<p>推荐理由： React 中使用复合组件模式来构建可重用、灵活且易于扩展的组件，文章通过一个 简单的 UI 卡片的示例来示范这种方法</p>
+<hr>
+<h1>Compound Components Pattern in React</h1>
+<p>For instance, in this card, if you want to simply switch the position of the social action buttons, you’ll have to add some logic in the component itself but you know that it’s a very special scenario, a one-off condition, and the rest of the application is going to use the original structure of the card. But just because you need to handle this scenario as well, you’ll have to add additional logic to the component. Now imagine a big component with many such flags. Before you even realize it, the component is already bloated and difficult to comprehend. The solution to this problem is pretty straightforward.</p>
+<h2>Compound component pattern</h2>
+<p>We build a suite of reusable components and place them wherever we want based on our convenience. Hell, if you don’t want a specific part, you just remove it without adding any logic. This brings in a lot of flexibility from a devs perspective and scaling the component now becomes much easier.</p>
+<p>The idea is to have two or more components that work together to accomplish a task.</p>
+<h2>A UI Card example using this pattern</h2>
+<p>The entire code base to this example is linked at the bottom.</p>
+<pre><code>import React from 'react'
+import { twMerge } from 'tailwind-merge';
+//tailwind classes for each component
+const cardClasses = 'bg-white min-w-[320px]  rounded-lg flex flex-col items-center justify-center p-5';
+const headerClasses = 'flex justify-between w-full mb-2';
+const nameClasses = 'text-2xl font-bold text-center text-gray-800';
+const roleClasses = 'text-md font-medium text-center text-gray-800';
+const socialsClasses = 'flex items-center justify-center gap-4 my-4';
+const socialButtonClasses = 'text-xl text-gray-400';
+const actionsClasses = 'flex items-center justify-center w-full gap-2 mt-2'
+//Individual components
+const actionButtonClasses = (type) =&gt; twMerge('border-2 px-2 py-1.5 rounded text-sm font-bold w-full', type === 'primary' ? 'bg-sky-700 text-white' : 'text-gray-400 bg-white');
+const Card = ({ children }) =&gt; &lt;div className={cardClasses}&gt; {children} &lt;/div&gt;
+const Header = ({ children }) =&gt; &lt;div className={headerClasses}&gt; {children} &lt;/div&gt;
+const Image = ({ src, alt }) =&gt; &lt;img src={src} alt={alt} width={150} height={150} className='rounded-full' /&gt;
+const Name = ({ children }) =&gt; &lt;h1 className={nameClasses}&gt;{children}&lt;/h1&gt;
+const Role = ({ children }) =&gt; &lt;h3 className={roleClasses}&gt;{children}&lt;/h3&gt;
+const Socials = ({ children }) =&gt; &lt;div className={socialsClasses}&gt; {children} &lt;/div&gt;
+const SocialButton = ({ children }) =&gt; &lt;button className={socialButtonClasses}&gt; {children} &lt;/button&gt;
+const Actions = ({ children }) =&gt; &lt;div className={actionsClasses}&gt; {children} &lt;/div&gt;
+const HeaderButton = ({ children, onClick }) =&gt;
+&lt;button className='text-gray-400' onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+const ActionButton = ({ children, type, onClick }) =&gt;
+&lt;button className={actionButtonClasses(type)} onClick={onClick}&gt;
+{children}
+&lt;/button&gt;
+export {
+Card, Header, ActionButton, Actions, HeaderButton, Image, Name, Role, SocialButton, Socials,
+}</code></pre>
+<p>So this is what the card component looks like using this pattern. In here, I create all my components individually with the <code>children</code> prop. Whatever you pass between a tag enclosure counts as its child or children. If I use a <code>div</code> tag and inside I have an <code>h1</code> tag and a <code>p</code> tag, they’ll count as this <code>div</code> tag’s children.</p>
+<p>So by making use of this <code>children</code> prop, I give the user full control on what they want to render inside these components and how they want to do it.</p>
+<p><em>Also, I’ve used some tailwind classes here to make it look pretty. You can copy everything from the codebase linked below.</em></p>
+<p>Inside the <code>App</code> file, I’ll import all these components and structure them according to my needs. I can structure my component based on my use case. I can move them around, or simply remove them from the component without any additional logic and everything would still work as expected. Maximum flexibility.</p>
+<pre><code>&lt;Card&gt;
+&lt;Image src={'https://images.unsplash.com/photo-1592334873219-42ca023e48ce?q=80&amp;w=1000&amp;auto=format&amp;fit=crop&amp;ixlib=rb-4.0.3&amp;ixid=M3wxMjA3fDB8MHxjb2xsZWN0aW9uLXBhZ2V8M3w3NjA4Mjc3NHx8ZW58MHx8fHx8'} alt={'Profile image'} /&gt;
+&lt;div className='mt-4 mb-2'&gt;
+&lt;Name&gt;John Doe&lt;/Name&gt;
+&lt;Role&gt;UX Specialist&lt;/Role&gt;
+&lt;/div&gt;
+&lt;Socials&gt;
+&lt;SocialButton&gt;&lt;IoLogoInstagram /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoLinkedin /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoTwitter /&gt;&lt;/SocialButton&gt;
+&lt;SocialButton&gt;&lt;IoLogoYoutube /&gt;&lt;/SocialButton&gt;
+&lt;/Socials&gt;
+&lt;/Card&gt;</code></pre>
+<h2>Tabs component using this example</h2>
+<p>In the case of a tabs component, I’ll need a state variable to keep track of the current active tab. You can pass state using props but sometimes there are chances of having a deeply nested component and drilling the prop to individual components is just ugly. We’ll use the context instead.</p>
+<p>So first things first, let’s build the main Tabs container.</p>
+<pre><code>const TabsContext = createContext();
+const Tabs = ({ children }) =&gt; {
+const [activeTab, setActiveTab] = useState(0);
+const changeTab = (tab) =&gt; setActiveTab(tab);
+return (
+&lt;TabsContext.Provider value={{ activeTab, changeTab }}&gt;
+&lt;div className="w-[600px] rounded shadow-xl"&gt;{children}&lt;/div&gt;
+&lt;/TabsContext.Provider&gt;
+)
+}</code></pre>
+<p>This component is essentially a wrapper that exposes the active tab state and the function that allows you to change the active tab. The context provider acts as the wrapper. So now all the children inside this container can access the <code>activeTab</code> and the setter function using the <code>useContext</code> hook.</p>
+<p>Then let’s add the tab component. This is the button that’ll help you to switch between sections.</p>
+<pre><code>const Tab = ({ index, children }) =&gt; {
+const { activeTab, changeTab } = useContext(TabsContext);
+return (
+&lt;div onClick={() =&gt; changeTab(index)} className={twMerge("py-2 transition tracking-wide text-center w-full bg-gray-200 cursor-pointer px-2 font-black text-gray-600", index === activeTab &amp;&amp; 'bg-sky-700 text-gray-100')} &gt;
+{children}
+&lt;/div&gt;
+)
+}</code></pre>
+<p>On clicking this button, it triggers the <code>changeTab</code> from the context changing the <code>activeTab</code> state. Any other component that’s accessing this state will be re-rendered.</p>
+<p>And finally, the actual tab section. Based on the <code>activeTab</code> from the context, we display the specific tab section.</p>
+<pre><code>const TabPanel = ({ index, children }) =&gt; {
+const { activeTab } = useContext(TabsContext);
+return index === activeTab ? (
+&lt;div className="bg-gray-100 flex justify-center items-center p-10 text-md font-bold tracking-wide text-gray-300"&gt;
+{children}
+&lt;/div&gt;
+) : null
+}</code></pre>
+<p>Finally, we export all of this.</p>
+<pre><code>export { Tabs, Tab, TabPanel };</code></pre>
+<p>If you’d notice other third-party libraries, sometimes the way they export these so-called compound components is a little different. If I open up the <a href="https://www.radix-ui.com/themes/docs/components/hover-card" target="_blank">hover card from radix UI</a>, you’ll see the <code>HoverCard.Trigger</code> and <code>HoverCard.Content</code> inside the main container. Since functions in JavaScript are essentially objects, we can also apply the same pattern in our component. So instead of exporting things directly, we’ll default export the main tabs container and attach the other sub-components to this container. Nothing fancy here, just a different way of exporting that’s all.</p>
+<pre><code>Tabs.Tab = Tab;
+Tabs.TabPanel = TabPanel;
+export default Tabs;</code></pre>
+<p>Now inside the App file, let’s import all our tab components and use them as we please.</p>
+<pre><code>&lt;Tabs&gt;
+&lt;div className='flex'&gt;
+&lt;Tabs.Tab index={0}&gt;Tab 1&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={1}&gt;Tab 2&lt;/Tabs.Tab &gt;
+&lt;Tabs.Tab index={2}&gt;Tab 3&lt;/Tabs.Tab &gt;
+&lt;/div&gt;
+&lt;Tabs.TabPanel index={0}&gt;Tabpanel 1&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={1}&gt;Tabpanel 2&lt;/Tabs.TabPanel&gt;
+&lt;Tabs.TabPanel index={2}&gt;Tabpanel 3&lt;/Tabs.TabPanel&gt;
+&lt;/Tabs&gt;</code></pre>
+<h2>Conclusion</h2>
+<p>So that was a brief overview of this compound component pattern. It helps you build a solid design system that’s easier to scale and is much more flexible than the traditional way of building components. You can try it out by building a custom modal component or an accordion component using this pattern and see how it benefits you.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/03/osd-20240228.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/03/osd-20240228.jpg" medium="image"/>
+    <pubDate>Wed, 28 Feb 2024 13:53:58 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报第1118期：可定制的打字网站 《monkeytype》]]></title>
+    <link>https://openingsource.org/11693/</link>
+    <itunes:title><![CDATA[开源日报第1118期：可定制的打字网站 《monkeytype》]]></itunes:title>
+    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1118期：可定制的打字网站 《monkeytype》<br>
+2024年2月27日，开源日报第1118期：<br>
+今日推荐开源项目：《monkeytype》<br>
+今日推荐英文原文：《Exploring React 19: A Deep Dive into the Latest Features and Enhancements》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240227.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《monkeytype》传送门：<a href="https://github.com/monkeytypegame/monkeytype?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：Node.js和TypeScript的下一代ORM | PostgreSQL，MySQL，MariaDB，SQL Server，SQLite，MongoDB和CockroachDB</p>
+<p>直达链接: monkeytype.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adarshrai3011/exploring-react-19-a-deep-dive-into-the-latest-features-and-enhancements-ef7df40a0805" target="_blank">Exploring React 19: A Deep Dive into the Latest Features and Enhancements</a></p>
+<p>推荐理由： React 19 是一个强大的 JavaScript 库，改进了 Suspense 用于数据获取，简化了异步操作的处理；服务器端渲染（SSR）得到了显著改进，提供了更快的 TTFB 和更好的 SEO 性能等等</p>
+<hr>
+<h1>Exploring React 19: A Deep Dive into the Latest Features and Enhancements</h1>
+<ol>
+<li><strong>Concurrent Rendering Unveiled</strong>: React 19 introduces concurrent rendering as the default mode, a paradigm shift in how React handles updates and reconciliation. Unlike its predecessor, React 18, which relied on synchronous rendering, React 19 embraces concurrency to break down UI updates into smaller, asynchronous tasks. This approach leads to improved responsiveness and smoother user experiences by allowing React to prioritize and schedule high-priority updates while avoiding UI-blocking operations.</li>
+<li><strong>Suspense for Data Fetching Reinvented</strong>: Building on the foundation laid by previous releases, React 19 revamps Suspense for data fetching, offering a more intuitive and flexible solution for managing asynchronous operations. With Suspense, developers can declaratively handle loading states, error boundaries, and data dependencies, simplifying the development of complex data-driven applications. Additionally, Suspense now seamlessly integrates with concurrent rendering, enabling developers to orchestrate data fetching and rendering concurrently for optimal performance.</li>
+<li><strong>Enhanced Server-side Rendering (SSR)</strong>: React 19 introduces significant improvements to server-side rendering, leveraging advancements in streaming and concurrency to deliver faster TTFB and improved SEO performance. By embracing concurrent rendering on the server, React 19 can efficiently stream HTML responses to clients, reducing time-to-content and enhancing perceived performance. Furthermore, React 19 offers better support for streaming data fetching, enabling SSR-powered applications to fetch and render data incrementally for a smoother user experience.</li>
+<li><strong>Incremental Adoption Strategies</strong>: Recognizing the diverse ecosystem of existing React applications, React 19 prioritizes incremental adoption, providing developers with tools and strategies to upgrade their projects gradually. Whether migrating from older React versions or integrating React into legacy codebases, React 19 offers improved compatibility and migration guides to streamline the transition process. Developers can now leverage features like automatic code-mods and compatibility flags to incrementally adopt React 19 without disrupting existing workflows.</li>
+<li><strong>Performance Optimization Techniques</strong>: Under the hood, React 19 employs a plethora of performance optimization techniques to boost runtime efficiency and reduce bundle sizes. From optimized reconciliation algorithms to lazy component loading, React 19 strives to deliver faster rendering and improved memory management. Additionally, React 19 introduces a new scheduler architecture, enabling fine-grained control over rendering priorities and resource utilization for enhanced performance tuning.</li>
+<li><strong>Developer Tools for Insightful Debugging</strong>: Complementing the release of React 19 are updated developer tools, equipped with advanced debugging and profiling capabilities. Developers can now gain deeper insights into component lifecycles, state changes, and performance bottlenecks, enabling them to optimize their applications more effectively. With features like time-slicing profiler and flame charts, React 19 empowers developers to diagnose and resolve performance issues with unprecedented precision.</li>
+</ol>
+<p>Let’s delve deeper into the exciting features of React 19 and explore their potential impact on your development workflow:</p>
+<h1><strong>1. React Compiler (Experimental):</strong></h1>
+<p>While still under development, the React Compiler holds immense potential for performance optimization. Here’s a closer look:</p>
+<ul>
+<li><strong>Benefits:</strong> By translating React code into smaller, optimized JavaScript, the compiler can potentially lead to faster initial page loads and smoother user experiences, especially on low-powered devices.</li>
+<li><strong>Considerations:</strong> As an experimental feature, the compiler is not yet ready for widespread production use. Additionally, its effectiveness might vary depending on the complexity of your application.</li>
+</ul>
+<h1><strong>2. Concurrent Mode Improvements:</strong></h1>
+<p>React 19 builds upon the foundation of concurrent rendering introduced in React 18, offering several enhancements:</p>
+<ul>
+<li><strong>Prioritization:</strong> React 19 prioritizes user interactions like scrolling and typing even while data is being fetched. This ensures a smooth and responsive user experience, preventing interactions from feeling sluggish.</li>
+<li><strong>Suspense at the Root Level:</strong> React 19 enables using <code>Suspense</code> at the root level of your application, allowing you to gracefully handle data fetching errors and display fallback content even at the application's entry point.</li>
+</ul>
+<h1><strong>3. Automatic Batching:</strong></h1>
+<p>This optimization automatically groups multiple state updates into a single re-render, significantly reducing the number of unnecessary re-renders that can occur in complex applications. This leads to improved performance and smoother animations.</p>
+<h1><strong>4.</strong> <code>useId</code> <strong>Hook:</strong></h1>
+<p>React 19 introduces the <code>useId</code> hook, simplifying the process of generating unique IDs within functional components. This is particularly helpful for managing dynamic content like lists and forms, eliminating the need for manual ID generation and potential conflicts.</p>
+<h1><strong>5. Strict Mode Enhancements:</strong></h1>
+<p>Strict Mode, a development tool used to identify potential issues in your application, receives further refinements in React 19:</p>
+<ul>
+<li><strong>Legacy API Deprecation Warnings:</strong> Strict Mode now warns you about the use of deprecated APIs, helping you modernize your codebase and avoid potential compatibility issues in future React versions.</li>
+<li><code>useLayoutEffect</code> <strong>Hook Deprecation Warning:</strong> While still available in React 19, using the <code>useLayoutEffect</code> hook within Strict Mode triggers a warning, encouraging you to consider alternative lifecycle methods like <code>useEffect</code> for improved performance.</li>
+</ul>
+<h1><strong>Beyond the Features:</strong></h1>
+<p>Beyond the specific features, upgrading to React 19 offers broader benefits:</p>
+<ul>
+<li><strong>Improved Code Maintainability:</strong> Features like the <code>useId</code> hook and stricter checks in development mode can lead to cleaner and more maintainable code, reducing the risk of bugs and making collaboration easier.</li>
+<li><strong>Staying Up-to-Date:</strong> Upgrading to the latest version allows you to leverage the latest advancements and benefit from future improvements introduced in React.</li>
+</ul>
+<h1>Smoother UX with Suspense</h1>
+<p>A tech company tried out Suspense, a feature that lets you show something on the screen while waiting for the rest of the data to load. This got rid of annoying loading icons, making the site feel smoother when moving from page to page.</p>
+<h1>Easier Global State Management</h1>
+<p>A new financial tech company used React 19’s updated tools for managing data across the whole app. They managed to cut down on unnecessary code by 62% and got new features out the door 47% faster. This is all thanks to React 19 making it easier to handle data.</p>
+<p>As these stories show, React 19 is helping developers make better websites faster. Whether it’s making the site faster, easier to find on Google, nicer to use, or simpler to code for, React 19 is making a big impact. As more people start using it, we’ll likely see even more great results from the latest in React.</p>
+<h1><strong>Conclusion</strong></h1>
+<p>React 19 is here to make building websites and apps a lot easier and better. With cool new stuff like the React Compiler, Actions API, and better Hooks, writing code gets quicker, and managing your app’s data is simpler.</p>
+<p>It also brings in features that make apps run smoother and load faster, which is great for both users and search engines. Plus, React 19 works well with web components, so you can use React in more ways than before.</p>
+<p>If you already have an app and want to upgrade to React 19, don’t worry. It’s pretty straight forward if you follow a step-by-step plan. Using tools like codemods and Strict Mode, and doing lots of testing, can help make the upgrade smooth. Upgrading is worth it because it makes your app work better and can make your life as a developer easier.</p>
+<p>In short, React 19 is all about helping developers do their job better and making apps that run better for everyone. As more people start using it, we’re going to see even cooler and more interactive websites and apps out there.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1118期：可定制的打字网站 《monkeytype》<br>
+2024年2月27日，开源日报第1118期：<br>
+今日推荐开源项目：《monkeytype》<br>
+今日推荐英文原文：《Exploring React 19: A Deep Dive into the Latest Features and Enhancements》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240227.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《monkeytype》传送门：<a href="https://github.com/monkeytypegame/monkeytype?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：Node.js和TypeScript的下一代ORM | PostgreSQL，MySQL，MariaDB，SQL Server，SQLite，MongoDB和CockroachDB</p>
+<p>直达链接: monkeytype.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adarshrai3011/exploring-react-19-a-deep-dive-into-the-latest-features-and-enhancements-ef7df40a0805" target="_blank">Exploring React 19: A Deep Dive into the Latest Features and Enhancements</a></p>
+<p>推荐理由： React 19 是一个强大的 JavaScript 库，改进了 Suspense 用于数据获取，简化了异步操作的处理；服务器端渲染（SSR）得到了显著改进，提供了更快的 TTFB 和更好的 SEO 性能等等</p>
+<hr>
+<h1>Exploring React 19: A Deep Dive into the Latest Features and Enhancements</h1>
+<ol>
+<li><strong>Concurrent Rendering Unveiled</strong>: React 19 introduces concurrent rendering as the default mode, a paradigm shift in how React handles updates and reconciliation. Unlike its predecessor, React 18, which relied on synchronous rendering, React 19 embraces concurrency to break down UI updates into smaller, asynchronous tasks. This approach leads to improved responsiveness and smoother user experiences by allowing React to prioritize and schedule high-priority updates while avoiding UI-blocking operations.</li>
+<li><strong>Suspense for Data Fetching Reinvented</strong>: Building on the foundation laid by previous releases, React 19 revamps Suspense for data fetching, offering a more intuitive and flexible solution for managing asynchronous operations. With Suspense, developers can declaratively handle loading states, error boundaries, and data dependencies, simplifying the development of complex data-driven applications. Additionally, Suspense now seamlessly integrates with concurrent rendering, enabling developers to orchestrate data fetching and rendering concurrently for optimal performance.</li>
+<li><strong>Enhanced Server-side Rendering (SSR)</strong>: React 19 introduces significant improvements to server-side rendering, leveraging advancements in streaming and concurrency to deliver faster TTFB and improved SEO performance. By embracing concurrent rendering on the server, React 19 can efficiently stream HTML responses to clients, reducing time-to-content and enhancing perceived performance. Furthermore, React 19 offers better support for streaming data fetching, enabling SSR-powered applications to fetch and render data incrementally for a smoother user experience.</li>
+<li><strong>Incremental Adoption Strategies</strong>: Recognizing the diverse ecosystem of existing React applications, React 19 prioritizes incremental adoption, providing developers with tools and strategies to upgrade their projects gradually. Whether migrating from older React versions or integrating React into legacy codebases, React 19 offers improved compatibility and migration guides to streamline the transition process. Developers can now leverage features like automatic code-mods and compatibility flags to incrementally adopt React 19 without disrupting existing workflows.</li>
+<li><strong>Performance Optimization Techniques</strong>: Under the hood, React 19 employs a plethora of performance optimization techniques to boost runtime efficiency and reduce bundle sizes. From optimized reconciliation algorithms to lazy component loading, React 19 strives to deliver faster rendering and improved memory management. Additionally, React 19 introduces a new scheduler architecture, enabling fine-grained control over rendering priorities and resource utilization for enhanced performance tuning.</li>
+<li><strong>Developer Tools for Insightful Debugging</strong>: Complementing the release of React 19 are updated developer tools, equipped with advanced debugging and profiling capabilities. Developers can now gain deeper insights into component lifecycles, state changes, and performance bottlenecks, enabling them to optimize their applications more effectively. With features like time-slicing profiler and flame charts, React 19 empowers developers to diagnose and resolve performance issues with unprecedented precision.</li>
+</ol>
+<p>Let’s delve deeper into the exciting features of React 19 and explore their potential impact on your development workflow:</p>
+<h1><strong>1. React Compiler (Experimental):</strong></h1>
+<p>While still under development, the React Compiler holds immense potential for performance optimization. Here’s a closer look:</p>
+<ul>
+<li><strong>Benefits:</strong> By translating React code into smaller, optimized JavaScript, the compiler can potentially lead to faster initial page loads and smoother user experiences, especially on low-powered devices.</li>
+<li><strong>Considerations:</strong> As an experimental feature, the compiler is not yet ready for widespread production use. Additionally, its effectiveness might vary depending on the complexity of your application.</li>
+</ul>
+<h1><strong>2. Concurrent Mode Improvements:</strong></h1>
+<p>React 19 builds upon the foundation of concurrent rendering introduced in React 18, offering several enhancements:</p>
+<ul>
+<li><strong>Prioritization:</strong> React 19 prioritizes user interactions like scrolling and typing even while data is being fetched. This ensures a smooth and responsive user experience, preventing interactions from feeling sluggish.</li>
+<li><strong>Suspense at the Root Level:</strong> React 19 enables using <code>Suspense</code> at the root level of your application, allowing you to gracefully handle data fetching errors and display fallback content even at the application's entry point.</li>
+</ul>
+<h1><strong>3. Automatic Batching:</strong></h1>
+<p>This optimization automatically groups multiple state updates into a single re-render, significantly reducing the number of unnecessary re-renders that can occur in complex applications. This leads to improved performance and smoother animations.</p>
+<h1><strong>4.</strong> <code>useId</code> <strong>Hook:</strong></h1>
+<p>React 19 introduces the <code>useId</code> hook, simplifying the process of generating unique IDs within functional components. This is particularly helpful for managing dynamic content like lists and forms, eliminating the need for manual ID generation and potential conflicts.</p>
+<h1><strong>5. Strict Mode Enhancements:</strong></h1>
+<p>Strict Mode, a development tool used to identify potential issues in your application, receives further refinements in React 19:</p>
+<ul>
+<li><strong>Legacy API Deprecation Warnings:</strong> Strict Mode now warns you about the use of deprecated APIs, helping you modernize your codebase and avoid potential compatibility issues in future React versions.</li>
+<li><code>useLayoutEffect</code> <strong>Hook Deprecation Warning:</strong> While still available in React 19, using the <code>useLayoutEffect</code> hook within Strict Mode triggers a warning, encouraging you to consider alternative lifecycle methods like <code>useEffect</code> for improved performance.</li>
+</ul>
+<h1><strong>Beyond the Features:</strong></h1>
+<p>Beyond the specific features, upgrading to React 19 offers broader benefits:</p>
+<ul>
+<li><strong>Improved Code Maintainability:</strong> Features like the <code>useId</code> hook and stricter checks in development mode can lead to cleaner and more maintainable code, reducing the risk of bugs and making collaboration easier.</li>
+<li><strong>Staying Up-to-Date:</strong> Upgrading to the latest version allows you to leverage the latest advancements and benefit from future improvements introduced in React.</li>
+</ul>
+<h1>Smoother UX with Suspense</h1>
+<p>A tech company tried out Suspense, a feature that lets you show something on the screen while waiting for the rest of the data to load. This got rid of annoying loading icons, making the site feel smoother when moving from page to page.</p>
+<h1>Easier Global State Management</h1>
+<p>A new financial tech company used React 19’s updated tools for managing data across the whole app. They managed to cut down on unnecessary code by 62% and got new features out the door 47% faster. This is all thanks to React 19 making it easier to handle data.</p>
+<p>As these stories show, React 19 is helping developers make better websites faster. Whether it’s making the site faster, easier to find on Google, nicer to use, or simpler to code for, React 19 is making a big impact. As more people start using it, we’ll likely see even more great results from the latest in React.</p>
+<h1><strong>Conclusion</strong></h1>
+<p>React 19 is here to make building websites and apps a lot easier and better. With cool new stuff like the React Compiler, Actions API, and better Hooks, writing code gets quicker, and managing your app’s data is simpler.</p>
+<p>It also brings in features that make apps run smoother and load faster, which is great for both users and search engines. Plus, React 19 works well with web components, so you can use React in more ways than before.</p>
+<p>If you already have an app and want to upgrade to React 19, don’t worry. It’s pretty straight forward if you follow a step-by-step plan. Using tools like codemods and Strict Mode, and doing lots of testing, can help make the upgrade smooth. Upgrading is worth it because it makes your app work better and can make your life as a developer easier.</p>
+<p>In short, React 19 is all about helping developers do their job better and making apps that run better for everyone. As more people start using it, we’re going to see even cooler and more interactive websites and apps out there.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。<br>
+开源日报第1118期：可定制的打字网站 《monkeytype》<br>
+2024年2月27日，开源日报第1118期：<br>
+今日推荐开源项目：《monkeytype》<br>
+今日推荐英文原文：《Exploring React 19: A Deep Dive into the Latest Features and Enhancements》</p>
+<p><img src="https://openingsource.org/wp-content/uploads/2024/03/osd-20240227.jpg"></p>
+<hr>
+<h3>开源项目</h3>
+<p>今日推荐开源项目：《monkeytype》传送门：<a href="https://github.com/monkeytypegame/monkeytype?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
+<p>推荐理由：Node.js和TypeScript的下一代ORM | PostgreSQL，MySQL，MariaDB，SQL Server，SQLite，MongoDB和CockroachDB</p>
+<p>直达链接: monkeytype.com</p>
+<hr>
+<h3>英文原文</h3>
+<p>今日推荐英文原文：<a href="https://medium.com/@adarshrai3011/exploring-react-19-a-deep-dive-into-the-latest-features-and-enhancements-ef7df40a0805" target="_blank">Exploring React 19: A Deep Dive into the Latest Features and Enhancements</a></p>
+<p>推荐理由： React 19 是一个强大的 JavaScript 库，改进了 Suspense 用于数据获取，简化了异步操作的处理；服务器端渲染（SSR）得到了显著改进，提供了更快的 TTFB 和更好的 SEO 性能等等</p>
+<hr>
+<h1>Exploring React 19: A Deep Dive into the Latest Features and Enhancements</h1>
+<ol>
+<li><strong>Concurrent Rendering Unveiled</strong>: React 19 introduces concurrent rendering as the default mode, a paradigm shift in how React handles updates and reconciliation. Unlike its predecessor, React 18, which relied on synchronous rendering, React 19 embraces concurrency to break down UI updates into smaller, asynchronous tasks. This approach leads to improved responsiveness and smoother user experiences by allowing React to prioritize and schedule high-priority updates while avoiding UI-blocking operations.</li>
+<li><strong>Suspense for Data Fetching Reinvented</strong>: Building on the foundation laid by previous releases, React 19 revamps Suspense for data fetching, offering a more intuitive and flexible solution for managing asynchronous operations. With Suspense, developers can declaratively handle loading states, error boundaries, and data dependencies, simplifying the development of complex data-driven applications. Additionally, Suspense now seamlessly integrates with concurrent rendering, enabling developers to orchestrate data fetching and rendering concurrently for optimal performance.</li>
+<li><strong>Enhanced Server-side Rendering (SSR)</strong>: React 19 introduces significant improvements to server-side rendering, leveraging advancements in streaming and concurrency to deliver faster TTFB and improved SEO performance. By embracing concurrent rendering on the server, React 19 can efficiently stream HTML responses to clients, reducing time-to-content and enhancing perceived performance. Furthermore, React 19 offers better support for streaming data fetching, enabling SSR-powered applications to fetch and render data incrementally for a smoother user experience.</li>
+<li><strong>Incremental Adoption Strategies</strong>: Recognizing the diverse ecosystem of existing React applications, React 19 prioritizes incremental adoption, providing developers with tools and strategies to upgrade their projects gradually. Whether migrating from older React versions or integrating React into legacy codebases, React 19 offers improved compatibility and migration guides to streamline the transition process. Developers can now leverage features like automatic code-mods and compatibility flags to incrementally adopt React 19 without disrupting existing workflows.</li>
+<li><strong>Performance Optimization Techniques</strong>: Under the hood, React 19 employs a plethora of performance optimization techniques to boost runtime efficiency and reduce bundle sizes. From optimized reconciliation algorithms to lazy component loading, React 19 strives to deliver faster rendering and improved memory management. Additionally, React 19 introduces a new scheduler architecture, enabling fine-grained control over rendering priorities and resource utilization for enhanced performance tuning.</li>
+<li><strong>Developer Tools for Insightful Debugging</strong>: Complementing the release of React 19 are updated developer tools, equipped with advanced debugging and profiling capabilities. Developers can now gain deeper insights into component lifecycles, state changes, and performance bottlenecks, enabling them to optimize their applications more effectively. With features like time-slicing profiler and flame charts, React 19 empowers developers to diagnose and resolve performance issues with unprecedented precision.</li>
+</ol>
+<p>Let’s delve deeper into the exciting features of React 19 and explore their potential impact on your development workflow:</p>
+<h1><strong>1. React Compiler (Experimental):</strong></h1>
+<p>While still under development, the React Compiler holds immense potential for performance optimization. Here’s a closer look:</p>
+<ul>
+<li><strong>Benefits:</strong> By translating React code into smaller, optimized JavaScript, the compiler can potentially lead to faster initial page loads and smoother user experiences, especially on low-powered devices.</li>
+<li><strong>Considerations:</strong> As an experimental feature, the compiler is not yet ready for widespread production use. Additionally, its effectiveness might vary depending on the complexity of your application.</li>
+</ul>
+<h1><strong>2. Concurrent Mode Improvements:</strong></h1>
+<p>React 19 builds upon the foundation of concurrent rendering introduced in React 18, offering several enhancements:</p>
+<ul>
+<li><strong>Prioritization:</strong> React 19 prioritizes user interactions like scrolling and typing even while data is being fetched. This ensures a smooth and responsive user experience, preventing interactions from feeling sluggish.</li>
+<li><strong>Suspense at the Root Level:</strong> React 19 enables using <code>Suspense</code> at the root level of your application, allowing you to gracefully handle data fetching errors and display fallback content even at the application's entry point.</li>
+</ul>
+<h1><strong>3. Automatic Batching:</strong></h1>
+<p>This optimization automatically groups multiple state updates into a single re-render, significantly reducing the number of unnecessary re-renders that can occur in complex applications. This leads to improved performance and smoother animations.</p>
+<h1><strong>4.</strong> <code>useId</code> <strong>Hook:</strong></h1>
+<p>React 19 introduces the <code>useId</code> hook, simplifying the process of generating unique IDs within functional components. This is particularly helpful for managing dynamic content like lists and forms, eliminating the need for manual ID generation and potential conflicts.</p>
+<h1><strong>5. Strict Mode Enhancements:</strong></h1>
+<p>Strict Mode, a development tool used to identify potential issues in your application, receives further refinements in React 19:</p>
+<ul>
+<li><strong>Legacy API Deprecation Warnings:</strong> Strict Mode now warns you about the use of deprecated APIs, helping you modernize your codebase and avoid potential compatibility issues in future React versions.</li>
+<li><code>useLayoutEffect</code> <strong>Hook Deprecation Warning:</strong> While still available in React 19, using the <code>useLayoutEffect</code> hook within Strict Mode triggers a warning, encouraging you to consider alternative lifecycle methods like <code>useEffect</code> for improved performance.</li>
+</ul>
+<h1><strong>Beyond the Features:</strong></h1>
+<p>Beyond the specific features, upgrading to React 19 offers broader benefits:</p>
+<ul>
+<li><strong>Improved Code Maintainability:</strong> Features like the <code>useId</code> hook and stricter checks in development mode can lead to cleaner and more maintainable code, reducing the risk of bugs and making collaboration easier.</li>
+<li><strong>Staying Up-to-Date:</strong> Upgrading to the latest version allows you to leverage the latest advancements and benefit from future improvements introduced in React.</li>
+</ul>
+<h1>Smoother UX with Suspense</h1>
+<p>A tech company tried out Suspense, a feature that lets you show something on the screen while waiting for the rest of the data to load. This got rid of annoying loading icons, making the site feel smoother when moving from page to page.</p>
+<h1>Easier Global State Management</h1>
+<p>A new financial tech company used React 19’s updated tools for managing data across the whole app. They managed to cut down on unnecessary code by 62% and got new features out the door 47% faster. This is all thanks to React 19 making it easier to handle data.</p>
+<p>As these stories show, React 19 is helping developers make better websites faster. Whether it’s making the site faster, easier to find on Google, nicer to use, or simpler to code for, React 19 is making a big impact. As more people start using it, we’ll likely see even more great results from the latest in React.</p>
+<h1><strong>Conclusion</strong></h1>
+<p>React 19 is here to make building websites and apps a lot easier and better. With cool new stuff like the React Compiler, Actions API, and better Hooks, writing code gets quicker, and managing your app’s data is simpler.</p>
+<p>It also brings in features that make apps run smoother and load faster, which is great for both users and search engines. Plus, React 19 works well with web components, so you can use React in more ways than before.</p>
+<p>If you already have an app and want to upgrade to React 19, don’t worry. It’s pretty straight forward if you follow a step-by-step plan. Using tools like codemods and Strict Mode, and doing lots of testing, can help make the upgrade smooth. Upgrading is worth it because it makes your app work better and can make your life as a developer easier.</p>
+<p>In short, React 19 is all about helping developers do their job better and making apps that run better for everyone. As more people start using it, we’re going to see even cooler and more interactive websites and apps out there.</p>
+<hr>
+<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
+加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
+关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
+    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/03/osd-20240227.jpg"/>
+          <media:content url="https://openingsource.org/wp-content/uploads/2024/03/osd-20240227.jpg" medium="image"/>
+    <pubDate>Tue, 27 Feb 2024 12:36:31 +0000</pubDate>
+  </item><item>
     <title><![CDATA[开源日报第1117期：通过drop UI 以构建定制的LLM流程 《Flowise》]]></title>
     <link>https://openingsource.org/11686/</link>
     <itunes:title><![CDATA[开源日报第1117期：通过drop UI 以构建定制的LLM流程 《Flowise》]]></itunes:title>
@@ -1730,707 +2813,5 @@ Familiarize yourself with the React DevTools extension for your browser. It prov
     <itunes:image href="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240222.jpg.pagespeed.ic.RJmdxg9l2D.jpg"/>
           <media:content url="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240222.jpg.pagespeed.ic.RJmdxg9l2D.jpg" medium="image"/>
     <pubDate>Thu, 22 Feb 2024 14:55:17 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1112期：异步状态管理《query》]]></title>
-    <link>https://openingsource.org/11664/</link>
-    <itunes:title><![CDATA[开源日报第1112期：异步状态管理《query》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月21日，开源日报第1112期：<br>
-今日推荐开源项目：《query》<br>
-今日推荐英文原文：《Bringing new emoji to Windows 11 》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240221.jpg.pagespeed.ic.gokMkSfzKJ.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《query》传送门：<a href="https://github.com/TanStack/query?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：🤖 强大的异步状态管理、服务器状态工具和网络数据获取: TS/JS，React Query，Solid Query，Svelte Query 和 Vue Query<br>
-直达链接: tanstack.com/query/latest</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/microsoft-design/bringing-new-emoji-to-windows-11-02a4a488c38b" target="_blank">Bringing new emoji to Windows 11 </a></p>
-<p>推荐理由：文章微软如何设计新的表情符号并将其集成到Windows 11中，其实表情符号也是一种重要的沟通方式，在日常和工作中都很常用，微软对这方面的创新也是难能可贵</p>
-<hr>
-<h1>Bringing new emoji to Windows 11</h1>
-<p><em>A look at how we designed a new dimension of expression</em></p>
-<p>By Tracy Jones</p>
-<p><em>Read the full article on our</em> <a href="https://microsoft.design/articles/bringing-new-emoji-to-windows-11" target="_blank"><em>new website</em></a><em>.</em></p>
-<p>Why are emoji significant? They’re symbols of the future that rhyme with the past. Human communication started with cave paintings, followed by the printing press, telephone, radio, TV, and the internet. But in an ever more interconnected world with less in-person interaction, emoji have become an integral part of communication. According to a 2013 study, the face of an emoticon (the text-based predecessor of emoji) activates the same parts of our brain that recognize faces.</p>
-<p>While that may seem trivial, it’s actually a remarkable feat of the human brain. Unlike natural stimuli, emoji are cultural inventions that have acquired meaning and emotion through social interactions. Our neural circuits adapting to such novel forms of communication shows the plasticity and versatility of our cognition. Expression through emoji isn’t static either, it continually changes with technology and context.</p>
-<p>Since launching 2D Fluent emoji for Windows in 2021, our design teams have continued evolving this unique visual language. This month, we unveiled the next iteration of the Windows 11 Segoe UI Emoji font, a bright and bold collection inspiring people to play, engage, and express themselves like never before. With the creation of a hybrid font, an extension of our color font technology, Microsoft designers embraced dimension to create the visual appearance of stylized physical objects with real-world material qualities. The process of creating 3D Fluent emoji elucidates the power of innovating within design constraints and designing in the open via cross-industry collaboration.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*t_eKRAdACug4n79I6tazaQ.png" alt="img"></p>
-<h2>Our history with emoji</h2>
-<p>Customer feedback fueled our motivation to keep iterating on the visually flat emoji we introduced in 2021. But bringing our more dimensional emoji to life would require numerous disciplines and talent from across the company. This endeavor was a way of expanding our collaboration efforts. Microsoft and Windows have a long legacy in the font space dating back to 1985, but the challenging task of updating the Segoe UI emoji would alter our approach to designing color fonts.</p>
-<p>When Unicode published emoji just after 2010, they were in-line with text. The expressive nature emoji called for a font that could define multiple colors in a single glyph. Every tech company was grappling with how to represent and support emoji. In 2013, for Windows 8.1, we adopted COLRv0, an OpenType-based font format that supports color glyphs, alpha blending, and overlapping glyph layers (or z-order). “We looked at how people had been using fonts on the web for things like app icons or logos and where else they would use them,” said Principal Program Manager Peter Constable.</p>
-<p>For the 2D Fluent emoji, we chose COLRv0 because the format was easy to define and implement. It was scalable and used a small file size. The simplicity of the design attracted other companies, making COLRv0 the standard for supporting flat 2D color images. But as emoji fonts using color bitmaps evolved, their file sizes grew. COLRv0 couldn’t scale or support a high number of layered glyphs and solid color fills, including large bitmap 3D images. This problem of integrating our simulated 3D emoji was a perfect opportunity to design a way for art and science to meet on common ground.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*RKvoA2yEPY_FD6jg0O48cQ.png" alt="img"></p>
-<h2>Shadow, light, and color are the new 3D</h2>
-<p>“Our operating system would’ve needed to render, shape, create, and scale large bitmap designs to maintain consistency across applications. Problem was, the available technology was either obsolete or impractical. Plus, we couldn’t test or validate if it worked”, said Spencer Nelson. Spencer was the principal UX Engineer Manager responsible for helping to systematize the font. Microsoft had to design a workaround that would be the perfect substitute and just as emotive.</p>
-<p>To solve this dilemma, we implemented COLRv1, a successor to COLRv0 that uses gradients in a way that rivals 3D. COLRv1 is paradoxically ethereal, more sensitive, and, like humanity, full of light and inherently social. Since Peter helped develop COLRv1, he joined the emoji effort. “Integrating the images into text layout already addresses a number of engineering issues. If you wanted to use SVG or PNG, there’s a bunch of other engineering work that we would’ve had to consider,” Peter said. COLRv1 is a new font format that enables gradients, transformations, compositing, and other effects. This means that color fonts can have more depth, dimension, illumination, and creative possibilities. And unlike large bitmaps, COLRv1 scales easily.</p>
-<p>Ultimately, we updated over 3,000 emoji to support the COLRv1 format, combining efforts of around 20 designers from across the company. Principal Product Designer Jason Custer was responsible for developing guidelines and tutorials for recreating our emoji. In the early stages of this effort to reimagine our emoji, the team turned to gradients, blurring, and drop shadows to create 3D lighting.</p>
-<p>“We would draw a line or shape and then blur it so that it looked like it was a reflection,” said Jason. At first, they tested 50 emoji with blurred vector shapes, but they had to keep iterating. “Blending modes like overlay or multiply, adding effects like drop or inner shadows, any typical treatments for images you can think of, didn’t work for the font,” said Jason. He and his designer cohorts layered gradients on top of gradients, trying to create the illusion of depth and dimension. Through trial and error, they simulated stylized physical objects into 3D-style emoji using strictly linear and radial gradients, all of them vectors and infinitely scalable. The result gave shape to light in the form of emotive fonts. Additionally, they created 2D and monochrome versions of each emoji.</p>
-<p>At this point, the new Segoe UI emoji had to be integrated into the OS, but how? “You need the software to be able to display these things, but we also need tooling to be able to generate the font data,” Peter said. Enter Google Tech Lead Rod Sheeter and Adobe’s Senior Computer Scientist Josh Hadley.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*352aJOL5uDqlEzEtAT04Xg.png" alt="img"></p>
-<h2>Birth of the hybrid font</h2>
-<p>Spencer and his engineering crew worked closely with Rod and Josh to make our highly anticipated font update a reality. At Google, they developed a tool called <a href="https://github.com/googlefonts/nanoemoji" target="_blank">nanoemoji</a> that was essential to developing our glyphs, allowing us to transform the designers’ SVG artwork into the COLRv1 data format. Josh, who understood the logic Spencer’s team needed to integrate our new font into Windows, assisted with an open-source tool called <a href="https://github.com/adobe-type-tools/afdko" target="_blank">AFDKO</a> (Adobe Font Development Kit for OpenType) that we used to add required processing logic into OpenType Layout tables in the font. The multi-company collaboration across Josh, Rod, and Spencer’s teams culminated in the creation of a hybrid font.</p>
-<p>We’re referring to this new font as a hybrid because it contains COLRv1, COLRv0, and monochrome glyphs. If an application supports COLRv1, the font displays COLRv1; if not, then the application uses one of the other two versions. A hybrid font is a revolving door of adaptability and different styles. “It’s pretty groundbreaking. Nobody in the world is currently shipping a font that does this,” said Senior Program Manager Judy Safran-Aasen, who oversees the font and emoji work as part of the Windows operating system. It’s exciting to consider where designers will take hybrid fonts next. Their creation shows the importance of leaving room for discovery and experimentation in design journeys.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*W_3jD5zwtiNlAOQpWWwgfQ.png" alt="img"></p>
-<p>Our new emoji are not only a product of technical innovation but also a reflection of our values and vision. We wanted to create a font that celebrates life, vibrancy, and dimension. Just like with our <a href="https://microsoft.design/articles/designing-in-the-open-source" target="_blank">open-source emoji</a>, we want our customers to represent themselves in authentic ways. Our new emoji are designed to be fun, colorful, and engaging, but also versatile, adaptable, and universal.</p>
-<p>“It was a really awesome project to bring in a lot of designers across Microsoft. We would have these little emoji jams, and people just kind of helped out. It was a company effort to rally around some of our most delightful interactions,” said Windows Principal Art Director Cassie Klinger. We hope you enjoy the updated Segoe UI Emoji fonts. With these new ways to communicate, we aim to inspire creativity, connection, joy, and beyond.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月21日，开源日报第1112期：<br>
-今日推荐开源项目：《query》<br>
-今日推荐英文原文：《Bringing new emoji to Windows 11 》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240221.jpg.pagespeed.ic.gokMkSfzKJ.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《query》传送门：<a href="https://github.com/TanStack/query?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：🤖 强大的异步状态管理、服务器状态工具和网络数据获取: TS/JS，React Query，Solid Query，Svelte Query 和 Vue Query<br>
-直达链接: tanstack.com/query/latest</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/microsoft-design/bringing-new-emoji-to-windows-11-02a4a488c38b" target="_blank">Bringing new emoji to Windows 11 </a></p>
-<p>推荐理由：文章微软如何设计新的表情符号并将其集成到Windows 11中，其实表情符号也是一种重要的沟通方式，在日常和工作中都很常用，微软对这方面的创新也是难能可贵</p>
-<hr>
-<h1>Bringing new emoji to Windows 11</h1>
-<p><em>A look at how we designed a new dimension of expression</em></p>
-<p>By Tracy Jones</p>
-<p><em>Read the full article on our</em> <a href="https://microsoft.design/articles/bringing-new-emoji-to-windows-11" target="_blank"><em>new website</em></a><em>.</em></p>
-<p>Why are emoji significant? They’re symbols of the future that rhyme with the past. Human communication started with cave paintings, followed by the printing press, telephone, radio, TV, and the internet. But in an ever more interconnected world with less in-person interaction, emoji have become an integral part of communication. According to a 2013 study, the face of an emoticon (the text-based predecessor of emoji) activates the same parts of our brain that recognize faces.</p>
-<p>While that may seem trivial, it’s actually a remarkable feat of the human brain. Unlike natural stimuli, emoji are cultural inventions that have acquired meaning and emotion through social interactions. Our neural circuits adapting to such novel forms of communication shows the plasticity and versatility of our cognition. Expression through emoji isn’t static either, it continually changes with technology and context.</p>
-<p>Since launching 2D Fluent emoji for Windows in 2021, our design teams have continued evolving this unique visual language. This month, we unveiled the next iteration of the Windows 11 Segoe UI Emoji font, a bright and bold collection inspiring people to play, engage, and express themselves like never before. With the creation of a hybrid font, an extension of our color font technology, Microsoft designers embraced dimension to create the visual appearance of stylized physical objects with real-world material qualities. The process of creating 3D Fluent emoji elucidates the power of innovating within design constraints and designing in the open via cross-industry collaboration.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*t_eKRAdACug4n79I6tazaQ.png" alt="img"></p>
-<h2>Our history with emoji</h2>
-<p>Customer feedback fueled our motivation to keep iterating on the visually flat emoji we introduced in 2021. But bringing our more dimensional emoji to life would require numerous disciplines and talent from across the company. This endeavor was a way of expanding our collaboration efforts. Microsoft and Windows have a long legacy in the font space dating back to 1985, but the challenging task of updating the Segoe UI emoji would alter our approach to designing color fonts.</p>
-<p>When Unicode published emoji just after 2010, they were in-line with text. The expressive nature emoji called for a font that could define multiple colors in a single glyph. Every tech company was grappling with how to represent and support emoji. In 2013, for Windows 8.1, we adopted COLRv0, an OpenType-based font format that supports color glyphs, alpha blending, and overlapping glyph layers (or z-order). “We looked at how people had been using fonts on the web for things like app icons or logos and where else they would use them,” said Principal Program Manager Peter Constable.</p>
-<p>For the 2D Fluent emoji, we chose COLRv0 because the format was easy to define and implement. It was scalable and used a small file size. The simplicity of the design attracted other companies, making COLRv0 the standard for supporting flat 2D color images. But as emoji fonts using color bitmaps evolved, their file sizes grew. COLRv0 couldn’t scale or support a high number of layered glyphs and solid color fills, including large bitmap 3D images. This problem of integrating our simulated 3D emoji was a perfect opportunity to design a way for art and science to meet on common ground.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*RKvoA2yEPY_FD6jg0O48cQ.png" alt="img"></p>
-<h2>Shadow, light, and color are the new 3D</h2>
-<p>“Our operating system would’ve needed to render, shape, create, and scale large bitmap designs to maintain consistency across applications. Problem was, the available technology was either obsolete or impractical. Plus, we couldn’t test or validate if it worked”, said Spencer Nelson. Spencer was the principal UX Engineer Manager responsible for helping to systematize the font. Microsoft had to design a workaround that would be the perfect substitute and just as emotive.</p>
-<p>To solve this dilemma, we implemented COLRv1, a successor to COLRv0 that uses gradients in a way that rivals 3D. COLRv1 is paradoxically ethereal, more sensitive, and, like humanity, full of light and inherently social. Since Peter helped develop COLRv1, he joined the emoji effort. “Integrating the images into text layout already addresses a number of engineering issues. If you wanted to use SVG or PNG, there’s a bunch of other engineering work that we would’ve had to consider,” Peter said. COLRv1 is a new font format that enables gradients, transformations, compositing, and other effects. This means that color fonts can have more depth, dimension, illumination, and creative possibilities. And unlike large bitmaps, COLRv1 scales easily.</p>
-<p>Ultimately, we updated over 3,000 emoji to support the COLRv1 format, combining efforts of around 20 designers from across the company. Principal Product Designer Jason Custer was responsible for developing guidelines and tutorials for recreating our emoji. In the early stages of this effort to reimagine our emoji, the team turned to gradients, blurring, and drop shadows to create 3D lighting.</p>
-<p>“We would draw a line or shape and then blur it so that it looked like it was a reflection,” said Jason. At first, they tested 50 emoji with blurred vector shapes, but they had to keep iterating. “Blending modes like overlay or multiply, adding effects like drop or inner shadows, any typical treatments for images you can think of, didn’t work for the font,” said Jason. He and his designer cohorts layered gradients on top of gradients, trying to create the illusion of depth and dimension. Through trial and error, they simulated stylized physical objects into 3D-style emoji using strictly linear and radial gradients, all of them vectors and infinitely scalable. The result gave shape to light in the form of emotive fonts. Additionally, they created 2D and monochrome versions of each emoji.</p>
-<p>At this point, the new Segoe UI emoji had to be integrated into the OS, but how? “You need the software to be able to display these things, but we also need tooling to be able to generate the font data,” Peter said. Enter Google Tech Lead Rod Sheeter and Adobe’s Senior Computer Scientist Josh Hadley.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*352aJOL5uDqlEzEtAT04Xg.png" alt="img"></p>
-<h2>Birth of the hybrid font</h2>
-<p>Spencer and his engineering crew worked closely with Rod and Josh to make our highly anticipated font update a reality. At Google, they developed a tool called <a href="https://github.com/googlefonts/nanoemoji" target="_blank">nanoemoji</a> that was essential to developing our glyphs, allowing us to transform the designers’ SVG artwork into the COLRv1 data format. Josh, who understood the logic Spencer’s team needed to integrate our new font into Windows, assisted with an open-source tool called <a href="https://github.com/adobe-type-tools/afdko" target="_blank">AFDKO</a> (Adobe Font Development Kit for OpenType) that we used to add required processing logic into OpenType Layout tables in the font. The multi-company collaboration across Josh, Rod, and Spencer’s teams culminated in the creation of a hybrid font.</p>
-<p>We’re referring to this new font as a hybrid because it contains COLRv1, COLRv0, and monochrome glyphs. If an application supports COLRv1, the font displays COLRv1; if not, then the application uses one of the other two versions. A hybrid font is a revolving door of adaptability and different styles. “It’s pretty groundbreaking. Nobody in the world is currently shipping a font that does this,” said Senior Program Manager Judy Safran-Aasen, who oversees the font and emoji work as part of the Windows operating system. It’s exciting to consider where designers will take hybrid fonts next. Their creation shows the importance of leaving room for discovery and experimentation in design journeys.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*W_3jD5zwtiNlAOQpWWwgfQ.png" alt="img"></p>
-<p>Our new emoji are not only a product of technical innovation but also a reflection of our values and vision. We wanted to create a font that celebrates life, vibrancy, and dimension. Just like with our <a href="https://microsoft.design/articles/designing-in-the-open-source" target="_blank">open-source emoji</a>, we want our customers to represent themselves in authentic ways. Our new emoji are designed to be fun, colorful, and engaging, but also versatile, adaptable, and universal.</p>
-<p>“It was a really awesome project to bring in a lot of designers across Microsoft. We would have these little emoji jams, and people just kind of helped out. It was a company effort to rally around some of our most delightful interactions,” said Windows Principal Art Director Cassie Klinger. We hope you enjoy the updated Segoe UI Emoji fonts. With these new ways to communicate, we aim to inspire creativity, connection, joy, and beyond.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月21日，开源日报第1112期：<br>
-今日推荐开源项目：《query》<br>
-今日推荐英文原文：《Bringing new emoji to Windows 11 》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240221.jpg.pagespeed.ic.gokMkSfzKJ.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《query》传送门：<a href="https://github.com/TanStack/query?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：🤖 强大的异步状态管理、服务器状态工具和网络数据获取: TS/JS，React Query，Solid Query，Svelte Query 和 Vue Query<br>
-直达链接: tanstack.com/query/latest</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://medium.com/microsoft-design/bringing-new-emoji-to-windows-11-02a4a488c38b" target="_blank">Bringing new emoji to Windows 11 </a></p>
-<p>推荐理由：文章微软如何设计新的表情符号并将其集成到Windows 11中，其实表情符号也是一种重要的沟通方式，在日常和工作中都很常用，微软对这方面的创新也是难能可贵</p>
-<hr>
-<h1>Bringing new emoji to Windows 11</h1>
-<p><em>A look at how we designed a new dimension of expression</em></p>
-<p>By Tracy Jones</p>
-<p><em>Read the full article on our</em> <a href="https://microsoft.design/articles/bringing-new-emoji-to-windows-11" target="_blank"><em>new website</em></a><em>.</em></p>
-<p>Why are emoji significant? They’re symbols of the future that rhyme with the past. Human communication started with cave paintings, followed by the printing press, telephone, radio, TV, and the internet. But in an ever more interconnected world with less in-person interaction, emoji have become an integral part of communication. According to a 2013 study, the face of an emoticon (the text-based predecessor of emoji) activates the same parts of our brain that recognize faces.</p>
-<p>While that may seem trivial, it’s actually a remarkable feat of the human brain. Unlike natural stimuli, emoji are cultural inventions that have acquired meaning and emotion through social interactions. Our neural circuits adapting to such novel forms of communication shows the plasticity and versatility of our cognition. Expression through emoji isn’t static either, it continually changes with technology and context.</p>
-<p>Since launching 2D Fluent emoji for Windows in 2021, our design teams have continued evolving this unique visual language. This month, we unveiled the next iteration of the Windows 11 Segoe UI Emoji font, a bright and bold collection inspiring people to play, engage, and express themselves like never before. With the creation of a hybrid font, an extension of our color font technology, Microsoft designers embraced dimension to create the visual appearance of stylized physical objects with real-world material qualities. The process of creating 3D Fluent emoji elucidates the power of innovating within design constraints and designing in the open via cross-industry collaboration.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*t_eKRAdACug4n79I6tazaQ.png" alt="img"></p>
-<h2>Our history with emoji</h2>
-<p>Customer feedback fueled our motivation to keep iterating on the visually flat emoji we introduced in 2021. But bringing our more dimensional emoji to life would require numerous disciplines and talent from across the company. This endeavor was a way of expanding our collaboration efforts. Microsoft and Windows have a long legacy in the font space dating back to 1985, but the challenging task of updating the Segoe UI emoji would alter our approach to designing color fonts.</p>
-<p>When Unicode published emoji just after 2010, they were in-line with text. The expressive nature emoji called for a font that could define multiple colors in a single glyph. Every tech company was grappling with how to represent and support emoji. In 2013, for Windows 8.1, we adopted COLRv0, an OpenType-based font format that supports color glyphs, alpha blending, and overlapping glyph layers (or z-order). “We looked at how people had been using fonts on the web for things like app icons or logos and where else they would use them,” said Principal Program Manager Peter Constable.</p>
-<p>For the 2D Fluent emoji, we chose COLRv0 because the format was easy to define and implement. It was scalable and used a small file size. The simplicity of the design attracted other companies, making COLRv0 the standard for supporting flat 2D color images. But as emoji fonts using color bitmaps evolved, their file sizes grew. COLRv0 couldn’t scale or support a high number of layered glyphs and solid color fills, including large bitmap 3D images. This problem of integrating our simulated 3D emoji was a perfect opportunity to design a way for art and science to meet on common ground.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*RKvoA2yEPY_FD6jg0O48cQ.png" alt="img"></p>
-<h2>Shadow, light, and color are the new 3D</h2>
-<p>“Our operating system would’ve needed to render, shape, create, and scale large bitmap designs to maintain consistency across applications. Problem was, the available technology was either obsolete or impractical. Plus, we couldn’t test or validate if it worked”, said Spencer Nelson. Spencer was the principal UX Engineer Manager responsible for helping to systematize the font. Microsoft had to design a workaround that would be the perfect substitute and just as emotive.</p>
-<p>To solve this dilemma, we implemented COLRv1, a successor to COLRv0 that uses gradients in a way that rivals 3D. COLRv1 is paradoxically ethereal, more sensitive, and, like humanity, full of light and inherently social. Since Peter helped develop COLRv1, he joined the emoji effort. “Integrating the images into text layout already addresses a number of engineering issues. If you wanted to use SVG or PNG, there’s a bunch of other engineering work that we would’ve had to consider,” Peter said. COLRv1 is a new font format that enables gradients, transformations, compositing, and other effects. This means that color fonts can have more depth, dimension, illumination, and creative possibilities. And unlike large bitmaps, COLRv1 scales easily.</p>
-<p>Ultimately, we updated over 3,000 emoji to support the COLRv1 format, combining efforts of around 20 designers from across the company. Principal Product Designer Jason Custer was responsible for developing guidelines and tutorials for recreating our emoji. In the early stages of this effort to reimagine our emoji, the team turned to gradients, blurring, and drop shadows to create 3D lighting.</p>
-<p>“We would draw a line or shape and then blur it so that it looked like it was a reflection,” said Jason. At first, they tested 50 emoji with blurred vector shapes, but they had to keep iterating. “Blending modes like overlay or multiply, adding effects like drop or inner shadows, any typical treatments for images you can think of, didn’t work for the font,” said Jason. He and his designer cohorts layered gradients on top of gradients, trying to create the illusion of depth and dimension. Through trial and error, they simulated stylized physical objects into 3D-style emoji using strictly linear and radial gradients, all of them vectors and infinitely scalable. The result gave shape to light in the form of emotive fonts. Additionally, they created 2D and monochrome versions of each emoji.</p>
-<p>At this point, the new Segoe UI emoji had to be integrated into the OS, but how? “You need the software to be able to display these things, but we also need tooling to be able to generate the font data,” Peter said. Enter Google Tech Lead Rod Sheeter and Adobe’s Senior Computer Scientist Josh Hadley.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*352aJOL5uDqlEzEtAT04Xg.png" alt="img"></p>
-<h2>Birth of the hybrid font</h2>
-<p>Spencer and his engineering crew worked closely with Rod and Josh to make our highly anticipated font update a reality. At Google, they developed a tool called <a href="https://github.com/googlefonts/nanoemoji" target="_blank">nanoemoji</a> that was essential to developing our glyphs, allowing us to transform the designers’ SVG artwork into the COLRv1 data format. Josh, who understood the logic Spencer’s team needed to integrate our new font into Windows, assisted with an open-source tool called <a href="https://github.com/adobe-type-tools/afdko" target="_blank">AFDKO</a> (Adobe Font Development Kit for OpenType) that we used to add required processing logic into OpenType Layout tables in the font. The multi-company collaboration across Josh, Rod, and Spencer’s teams culminated in the creation of a hybrid font.</p>
-<p>We’re referring to this new font as a hybrid because it contains COLRv1, COLRv0, and monochrome glyphs. If an application supports COLRv1, the font displays COLRv1; if not, then the application uses one of the other two versions. A hybrid font is a revolving door of adaptability and different styles. “It’s pretty groundbreaking. Nobody in the world is currently shipping a font that does this,” said Senior Program Manager Judy Safran-Aasen, who oversees the font and emoji work as part of the Windows operating system. It’s exciting to consider where designers will take hybrid fonts next. Their creation shows the importance of leaving room for discovery and experimentation in design journeys.</p>
-<p><img src="https://miro.medium.com/v2/resize:fit:1400/1*W_3jD5zwtiNlAOQpWWwgfQ.png" alt="img"></p>
-<p>Our new emoji are not only a product of technical innovation but also a reflection of our values and vision. We wanted to create a font that celebrates life, vibrancy, and dimension. Just like with our <a href="https://microsoft.design/articles/designing-in-the-open-source" target="_blank">open-source emoji</a>, we want our customers to represent themselves in authentic ways. Our new emoji are designed to be fun, colorful, and engaging, but also versatile, adaptable, and universal.</p>
-<p>“It was a really awesome project to bring in a lot of designers across Microsoft. We would have these little emoji jams, and people just kind of helped out. It was a company effort to rally around some of our most delightful interactions,” said Windows Principal Art Director Cassie Klinger. We hope you enjoy the updated Segoe UI Emoji fonts. With these new ways to communicate, we aim to inspire creativity, connection, joy, and beyond.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240221.jpg.pagespeed.ic.gokMkSfzKJ.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240221.jpg.pagespeed.ic.gokMkSfzKJ.jpg" medium="image"/>
-    <pubDate>Wed, 21 Feb 2024 03:41:59 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1111期：自动化测试框架《webdriverio》]]></title>
-    <link>https://openingsource.org/11660/</link>
-    <itunes:title><![CDATA[开源日报第1111期：自动化测试框架《webdriverio》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月20日，开源日报第1111期：<br>
-今日推荐开源项目：《webdriverio》<br>
-今日推荐英文原文：《🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240220.jpg.pagespeed.ic.Af8YgmVSPF.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《webdriverio》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：下一代基于Node.js的浏览器和移动自动化测试框架</p>
-<p>直达链接：webdriver.io</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/anwarsr/unlocking-the-power-of-nginx-a-web-server-marvel-4j7n" target="_blank">🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</a></p>
-<p>推荐理由：主要介绍NGINX, 它是一个强大的 Web 服务器，不仅可以处理静态内容，还可以进行反向代理和负载均衡等等，文中提到关于NGINX 的一些关键使用场景，包括静态内容服务、反向代理和负载均衡</p>
-<hr>
-<p>🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</p>
-<p>Today, let's delve into the world of NGINX, a robust web server that goes beyond the basics. 🌐✨</p>
-<p>NGINX is more than just a web server; it's a high-performance, open-source solution that excels at serving static content, handling reverse proxying, and even managing load balancing. Let's explore its versatility with a few key scenarios.</p>
-<ol>
-<li>Serving Static Content with NGINX:</li>
-</ol>
-<p>One of NGINX's strengths is efficiently handling static content. Here's a snippet of NGINX configuration to serve static files:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-root /path/to/your/static/files;
-index index.html;
-}</code></pre>
-<p>}</p>
-<p>In this scenario, NGINX efficiently delivers static files like HTML, CSS, and images, enhancing your website's speed and responsiveness.</p>
-<ol start="2">
-<li>Reverse Proxy Magic:</li>
-</ol>
-<p>NGINX shines as a reverse proxy, mediating requests between clients and backend servers. Consider a scenario where you have a Node.js app running on localhost:3000. NGINX simplifies the process:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-proxy_pass http://localhost:3000;
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection 'upgrade';
-proxy_set_header Host $host;
-proxy_cache_bypass $http_upgrade;
-}</code></pre>
-<p>}</p>
-<p>Now, NGINX acts as a gateway, seamlessly directing traffic to your Node.js app. 🚪</p>
-<ol start="3">
-<li>Load Balancing Brilliance:</li>
-</ol>
-<p>Imagine your application gaining popularity, and you need to distribute incoming traffic among multiple servers. NGINX simplifies load balancing with ease:<br>
-nginxCopy code<br>
-http {<br>
-upstream backend {<br>
-server server1.example.com;<br>
-server server2.example.com;</p>
-<h1>Add more servers as needed</h1>
-<pre><code>}
-server {
-listen 80;
-server_name example.com;
-location / {
-proxy_pass http://backend;
-}
-}</code></pre>
-<p>}</p>
-<p>NGINX ensures that each request is intelligently distributed across your backend servers, optimizing performance and maintaining stability. 🔄⚖️</p>
-<p>Conclusion:</p>
-<p>NGINX is a powerful ally in the realm of web servers, offering speed, flexibility, and reliability. Whether you're serving static content, acting as a reverse proxy, or managing load balancing, NGINX stands tall. Dive into its configurations, embrace the versatility, and elevate your web infrastructure. What's your favorite NGINX use case? Share your thoughts! 🚀💬 #NGINX #WebServers #TechInnovation</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月20日，开源日报第1111期：<br>
-今日推荐开源项目：《webdriverio》<br>
-今日推荐英文原文：《🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240220.jpg.pagespeed.ic.Af8YgmVSPF.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《webdriverio》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：下一代基于Node.js的浏览器和移动自动化测试框架</p>
-<p>直达链接：webdriver.io</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/anwarsr/unlocking-the-power-of-nginx-a-web-server-marvel-4j7n" target="_blank">🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</a></p>
-<p>推荐理由：主要介绍NGINX, 它是一个强大的 Web 服务器，不仅可以处理静态内容，还可以进行反向代理和负载均衡等等，文中提到关于NGINX 的一些关键使用场景，包括静态内容服务、反向代理和负载均衡</p>
-<hr>
-<p>🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</p>
-<p>Today, let's delve into the world of NGINX, a robust web server that goes beyond the basics. 🌐✨</p>
-<p>NGINX is more than just a web server; it's a high-performance, open-source solution that excels at serving static content, handling reverse proxying, and even managing load balancing. Let's explore its versatility with a few key scenarios.</p>
-<ol>
-<li>Serving Static Content with NGINX:</li>
-</ol>
-<p>One of NGINX's strengths is efficiently handling static content. Here's a snippet of NGINX configuration to serve static files:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-root /path/to/your/static/files;
-index index.html;
-}</code></pre>
-<p>}</p>
-<p>In this scenario, NGINX efficiently delivers static files like HTML, CSS, and images, enhancing your website's speed and responsiveness.</p>
-<ol start="2">
-<li>Reverse Proxy Magic:</li>
-</ol>
-<p>NGINX shines as a reverse proxy, mediating requests between clients and backend servers. Consider a scenario where you have a Node.js app running on localhost:3000. NGINX simplifies the process:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-proxy_pass http://localhost:3000;
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection 'upgrade';
-proxy_set_header Host $host;
-proxy_cache_bypass $http_upgrade;
-}</code></pre>
-<p>}</p>
-<p>Now, NGINX acts as a gateway, seamlessly directing traffic to your Node.js app. 🚪</p>
-<ol start="3">
-<li>Load Balancing Brilliance:</li>
-</ol>
-<p>Imagine your application gaining popularity, and you need to distribute incoming traffic among multiple servers. NGINX simplifies load balancing with ease:<br>
-nginxCopy code<br>
-http {<br>
-upstream backend {<br>
-server server1.example.com;<br>
-server server2.example.com;</p>
-<h1>Add more servers as needed</h1>
-<pre><code>}
-server {
-listen 80;
-server_name example.com;
-location / {
-proxy_pass http://backend;
-}
-}</code></pre>
-<p>}</p>
-<p>NGINX ensures that each request is intelligently distributed across your backend servers, optimizing performance and maintaining stability. 🔄⚖️</p>
-<p>Conclusion:</p>
-<p>NGINX is a powerful ally in the realm of web servers, offering speed, flexibility, and reliability. Whether you're serving static content, acting as a reverse proxy, or managing load balancing, NGINX stands tall. Dive into its configurations, embrace the versatility, and elevate your web infrastructure. What's your favorite NGINX use case? Share your thoughts! 🚀💬 #NGINX #WebServers #TechInnovation</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月20日，开源日报第1111期：<br>
-今日推荐开源项目：《webdriverio》<br>
-今日推荐英文原文：《🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240220.jpg.pagespeed.ic.Af8YgmVSPF.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《webdriverio》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：下一代基于Node.js的浏览器和移动自动化测试框架</p>
-<p>直达链接：webdriver.io</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/anwarsr/unlocking-the-power-of-nginx-a-web-server-marvel-4j7n" target="_blank">🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</a></p>
-<p>推荐理由：主要介绍NGINX, 它是一个强大的 Web 服务器，不仅可以处理静态内容，还可以进行反向代理和负载均衡等等，文中提到关于NGINX 的一些关键使用场景，包括静态内容服务、反向代理和负载均衡</p>
-<hr>
-<p>🚀Unlocking the Power of NGINX - A Web Server Marvel! 🚀</p>
-<p>Today, let's delve into the world of NGINX, a robust web server that goes beyond the basics. 🌐✨</p>
-<p>NGINX is more than just a web server; it's a high-performance, open-source solution that excels at serving static content, handling reverse proxying, and even managing load balancing. Let's explore its versatility with a few key scenarios.</p>
-<ol>
-<li>Serving Static Content with NGINX:</li>
-</ol>
-<p>One of NGINX's strengths is efficiently handling static content. Here's a snippet of NGINX configuration to serve static files:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-root /path/to/your/static/files;
-index index.html;
-}</code></pre>
-<p>}</p>
-<p>In this scenario, NGINX efficiently delivers static files like HTML, CSS, and images, enhancing your website's speed and responsiveness.</p>
-<ol start="2">
-<li>Reverse Proxy Magic:</li>
-</ol>
-<p>NGINX shines as a reverse proxy, mediating requests between clients and backend servers. Consider a scenario where you have a Node.js app running on localhost:3000. NGINX simplifies the process:<br>
-nginxCopy code<br>
-server {<br>
-listen 80;<br>
-server_name example.com;</p>
-<pre><code>location / {
-proxy_pass http://localhost:3000;
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection 'upgrade';
-proxy_set_header Host $host;
-proxy_cache_bypass $http_upgrade;
-}</code></pre>
-<p>}</p>
-<p>Now, NGINX acts as a gateway, seamlessly directing traffic to your Node.js app. 🚪</p>
-<ol start="3">
-<li>Load Balancing Brilliance:</li>
-</ol>
-<p>Imagine your application gaining popularity, and you need to distribute incoming traffic among multiple servers. NGINX simplifies load balancing with ease:<br>
-nginxCopy code<br>
-http {<br>
-upstream backend {<br>
-server server1.example.com;<br>
-server server2.example.com;</p>
-<h1>Add more servers as needed</h1>
-<pre><code>}
-server {
-listen 80;
-server_name example.com;
-location / {
-proxy_pass http://backend;
-}
-}</code></pre>
-<p>}</p>
-<p>NGINX ensures that each request is intelligently distributed across your backend servers, optimizing performance and maintaining stability. 🔄⚖️</p>
-<p>Conclusion:</p>
-<p>NGINX is a powerful ally in the realm of web servers, offering speed, flexibility, and reliability. Whether you're serving static content, acting as a reverse proxy, or managing load balancing, NGINX stands tall. Dive into its configurations, embrace the versatility, and elevate your web infrastructure. What's your favorite NGINX use case? Share your thoughts! 🚀💬 #NGINX #WebServers #TechInnovation</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240220.jpg.pagespeed.ic.Af8YgmVSPF.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240220.jpg.pagespeed.ic.Af8YgmVSPF.jpg" medium="image"/>
-    <pubDate>Tue, 20 Feb 2024 12:52:07 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报第1110期：WebUI：《VueTorrent》]]></title>
-    <link>https://openingsource.org/11657/</link>
-    <itunes:title><![CDATA[开源日报第1110期：WebUI：《VueTorrent》]]></itunes:title>
-    <itunes:author><![CDATA[开源工场[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月19日，开源日报第1110期：<br>
-今日推荐开源项目：《VueTorrent》<br>
-今日推荐英文原文：《Here is my coolest portfolio》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240219.jpg.pagespeed.ic.7Rr75a_4V7.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《VueTorrent》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：使用Vue.js制作的qBittorrent最好看的WebUI！</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/shreyvijayvargiya/here-is-my-coolest-portfolio-224f" target="_blank">Here is my coolest portfolio</a></p>
-<p>推荐理由：通过学习 DSA 和使用各种动画库来增进前端技能，以及如何将这些技能应用到个人网站的开发中。同时也分享作者的开发过程和一些总结和思考</p>
-<hr>
-<h1>Here is my coolest portfolio</h1>
-<p>All I need is Tailwind CSS + GSAP npm + Next.js</p>
-<p><a href="https://iamshrey.me/" target="_blank">iamshrey.me</a></p>
-<h2>Under the Hood</h2>
-<p>It’s 2024 and the story begins way back in Jan 2024 when I decided to revamp my portfolio website.</p>
-<p>My website needs some changes and I’ve started learning DSA before putting a thought on revamping my website.</p>
-<p>DSA improves my ability to improve the code quality in terms of time complexity and think clearly in programming.</p>
-<p>Frontend itself is a math going under the hood</p>
-<ul>
-<li>Rendering a list of items using the map method</li>
-<li>Filtering, and sorting the list of items is again a MATH</li>
-<li>Arranging the elements in grid order is again a MATH</li>
-<li>Animating the component from x -100% to x 0% is again a MATH</li>
-<li>All these calculations were improved once I’ve relearned the basics of programming that is DSA.</li>
-</ul>
-<p><a href="https://dev.to/shreyvijayvargiya/learning-dsa-after-4-years-of-experience-2k7f" target="_blank">Learning DSA after 4 years of experience</a></p>
-<p>Well, that’s not the point after completing the DSA course I got immense confidence to write clean and better and more importantly faster code.</p>
-<p>And of course, as expected it worked well and I’ve decided to revamp my website.</p>
-<h2>Revamping Portfolio Website</h2>
-<p>This is so far, my most interesting and cool project.</p>
-<p>For the time being, I haven’t completed the portfolio and it is still under the development phase as only 70/80% is completed.</p>
-<p>I am revamping my website for the following 3 reasons</p>
-<ul>
-<li>To introduce myself without saying anything, just share the link</li>
-<li>To get more clients and work-related opportunities</li>
-<li>To showcase my programming-related projects</li>
-<li>Our portfolio serves as a lot of introduction about us, I still remember how I got new clients and job opportunities by simply sharing my personal website link.</li>
-</ul>
-<p>PDFs are an old way to share your resume or portfolio, try sharing the link and see the other person's expressions or opinions.</p>
-<p>The portfolio website makes sense and has a lot of impressions in the person's eye so try making it if possible.</p>
-<h2>Animations in Portfolio</h2>
-<p>To finalise the revamping the idea is to provide a good user interface with tonnes of animations.</p>
-<p>I’ve switched to three.js, HTML canvas API and web GL and GSAP animation libraries such as anime.js.</p>
-<p>I’ve worked with other animation libraries in Reactjs such as react-spring, anime.js and framer-motion.</p>
-<p>Following are the animation libraries I’ve worked in frontend in react.js</p>
-<ul>
-<li>Anime.js</li>
-<li>framer-motion</li>
-<li>swiper.js</li>
-<li>gsap</li>
-<li>particle.js</li>
-<li>three.js</li>
-<li>web.gl Each of them has its significance including pros and cons but the learning curve is not that hard for any of them, so do give them a try.</li>
-</ul>
-<p>You can follow my newsletter to get interesting stories about packages, modules, and how to develop once a week.</p>
-<p><a href="http://ihatereading.in/subscribe" target="_blank">Subscribe to my newsletter for FREE</a></p>
-<h2>Projects Playgrounds</h2>
-<p>Moving ahead with the project playground.</p>
-<p>I believe every developer, especially frontend developers should have a playground website showcasing all his frontend projects.</p>
-<p>Frontend projects is an art and animations make things look beautiful.</p>
-<p>Showcasing all my projects under one link is my agenda for the portfolio playground.</p>
-<p>For the next 5/10 years, I have a dedicated showcasing website to put all my projects for people around the globe.</p>
-<h2>Cool Animated Projects</h2>
-<p>Well, starting with animations I start with some small one-day or hour animation projects using the above libraries.</p>
-<p>Sooner or later, I was improving and developing cool animation projects or UI components.</p>
-<p>In the video, you can see some of my sample projects in the portfolio projects gallery.</p>
-<p>Now, I’ve to just try and test any kind of new project or UI component and I can easily showcase it to users across the globe.</p>
-<h2>First Impression</h2>
-<p>The first impression is the last one.</p>
-<p>I believe that and that is why whoever reaches my website should at least have an AWE expression for once.</p>
-<p>So to make it more impressive I got the idea to give an introductory animation movie.</p>
-<p>Again, the below one is developed using Tailwind CSS + gsap animation library and the framework I am using is Next.js</p>
-<p>I haven’t finalised the introductory movie yet but it will look like the same as shown above in the video.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Work Experience</h2>
-<p>This is by far the best work experience page I’ve developed so far.</p>
-<p>The UI design is inspired by gsap scroll trigger animations where the user scrolls in y-direction but UI components move in x-direction.</p>
-<p>I was so happy to witness that animation and decided to integrate it within my portfolio in the work experience component.</p>
-<p>This is not easy to integrate but gsap makes it just a few lines of code to execute. One can easily handle it without using gsap and I urge to lot of developers to try developing it on their own from scratch.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Tech Stack Page</h2>
-<p>It’s important to showcase your tech stack to the person reaching my website.</p>
-<p>I don’t want him to come up with basic questions like what technology I’ve worked with and what is my domain expertise.</p>
-<p>So simply avoiding that question needs a tech stack component and below is what it looks like after adding cool animations.</p>
-<p>Again animations are added using the gsap animation library.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Conclusion</h2>
-<p>Go ahead with your portfolio website</p>
-<p>Feel free to add whatever animation you want to add and learn</p>
-<p>Keep learning and keep improving by adding more projects or simply improving your portfolio.</p>
-<p>The portfolio website should be cool fun and easy to read and understand.</p>
-<p>Add all kinds of work experience, projects, contact me button or your achievements, blogs.</p>
-<p>Start with your first front-end project as your portfolio website.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月19日，开源日报第1110期：<br>
-今日推荐开源项目：《VueTorrent》<br>
-今日推荐英文原文：《Here is my coolest portfolio》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240219.jpg.pagespeed.ic.7Rr75a_4V7.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《VueTorrent》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：使用Vue.js制作的qBittorrent最好看的WebUI！</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/shreyvijayvargiya/here-is-my-coolest-portfolio-224f" target="_blank">Here is my coolest portfolio</a></p>
-<p>推荐理由：通过学习 DSA 和使用各种动画库来增进前端技能，以及如何将这些技能应用到个人网站的开发中。同时也分享作者的开发过程和一些总结和思考</p>
-<hr>
-<h1>Here is my coolest portfolio</h1>
-<p>All I need is Tailwind CSS + GSAP npm + Next.js</p>
-<p><a href="https://iamshrey.me/" target="_blank">iamshrey.me</a></p>
-<h2>Under the Hood</h2>
-<p>It’s 2024 and the story begins way back in Jan 2024 when I decided to revamp my portfolio website.</p>
-<p>My website needs some changes and I’ve started learning DSA before putting a thought on revamping my website.</p>
-<p>DSA improves my ability to improve the code quality in terms of time complexity and think clearly in programming.</p>
-<p>Frontend itself is a math going under the hood</p>
-<ul>
-<li>Rendering a list of items using the map method</li>
-<li>Filtering, and sorting the list of items is again a MATH</li>
-<li>Arranging the elements in grid order is again a MATH</li>
-<li>Animating the component from x -100% to x 0% is again a MATH</li>
-<li>All these calculations were improved once I’ve relearned the basics of programming that is DSA.</li>
-</ul>
-<p><a href="https://dev.to/shreyvijayvargiya/learning-dsa-after-4-years-of-experience-2k7f" target="_blank">Learning DSA after 4 years of experience</a></p>
-<p>Well, that’s not the point after completing the DSA course I got immense confidence to write clean and better and more importantly faster code.</p>
-<p>And of course, as expected it worked well and I’ve decided to revamp my website.</p>
-<h2>Revamping Portfolio Website</h2>
-<p>This is so far, my most interesting and cool project.</p>
-<p>For the time being, I haven’t completed the portfolio and it is still under the development phase as only 70/80% is completed.</p>
-<p>I am revamping my website for the following 3 reasons</p>
-<ul>
-<li>To introduce myself without saying anything, just share the link</li>
-<li>To get more clients and work-related opportunities</li>
-<li>To showcase my programming-related projects</li>
-<li>Our portfolio serves as a lot of introduction about us, I still remember how I got new clients and job opportunities by simply sharing my personal website link.</li>
-</ul>
-<p>PDFs are an old way to share your resume or portfolio, try sharing the link and see the other person's expressions or opinions.</p>
-<p>The portfolio website makes sense and has a lot of impressions in the person's eye so try making it if possible.</p>
-<h2>Animations in Portfolio</h2>
-<p>To finalise the revamping the idea is to provide a good user interface with tonnes of animations.</p>
-<p>I’ve switched to three.js, HTML canvas API and web GL and GSAP animation libraries such as anime.js.</p>
-<p>I’ve worked with other animation libraries in Reactjs such as react-spring, anime.js and framer-motion.</p>
-<p>Following are the animation libraries I’ve worked in frontend in react.js</p>
-<ul>
-<li>Anime.js</li>
-<li>framer-motion</li>
-<li>swiper.js</li>
-<li>gsap</li>
-<li>particle.js</li>
-<li>three.js</li>
-<li>web.gl Each of them has its significance including pros and cons but the learning curve is not that hard for any of them, so do give them a try.</li>
-</ul>
-<p>You can follow my newsletter to get interesting stories about packages, modules, and how to develop once a week.</p>
-<p><a href="http://ihatereading.in/subscribe" target="_blank">Subscribe to my newsletter for FREE</a></p>
-<h2>Projects Playgrounds</h2>
-<p>Moving ahead with the project playground.</p>
-<p>I believe every developer, especially frontend developers should have a playground website showcasing all his frontend projects.</p>
-<p>Frontend projects is an art and animations make things look beautiful.</p>
-<p>Showcasing all my projects under one link is my agenda for the portfolio playground.</p>
-<p>For the next 5/10 years, I have a dedicated showcasing website to put all my projects for people around the globe.</p>
-<h2>Cool Animated Projects</h2>
-<p>Well, starting with animations I start with some small one-day or hour animation projects using the above libraries.</p>
-<p>Sooner or later, I was improving and developing cool animation projects or UI components.</p>
-<p>In the video, you can see some of my sample projects in the portfolio projects gallery.</p>
-<p>Now, I’ve to just try and test any kind of new project or UI component and I can easily showcase it to users across the globe.</p>
-<h2>First Impression</h2>
-<p>The first impression is the last one.</p>
-<p>I believe that and that is why whoever reaches my website should at least have an AWE expression for once.</p>
-<p>So to make it more impressive I got the idea to give an introductory animation movie.</p>
-<p>Again, the below one is developed using Tailwind CSS + gsap animation library and the framework I am using is Next.js</p>
-<p>I haven’t finalised the introductory movie yet but it will look like the same as shown above in the video.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Work Experience</h2>
-<p>This is by far the best work experience page I’ve developed so far.</p>
-<p>The UI design is inspired by gsap scroll trigger animations where the user scrolls in y-direction but UI components move in x-direction.</p>
-<p>I was so happy to witness that animation and decided to integrate it within my portfolio in the work experience component.</p>
-<p>This is not easy to integrate but gsap makes it just a few lines of code to execute. One can easily handle it without using gsap and I urge to lot of developers to try developing it on their own from scratch.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Tech Stack Page</h2>
-<p>It’s important to showcase your tech stack to the person reaching my website.</p>
-<p>I don’t want him to come up with basic questions like what technology I’ve worked with and what is my domain expertise.</p>
-<p>So simply avoiding that question needs a tech stack component and below is what it looks like after adding cool animations.</p>
-<p>Again animations are added using the gsap animation library.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Conclusion</h2>
-<p>Go ahead with your portfolio website</p>
-<p>Feel free to add whatever animation you want to add and learn</p>
-<p>Keep learning and keep improving by adding more projects or simply improving your portfolio.</p>
-<p>The portfolio website should be cool fun and easy to read and understand.</p>
-<p>Add all kinds of work experience, projects, contact me button or your achievements, blogs.</p>
-<p>Start with your first front-end project as your portfolio website.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://openingsource.org/daily/">开源日报</a>每天推荐一个 GitHub 优质开源项目和一篇精选英文科技或编程文章原文，坚持阅读《开源日报》，保持每日学习的好习惯。</p>
-<p>2024年2月19日，开源日报第1110期：<br>
-今日推荐开源项目：《VueTorrent》<br>
-今日推荐英文原文：《Here is my coolest portfolio》</p>
-<p><img src="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240219.jpg.pagespeed.ic.7Rr75a_4V7.jpg"></p>
-<hr>
-<h3>开源项目</h3>
-<p>今日推荐开源项目：《VueTorrent》传送门：<a href="https://github.com/VueTorrent/VueTorrent?utm_source=gold_browser_extension" target="_blank">项目链接</a> </p>
-<p>推荐理由：使用Vue.js制作的qBittorrent最好看的WebUI！</p>
-<hr>
-<h3>英文原文</h3>
-<p>今日推荐英文原文：<a href="https://dev.to/shreyvijayvargiya/here-is-my-coolest-portfolio-224f" target="_blank">Here is my coolest portfolio</a></p>
-<p>推荐理由：通过学习 DSA 和使用各种动画库来增进前端技能，以及如何将这些技能应用到个人网站的开发中。同时也分享作者的开发过程和一些总结和思考</p>
-<hr>
-<h1>Here is my coolest portfolio</h1>
-<p>All I need is Tailwind CSS + GSAP npm + Next.js</p>
-<p><a href="https://iamshrey.me/" target="_blank">iamshrey.me</a></p>
-<h2>Under the Hood</h2>
-<p>It’s 2024 and the story begins way back in Jan 2024 when I decided to revamp my portfolio website.</p>
-<p>My website needs some changes and I’ve started learning DSA before putting a thought on revamping my website.</p>
-<p>DSA improves my ability to improve the code quality in terms of time complexity and think clearly in programming.</p>
-<p>Frontend itself is a math going under the hood</p>
-<ul>
-<li>Rendering a list of items using the map method</li>
-<li>Filtering, and sorting the list of items is again a MATH</li>
-<li>Arranging the elements in grid order is again a MATH</li>
-<li>Animating the component from x -100% to x 0% is again a MATH</li>
-<li>All these calculations were improved once I’ve relearned the basics of programming that is DSA.</li>
-</ul>
-<p><a href="https://dev.to/shreyvijayvargiya/learning-dsa-after-4-years-of-experience-2k7f" target="_blank">Learning DSA after 4 years of experience</a></p>
-<p>Well, that’s not the point after completing the DSA course I got immense confidence to write clean and better and more importantly faster code.</p>
-<p>And of course, as expected it worked well and I’ve decided to revamp my website.</p>
-<h2>Revamping Portfolio Website</h2>
-<p>This is so far, my most interesting and cool project.</p>
-<p>For the time being, I haven’t completed the portfolio and it is still under the development phase as only 70/80% is completed.</p>
-<p>I am revamping my website for the following 3 reasons</p>
-<ul>
-<li>To introduce myself without saying anything, just share the link</li>
-<li>To get more clients and work-related opportunities</li>
-<li>To showcase my programming-related projects</li>
-<li>Our portfolio serves as a lot of introduction about us, I still remember how I got new clients and job opportunities by simply sharing my personal website link.</li>
-</ul>
-<p>PDFs are an old way to share your resume or portfolio, try sharing the link and see the other person's expressions or opinions.</p>
-<p>The portfolio website makes sense and has a lot of impressions in the person's eye so try making it if possible.</p>
-<h2>Animations in Portfolio</h2>
-<p>To finalise the revamping the idea is to provide a good user interface with tonnes of animations.</p>
-<p>I’ve switched to three.js, HTML canvas API and web GL and GSAP animation libraries such as anime.js.</p>
-<p>I’ve worked with other animation libraries in Reactjs such as react-spring, anime.js and framer-motion.</p>
-<p>Following are the animation libraries I’ve worked in frontend in react.js</p>
-<ul>
-<li>Anime.js</li>
-<li>framer-motion</li>
-<li>swiper.js</li>
-<li>gsap</li>
-<li>particle.js</li>
-<li>three.js</li>
-<li>web.gl Each of them has its significance including pros and cons but the learning curve is not that hard for any of them, so do give them a try.</li>
-</ul>
-<p>You can follow my newsletter to get interesting stories about packages, modules, and how to develop once a week.</p>
-<p><a href="http://ihatereading.in/subscribe" target="_blank">Subscribe to my newsletter for FREE</a></p>
-<h2>Projects Playgrounds</h2>
-<p>Moving ahead with the project playground.</p>
-<p>I believe every developer, especially frontend developers should have a playground website showcasing all his frontend projects.</p>
-<p>Frontend projects is an art and animations make things look beautiful.</p>
-<p>Showcasing all my projects under one link is my agenda for the portfolio playground.</p>
-<p>For the next 5/10 years, I have a dedicated showcasing website to put all my projects for people around the globe.</p>
-<h2>Cool Animated Projects</h2>
-<p>Well, starting with animations I start with some small one-day or hour animation projects using the above libraries.</p>
-<p>Sooner or later, I was improving and developing cool animation projects or UI components.</p>
-<p>In the video, you can see some of my sample projects in the portfolio projects gallery.</p>
-<p>Now, I’ve to just try and test any kind of new project or UI component and I can easily showcase it to users across the globe.</p>
-<h2>First Impression</h2>
-<p>The first impression is the last one.</p>
-<p>I believe that and that is why whoever reaches my website should at least have an AWE expression for once.</p>
-<p>So to make it more impressive I got the idea to give an introductory animation movie.</p>
-<p>Again, the below one is developed using Tailwind CSS + gsap animation library and the framework I am using is Next.js</p>
-<p>I haven’t finalised the introductory movie yet but it will look like the same as shown above in the video.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fzujxptkxw64yww852t9g.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Work Experience</h2>
-<p>This is by far the best work experience page I’ve developed so far.</p>
-<p>The UI design is inspired by gsap scroll trigger animations where the user scrolls in y-direction but UI components move in x-direction.</p>
-<p>I was so happy to witness that animation and decided to integrate it within my portfolio in the work experience component.</p>
-<p>This is not easy to integrate but gsap makes it just a few lines of code to execute. One can easily handle it without using gsap and I urge to lot of developers to try developing it on their own from scratch.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fqys6fmvhxdlwia840ahx.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Tech Stack Page</h2>
-<p>It’s important to showcase your tech stack to the person reaching my website.</p>
-<p>I don’t want him to come up with basic questions like what technology I’ve worked with and what is my domain expertise.</p>
-<p>So simply avoiding that question needs a tech stack component and below is what it looks like after adding cool animations.</p>
-<p>Again animations are added using the gsap animation library.</p>
-<p><a href="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" target="_blank"><img data-pagespeed-lazy-src="https://media.dev.to/cdn-cgi/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Ffktifcz3l3p4imj0ih3p.png" alt="Image description" src="https://openingsource.org/pagespeed_static/1.JiBnMqyl6S.gif" onload="pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);"></a></p>
-<h2>Conclusion</h2>
-<p>Go ahead with your portfolio website</p>
-<p>Feel free to add whatever animation you want to add and learn</p>
-<p>Keep learning and keep improving by adding more projects or simply improving your portfolio.</p>
-<p>The portfolio website should be cool fun and easy to read and understand.</p>
-<p>Add all kinds of work experience, projects, contact me button or your achievements, blogs.</p>
-<p>Start with your first front-end project as your portfolio website.</p>
-<hr>
-<p>下载开源日报APP：<a href="https://openingsource.org/2579/"></a><a href="https://openingsource.org/2579/">https://openingsource.org/2579/</a><br>
-加入我们：<a href="https://openingsource.org/about/join/"></a><a href="https://openingsource.org/about/join/">https://openingsource.org/about/join/</a><br>
-关注我们：<a href="https://openingsource.org/about/love/"></a><a href="https://openingsource.org/about/love/">https://openingsource.org/about/love/</a></p>]]></content:encoded>
-    <itunes:image href="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240219.jpg.pagespeed.ic.7Rr75a_4V7.jpg"/>
-          <media:content url="https://openingsource.org/wp-content/uploads/2024/02/xosd-20240219.jpg.pagespeed.ic.7Rr75a_4V7.jpg" medium="image"/>
-    <pubDate>Mon, 19 Feb 2024 12:32:29 +0000</pubDate>
   </item></channel>
 </rss>

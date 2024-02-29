@@ -30,6 +30,45 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></title>
+    <link>https://blog.darkthread.net/blog/view-aspnet-core-error-detail-in-iis/</link>
+    <itunes:title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
+</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
+&lt;environmentVariables&gt;
+&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
+&lt;/environmentVariables&gt;
+&lt;/aspNetCore&gt;
+</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
+</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
+&lt;environmentVariables&gt;
+&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
+&lt;/environmentVariables&gt;
+&lt;/aspNetCore&gt;
+</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
+</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
+stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
+&lt;environmentVariables&gt;
+&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
+&lt;/environmentVariables&gt;
+&lt;/aspNetCore&gt;
+</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png" medium="image"/>
+    <pubDate>Thu, 29 Feb 2024 08:55:04 GMT</pubDate>
+  </item><item>
     <title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></title>
     <link>https://blog.darkthread.net/blog/guid-clust-idx-frag-n-space/</link>
     <itunes:title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></itunes:title>
@@ -1784,188 +1823,5 @@ Console.ResetColor();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png" medium="image"/>
     <pubDate>Wed, 14 Feb 2024 04:33:19 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[小試前端 REST 資料庫 - Supabase]]></title>
-    <link>https://blog.darkthread.net/blog/supabase/</link>
-    <itunes:title><![CDATA[小試前端 REST 資料庫 - Supabase]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>最近玩了自架 ChatGPT 網站的開源專案 <a href="https://github.com/mckaywrigley/chatbot-ui">Chatbot UI</a>，網站以 React 前端程式為核心，1.0 原以 localStorate 儲存資料，基於安全疑慮、大小限制、無法跨機器共用等因素，改版時將資料改存到後端，用了一個我沒看過的資料庫 - <a href="https://supabase.com/">Supabase</a>。</p> <p>Supabase是一個開源的後端服務平台(取代 Google 的閉源服務 - <a href="https://tw.alphacamp.co/blog/2016-07-22-firebase">Firebase</a>)，核心概念是把 PostgreSQL 包成 RESTful API/ GraphQL，允許 JavaScript 從瀏覽器端讀寫資料庫內容；但 Supabase 功能不只於此，它還整合前端常用的使用者驗證、資料更新時主動通知、Embedding 向量資料搜尋... 等功能。Supabase 提供這類通知功能，我自己是習慣開發自訂 Web API 實作，不喜歡資料庫直接對外讓前端程式自由操作(有安全及效能疑慮)。但將資料操作邏輯寫在前端的概念簡單粗暴，不用多花心力搞一套專屬 API，也可選擇雲端版服務(連後端人員都省了)，加上同一套程式前後端都能跑... 猜想這是前端工程師愛用的原因吧。</p> <p>雖然我個人還是覺得：放任前端自由操作資料庫，對安全與效能是件危險的事，但因緣際會碰上了，老狗再學點新把戲長見識唄。</p> <p>我演練了 CLI 工具安裝、新增專案、建資料表到用 JavaScript 程式讀寫資料的過程，記錄重點如下：</p> <h3>安裝 Supabase CLI</h3> <p>Supabase 有<a href="https://supabase.com/">雲端服務</a> (有免費也有<a href="https://supabase.com/pricing">付費方案</a>)，但也可以跑 Docker 容器在地端執行，我則是在 Linux Ubuntu 22.04 跑的測試，先裝好 Docker 服務，接著安裝 <a href="https://supabase.com/docs/guides/cli/getting-started?platform=linux#installing-the-supabase-cli">Supabase CLI</a> (Linux 可以用 Homebrew 或下載 .deb/.rpm 安裝)。</p> <h3>建立專案</h3> <p>建立專案資料夾，在目錄下執行 <code>supabase init</code>，CLI 會建立 <code>supabase</code> 子資料夾，執行 <code>supabase start</code> CLI 會下載並為這個專案建立 12 個 Docker 容器 [1]、Web API 在 54321 Port [2]，管理介面在 54323 Port [3]，anon key 與 service_role Key [4] 存取時會用到，另外還建了五個 Volume [5] 用來放資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png"></p> <p>Supabase 使用 anon 及 service_role 兩支 JWT 長效金鑰區隔權限，anon 通常配合 RLS(<a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>) 使用，每個人只能讀寫自己寫入的資料，service_role 則能讀寫所有資料。故 anon Key 類似公鑰，可明碼寫入網頁送到前端，反正讀寫資料時會一併檢查登入身分，判斷是否有權存取。而 sevice_role Key 則如同系統管理密碼，需嚴加保護。一般只在後端使用(為了怕有人失手 Push 到 Github，Github 有加了防呆檢查)，sevice_role Key 一旦外流等同資料完全對外公開，務必謹慎處理。(這也是我不愛資料庫直接對外的理由)</p> <h3>建立資料表</h3> <p>接著我打算建立一個測試資料表 players。執行 <code>supabase migration new create_players_table</code> 會建立 <code>supabase/migrations/&lt;timestamp&gt;_create_players_table.sql</code> 空白檔，填入新增資料表 SQL 指令：</p> <pre><code>CREATE TABLE players (
-id SERIAL PRIMARY KEY,
-name VARCHAR(16) UNIQUE NOT NULL,
-score INTEGER NOT NULL,
-regdate TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-</code></pre> <p>在 <code>supabase/seed.sql</code> 填入新增資料指令：</p> <pre><code>INSERT INTO players (name, score) VALUES
-('Jeffrey', 32767);
-</code></pre> <p>接著執行 <code>supabase db reset</code> 初始化資料庫、建立資料表並寫入資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638434361976033743.png"></p> <p>使用 <code>http://127.0.0.1:54323/</code> 管理介面可查到寫入的內容：(介面有提醒目前資料表允許匿名讀寫，實際應用常設為 <a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638434361978672972.png"></p> <h3>node.js 讀寫資料</h3> <p>再來測試用 Node.js 跑 JavaScript 讀取資料。開始前先 <code>npm install @supabase/supabase-js</code> 安裝程式庫，讀取程式如下：</p> <pre><code>import { createClient } from '@supabase/supabase-js'
-// TODO: read from configuration file
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-// Create a single supabase client for interacting with your database
-const supabase = createClient(apiUrl, anonKey);
-// Read data from players table
-const readData = async () =&gt; {
-const { data, error } = await supabase
-.from('players')
-.select('*')
-if (error) {
-console.error('Error fetching data:', error)
-return
-}
-console.log('Data:', data)
-}
-readData();
-</code></pre> <p>讀取成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638434361986184756.png"></p> <h3>把程式搬進網頁執行</h3> <p>我們將上面的程式碼稍作修改，搬進網頁執行看看：<a href="https://github.com/supabase/supabase-js?tab=readme-ov-file#umd">參考</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Read Data&lt;/title&gt;
-&lt;script src="https://unpkg.com/@supabase/supabase-js@2"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;pre&gt;&lt;/pre&gt;
-&lt;script&gt;
-const { createClient } = supabase;
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-const _supabase = createClient(apiUrl, anonKey);
-const readData = async () =&gt; {
-const { data, error } = await _supabase
-.from('players')
-.select('*')
-if (error) {
-alert('Error fetching data:', error)
-return
-}
-document.querySelector('pre').textContent = JSON.stringify(data, null, 2)
-}
-readData();
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>薑! 薑! 薑! 薑~~~ 只要前端能存取 54321 Port，同一段程式可以放進瀏覽器執行，一魚兩吃。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638434361988770111.png"></p> <p>由以上展示，有點能了解為什麼 Supabase 這種解決方案對前端工程師特別有吸引力。</p> <h3>REST API</h3> <p>最後，有一行 curl 呼叫 REST API 範例結束這回合~</p> <pre><code>curl 'https://&lt;PROJECT_REF&gt;.supabase.co/rest/v1/todos' \
--H "apikey: &lt;ANON_KEY&gt;" \
--H "Authorization: Bearer &lt;ANON_KEY&gt;"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638434361991182745.png"></p> <p>後記：chatbot-ui 目前這個搭配 Supabase 的版本，架構與部署有點複雜，很難做到即插即用。作者有提到<a href="https://github.com/mckaywrigley/chatbot-ui/issues/1376#issuecomment-1928550602">目前已在研發 Sqlite 版</a>(這類應用，Sqlite 也是我心中的首選)預計幾週後推出，我決定先不跟 Subabase 糾纏，等熟悉的 Sqlite 版出來再玩。</p> <p data-slug="supabase" data-title-en="Introduce to Supabase" data-catg="Web Development" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720">Introduce to the front-end data service solution - Supabase.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>最近玩了自架 ChatGPT 網站的開源專案 <a href="https://github.com/mckaywrigley/chatbot-ui">Chatbot UI</a>，網站以 React 前端程式為核心，1.0 原以 localStorate 儲存資料，基於安全疑慮、大小限制、無法跨機器共用等因素，改版時將資料改存到後端，用了一個我沒看過的資料庫 - <a href="https://supabase.com/">Supabase</a>。</p> <p>Supabase是一個開源的後端服務平台(取代 Google 的閉源服務 - <a href="https://tw.alphacamp.co/blog/2016-07-22-firebase">Firebase</a>)，核心概念是把 PostgreSQL 包成 RESTful API/ GraphQL，允許 JavaScript 從瀏覽器端讀寫資料庫內容；但 Supabase 功能不只於此，它還整合前端常用的使用者驗證、資料更新時主動通知、Embedding 向量資料搜尋... 等功能。Supabase 提供這類通知功能，我自己是習慣開發自訂 Web API 實作，不喜歡資料庫直接對外讓前端程式自由操作(有安全及效能疑慮)。但將資料操作邏輯寫在前端的概念簡單粗暴，不用多花心力搞一套專屬 API，也可選擇雲端版服務(連後端人員都省了)，加上同一套程式前後端都能跑... 猜想這是前端工程師愛用的原因吧。</p> <p>雖然我個人還是覺得：放任前端自由操作資料庫，對安全與效能是件危險的事，但因緣際會碰上了，老狗再學點新把戲長見識唄。</p> <p>我演練了 CLI 工具安裝、新增專案、建資料表到用 JavaScript 程式讀寫資料的過程，記錄重點如下：</p> <h3>安裝 Supabase CLI</h3> <p>Supabase 有<a href="https://supabase.com/">雲端服務</a> (有免費也有<a href="https://supabase.com/pricing">付費方案</a>)，但也可以跑 Docker 容器在地端執行，我則是在 Linux Ubuntu 22.04 跑的測試，先裝好 Docker 服務，接著安裝 <a href="https://supabase.com/docs/guides/cli/getting-started?platform=linux#installing-the-supabase-cli">Supabase CLI</a> (Linux 可以用 Homebrew 或下載 .deb/.rpm 安裝)。</p> <h3>建立專案</h3> <p>建立專案資料夾，在目錄下執行 <code>supabase init</code>，CLI 會建立 <code>supabase</code> 子資料夾，執行 <code>supabase start</code> CLI 會下載並為這個專案建立 12 個 Docker 容器 [1]、Web API 在 54321 Port [2]，管理介面在 54323 Port [3]，anon key 與 service_role Key [4] 存取時會用到，另外還建了五個 Volume [5] 用來放資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png"></p> <p>Supabase 使用 anon 及 service_role 兩支 JWT 長效金鑰區隔權限，anon 通常配合 RLS(<a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>) 使用，每個人只能讀寫自己寫入的資料，service_role 則能讀寫所有資料。故 anon Key 類似公鑰，可明碼寫入網頁送到前端，反正讀寫資料時會一併檢查登入身分，判斷是否有權存取。而 sevice_role Key 則如同系統管理密碼，需嚴加保護。一般只在後端使用(為了怕有人失手 Push 到 Github，Github 有加了防呆檢查)，sevice_role Key 一旦外流等同資料完全對外公開，務必謹慎處理。(這也是我不愛資料庫直接對外的理由)</p> <h3>建立資料表</h3> <p>接著我打算建立一個測試資料表 players。執行 <code>supabase migration new create_players_table</code> 會建立 <code>supabase/migrations/&lt;timestamp&gt;_create_players_table.sql</code> 空白檔，填入新增資料表 SQL 指令：</p> <pre><code>CREATE TABLE players (
-id SERIAL PRIMARY KEY,
-name VARCHAR(16) UNIQUE NOT NULL,
-score INTEGER NOT NULL,
-regdate TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-</code></pre> <p>在 <code>supabase/seed.sql</code> 填入新增資料指令：</p> <pre><code>INSERT INTO players (name, score) VALUES
-('Jeffrey', 32767);
-</code></pre> <p>接著執行 <code>supabase db reset</code> 初始化資料庫、建立資料表並寫入資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638434361976033743.png"></p> <p>使用 <code>http://127.0.0.1:54323/</code> 管理介面可查到寫入的內容：(介面有提醒目前資料表允許匿名讀寫，實際應用常設為 <a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638434361978672972.png"></p> <h3>node.js 讀寫資料</h3> <p>再來測試用 Node.js 跑 JavaScript 讀取資料。開始前先 <code>npm install @supabase/supabase-js</code> 安裝程式庫，讀取程式如下：</p> <pre><code>import { createClient } from '@supabase/supabase-js'
-// TODO: read from configuration file
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-// Create a single supabase client for interacting with your database
-const supabase = createClient(apiUrl, anonKey);
-// Read data from players table
-const readData = async () =&gt; {
-const { data, error } = await supabase
-.from('players')
-.select('*')
-if (error) {
-console.error('Error fetching data:', error)
-return
-}
-console.log('Data:', data)
-}
-readData();
-</code></pre> <p>讀取成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638434361986184756.png"></p> <h3>把程式搬進網頁執行</h3> <p>我們將上面的程式碼稍作修改，搬進網頁執行看看：<a href="https://github.com/supabase/supabase-js?tab=readme-ov-file#umd">參考</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Read Data&lt;/title&gt;
-&lt;script src="https://unpkg.com/@supabase/supabase-js@2"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;pre&gt;&lt;/pre&gt;
-&lt;script&gt;
-const { createClient } = supabase;
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-const _supabase = createClient(apiUrl, anonKey);
-const readData = async () =&gt; {
-const { data, error } = await _supabase
-.from('players')
-.select('*')
-if (error) {
-alert('Error fetching data:', error)
-return
-}
-document.querySelector('pre').textContent = JSON.stringify(data, null, 2)
-}
-readData();
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>薑! 薑! 薑! 薑~~~ 只要前端能存取 54321 Port，同一段程式可以放進瀏覽器執行，一魚兩吃。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638434361988770111.png"></p> <p>由以上展示，有點能了解為什麼 Supabase 這種解決方案對前端工程師特別有吸引力。</p> <h3>REST API</h3> <p>最後，有一行 curl 呼叫 REST API 範例結束這回合~</p> <pre><code>curl 'https://&lt;PROJECT_REF&gt;.supabase.co/rest/v1/todos' \
--H "apikey: &lt;ANON_KEY&gt;" \
--H "Authorization: Bearer &lt;ANON_KEY&gt;"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638434361991182745.png"></p> <p>後記：chatbot-ui 目前這個搭配 Supabase 的版本，架構與部署有點複雜，很難做到即插即用。作者有提到<a href="https://github.com/mckaywrigley/chatbot-ui/issues/1376#issuecomment-1928550602">目前已在研發 Sqlite 版</a>(這類應用，Sqlite 也是我心中的首選)預計幾週後推出，我決定先不跟 Subabase 糾纏，等熟悉的 Sqlite 版出來再玩。</p> <p data-slug="supabase" data-title-en="Introduce to Supabase" data-catg="Web Development" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720">Introduce to the front-end data service solution - Supabase.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>最近玩了自架 ChatGPT 網站的開源專案 <a href="https://github.com/mckaywrigley/chatbot-ui">Chatbot UI</a>，網站以 React 前端程式為核心，1.0 原以 localStorate 儲存資料，基於安全疑慮、大小限制、無法跨機器共用等因素，改版時將資料改存到後端，用了一個我沒看過的資料庫 - <a href="https://supabase.com/">Supabase</a>。</p> <p>Supabase是一個開源的後端服務平台(取代 Google 的閉源服務 - <a href="https://tw.alphacamp.co/blog/2016-07-22-firebase">Firebase</a>)，核心概念是把 PostgreSQL 包成 RESTful API/ GraphQL，允許 JavaScript 從瀏覽器端讀寫資料庫內容；但 Supabase 功能不只於此，它還整合前端常用的使用者驗證、資料更新時主動通知、Embedding 向量資料搜尋... 等功能。Supabase 提供這類通知功能，我自己是習慣開發自訂 Web API 實作，不喜歡資料庫直接對外讓前端程式自由操作(有安全及效能疑慮)。但將資料操作邏輯寫在前端的概念簡單粗暴，不用多花心力搞一套專屬 API，也可選擇雲端版服務(連後端人員都省了)，加上同一套程式前後端都能跑... 猜想這是前端工程師愛用的原因吧。</p> <p>雖然我個人還是覺得：放任前端自由操作資料庫，對安全與效能是件危險的事，但因緣際會碰上了，老狗再學點新把戲長見識唄。</p> <p>我演練了 CLI 工具安裝、新增專案、建資料表到用 JavaScript 程式讀寫資料的過程，記錄重點如下：</p> <h3>安裝 Supabase CLI</h3> <p>Supabase 有<a href="https://supabase.com/">雲端服務</a> (有免費也有<a href="https://supabase.com/pricing">付費方案</a>)，但也可以跑 Docker 容器在地端執行，我則是在 Linux Ubuntu 22.04 跑的測試，先裝好 Docker 服務，接著安裝 <a href="https://supabase.com/docs/guides/cli/getting-started?platform=linux#installing-the-supabase-cli">Supabase CLI</a> (Linux 可以用 Homebrew 或下載 .deb/.rpm 安裝)。</p> <h3>建立專案</h3> <p>建立專案資料夾，在目錄下執行 <code>supabase init</code>，CLI 會建立 <code>supabase</code> 子資料夾，執行 <code>supabase start</code> CLI 會下載並為這個專案建立 12 個 Docker 容器 [1]、Web API 在 54321 Port [2]，管理介面在 54323 Port [3]，anon key 與 service_role Key [4] 存取時會用到，另外還建了五個 Volume [5] 用來放資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png"></p> <p>Supabase 使用 anon 及 service_role 兩支 JWT 長效金鑰區隔權限，anon 通常配合 RLS(<a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>) 使用，每個人只能讀寫自己寫入的資料，service_role 則能讀寫所有資料。故 anon Key 類似公鑰，可明碼寫入網頁送到前端，反正讀寫資料時會一併檢查登入身分，判斷是否有權存取。而 sevice_role Key 則如同系統管理密碼，需嚴加保護。一般只在後端使用(為了怕有人失手 Push 到 Github，Github 有加了防呆檢查)，sevice_role Key 一旦外流等同資料完全對外公開，務必謹慎處理。(這也是我不愛資料庫直接對外的理由)</p> <h3>建立資料表</h3> <p>接著我打算建立一個測試資料表 players。執行 <code>supabase migration new create_players_table</code> 會建立 <code>supabase/migrations/&lt;timestamp&gt;_create_players_table.sql</code> 空白檔，填入新增資料表 SQL 指令：</p> <pre><code>CREATE TABLE players (
-id SERIAL PRIMARY KEY,
-name VARCHAR(16) UNIQUE NOT NULL,
-score INTEGER NOT NULL,
-regdate TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-</code></pre> <p>在 <code>supabase/seed.sql</code> 填入新增資料指令：</p> <pre><code>INSERT INTO players (name, score) VALUES
-('Jeffrey', 32767);
-</code></pre> <p>接著執行 <code>supabase db reset</code> 初始化資料庫、建立資料表並寫入資料：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638434361976033743.png"></p> <p>使用 <code>http://127.0.0.1:54323/</code> 管理介面可查到寫入的內容：(介面有提醒目前資料表允許匿名讀寫，實際應用常設為 <a href="https://supabase.com/docs/guides/auth/row-level-security">Row Level Security</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638434361978672972.png"></p> <h3>node.js 讀寫資料</h3> <p>再來測試用 Node.js 跑 JavaScript 讀取資料。開始前先 <code>npm install @supabase/supabase-js</code> 安裝程式庫，讀取程式如下：</p> <pre><code>import { createClient } from '@supabase/supabase-js'
-// TODO: read from configuration file
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-// Create a single supabase client for interacting with your database
-const supabase = createClient(apiUrl, anonKey);
-// Read data from players table
-const readData = async () =&gt; {
-const { data, error } = await supabase
-.from('players')
-.select('*')
-if (error) {
-console.error('Error fetching data:', error)
-return
-}
-console.log('Data:', data)
-}
-readData();
-</code></pre> <p>讀取成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638434361986184756.png"></p> <h3>把程式搬進網頁執行</h3> <p>我們將上面的程式碼稍作修改，搬進網頁執行看看：<a href="https://github.com/supabase/supabase-js?tab=readme-ov-file#umd">參考</a></p> <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;Read Data&lt;/title&gt;
-&lt;script src="https://unpkg.com/@supabase/supabase-js@2"&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;pre&gt;&lt;/pre&gt;
-&lt;script&gt;
-const { createClient } = supabase;
-const apiUrl = 'http://127.0.0.1:54321';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.***';
-const _supabase = createClient(apiUrl, anonKey);
-const readData = async () =&gt; {
-const { data, error } = await _supabase
-.from('players')
-.select('*')
-if (error) {
-alert('Error fetching data:', error)
-return
-}
-document.querySelector('pre').textContent = JSON.stringify(data, null, 2)
-}
-readData();
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre> <p>薑! 薑! 薑! 薑~~~ 只要前端能存取 54321 Port，同一段程式可以放進瀏覽器執行，一魚兩吃。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638434361988770111.png"></p> <p>由以上展示，有點能了解為什麼 Supabase 這種解決方案對前端工程師特別有吸引力。</p> <h3>REST API</h3> <p>最後，有一行 curl 呼叫 REST API 範例結束這回合~</p> <pre><code>curl 'https://&lt;PROJECT_REF&gt;.supabase.co/rest/v1/todos' \
--H "apikey: &lt;ANON_KEY&gt;" \
--H "Authorization: Bearer &lt;ANON_KEY&gt;"
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638434361991182745.png"></p> <p>後記：chatbot-ui 目前這個搭配 Supabase 的版本，架構與部署有點複雜，很難做到即插即用。作者有提到<a href="https://github.com/mckaywrigley/chatbot-ui/issues/1376#issuecomment-1928550602">目前已在研發 Sqlite 版</a>(這類應用，Sqlite 也是我心中的首選)預計幾週後推出，我決定先不跟 Subabase 糾纏，等熟悉的 Sqlite 版出來再玩。</p> <p data-slug="supabase" data-title-en="Introduce to Supabase" data-catg="Web Development" data-fbimg="https://i.imgur.com/XV3EMas.jpg#1280#720">Introduce to the front-end data service solution - Supabase.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638434361971381959.png" medium="image"/>
-    <pubDate>Tue, 13 Feb 2024 15:33:31 GMT</pubDate>
   </item></channel>
 </rss>
