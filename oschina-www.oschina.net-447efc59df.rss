@@ -30,6 +30,1038 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[比较 mybatis、lazy、sqltoy、mybatis-flex 操作数据]]></title>
+    <link>https://www.oschina.net/news/281071</link>
+    <itunes:title><![CDATA[比较 mybatis、lazy、sqltoy、mybatis-flex 操作数据]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h3>orm框架使用性能比较</h3>
+<h4>环境：</h4>
+<pre><code>idea
+jdk17
+spring boot 3.0.7
+mysql 8.0
+</code></pre>
+<h4>比较mybatis、lazy、sqltoy、mybatis-flex操作数据</h4>
+<h3>测试条件常规对象</h3>
+<table>
+<tbody>
+<tr>
+<th>orm 框架</th>
+<th>是否支持xml</th>
+<th>是否支持 Lambda</th>
+<th>对比版本</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>mybatis</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>3.5.4</td>
+</tr>
+<tr>
+<td>sqltoy</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>5.2.98</td>
+</tr>
+<tr>
+<td>lazy</td>
+<td>✖️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+<tr>
+<td>mybatis-flex</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+</tbody>
+</table>
+<h3>数据库表(含有唯一性索引s_u)</h3>
+<pre><code>CREATE TABLE `sys_user` (
+`column_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '额外字段',
+`create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
+`id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+`is_deleted` tinyint(1) DEFAULT NULL COMMENT 'null',
+`password` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '密码',
+`scope` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'null',
+`status` tinyint(1) DEFAULT NULL COMMENT '状态',
+`update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+`username` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '用户名',
+PRIMARY KEY (`id`) USING BTREE,
+UNIQUE KEY `s_u` (`scope`,`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=9223371632070323791 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+</code></pre>
+<h3>比较方法:增加、修改、删除、分页查询（当前项目暂时只比较批量新增和分页）</h3>
+<h4>项目设计</h4>
+<p>声明 SysUserRepository 接口提供对应增删改查方法&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7d11019b4c.png"></p>
+<p>声明抽象类 SysUserRepositoryAbstractRecord 继承 SysUserRepository 并且提供对应的框架执行结果存储&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efceb475b4.png"></p>
+<p>三种框架mybatis、sqltoy、Lazy 创建SysUserRepository 的实现&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a5b294c48.png"></p>
+<p>不同 ORM 操作数据的实现</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f4a45d0b46.png"></p>
+<h3>测试条件 批量插入数据 10、100、1000、10000、100000 ，分页查询数据 10、100、1000、10000、100000</h3>
+<pre><code>项目启动后使用浏览器打开 http://localhost:1003/sys/user/run-compare
+</code></pre>
+<h3>测试执行过程</h3>
+<pre><code>清空需要插入表中所有数据
+通过三种ORM框架进行数据批量新增、而后进行分页查询，记录消耗时间，输出md文档
+</code></pre>
+<h3>测试结果（结果只提供参考）</h3>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>9毫秒</strong></td>
+<td><strong>15毫秒</strong></td>
+<td><strong>122毫秒</strong></td>
+<td><strong>621毫秒</strong></td>
+<td><strong>5505毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>37毫秒</strong></td>
+<td><strong>54毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>689毫秒</strong></td>
+<td><strong>5656毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>27毫秒</strong></td>
+<td><strong>48毫秒</strong></td>
+<td><strong>304毫秒</strong></td>
+<td><strong>1062毫秒</strong></td>
+<td><strong>4158毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>47毫秒</strong></td>
+<td><strong>69毫秒</strong></td>
+<td><strong>204毫秒</strong></td>
+<td><strong>896毫秒</strong></td>
+<td><strong>7978毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>40毫秒</strong></td>
+<td><strong>12毫秒</strong></td>
+<td><strong>22毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>782毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>1064毫秒</strong></td>
+<td><strong>983毫秒</strong></td>
+<td><strong>989毫秒</strong></td>
+<td><strong>973毫秒</strong></td>
+<td><strong>976毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>53毫秒</strong></td>
+<td><strong>9毫秒</strong></td>
+<td><strong>18毫秒</strong></td>
+<td><strong>70毫秒</strong></td>
+<td><strong>653毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>51毫秒</strong></td>
+<td><strong>32毫秒</strong></td>
+<td><strong>45毫秒</strong></td>
+<td><strong>106毫秒</strong></td>
+<td><strong>335毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>写在最后</h4>
+<p>批量保存：</p>
+<ul>
+<li>一万条数据以内 性能由高到低 mybatis-flex 、mybatis、sqltoy、lazy 其中mybatis和mybatis-flex 耗时基本相当</li>
+<li>十万数据时，处理时间由快到慢依次是: lazy、mybatis、mybatis-flex、sqltoy</li>
+</ul>
+<p>分页查询： （比较之前问题Lazy ORM 框架内部做了优化后）</p>
+<ul>
+<li>一万条数据以内 性能由高到低 lazy、mybatis-flex 、sqltoy、mybatis</li>
+<li>十万数据时，处理时间由快到慢依次是: sqltoy、lazy、mybatis-flex、mybatis</li>
+</ul>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-compare-orm-demo">当前项目地址</a></h4>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-framework-parent/tree/master/wu-inner-intergration/wu-database-parent">lazy-orm地址</a></h4>
+<h4><a href="https://gitee.com/baomidou/mybatis-plus">mybatis地址</a></h4>
+<h4><a href="https://gitee.com/sagacity/sagacity-sqltoy">sqltoy地址</a></h4>
+<h4><a href="https://gitee.com/mybatis-flex/mybatis-flex">mybatis-flex地址</a></h4>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h3>orm框架使用性能比较</h3>
+<h4>环境：</h4>
+<pre><code>idea
+jdk17
+spring boot 3.0.7
+mysql 8.0
+</code></pre>
+<h4>比较mybatis、lazy、sqltoy、mybatis-flex操作数据</h4>
+<h3>测试条件常规对象</h3>
+<table>
+<tbody>
+<tr>
+<th>orm 框架</th>
+<th>是否支持xml</th>
+<th>是否支持 Lambda</th>
+<th>对比版本</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>mybatis</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>3.5.4</td>
+</tr>
+<tr>
+<td>sqltoy</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>5.2.98</td>
+</tr>
+<tr>
+<td>lazy</td>
+<td>✖️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+<tr>
+<td>mybatis-flex</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+</tbody>
+</table>
+<h3>数据库表(含有唯一性索引s_u)</h3>
+<pre><code>CREATE TABLE `sys_user` (
+`column_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '额外字段',
+`create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
+`id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+`is_deleted` tinyint(1) DEFAULT NULL COMMENT 'null',
+`password` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '密码',
+`scope` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'null',
+`status` tinyint(1) DEFAULT NULL COMMENT '状态',
+`update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+`username` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '用户名',
+PRIMARY KEY (`id`) USING BTREE,
+UNIQUE KEY `s_u` (`scope`,`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=9223371632070323791 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+</code></pre>
+<h3>比较方法:增加、修改、删除、分页查询（当前项目暂时只比较批量新增和分页）</h3>
+<h4>项目设计</h4>
+<p>声明 SysUserRepository 接口提供对应增删改查方法&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7d11019b4c.png"></p>
+<p>声明抽象类 SysUserRepositoryAbstractRecord 继承 SysUserRepository 并且提供对应的框架执行结果存储&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efceb475b4.png"></p>
+<p>三种框架mybatis、sqltoy、Lazy 创建SysUserRepository 的实现&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a5b294c48.png"></p>
+<p>不同 ORM 操作数据的实现</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f4a45d0b46.png"></p>
+<h3>测试条件 批量插入数据 10、100、1000、10000、100000 ，分页查询数据 10、100、1000、10000、100000</h3>
+<pre><code>项目启动后使用浏览器打开 http://localhost:1003/sys/user/run-compare
+</code></pre>
+<h3>测试执行过程</h3>
+<pre><code>清空需要插入表中所有数据
+通过三种ORM框架进行数据批量新增、而后进行分页查询，记录消耗时间，输出md文档
+</code></pre>
+<h3>测试结果（结果只提供参考）</h3>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>9毫秒</strong></td>
+<td><strong>15毫秒</strong></td>
+<td><strong>122毫秒</strong></td>
+<td><strong>621毫秒</strong></td>
+<td><strong>5505毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>37毫秒</strong></td>
+<td><strong>54毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>689毫秒</strong></td>
+<td><strong>5656毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>27毫秒</strong></td>
+<td><strong>48毫秒</strong></td>
+<td><strong>304毫秒</strong></td>
+<td><strong>1062毫秒</strong></td>
+<td><strong>4158毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>47毫秒</strong></td>
+<td><strong>69毫秒</strong></td>
+<td><strong>204毫秒</strong></td>
+<td><strong>896毫秒</strong></td>
+<td><strong>7978毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>40毫秒</strong></td>
+<td><strong>12毫秒</strong></td>
+<td><strong>22毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>782毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>1064毫秒</strong></td>
+<td><strong>983毫秒</strong></td>
+<td><strong>989毫秒</strong></td>
+<td><strong>973毫秒</strong></td>
+<td><strong>976毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>53毫秒</strong></td>
+<td><strong>9毫秒</strong></td>
+<td><strong>18毫秒</strong></td>
+<td><strong>70毫秒</strong></td>
+<td><strong>653毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>51毫秒</strong></td>
+<td><strong>32毫秒</strong></td>
+<td><strong>45毫秒</strong></td>
+<td><strong>106毫秒</strong></td>
+<td><strong>335毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>写在最后</h4>
+<p>批量保存：</p>
+<ul>
+<li>一万条数据以内 性能由高到低 mybatis-flex 、mybatis、sqltoy、lazy 其中mybatis和mybatis-flex 耗时基本相当</li>
+<li>十万数据时，处理时间由快到慢依次是: lazy、mybatis、mybatis-flex、sqltoy</li>
+</ul>
+<p>分页查询： （比较之前问题Lazy ORM 框架内部做了优化后）</p>
+<ul>
+<li>一万条数据以内 性能由高到低 lazy、mybatis-flex 、sqltoy、mybatis</li>
+<li>十万数据时，处理时间由快到慢依次是: sqltoy、lazy、mybatis-flex、mybatis</li>
+</ul>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-compare-orm-demo">当前项目地址</a></h4>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-framework-parent/tree/master/wu-inner-intergration/wu-database-parent">lazy-orm地址</a></h4>
+<h4><a href="https://gitee.com/baomidou/mybatis-plus">mybatis地址</a></h4>
+<h4><a href="https://gitee.com/sagacity/sagacity-sqltoy">sqltoy地址</a></h4>
+<h4><a href="https://gitee.com/mybatis-flex/mybatis-flex">mybatis-flex地址</a></h4>]]>
+    </description>
+    <content:encoded><![CDATA[<h3>orm框架使用性能比较</h3>
+<h4>环境：</h4>
+<pre><code>idea
+jdk17
+spring boot 3.0.7
+mysql 8.0
+</code></pre>
+<h4>比较mybatis、lazy、sqltoy、mybatis-flex操作数据</h4>
+<h3>测试条件常规对象</h3>
+<table>
+<tbody>
+<tr>
+<th>orm 框架</th>
+<th>是否支持xml</th>
+<th>是否支持 Lambda</th>
+<th>对比版本</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>mybatis</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>3.5.4</td>
+</tr>
+<tr>
+<td>sqltoy</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>5.2.98</td>
+</tr>
+<tr>
+<td>lazy</td>
+<td>✖️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+<tr>
+<td>mybatis-flex</td>
+<td>☑️</td>
+<td>☑️</td>
+<td>1.2.4-JDK17-SNAPSHOT</td>
+</tr>
+</tbody>
+</table>
+<h3>数据库表(含有唯一性索引s_u)</h3>
+<pre><code>CREATE TABLE `sys_user` (
+`column_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '额外字段',
+`create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
+`id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+`is_deleted` tinyint(1) DEFAULT NULL COMMENT 'null',
+`password` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '密码',
+`scope` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'null',
+`status` tinyint(1) DEFAULT NULL COMMENT '状态',
+`update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+`username` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '用户名',
+PRIMARY KEY (`id`) USING BTREE,
+UNIQUE KEY `s_u` (`scope`,`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=9223371632070323791 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+</code></pre>
+<h3>比较方法:增加、修改、删除、分页查询（当前项目暂时只比较批量新增和分页）</h3>
+<h4>项目设计</h4>
+<p>声明 SysUserRepository 接口提供对应增删改查方法&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7d11019b4c.png"></p>
+<p>声明抽象类 SysUserRepositoryAbstractRecord 继承 SysUserRepository 并且提供对应的框架执行结果存储&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efceb475b4.png"></p>
+<p>三种框架mybatis、sqltoy、Lazy 创建SysUserRepository 的实现&nbsp;</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a5b294c48.png"></p>
+<p>不同 ORM 操作数据的实现</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f4a45d0b46.png"></p>
+<h3>测试条件 批量插入数据 10、100、1000、10000、100000 ，分页查询数据 10、100、1000、10000、100000</h3>
+<pre><code>项目启动后使用浏览器打开 http://localhost:1003/sys/user/run-compare
+</code></pre>
+<h3>测试执行过程</h3>
+<pre><code>清空需要插入表中所有数据
+通过三种ORM框架进行数据批量新增、而后进行分页查询，记录消耗时间，输出md文档
+</code></pre>
+<h3>测试结果（结果只提供参考）</h3>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>9毫秒</strong></td>
+<td><strong>15毫秒</strong></td>
+<td><strong>122毫秒</strong></td>
+<td><strong>621毫秒</strong></td>
+<td><strong>5505毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>37毫秒</strong></td>
+<td><strong>54毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>689毫秒</strong></td>
+<td><strong>5656毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>27毫秒</strong></td>
+<td><strong>48毫秒</strong></td>
+<td><strong>304毫秒</strong></td>
+<td><strong>1062毫秒</strong></td>
+<td><strong>4158毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(batchStory)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>47毫秒</strong></td>
+<td><strong>69毫秒</strong></td>
+<td><strong>204毫秒</strong></td>
+<td><strong>896毫秒</strong></td>
+<td><strong>7978毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS_FLEX(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>40毫秒</strong></td>
+<td><strong>12毫秒</strong></td>
+<td><strong>22毫秒</strong></td>
+<td><strong>96毫秒</strong></td>
+<td><strong>782毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>MYBATIS(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>1064毫秒</strong></td>
+<td><strong>983毫秒</strong></td>
+<td><strong>989毫秒</strong></td>
+<td><strong>973毫秒</strong></td>
+<td><strong>976毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>LAZY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>53毫秒</strong></td>
+<td><strong>9毫秒</strong></td>
+<td><strong>18毫秒</strong></td>
+<td><strong>70毫秒</strong></td>
+<td><strong>653毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<th>SQLTOY(findPage)</th>
+<th>影响行数:10</th>
+<th>影响行数:100</th>
+<th>影响行数:1000</th>
+<th>影响行数:10000</th>
+<th>影响行数:100000</th>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td>执行时间:</td>
+<td><strong>51毫秒</strong></td>
+<td><strong>32毫秒</strong></td>
+<td><strong>45毫秒</strong></td>
+<td><strong>106毫秒</strong></td>
+<td><strong>335毫秒</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>写在最后</h4>
+<p>批量保存：</p>
+<ul>
+<li>一万条数据以内 性能由高到低 mybatis-flex 、mybatis、sqltoy、lazy 其中mybatis和mybatis-flex 耗时基本相当</li>
+<li>十万数据时，处理时间由快到慢依次是: lazy、mybatis、mybatis-flex、sqltoy</li>
+</ul>
+<p>分页查询： （比较之前问题Lazy ORM 框架内部做了优化后）</p>
+<ul>
+<li>一万条数据以内 性能由高到低 lazy、mybatis-flex 、sqltoy、mybatis</li>
+<li>十万数据时，处理时间由快到慢依次是: sqltoy、lazy、mybatis-flex、mybatis</li>
+</ul>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-compare-orm-demo">当前项目地址</a></h4>
+<h4><a href="https://gitee.com/wujiawei1207537021/wu-framework-parent/tree/master/wu-inner-intergration/wu-database-parent">lazy-orm地址</a></h4>
+<h4><a href="https://gitee.com/baomidou/mybatis-plus">mybatis地址</a></h4>
+<h4><a href="https://gitee.com/sagacity/sagacity-sqltoy">sqltoy地址</a></h4>
+<h4><a href="https://gitee.com/mybatis-flex/mybatis-flex">mybatis-flex地址</a></h4>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7d11019b4c.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7d11019b4c.png" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 18:31:05 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[马斯克起诉 OpenAI 及其 CEO 奥特曼，要求公司恢复开源状态]]></title>
+    <link>https://www.oschina.net/news/281047/elon-musk-sues-openai-over-ai-threat</link>
+    <itunes:title><![CDATA[马斯克起诉 OpenAI 及其 CEO 奥特曼，要求公司恢复开源状态]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>当地时间周四晚间，特斯拉CEO埃隆·马斯克向旧金山高等法院提起诉讼，以违反合同为由起诉OpenAI及其CEO萨姆·奥特曼。</p>
+<p>马斯克在诉讼中表示，奥特曼和OpenAI违背了这家人工智能研究公司成立时达成的一项协议，即开发技术以造福人类而不是追逐利润。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f3646587e.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FxDaily%2Fstatus%2F1763464048908382253" target="_blank">https://twitter.com/xDaily/status/1763464048908382253</a></u></em></p>
+</blockquote>
+<p>马斯克声称OpenAI最近与科技巨头微软的关系损害了该公司最初致力于公共、开源的通用人工智能。自从公司将其开发的人工通用智能技术 (AGI) 以闭源形式交给微软后，OpenAI已经失去了其“开放”的本质。</p>
+<blockquote>
+<p>GPT-4 的内部细节只有 OpenAI 知道，据悉微软也知道。因此，<strong>GPT-4 与'开放人工智能'恰恰相反</strong>。</p>
+<p>它的封闭是出于商业考虑：微软通过向公众出售 GPT-4 获得巨额收益，但如果 OpenAI 按照要求将这项技术免费提供给公众，那么这是不可能的。</p>
+</blockquote>
+<p>马斯克提出的诉讼包括违反合同、违反受托责任和不公平的商业行为。<strong>他要求公司恢复到开源状态</strong>，并寻求法院颁布禁令，以阻止OpenAI及其高管——包括被列为共同被告的总裁格雷戈里·布罗克曼和CEO萨姆·奥特曼——以及微软，利用公司的人工通用智能技术获利。</p>
+<p><span>马斯克是OpenAI最初的董事会成员之一，于2018年离开，他认为董事会与奥特曼之间的冲突源自GPT-4的开发和下一代AGI技术的潜在开发，这可能会危及公众安全。 </span></p>
+<p>详情：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.courthousenews.com%2Felon-musk-sues-openai-over-ai-threat%2F" target="_blank">https://www.courthousenews.com/elon-musk-sues-openai-over-ai-threat/</a></u></em></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>当地时间周四晚间，特斯拉CEO埃隆·马斯克向旧金山高等法院提起诉讼，以违反合同为由起诉OpenAI及其CEO萨姆·奥特曼。</p>
+<p>马斯克在诉讼中表示，奥特曼和OpenAI违背了这家人工智能研究公司成立时达成的一项协议，即开发技术以造福人类而不是追逐利润。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f3646587e.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FxDaily%2Fstatus%2F1763464048908382253" target="_blank">https://twitter.com/xDaily/status/1763464048908382253</a></u></em></p>
+</blockquote>
+<p>马斯克声称OpenAI最近与科技巨头微软的关系损害了该公司最初致力于公共、开源的通用人工智能。自从公司将其开发的人工通用智能技术 (AGI) 以闭源形式交给微软后，OpenAI已经失去了其“开放”的本质。</p>
+<blockquote>
+<p>GPT-4 的内部细节只有 OpenAI 知道，据悉微软也知道。因此，<strong>GPT-4 与'开放人工智能'恰恰相反</strong>。</p>
+<p>它的封闭是出于商业考虑：微软通过向公众出售 GPT-4 获得巨额收益，但如果 OpenAI 按照要求将这项技术免费提供给公众，那么这是不可能的。</p>
+</blockquote>
+<p>马斯克提出的诉讼包括违反合同、违反受托责任和不公平的商业行为。<strong>他要求公司恢复到开源状态</strong>，并寻求法院颁布禁令，以阻止OpenAI及其高管——包括被列为共同被告的总裁格雷戈里·布罗克曼和CEO萨姆·奥特曼——以及微软，利用公司的人工通用智能技术获利。</p>
+<p><span>马斯克是OpenAI最初的董事会成员之一，于2018年离开，他认为董事会与奥特曼之间的冲突源自GPT-4的开发和下一代AGI技术的潜在开发，这可能会危及公众安全。 </span></p>
+<p>详情：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.courthousenews.com%2Felon-musk-sues-openai-over-ai-threat%2F" target="_blank">https://www.courthousenews.com/elon-musk-sues-openai-over-ai-threat/</a></u></em></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>当地时间周四晚间，特斯拉CEO埃隆·马斯克向旧金山高等法院提起诉讼，以违反合同为由起诉OpenAI及其CEO萨姆·奥特曼。</p>
+<p>马斯克在诉讼中表示，奥特曼和OpenAI违背了这家人工智能研究公司成立时达成的一项协议，即开发技术以造福人类而不是追逐利润。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f3646587e.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FxDaily%2Fstatus%2F1763464048908382253" target="_blank">https://twitter.com/xDaily/status/1763464048908382253</a></u></em></p>
+</blockquote>
+<p>马斯克声称OpenAI最近与科技巨头微软的关系损害了该公司最初致力于公共、开源的通用人工智能。自从公司将其开发的人工通用智能技术 (AGI) 以闭源形式交给微软后，OpenAI已经失去了其“开放”的本质。</p>
+<blockquote>
+<p>GPT-4 的内部细节只有 OpenAI 知道，据悉微软也知道。因此，<strong>GPT-4 与'开放人工智能'恰恰相反</strong>。</p>
+<p>它的封闭是出于商业考虑：微软通过向公众出售 GPT-4 获得巨额收益，但如果 OpenAI 按照要求将这项技术免费提供给公众，那么这是不可能的。</p>
+</blockquote>
+<p>马斯克提出的诉讼包括违反合同、违反受托责任和不公平的商业行为。<strong>他要求公司恢复到开源状态</strong>，并寻求法院颁布禁令，以阻止OpenAI及其高管——包括被列为共同被告的总裁格雷戈里·布罗克曼和CEO萨姆·奥特曼——以及微软，利用公司的人工通用智能技术获利。</p>
+<p><span>马斯克是OpenAI最初的董事会成员之一，于2018年离开，他认为董事会与奥特曼之间的冲突源自GPT-4的开发和下一代AGI技术的潜在开发，这可能会危及公众安全。 </span></p>
+<p>详情：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.courthousenews.com%2Felon-musk-sues-openai-over-ai-threat%2F" target="_blank">https://www.courthousenews.com/elon-musk-sues-openai-over-ai-threat/</a></u></em></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f3646587e.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f3646587e.png" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 16:37:56 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[魅族 21 PRO 发布，面向所有大模型团队开放]]></title>
+    <link>https://www.oschina.net/news/281036</link>
+    <itunes:title><![CDATA[魅族 21 PRO 发布，面向所有大模型团队开放]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>魅族发布 21 PRO 手机，定价 4999~5899 元</span>。<span>2 月 29 日 20:00 在魅族商城、各大授权电商、魅族线下门店开启预售，3 月 2 日 10:00 线下线下全渠道开售。</span></p>
+<p><span>魅族称其是公司历史上首个开放式 AI 终端，并面向</span>所有的大模型团队进行开放，向开发者提供系统权限、API 文档，并开放处理器的 AI 算力。<span>魅族「百万悬赏」计划也宣布同步启动，邀请更多团队基于魅族开放平台开发大模型应用。</span></p>
+<p>基于FlymeOS操作系统，魅族 21 PRO 将实现包括Aicy语音助手、AI图库在内的多项AI功能。根据规划，魅族 21 PRO的AI灵动键和AI辅助输入等功能也将在今年上半年陆续推出。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e482427516.jpg"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>魅族发布 21 PRO 手机，定价 4999~5899 元</span>。<span>2 月 29 日 20:00 在魅族商城、各大授权电商、魅族线下门店开启预售，3 月 2 日 10:00 线下线下全渠道开售。</span></p>
+<p><span>魅族称其是公司历史上首个开放式 AI 终端，并面向</span>所有的大模型团队进行开放，向开发者提供系统权限、API 文档，并开放处理器的 AI 算力。<span>魅族「百万悬赏」计划也宣布同步启动，邀请更多团队基于魅族开放平台开发大模型应用。</span></p>
+<p>基于FlymeOS操作系统，魅族 21 PRO 将实现包括Aicy语音助手、AI图库在内的多项AI功能。根据规划，魅族 21 PRO的AI灵动键和AI辅助输入等功能也将在今年上半年陆续推出。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e482427516.jpg"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>魅族发布 21 PRO 手机，定价 4999~5899 元</span>。<span>2 月 29 日 20:00 在魅族商城、各大授权电商、魅族线下门店开启预售，3 月 2 日 10:00 线下线下全渠道开售。</span></p>
+<p><span>魅族称其是公司历史上首个开放式 AI 终端，并面向</span>所有的大模型团队进行开放，向开发者提供系统权限、API 文档，并开放处理器的 AI 算力。<span>魅族「百万悬赏」计划也宣布同步启动，邀请更多团队基于魅族开放平台开发大模型应用。</span></p>
+<p>基于FlymeOS操作系统，魅族 21 PRO 将实现包括Aicy语音助手、AI图库在内的多项AI功能。根据规划，魅族 21 PRO的AI灵动键和AI辅助输入等功能也将在今年上半年陆续推出。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e482427516.jpg"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e482427516.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e482427516.jpg" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 16:07:21 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[开源中国 APP 全新上线：“动弹”回归、集成大模型对话、畅读技术报告]]></title>
+    <link>https://www.oschina.net/news/281031/oschina-app-2024</link>
+    <itunes:title><![CDATA[开源中国 APP 全新上线：“动弹”回归、集成大模型对话、畅读技术报告]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>经过数月筹备和研发的<strong>新版开源中国 APP —— 今日正式上线</strong>！</p>
+<p>在当今 AI 浪潮的冲击下，我们身处一个充满无限可能的时代。在这个时代，技术的发展呈现出前所未有的速度和深度，而开发者无疑是引领这股潮流的关键力量。</p>
+<p>开源中国不忘「为开发者服务」的初心，希望将 APP 打造成 AI 浪潮中的一艘航船，和广大开发者一起远行。</p>
+<p>闲言少叙（要叙咱去<strong><span>「动弹」</span></strong>叙），先来感受一波新版 APP 的丝滑体验：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-060f06e0b1.gif"></p>
+<p>新版本 APP 亮点版块</p>
+<ul>
+<li> <p><strong><span>「广场」</span></strong>：“动弹”回归、最新鲜开源资讯、最全开源软件库</p> </li>
+<li> <p><strong><span>「报告」</span></strong>：畅读技术报告</p> </li>
+<li> <p><strong><span>「O Insight」</span></strong>：集成大模型对话</p> </li>
+</ul>
+<p>下面继续看看详细的新功能体验。</p>
+<h3><span><strong># 动弹</strong></span></h3>
+<p>大家期待已久的开源中国社区“灵魂”——动弹终于不负众望回归了！</p>
+<p>动弹移动版上线，欢迎大家畅所欲言。在这里，您可以和广大程序员交流互动，分享经验、讨论技术话题，还可随时随地查看开发者各类分享和吐槽。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-825438876d.gif"></p>
+<h3><span><strong># 大模型对话</strong></span></h3>
+<p>置身 AI 浪潮，新版开源中国 APP 新增大模型对话，准确率高，提供齐全的数据内容；还可选择“社区版、智普 AI 、导师版”三个不同版本；</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dd2ad2da5a.gif"></p>
+<h3><span><strong># 开源报告</strong></span></h3>
+<p>新版开源中国 APP 还新增报告模块，包含“开源日报、开发者研究、行业研究”三类研究报告，涵盖了开发领域的最新技术趋势和前沿研究。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-850ca75963.gif"></p>
+<p>这些报告不仅是您学习、探索的宝藏，更是洞悉行业动态的重要参考。通过开源中国 APP，您可以随时随地获取最新的技术资讯，紧跟行业的脉搏，把握未来发展的方向。</p>
+<p>除了上面介绍的功能，新版 APP 还有许多其他改进，欢迎大家扫码下载安装体验 ↓↓↓</p>
+<h4><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"><br> <strong><span>（</span><em><span>目前仅提供 Android 版本</span></em><span>）</span></strong></h4>
+<p>另外，后续我们还将推出「智能终端」，敬请期待。</p>
+<hr>
+<p>身处人工智能时代，开源中国社区积极拥抱创新，致力于服务每一位开发者。</p>
+<p>2024，开源中国社区将全面加速拥抱 AI 技术，提供研究报告、大模型应用、AIGC 创作等产品，打造一个充满活力和创新的开源技术生态社区。</p>
+<p>2024，开源中国社区全新起航！</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>经过数月筹备和研发的<strong>新版开源中国 APP —— 今日正式上线</strong>！</p>
+<p>在当今 AI 浪潮的冲击下，我们身处一个充满无限可能的时代。在这个时代，技术的发展呈现出前所未有的速度和深度，而开发者无疑是引领这股潮流的关键力量。</p>
+<p>开源中国不忘「为开发者服务」的初心，希望将 APP 打造成 AI 浪潮中的一艘航船，和广大开发者一起远行。</p>
+<p>闲言少叙（要叙咱去<strong><span>「动弹」</span></strong>叙），先来感受一波新版 APP 的丝滑体验：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-060f06e0b1.gif"></p>
+<p>新版本 APP 亮点版块</p>
+<ul>
+<li> <p><strong><span>「广场」</span></strong>：“动弹”回归、最新鲜开源资讯、最全开源软件库</p> </li>
+<li> <p><strong><span>「报告」</span></strong>：畅读技术报告</p> </li>
+<li> <p><strong><span>「O Insight」</span></strong>：集成大模型对话</p> </li>
+</ul>
+<p>下面继续看看详细的新功能体验。</p>
+<h3><span><strong># 动弹</strong></span></h3>
+<p>大家期待已久的开源中国社区“灵魂”——动弹终于不负众望回归了！</p>
+<p>动弹移动版上线，欢迎大家畅所欲言。在这里，您可以和广大程序员交流互动，分享经验、讨论技术话题，还可随时随地查看开发者各类分享和吐槽。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-825438876d.gif"></p>
+<h3><span><strong># 大模型对话</strong></span></h3>
+<p>置身 AI 浪潮，新版开源中国 APP 新增大模型对话，准确率高，提供齐全的数据内容；还可选择“社区版、智普 AI 、导师版”三个不同版本；</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dd2ad2da5a.gif"></p>
+<h3><span><strong># 开源报告</strong></span></h3>
+<p>新版开源中国 APP 还新增报告模块，包含“开源日报、开发者研究、行业研究”三类研究报告，涵盖了开发领域的最新技术趋势和前沿研究。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-850ca75963.gif"></p>
+<p>这些报告不仅是您学习、探索的宝藏，更是洞悉行业动态的重要参考。通过开源中国 APP，您可以随时随地获取最新的技术资讯，紧跟行业的脉搏，把握未来发展的方向。</p>
+<p>除了上面介绍的功能，新版 APP 还有许多其他改进，欢迎大家扫码下载安装体验 ↓↓↓</p>
+<h4><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"><br> <strong><span>（</span><em><span>目前仅提供 Android 版本</span></em><span>）</span></strong></h4>
+<p>另外，后续我们还将推出「智能终端」，敬请期待。</p>
+<hr>
+<p>身处人工智能时代，开源中国社区积极拥抱创新，致力于服务每一位开发者。</p>
+<p>2024，开源中国社区将全面加速拥抱 AI 技术，提供研究报告、大模型应用、AIGC 创作等产品，打造一个充满活力和创新的开源技术生态社区。</p>
+<p>2024，开源中国社区全新起航！</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>经过数月筹备和研发的<strong>新版开源中国 APP —— 今日正式上线</strong>！</p>
+<p>在当今 AI 浪潮的冲击下，我们身处一个充满无限可能的时代。在这个时代，技术的发展呈现出前所未有的速度和深度，而开发者无疑是引领这股潮流的关键力量。</p>
+<p>开源中国不忘「为开发者服务」的初心，希望将 APP 打造成 AI 浪潮中的一艘航船，和广大开发者一起远行。</p>
+<p>闲言少叙（要叙咱去<strong><span>「动弹」</span></strong>叙），先来感受一波新版 APP 的丝滑体验：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-060f06e0b1.gif"></p>
+<p>新版本 APP 亮点版块</p>
+<ul>
+<li> <p><strong><span>「广场」</span></strong>：“动弹”回归、最新鲜开源资讯、最全开源软件库</p> </li>
+<li> <p><strong><span>「报告」</span></strong>：畅读技术报告</p> </li>
+<li> <p><strong><span>「O Insight」</span></strong>：集成大模型对话</p> </li>
+</ul>
+<p>下面继续看看详细的新功能体验。</p>
+<h3><span><strong># 动弹</strong></span></h3>
+<p>大家期待已久的开源中国社区“灵魂”——动弹终于不负众望回归了！</p>
+<p>动弹移动版上线，欢迎大家畅所欲言。在这里，您可以和广大程序员交流互动，分享经验、讨论技术话题，还可随时随地查看开发者各类分享和吐槽。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-825438876d.gif"></p>
+<h3><span><strong># 大模型对话</strong></span></h3>
+<p>置身 AI 浪潮，新版开源中国 APP 新增大模型对话，准确率高，提供齐全的数据内容；还可选择“社区版、智普 AI 、导师版”三个不同版本；</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dd2ad2da5a.gif"></p>
+<h3><span><strong># 开源报告</strong></span></h3>
+<p>新版开源中国 APP 还新增报告模块，包含“开源日报、开发者研究、行业研究”三类研究报告，涵盖了开发领域的最新技术趋势和前沿研究。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-850ca75963.gif"></p>
+<p>这些报告不仅是您学习、探索的宝藏，更是洞悉行业动态的重要参考。通过开源中国 APP，您可以随时随地获取最新的技术资讯，紧跟行业的脉搏，把握未来发展的方向。</p>
+<p>除了上面介绍的功能，新版 APP 还有许多其他改进，欢迎大家扫码下载安装体验 ↓↓↓</p>
+<h4><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"><br> <strong><span>（</span><em><span>目前仅提供 Android 版本</span></em><span>）</span></strong></h4>
+<p>另外，后续我们还将推出「智能终端」，敬请期待。</p>
+<hr>
+<p>身处人工智能时代，开源中国社区积极拥抱创新，致力于服务每一位开发者。</p>
+<p>2024，开源中国社区将全面加速拥抱 AI 技术，提供研究报告、大模型应用、AIGC 创作等产品，打造一个充满活力和创新的开源技术生态社区。</p>
+<p>2024，开源中国社区全新起航！</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-060f06e0b1.gif"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-060f06e0b1.gif" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 15:58:05 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Stack Overflow 向谷歌 Gemini 开放 API]]></title>
+    <link>https://www.oschina.net/news/281010/stack-overflow-api-googles-gemini</link>
+    <itunes:title><![CDATA[Stack Overflow 向谷歌 Gemini 开放 API]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>Stack Overflow 和 Google Cloud <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.co%2Fcompany%2Fpress%2Farchive%2Fgoogle-cloud-strategic-gen-ai-partnership" target="_blank">宣布</a>建立战略合作伙伴关系，将通过 Stack Overflow 平台、Google Cloud Console 和 Gemini for Google Cloud 为开发者提供新的 AI 功能。</span></p>
+<p><span>他们新推出了一个&nbsp;Overflow API，使得 Google 的 Gemini AI 模型能够访问 Stack Overflow 的知识库，为开发人员提供来自 Stack Overflow 的建议、代码和答案。Overflow API 目前正处于开发阶段，预计将在 4 月份举行的 Google Cloud Next 会议上预览，并于 2024 年上半年推出。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60b70bd146.png"></p>
+<p><span>这次合作除了可以帮助谷歌改进&nbsp;Gemini 外，对&nbsp;Stack Overflow 而言也有助于其在 AI 浪潮中保持对开发人员的影响力。此前，Stack Overflow 就推出了一项OverflowAI 产品，旨在为其平台添加生成式 AI 功能。借助于谷歌的合作，其 OverflowAI 产品也或将得到增强。</span></p>
+<p><span>另一方面，Stack Overflow 去年已经经历了多轮裁员。因此 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3713343%2Fstack-overflow-opens-api-to-googles-gemini.html" target="_blank">InfoWorld</a> 指出，尽管谷歌是 Overflow API 的启动合作伙伴，但 Stack Overflow 也有意与更多希望利用其知识库和内容培训 LLM 的公司达成合作。共享数据用于模型训练可以成为公司新的收入来源，也可以为公司提供杠杆，确保在开发人员经常使用的平台上提供数据。</span></p>
+<p><span>谷歌和 Stack Overflow 没有透露具体的合作财务条款。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>Stack Overflow 和 Google Cloud <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.co%2Fcompany%2Fpress%2Farchive%2Fgoogle-cloud-strategic-gen-ai-partnership" target="_blank">宣布</a>建立战略合作伙伴关系，将通过 Stack Overflow 平台、Google Cloud Console 和 Gemini for Google Cloud 为开发者提供新的 AI 功能。</span></p>
+<p><span>他们新推出了一个&nbsp;Overflow API，使得 Google 的 Gemini AI 模型能够访问 Stack Overflow 的知识库，为开发人员提供来自 Stack Overflow 的建议、代码和答案。Overflow API 目前正处于开发阶段，预计将在 4 月份举行的 Google Cloud Next 会议上预览，并于 2024 年上半年推出。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60b70bd146.png"></p>
+<p><span>这次合作除了可以帮助谷歌改进&nbsp;Gemini 外，对&nbsp;Stack Overflow 而言也有助于其在 AI 浪潮中保持对开发人员的影响力。此前，Stack Overflow 就推出了一项OverflowAI 产品，旨在为其平台添加生成式 AI 功能。借助于谷歌的合作，其 OverflowAI 产品也或将得到增强。</span></p>
+<p><span>另一方面，Stack Overflow 去年已经经历了多轮裁员。因此 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3713343%2Fstack-overflow-opens-api-to-googles-gemini.html" target="_blank">InfoWorld</a> 指出，尽管谷歌是 Overflow API 的启动合作伙伴，但 Stack Overflow 也有意与更多希望利用其知识库和内容培训 LLM 的公司达成合作。共享数据用于模型训练可以成为公司新的收入来源，也可以为公司提供杠杆，确保在开发人员经常使用的平台上提供数据。</span></p>
+<p><span>谷歌和 Stack Overflow 没有透露具体的合作财务条款。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>Stack Overflow 和 Google Cloud <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.co%2Fcompany%2Fpress%2Farchive%2Fgoogle-cloud-strategic-gen-ai-partnership" target="_blank">宣布</a>建立战略合作伙伴关系，将通过 Stack Overflow 平台、Google Cloud Console 和 Gemini for Google Cloud 为开发者提供新的 AI 功能。</span></p>
+<p><span>他们新推出了一个&nbsp;Overflow API，使得 Google 的 Gemini AI 模型能够访问 Stack Overflow 的知识库，为开发人员提供来自 Stack Overflow 的建议、代码和答案。Overflow API 目前正处于开发阶段，预计将在 4 月份举行的 Google Cloud Next 会议上预览，并于 2024 年上半年推出。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60b70bd146.png"></p>
+<p><span>这次合作除了可以帮助谷歌改进&nbsp;Gemini 外，对&nbsp;Stack Overflow 而言也有助于其在 AI 浪潮中保持对开发人员的影响力。此前，Stack Overflow 就推出了一项OverflowAI 产品，旨在为其平台添加生成式 AI 功能。借助于谷歌的合作，其 OverflowAI 产品也或将得到增强。</span></p>
+<p><span>另一方面，Stack Overflow 去年已经经历了多轮裁员。因此 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.infoworld.com%2Farticle%2F3713343%2Fstack-overflow-opens-api-to-googles-gemini.html" target="_blank">InfoWorld</a> 指出，尽管谷歌是 Overflow API 的启动合作伙伴，但 Stack Overflow 也有意与更多希望利用其知识库和内容培训 LLM 的公司达成合作。共享数据用于模型训练可以成为公司新的收入来源，也可以为公司提供杠杆，确保在开发人员经常使用的平台上提供数据。</span></p>
+<p><span>谷歌和 Stack Overflow 没有透露具体的合作财务条款。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60b70bd146.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60b70bd146.png" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 14:38:29 +0800</pubDate>
+  </item><item>
     <title><![CDATA[万字带你走过数据库的这激荡的三年]]></title>
     <link>https://my.oschina.net/u/4169309/blog/11045421</link>
     <itunes:title><![CDATA[万字带你走过数据库的这激荡的三年]]></itunes:title>
@@ -10742,361 +11774,5 @@ print(completion)</code></pre>]]></content:encoded>
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6c49f31162.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6c49f31162.png" medium="image"/>
     <pubDate>Tue, 27 Feb 2024 16:03:03 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[0201-0225 开放签团队工作日记]]></title>
-    <link>https://www.oschina.net/news/280492</link>
-    <itunes:title><![CDATA[0201-0225 开放签团队工作日记]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span><span><span><span><span><span><span>2022年底</span></span></span><span><span><span>团队决定</span></span></span><span><span><span>以全新的产品运营和设计思路重回电子签章行业，重新做</span></span></span><span><span><span>电子签章</span></span></span><span><span><span>产品。至于当时如何离开电子签章，又是如何回来的，具体原因等后面再叙。在这么多年的创业的过程中，我们团队经历了从迷茫无助到方向坚定（我们认为的），从一点点构建基础技术架构到基本成熟，有太多的不容易，每一个不容易都可以是个故事，具体的也在将来一一再叙，这次单说最近的一些工作感受和工作概况。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>经过努力</span></span></span><span><span><span>，23年底（12月15日）</span></span></span><span><span><span>产品</span></span></span><span><span><span>上线</span></span></span><span><span><span>后</span></span></span><span><span><span>，我们深知自己在</span></span></span><span><span><span>市场竞争中与头部企业仍存在功能层面的差距</span></span></span><span><span><span>，不敢妄想有什么好的反馈和成果。但是首</span></span></span><span><span><span>月</span></span></span><span><span><span>便</span></span></span><span><span><span>迎来了</span></span></span><span><span><span>付费用户</span></span></span><span><span><span>（企业版）和近</span></span></span><span><span><span>百</span></span></span><span><span><span>个开源用户</span></span></span><span><span><span>，</span></span></span><span><span><span>这完全出乎我和同事的意料</span></span></span><span><span><span>。刚开始我们以为这些用户至少要在3-5个月内才能积累到。事实证明我们错了，我们保守了，但是方向貌似对了（还需要更多的付出和积累）。在与客户沟通过程中，很快就收集到</span></span></span><span><span><span>首批客户集中提出</span></span></span><span><span><span>的众多需求，主要体现在</span></span></span><span><span><span>移动端签署、API集成、</span></span></span><span><span><span>国产化</span></span></span><span><span><span>及优化交互体验</span></span></span><span><span><span>四大方面。也有很多我们在设计过程中没有考虑到的，没有考虑到的方面对我们来说尤其珍贵，价值巨大。</span></span></span><span><span><span>所以</span></span></span><span><span><span>我们在年前</span></span></span><span><span><span>加快工作节奏，</span></span></span><span><span><span>年后规划新年一季度目标。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>首要任务是</span></span></span><span><span><span>移动端开发，并承诺于春节后第一周交付新功能。</span></span></span><span><span><span>这段时间的工作节奏是这样的：</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>1、</span></span></span><span><span><span>临近春节</span></span></span><span><span><span>（</span></span></span><span><span><span>农历28日</span></span></span><span><span><span>）</span></span></span><span><span><span>我们完成了功能开</span></span></span><span><span><span>发，勉强通过冒烟测试</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2、</span></span></span><span><span><span>年后进行系统和功能测试时，</span></span></span><span><span><span>出乎意料的事情接踵而至</span></span></span><span><span><span>，</span></span></span><span><span><span>出现了</span></span></span><span><span><span>移动端链接逻辑</span></span></span><span><span><span>跳转混乱</span></span></span><span><span><span>、文件签署内存异常、</span></span></span><span><span><span>签署</span></span></span><span><span><span>图片丢失、签署控件重复等</span></span></span><span><span><span>问题</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>3、</span></span></span><span><span><span>测试同学“大壮”在群里</span></span></span><span><span><span>发飙了，</span></span></span><span><span><span>讲述上线风险和延期上线的请求</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>4、不动声色的产品负责人老胡看到</span></span></span><span><span><span>请求</span></span></span><span><span><span>后</span></span></span><span><span><span>一直未回复（他的性格很刚强，表面不说，内心很要强）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>5、老胡</span></span></span><span><span><span>开始</span></span></span><span><span><span>着手</span></span></span><span><span><span>理清工作任务，</span></span></span><span><span><span>逐条分析BUG，确定优先级。</span></span></span><span><span><span>···········（结果：原定计划</span></span></span><span><span><span>（2月25日）</span></span></span><span><span><span>未完成上线）只好协调大家</span></span></span><span><span><span>周六日</span></span></span><span><span><span>继续</span></span></span><span><span><span>通宵奋战</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>6、</span></span></span><span><span><span>直至</span></span></span><span><span><span>2月26日</span></span></span><span><span><span>凌晨五点成功修复所有问题并上线新版本</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>这个过程真是酸爽，自从决定做开放签以来，首先内心是非常欣慰的，工作状态也超好，整个团队也是热情澎湃的，甚至自然而然的解决了一些团队管理问题。</span></span></span><span><span><span>同样的产品不同的公司，都是为了服务客户</span></span></span><span><span><span>和理想在</span></span></span><span><span><span>奋斗</span></span></span><span><span><span>、在</span></span></span><span><span><span>熬夜，感谢</span></span></span><span><span><span>团</span></span></span><span><span><span>队成员的努力付出</span></span></span><span><span><span>！加油！（会想尽一切办法和努力给大家加鸡腿，让我们</span></span></span><span><span><span>的</span></span></span><span><span><span>产品更好</span></span></span><span><span><span>，</span></span></span><span><span><span>团队更顽强</span></span></span><span><span><span>，客户更放心</span></span></span><span><span><span>........）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>值得欣喜的是，按照约定我们成功完成版本更新</span></span></span><span><span><span>，</span></span></span><span><span><span>并与两家新客户签约。接下来，我们将采取敏捷迭代策略，小步快跑地满足需求</span></span></span><span><span><span>。</span></span></span><span><span><span>同时大胆创新签约场景模式，使更多企业在真实场景下实现高效合规</span></span></span><span><span><span>签署，让电子签更简单不是说说而已</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2024年02月27日</span></span></span></span></span></span></span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span><span><span><span><span><span><span>2022年底</span></span></span><span><span><span>团队决定</span></span></span><span><span><span>以全新的产品运营和设计思路重回电子签章行业，重新做</span></span></span><span><span><span>电子签章</span></span></span><span><span><span>产品。至于当时如何离开电子签章，又是如何回来的，具体原因等后面再叙。在这么多年的创业的过程中，我们团队经历了从迷茫无助到方向坚定（我们认为的），从一点点构建基础技术架构到基本成熟，有太多的不容易，每一个不容易都可以是个故事，具体的也在将来一一再叙，这次单说最近的一些工作感受和工作概况。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>经过努力</span></span></span><span><span><span>，23年底（12月15日）</span></span></span><span><span><span>产品</span></span></span><span><span><span>上线</span></span></span><span><span><span>后</span></span></span><span><span><span>，我们深知自己在</span></span></span><span><span><span>市场竞争中与头部企业仍存在功能层面的差距</span></span></span><span><span><span>，不敢妄想有什么好的反馈和成果。但是首</span></span></span><span><span><span>月</span></span></span><span><span><span>便</span></span></span><span><span><span>迎来了</span></span></span><span><span><span>付费用户</span></span></span><span><span><span>（企业版）和近</span></span></span><span><span><span>百</span></span></span><span><span><span>个开源用户</span></span></span><span><span><span>，</span></span></span><span><span><span>这完全出乎我和同事的意料</span></span></span><span><span><span>。刚开始我们以为这些用户至少要在3-5个月内才能积累到。事实证明我们错了，我们保守了，但是方向貌似对了（还需要更多的付出和积累）。在与客户沟通过程中，很快就收集到</span></span></span><span><span><span>首批客户集中提出</span></span></span><span><span><span>的众多需求，主要体现在</span></span></span><span><span><span>移动端签署、API集成、</span></span></span><span><span><span>国产化</span></span></span><span><span><span>及优化交互体验</span></span></span><span><span><span>四大方面。也有很多我们在设计过程中没有考虑到的，没有考虑到的方面对我们来说尤其珍贵，价值巨大。</span></span></span><span><span><span>所以</span></span></span><span><span><span>我们在年前</span></span></span><span><span><span>加快工作节奏，</span></span></span><span><span><span>年后规划新年一季度目标。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>首要任务是</span></span></span><span><span><span>移动端开发，并承诺于春节后第一周交付新功能。</span></span></span><span><span><span>这段时间的工作节奏是这样的：</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>1、</span></span></span><span><span><span>临近春节</span></span></span><span><span><span>（</span></span></span><span><span><span>农历28日</span></span></span><span><span><span>）</span></span></span><span><span><span>我们完成了功能开</span></span></span><span><span><span>发，勉强通过冒烟测试</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2、</span></span></span><span><span><span>年后进行系统和功能测试时，</span></span></span><span><span><span>出乎意料的事情接踵而至</span></span></span><span><span><span>，</span></span></span><span><span><span>出现了</span></span></span><span><span><span>移动端链接逻辑</span></span></span><span><span><span>跳转混乱</span></span></span><span><span><span>、文件签署内存异常、</span></span></span><span><span><span>签署</span></span></span><span><span><span>图片丢失、签署控件重复等</span></span></span><span><span><span>问题</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>3、</span></span></span><span><span><span>测试同学“大壮”在群里</span></span></span><span><span><span>发飙了，</span></span></span><span><span><span>讲述上线风险和延期上线的请求</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>4、不动声色的产品负责人老胡看到</span></span></span><span><span><span>请求</span></span></span><span><span><span>后</span></span></span><span><span><span>一直未回复（他的性格很刚强，表面不说，内心很要强）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>5、老胡</span></span></span><span><span><span>开始</span></span></span><span><span><span>着手</span></span></span><span><span><span>理清工作任务，</span></span></span><span><span><span>逐条分析BUG，确定优先级。</span></span></span><span><span><span>···········（结果：原定计划</span></span></span><span><span><span>（2月25日）</span></span></span><span><span><span>未完成上线）只好协调大家</span></span></span><span><span><span>周六日</span></span></span><span><span><span>继续</span></span></span><span><span><span>通宵奋战</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>6、</span></span></span><span><span><span>直至</span></span></span><span><span><span>2月26日</span></span></span><span><span><span>凌晨五点成功修复所有问题并上线新版本</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>这个过程真是酸爽，自从决定做开放签以来，首先内心是非常欣慰的，工作状态也超好，整个团队也是热情澎湃的，甚至自然而然的解决了一些团队管理问题。</span></span></span><span><span><span>同样的产品不同的公司，都是为了服务客户</span></span></span><span><span><span>和理想在</span></span></span><span><span><span>奋斗</span></span></span><span><span><span>、在</span></span></span><span><span><span>熬夜，感谢</span></span></span><span><span><span>团</span></span></span><span><span><span>队成员的努力付出</span></span></span><span><span><span>！加油！（会想尽一切办法和努力给大家加鸡腿，让我们</span></span></span><span><span><span>的</span></span></span><span><span><span>产品更好</span></span></span><span><span><span>，</span></span></span><span><span><span>团队更顽强</span></span></span><span><span><span>，客户更放心</span></span></span><span><span><span>........）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>值得欣喜的是，按照约定我们成功完成版本更新</span></span></span><span><span><span>，</span></span></span><span><span><span>并与两家新客户签约。接下来，我们将采取敏捷迭代策略，小步快跑地满足需求</span></span></span><span><span><span>。</span></span></span><span><span><span>同时大胆创新签约场景模式，使更多企业在真实场景下实现高效合规</span></span></span><span><span><span>签署，让电子签更简单不是说说而已</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2024年02月27日</span></span></span></span></span></span></span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span><span><span><span><span><span><span>2022年底</span></span></span><span><span><span>团队决定</span></span></span><span><span><span>以全新的产品运营和设计思路重回电子签章行业，重新做</span></span></span><span><span><span>电子签章</span></span></span><span><span><span>产品。至于当时如何离开电子签章，又是如何回来的，具体原因等后面再叙。在这么多年的创业的过程中，我们团队经历了从迷茫无助到方向坚定（我们认为的），从一点点构建基础技术架构到基本成熟，有太多的不容易，每一个不容易都可以是个故事，具体的也在将来一一再叙，这次单说最近的一些工作感受和工作概况。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>经过努力</span></span></span><span><span><span>，23年底（12月15日）</span></span></span><span><span><span>产品</span></span></span><span><span><span>上线</span></span></span><span><span><span>后</span></span></span><span><span><span>，我们深知自己在</span></span></span><span><span><span>市场竞争中与头部企业仍存在功能层面的差距</span></span></span><span><span><span>，不敢妄想有什么好的反馈和成果。但是首</span></span></span><span><span><span>月</span></span></span><span><span><span>便</span></span></span><span><span><span>迎来了</span></span></span><span><span><span>付费用户</span></span></span><span><span><span>（企业版）和近</span></span></span><span><span><span>百</span></span></span><span><span><span>个开源用户</span></span></span><span><span><span>，</span></span></span><span><span><span>这完全出乎我和同事的意料</span></span></span><span><span><span>。刚开始我们以为这些用户至少要在3-5个月内才能积累到。事实证明我们错了，我们保守了，但是方向貌似对了（还需要更多的付出和积累）。在与客户沟通过程中，很快就收集到</span></span></span><span><span><span>首批客户集中提出</span></span></span><span><span><span>的众多需求，主要体现在</span></span></span><span><span><span>移动端签署、API集成、</span></span></span><span><span><span>国产化</span></span></span><span><span><span>及优化交互体验</span></span></span><span><span><span>四大方面。也有很多我们在设计过程中没有考虑到的，没有考虑到的方面对我们来说尤其珍贵，价值巨大。</span></span></span><span><span><span>所以</span></span></span><span><span><span>我们在年前</span></span></span><span><span><span>加快工作节奏，</span></span></span><span><span><span>年后规划新年一季度目标。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>首要任务是</span></span></span><span><span><span>移动端开发，并承诺于春节后第一周交付新功能。</span></span></span><span><span><span>这段时间的工作节奏是这样的：</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>1、</span></span></span><span><span><span>临近春节</span></span></span><span><span><span>（</span></span></span><span><span><span>农历28日</span></span></span><span><span><span>）</span></span></span><span><span><span>我们完成了功能开</span></span></span><span><span><span>发，勉强通过冒烟测试</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2、</span></span></span><span><span><span>年后进行系统和功能测试时，</span></span></span><span><span><span>出乎意料的事情接踵而至</span></span></span><span><span><span>，</span></span></span><span><span><span>出现了</span></span></span><span><span><span>移动端链接逻辑</span></span></span><span><span><span>跳转混乱</span></span></span><span><span><span>、文件签署内存异常、</span></span></span><span><span><span>签署</span></span></span><span><span><span>图片丢失、签署控件重复等</span></span></span><span><span><span>问题</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>3、</span></span></span><span><span><span>测试同学“大壮”在群里</span></span></span><span><span><span>发飙了，</span></span></span><span><span><span>讲述上线风险和延期上线的请求</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>4、不动声色的产品负责人老胡看到</span></span></span><span><span><span>请求</span></span></span><span><span><span>后</span></span></span><span><span><span>一直未回复（他的性格很刚强，表面不说，内心很要强）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>5、老胡</span></span></span><span><span><span>开始</span></span></span><span><span><span>着手</span></span></span><span><span><span>理清工作任务，</span></span></span><span><span><span>逐条分析BUG，确定优先级。</span></span></span><span><span><span>···········（结果：原定计划</span></span></span><span><span><span>（2月25日）</span></span></span><span><span><span>未完成上线）只好协调大家</span></span></span><span><span><span>周六日</span></span></span><span><span><span>继续</span></span></span><span><span><span>通宵奋战</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>6、</span></span></span><span><span><span>直至</span></span></span><span><span><span>2月26日</span></span></span><span><span><span>凌晨五点成功修复所有问题并上线新版本</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>这个过程真是酸爽，自从决定做开放签以来，首先内心是非常欣慰的，工作状态也超好，整个团队也是热情澎湃的，甚至自然而然的解决了一些团队管理问题。</span></span></span><span><span><span>同样的产品不同的公司，都是为了服务客户</span></span></span><span><span><span>和理想在</span></span></span><span><span><span>奋斗</span></span></span><span><span><span>、在</span></span></span><span><span><span>熬夜，感谢</span></span></span><span><span><span>团</span></span></span><span><span><span>队成员的努力付出</span></span></span><span><span><span>！加油！（会想尽一切办法和努力给大家加鸡腿，让我们</span></span></span><span><span><span>的</span></span></span><span><span><span>产品更好</span></span></span><span><span><span>，</span></span></span><span><span><span>团队更顽强</span></span></span><span><span><span>，客户更放心</span></span></span><span><span><span>........）</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>值得欣喜的是，按照约定我们成功完成版本更新</span></span></span><span><span><span>，</span></span></span><span><span><span>并与两家新客户签约。接下来，我们将采取敏捷迭代策略，小步快跑地满足需求</span></span></span><span><span><span>。</span></span></span><span><span><span>同时大胆创新签约场景模式，使更多企业在真实场景下实现高效合规</span></span></span><span><span><span>签署，让电子签更简单不是说说而已</span></span></span><span><span><span>。</span></span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span><span>2024年02月27日</span></span></span></span></span></span></span></p>]]></content:encoded>
-    
-    <pubDate>Tue, 27 Feb 2024 15:32:00 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[Spring Boot 拒绝用 AI 为仓库自动生成注释]]></title>
-    <link>https://www.oschina.net/news/280473/ai-comments-spring-boot</link>
-    <itunes:title><![CDATA[Spring Boot 拒绝用 AI 为仓库自动生成注释]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>一名开发者近日在 Spring Boot 提交了一项 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fspring-projects%2Fspring-boot%2Fpull%2F39754%2F" target="_blank">PR</a>，旨在使用 AI 模型为整个 Spring Boot 代码库添加注释：</span></p>
-<blockquote>
-<p><span>此代码变更为整个 Spring Boot 代码库添加了注释。本 PR 的内容完全由自定义微调 AI 模型创建。</span></p>
-<p><span>我们正在对我们的工具进行大规模实验，在数百万行代码上运行该工具，以识别任何 bug 或错误。在此代码库中运行时，该工具的编译成功率高达 99.9%。</span></p>
-<p><span>我们可以选择放弃这些代码，或者将其发布并作为一项贡献。我们选择了后者，并决定打开此 Pull Request。</span></p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-891a428c04.png"></p>
-<p><span>但 Spring Boot 项目负责人 Phil Webb 对此进行了婉拒。并表示，相较自动生成，团队成员更喜欢人工手动的方式；且自动生成这种无差别的方式，很可能给整个仓库增添许多不必要的麻烦。</span></p>
-<p><span>“我认为您的工具对于正在学习代码库或需要某些部分的额外帮助的人来说可能非常有用。”</span></p>
-<p>Reddit 上的一些讨论也表达了对这一提议的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fprogramming%2Fcomments%2F1b0n9kx%2Fai_added_comments_for_the_entire_code_base_of%2F" target="_blank">不看好</a>：</p>
-<blockquote>
-<p>“哇，这太可怕了。我真希望这只是个玩笑，提出要求的人只是在嘲笑这个想法。”</p>
-<p>“如果这不是纯粹为了吸引眼球，那么我想公关背后的开发人员可以说是真的缺乏开发技能。”</p>
-</blockquote>
-<p>目前，相关 PR 已被关闭。&nbsp;</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>一名开发者近日在 Spring Boot 提交了一项 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fspring-projects%2Fspring-boot%2Fpull%2F39754%2F" target="_blank">PR</a>，旨在使用 AI 模型为整个 Spring Boot 代码库添加注释：</span></p>
-<blockquote>
-<p><span>此代码变更为整个 Spring Boot 代码库添加了注释。本 PR 的内容完全由自定义微调 AI 模型创建。</span></p>
-<p><span>我们正在对我们的工具进行大规模实验，在数百万行代码上运行该工具，以识别任何 bug 或错误。在此代码库中运行时，该工具的编译成功率高达 99.9%。</span></p>
-<p><span>我们可以选择放弃这些代码，或者将其发布并作为一项贡献。我们选择了后者，并决定打开此 Pull Request。</span></p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-891a428c04.png"></p>
-<p><span>但 Spring Boot 项目负责人 Phil Webb 对此进行了婉拒。并表示，相较自动生成，团队成员更喜欢人工手动的方式；且自动生成这种无差别的方式，很可能给整个仓库增添许多不必要的麻烦。</span></p>
-<p><span>“我认为您的工具对于正在学习代码库或需要某些部分的额外帮助的人来说可能非常有用。”</span></p>
-<p>Reddit 上的一些讨论也表达了对这一提议的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fprogramming%2Fcomments%2F1b0n9kx%2Fai_added_comments_for_the_entire_code_base_of%2F" target="_blank">不看好</a>：</p>
-<blockquote>
-<p>“哇，这太可怕了。我真希望这只是个玩笑，提出要求的人只是在嘲笑这个想法。”</p>
-<p>“如果这不是纯粹为了吸引眼球，那么我想公关背后的开发人员可以说是真的缺乏开发技能。”</p>
-</blockquote>
-<p>目前，相关 PR 已被关闭。&nbsp;</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>一名开发者近日在 Spring Boot 提交了一项 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fspring-projects%2Fspring-boot%2Fpull%2F39754%2F" target="_blank">PR</a>，旨在使用 AI 模型为整个 Spring Boot 代码库添加注释：</span></p>
-<blockquote>
-<p><span>此代码变更为整个 Spring Boot 代码库添加了注释。本 PR 的内容完全由自定义微调 AI 模型创建。</span></p>
-<p><span>我们正在对我们的工具进行大规模实验，在数百万行代码上运行该工具，以识别任何 bug 或错误。在此代码库中运行时，该工具的编译成功率高达 99.9%。</span></p>
-<p><span>我们可以选择放弃这些代码，或者将其发布并作为一项贡献。我们选择了后者，并决定打开此 Pull Request。</span></p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-891a428c04.png"></p>
-<p><span>但 Spring Boot 项目负责人 Phil Webb 对此进行了婉拒。并表示，相较自动生成，团队成员更喜欢人工手动的方式；且自动生成这种无差别的方式，很可能给整个仓库增添许多不必要的麻烦。</span></p>
-<p><span>“我认为您的工具对于正在学习代码库或需要某些部分的额外帮助的人来说可能非常有用。”</span></p>
-<p>Reddit 上的一些讨论也表达了对这一提议的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fprogramming%2Fcomments%2F1b0n9kx%2Fai_added_comments_for_the_entire_code_base_of%2F" target="_blank">不看好</a>：</p>
-<blockquote>
-<p>“哇，这太可怕了。我真希望这只是个玩笑，提出要求的人只是在嘲笑这个想法。”</p>
-<p>“如果这不是纯粹为了吸引眼球，那么我想公关背后的开发人员可以说是真的缺乏开发技能。”</p>
-</blockquote>
-<p>目前，相关 PR 已被关闭。&nbsp;</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-891a428c04.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-891a428c04.png" medium="image"/>
-    <pubDate>Tue, 27 Feb 2024 14:21:06 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报 | 鸿蒙程序员平均月薪超 1 万 8；中美 AI 差距有多大？]]></title>
-    <link>https://www.oschina.net/news/280457</link>
-    <itunes:title><![CDATA[开源日报 | 鸿蒙程序员平均月薪超 1 万 8；中美 AI 差距有多大？]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.2.26</strong></span></h3>
-<h2><strong><span>今日要点</span></strong></h2>
-<p><strong>OpenSource Daily</strong></p>
-<h3><a href="https://www.oschina.net/news/280197/warp-for-linux" target="_blank">基于 Rust 开发的终端应用 Warp 发布 Linux 版本</a></h3>
-<p>Warp 是一个基于 Rust 开发的现代化终端应用，内置 AI 功能，支持 CPU 加速。</p>
-<p>此前 Warp 仅面向 Mac 平台提供，近日其开发团队终于<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.warp.dev%2Fblog%2Fwarp-for-linux" target="_blank">发布</a></u>了 Linux 版本，用户可在大多数主流 Linux 发行版上安装 Warp，包括 Ubuntu、Fedora、Arch Linux 或 Red Hat。</p>
-<h3><a href="https://www.oschina.net/news/280083/wubuntu-windows-ubuntu" target="_blank">Wubuntu：披着 Windows 11 外衣的 Ubuntu</a></h3>
-<p><strong>Wubuntu，又称 "Windows Ubuntu"</strong>，是基于 Ubuntu 开发的操作系统，其最具特色之处在于<strong>完全复刻了 Windows 的所有外观和功能</strong>，而且运行时不需要具备 TPM、安全启动或任何其他硬件要求。</p>
-<p><span>此外，Wubuntu</span>&nbsp;通过集成 Wine 提供了与 Windows 应用的兼容性，开发者称 Wubuntu 支持运行 Windows 的 .exe 和 .msi&nbsp;程序，以及支持 Android 应用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c1407dcd.png"></p>
-<hr>
-<h2><strong><span>今日观察</span></strong></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c2f9f37ab6.png"></p>
-<p><span>- </span><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.tmtpost.com%2F6949344.html" target="_blank">钛媒体</a></em></u></p>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c6077d911.png"></p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3d6713d2fd.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e967c9b6d5.png"></p>
-<hr>
-<h2><span><strong>每日项目榜</strong></span></h2>
-<p><strong><span>每日 Gitee 精选</span></strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a344a47216.png"></p>
-<blockquote>
-<h4><strong><span>在线阅读完整日报内容，访问：</span></strong><br> <u><em><strong><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/6typ9w3u98f5mxn/16_1_8_2efTeNfFjN.pdf">开源日报第 016 期：鸿蒙程序员平均月薪超1万8；中美AI差距有多大？</a></strong></em></u></h4>
-</blockquote>
-<hr>
-<p><strong>往期回顾</strong></p>
-<ul>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/92n4c9ryegpcq1z/015_sora_KcAkRNX93Y.pdf">开源日报第 015 期：为什么挡不住英伟达；Sora 不靠蛮力</a></li>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/s7n800w84o6guyv/014_kyezhNxOGD.pdf">开源日报第 014 期：目前的人工智能技术连猫的智能水平都没达到</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC013%E6%9C%9F%EF%BC%9A%E7%AD%89%E5%88%B0%20Sora%20%E5%BC%80%E6%BA%90%E4%BA%86%E7%AB%8B%E5%88%BB%E6%8E%A8%E5%87%BA%E5%B1%9E%E4%BA%8E%E6%88%91%E4%BB%AC%E8%87%AA%E5%B7%B1%E7%9A%84%E5%A4%A7%E6%A8%A1%E5%9E%8B.pdf">开源日报第 013 期：等到 Sora 开源了立刻推出属于我们自己的大模型</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC012%E6%9C%9F%EF%BC%9ASora%20%E7%BB%99%E4%B8%AD%E5%9B%BD%20AI%20%E5%B8%A6%E6%9D%A5%E7%9A%84%E7%9C%9F%E5%AE%9E%E5%8F%98%E5%8C%96%EF%BC%9BDart%203.3%20%E5%8F%91%E5%B8%83.pdf">开源日报第 012 期：Sora 给中国 AI 带来的真实变化；Dart 3.3 发布</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC11%E6%9C%9F%EF%BC%9A%E7%9B%AE%E5%89%8D%E8%BF%98%E6%B2%A1%E6%9C%89%E2%80%9C%E5%A4%A7%E6%A8%A1%E5%9E%8B%E7%89%88Linux%E2%80%9D.pdf">开源日报第 011 期：目前还没有“大模型版 Linux”</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC010%E6%9C%9F%EF%BC%9ATauri%20v2%20%E6%94%AF%E6%8C%81%20Android%20%E5%92%8C%20iOS%EF%BC%8C%E8%B7%A8%E5%B9%B3%E5%8F%B0%E5%BC%80%E5%8F%91%E6%96%B0%E9%80%89%E6%8B%A9.pdf">开源日报第 010 期：Tauri v2 支持 Android 和 iOS，跨平台开发新选择</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5009%E6%9C%9F%EF%BC%9AVue.js%E8%AF%9E%E7%94%9F10%E5%91%A8%E5%B9%B4%EF%BC%9B%E6%89%8E%E5%85%8B%E4%BC%AF%E6%A0%BC%E8%A7%A3%E9%87%8AMeta%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%BC%80%E6%BA%90%E5%85%B6AI%E6%8A%80%E6%9C%AF.pdf">开源日报第 009 期：Vue.js 诞生 10 周年；扎克伯格解释 Meta 为什么要开源其 AI 技术</a></li>
-<li><a href="https://www.oschina.net/news/277585">开源日报第 008 期：推动中国开源软硬件发展的经验与建议</a></li>
-<li><a href="https://www.oschina.net/news/277415">开源日报第 007 期：“Linux 中国” 开源社区宣布停止运营</a></li>
-<li><a href="https://www.oschina.net/news/277214">开源日报第 006 期：选择技术栈一定要选择开源的</a></li>
-<li><a href="http://www.oschina.net/news/277040">开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</a></li>
-<li><a href="https://www.oschina.net/news/276864">开源日报第 004 期：百度输入法在候选词区域植入广告；大神用 Excel 构建 CPU</a></li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.2.26</strong></span></h3>
-<h2><strong><span>今日要点</span></strong></h2>
-<p><strong>OpenSource Daily</strong></p>
-<h3><a href="https://www.oschina.net/news/280197/warp-for-linux" target="_blank">基于 Rust 开发的终端应用 Warp 发布 Linux 版本</a></h3>
-<p>Warp 是一个基于 Rust 开发的现代化终端应用，内置 AI 功能，支持 CPU 加速。</p>
-<p>此前 Warp 仅面向 Mac 平台提供，近日其开发团队终于<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.warp.dev%2Fblog%2Fwarp-for-linux" target="_blank">发布</a></u>了 Linux 版本，用户可在大多数主流 Linux 发行版上安装 Warp，包括 Ubuntu、Fedora、Arch Linux 或 Red Hat。</p>
-<h3><a href="https://www.oschina.net/news/280083/wubuntu-windows-ubuntu" target="_blank">Wubuntu：披着 Windows 11 外衣的 Ubuntu</a></h3>
-<p><strong>Wubuntu，又称 "Windows Ubuntu"</strong>，是基于 Ubuntu 开发的操作系统，其最具特色之处在于<strong>完全复刻了 Windows 的所有外观和功能</strong>，而且运行时不需要具备 TPM、安全启动或任何其他硬件要求。</p>
-<p><span>此外，Wubuntu</span>&nbsp;通过集成 Wine 提供了与 Windows 应用的兼容性，开发者称 Wubuntu 支持运行 Windows 的 .exe 和 .msi&nbsp;程序，以及支持 Android 应用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c1407dcd.png"></p>
-<hr>
-<h2><strong><span>今日观察</span></strong></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c2f9f37ab6.png"></p>
-<p><span>- </span><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.tmtpost.com%2F6949344.html" target="_blank">钛媒体</a></em></u></p>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c6077d911.png"></p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3d6713d2fd.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e967c9b6d5.png"></p>
-<hr>
-<h2><span><strong>每日项目榜</strong></span></h2>
-<p><strong><span>每日 Gitee 精选</span></strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a344a47216.png"></p>
-<blockquote>
-<h4><strong><span>在线阅读完整日报内容，访问：</span></strong><br> <u><em><strong><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/6typ9w3u98f5mxn/16_1_8_2efTeNfFjN.pdf">开源日报第 016 期：鸿蒙程序员平均月薪超1万8；中美AI差距有多大？</a></strong></em></u></h4>
-</blockquote>
-<hr>
-<p><strong>往期回顾</strong></p>
-<ul>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/92n4c9ryegpcq1z/015_sora_KcAkRNX93Y.pdf">开源日报第 015 期：为什么挡不住英伟达；Sora 不靠蛮力</a></li>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/s7n800w84o6guyv/014_kyezhNxOGD.pdf">开源日报第 014 期：目前的人工智能技术连猫的智能水平都没达到</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC013%E6%9C%9F%EF%BC%9A%E7%AD%89%E5%88%B0%20Sora%20%E5%BC%80%E6%BA%90%E4%BA%86%E7%AB%8B%E5%88%BB%E6%8E%A8%E5%87%BA%E5%B1%9E%E4%BA%8E%E6%88%91%E4%BB%AC%E8%87%AA%E5%B7%B1%E7%9A%84%E5%A4%A7%E6%A8%A1%E5%9E%8B.pdf">开源日报第 013 期：等到 Sora 开源了立刻推出属于我们自己的大模型</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC012%E6%9C%9F%EF%BC%9ASora%20%E7%BB%99%E4%B8%AD%E5%9B%BD%20AI%20%E5%B8%A6%E6%9D%A5%E7%9A%84%E7%9C%9F%E5%AE%9E%E5%8F%98%E5%8C%96%EF%BC%9BDart%203.3%20%E5%8F%91%E5%B8%83.pdf">开源日报第 012 期：Sora 给中国 AI 带来的真实变化；Dart 3.3 发布</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC11%E6%9C%9F%EF%BC%9A%E7%9B%AE%E5%89%8D%E8%BF%98%E6%B2%A1%E6%9C%89%E2%80%9C%E5%A4%A7%E6%A8%A1%E5%9E%8B%E7%89%88Linux%E2%80%9D.pdf">开源日报第 011 期：目前还没有“大模型版 Linux”</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC010%E6%9C%9F%EF%BC%9ATauri%20v2%20%E6%94%AF%E6%8C%81%20Android%20%E5%92%8C%20iOS%EF%BC%8C%E8%B7%A8%E5%B9%B3%E5%8F%B0%E5%BC%80%E5%8F%91%E6%96%B0%E9%80%89%E6%8B%A9.pdf">开源日报第 010 期：Tauri v2 支持 Android 和 iOS，跨平台开发新选择</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5009%E6%9C%9F%EF%BC%9AVue.js%E8%AF%9E%E7%94%9F10%E5%91%A8%E5%B9%B4%EF%BC%9B%E6%89%8E%E5%85%8B%E4%BC%AF%E6%A0%BC%E8%A7%A3%E9%87%8AMeta%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%BC%80%E6%BA%90%E5%85%B6AI%E6%8A%80%E6%9C%AF.pdf">开源日报第 009 期：Vue.js 诞生 10 周年；扎克伯格解释 Meta 为什么要开源其 AI 技术</a></li>
-<li><a href="https://www.oschina.net/news/277585">开源日报第 008 期：推动中国开源软硬件发展的经验与建议</a></li>
-<li><a href="https://www.oschina.net/news/277415">开源日报第 007 期：“Linux 中国” 开源社区宣布停止运营</a></li>
-<li><a href="https://www.oschina.net/news/277214">开源日报第 006 期：选择技术栈一定要选择开源的</a></li>
-<li><a href="http://www.oschina.net/news/277040">开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</a></li>
-<li><a href="https://www.oschina.net/news/276864">开源日报第 004 期：百度输入法在候选词区域植入广告；大神用 Excel 构建 CPU</a></li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.2.26</strong></span></h3>
-<h2><strong><span>今日要点</span></strong></h2>
-<p><strong>OpenSource Daily</strong></p>
-<h3><a href="https://www.oschina.net/news/280197/warp-for-linux" target="_blank">基于 Rust 开发的终端应用 Warp 发布 Linux 版本</a></h3>
-<p>Warp 是一个基于 Rust 开发的现代化终端应用，内置 AI 功能，支持 CPU 加速。</p>
-<p>此前 Warp 仅面向 Mac 平台提供，近日其开发团队终于<u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.warp.dev%2Fblog%2Fwarp-for-linux" target="_blank">发布</a></u>了 Linux 版本，用户可在大多数主流 Linux 发行版上安装 Warp，包括 Ubuntu、Fedora、Arch Linux 或 Red Hat。</p>
-<h3><a href="https://www.oschina.net/news/280083/wubuntu-windows-ubuntu" target="_blank">Wubuntu：披着 Windows 11 外衣的 Ubuntu</a></h3>
-<p><strong>Wubuntu，又称 "Windows Ubuntu"</strong>，是基于 Ubuntu 开发的操作系统，其最具特色之处在于<strong>完全复刻了 Windows 的所有外观和功能</strong>，而且运行时不需要具备 TPM、安全启动或任何其他硬件要求。</p>
-<p><span>此外，Wubuntu</span>&nbsp;通过集成 Wine 提供了与 Windows 应用的兼容性，开发者称 Wubuntu 支持运行 Windows 的 .exe 和 .msi&nbsp;程序，以及支持 Android 应用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c1407dcd.png"></p>
-<hr>
-<h2><strong><span>今日观察</span></strong></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c2f9f37ab6.png"></p>
-<p><span>- </span><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.tmtpost.com%2F6949344.html" target="_blank">钛媒体</a></em></u></p>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5c6077d911.png"></p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3d6713d2fd.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e967c9b6d5.png"></p>
-<hr>
-<h2><span><strong>每日项目榜</strong></span></h2>
-<p><strong><span>每日 Gitee 精选</span></strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a344a47216.png"></p>
-<blockquote>
-<h4><strong><span>在线阅读完整日报内容，访问：</span></strong><br> <u><em><strong><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/6typ9w3u98f5mxn/16_1_8_2efTeNfFjN.pdf">开源日报第 016 期：鸿蒙程序员平均月薪超1万8；中美AI差距有多大？</a></strong></em></u></h4>
-</blockquote>
-<hr>
-<p><strong>往期回顾</strong></p>
-<ul>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/92n4c9ryegpcq1z/015_sora_KcAkRNX93Y.pdf">开源日报第 015 期：为什么挡不住英伟达；Sora 不靠蛮力</a></li>
-<li><a href="https://report.oschina.net/api/files/jhim80u9qm1ofsw/s7n800w84o6guyv/014_kyezhNxOGD.pdf">开源日报第 014 期：目前的人工智能技术连猫的智能水平都没达到</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC013%E6%9C%9F%EF%BC%9A%E7%AD%89%E5%88%B0%20Sora%20%E5%BC%80%E6%BA%90%E4%BA%86%E7%AB%8B%E5%88%BB%E6%8E%A8%E5%87%BA%E5%B1%9E%E4%BA%8E%E6%88%91%E4%BB%AC%E8%87%AA%E5%B7%B1%E7%9A%84%E5%A4%A7%E6%A8%A1%E5%9E%8B.pdf">开源日报第 013 期：等到 Sora 开源了立刻推出属于我们自己的大模型</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC012%E6%9C%9F%EF%BC%9ASora%20%E7%BB%99%E4%B8%AD%E5%9B%BD%20AI%20%E5%B8%A6%E6%9D%A5%E7%9A%84%E7%9C%9F%E5%AE%9E%E5%8F%98%E5%8C%96%EF%BC%9BDart%203.3%20%E5%8F%91%E5%B8%83.pdf">开源日报第 012 期：Sora 给中国 AI 带来的真实变化；Dart 3.3 发布</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC11%E6%9C%9F%EF%BC%9A%E7%9B%AE%E5%89%8D%E8%BF%98%E6%B2%A1%E6%9C%89%E2%80%9C%E5%A4%A7%E6%A8%A1%E5%9E%8B%E7%89%88Linux%E2%80%9D.pdf">开源日报第 011 期：目前还没有“大模型版 Linux”</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5%E7%AC%AC010%E6%9C%9F%EF%BC%9ATauri%20v2%20%E6%94%AF%E6%8C%81%20Android%20%E5%92%8C%20iOS%EF%BC%8C%E8%B7%A8%E5%B9%B3%E5%8F%B0%E5%BC%80%E5%8F%91%E6%96%B0%E9%80%89%E6%8B%A9.pdf">开源日报第 010 期：Tauri v2 支持 Android 和 iOS，跨平台开发新选择</a></li>
-<li><a href="https://oscimg.oschina.net/public_shard/%E5%BC%80%E6%BA%90%E6%97%A5%E6%8A%A5009%E6%9C%9F%EF%BC%9AVue.js%E8%AF%9E%E7%94%9F10%E5%91%A8%E5%B9%B4%EF%BC%9B%E6%89%8E%E5%85%8B%E4%BC%AF%E6%A0%BC%E8%A7%A3%E9%87%8AMeta%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%BC%80%E6%BA%90%E5%85%B6AI%E6%8A%80%E6%9C%AF.pdf">开源日报第 009 期：Vue.js 诞生 10 周年；扎克伯格解释 Meta 为什么要开源其 AI 技术</a></li>
-<li><a href="https://www.oschina.net/news/277585">开源日报第 008 期：推动中国开源软硬件发展的经验与建议</a></li>
-<li><a href="https://www.oschina.net/news/277415">开源日报第 007 期：“Linux 中国” 开源社区宣布停止运营</a></li>
-<li><a href="https://www.oschina.net/news/277214">开源日报第 006 期：选择技术栈一定要选择开源的</a></li>
-<li><a href="http://www.oschina.net/news/277040">开源日报第 005 期：RISC-V 万兆开源交换机发售；npm 存在大量武林外传视频</a></li>
-<li><a href="https://www.oschina.net/news/276864">开源日报第 004 期：百度输入法在候选词区域植入广告；大神用 Excel 构建 CPU</a></li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c1407dcd.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c1407dcd.png" medium="image"/>
-    <pubDate>Tue, 27 Feb 2024 12:23:21 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[OSI 发布报告，研究 BSL 这样的“延迟开源发布”]]></title>
-    <link>https://www.oschina.net/news/280456/osi-delayed-open-source-publication-report</link>
-    <itunes:title><![CDATA[OSI 发布报告，研究 BSL 这样的“延迟开源发布”]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>Open Source Initiative（OSI）近期发布了一个报告《Delayed Open Source Publication:&nbsp;</span>A Survey of Historical and Current Practices<span>》（</span>延迟开源发布：历史与当前实践调研<span>），作者是Seth Schoen、James Vasile和Karl Fogel。</span></p>
-<p>Delayed Open Source Publication，简称DOSP，延迟开源发布的意思，这份报告研究了它的历史和现状。报告核心要点：</p>
-<p><strong>延迟开源发布（DOSP）定义</strong>：DOSP是指软件最初在专有许可下发布，然后计划性地在某个时间点将源代码以开源许可的形式公开。</p>
-<p><strong>历史背景</strong>：DOSP的做法可以追溯到GNU项目，并且一直延续至今。公司尝试各种商业模式，以在有限时间内保持独家权利，然后过渡到OSI（开放源代码倡议）批准的许可。</p>
-<p><strong>策略类型</strong>：DOSP分为三种类型：无条件计划性重新许可、事件驱动的重新许可和有条件的重新许可。</p>
-<p><strong>商业源许可（BUSL）</strong>：BUSL是一种新兴的DOSP许可方式，它要求在特定的“变更日期”后，软件的许可将变为开源许可。这种做法在数据库系统中尤为常见。BUSL的采用正在迅速增长，尤其是在云和软件即服务（SaaS）领域。（以往也叫 BSL）</p>
-<p>以下是当前知名的 16 个使用 BUSL 的项目，都是延迟几年后转型成开源协议：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-a6f19cc42b.png"></p>
-<p><strong>反竞争条款</strong>：一些DOSP许可中包含反竞争条款，旨在防止许可证持有者使用软件提供与许可方直接竞争的服务。</p>
-<p><strong>后果和影响</strong>：从开源许可转变为DOSP许可的项目可能会受到批评，有时会导致用户转向其他项目或维护竞争性的分支。</p>
-<p><strong>未来研究问题</strong>：报告提出了一些未来研究的问题，包括AGPL与DOSP许可的比较、DOSP对外部贡献的影响、BUSL额外使用授权的分类、以及在初始开源发布后重新许可的策略。</p>
-<p><strong>结论</strong>：DOSP自开源运动早期以来一直在使用，公司通常利用它来保持商业优势，同时尽可能保留开源的优势。报告强调，DOSP的实验性和多样性比预期的要多，且这种趋势可能会继续。</p>
-<p>详情可以查看<a href="https://apiv1.oschina.net/api/files/jhim80u9qm1ofsw/27nfbrttho0ynu9/delayed_open_source_publication_2FzjpHTElG.pdf?token=">报告原文</a>。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>Open Source Initiative（OSI）近期发布了一个报告《Delayed Open Source Publication:&nbsp;</span>A Survey of Historical and Current Practices<span>》（</span>延迟开源发布：历史与当前实践调研<span>），作者是Seth Schoen、James Vasile和Karl Fogel。</span></p>
-<p>Delayed Open Source Publication，简称DOSP，延迟开源发布的意思，这份报告研究了它的历史和现状。报告核心要点：</p>
-<p><strong>延迟开源发布（DOSP）定义</strong>：DOSP是指软件最初在专有许可下发布，然后计划性地在某个时间点将源代码以开源许可的形式公开。</p>
-<p><strong>历史背景</strong>：DOSP的做法可以追溯到GNU项目，并且一直延续至今。公司尝试各种商业模式，以在有限时间内保持独家权利，然后过渡到OSI（开放源代码倡议）批准的许可。</p>
-<p><strong>策略类型</strong>：DOSP分为三种类型：无条件计划性重新许可、事件驱动的重新许可和有条件的重新许可。</p>
-<p><strong>商业源许可（BUSL）</strong>：BUSL是一种新兴的DOSP许可方式，它要求在特定的“变更日期”后，软件的许可将变为开源许可。这种做法在数据库系统中尤为常见。BUSL的采用正在迅速增长，尤其是在云和软件即服务（SaaS）领域。（以往也叫 BSL）</p>
-<p>以下是当前知名的 16 个使用 BUSL 的项目，都是延迟几年后转型成开源协议：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-a6f19cc42b.png"></p>
-<p><strong>反竞争条款</strong>：一些DOSP许可中包含反竞争条款，旨在防止许可证持有者使用软件提供与许可方直接竞争的服务。</p>
-<p><strong>后果和影响</strong>：从开源许可转变为DOSP许可的项目可能会受到批评，有时会导致用户转向其他项目或维护竞争性的分支。</p>
-<p><strong>未来研究问题</strong>：报告提出了一些未来研究的问题，包括AGPL与DOSP许可的比较、DOSP对外部贡献的影响、BUSL额外使用授权的分类、以及在初始开源发布后重新许可的策略。</p>
-<p><strong>结论</strong>：DOSP自开源运动早期以来一直在使用，公司通常利用它来保持商业优势，同时尽可能保留开源的优势。报告强调，DOSP的实验性和多样性比预期的要多，且这种趋势可能会继续。</p>
-<p>详情可以查看<a href="https://apiv1.oschina.net/api/files/jhim80u9qm1ofsw/27nfbrttho0ynu9/delayed_open_source_publication_2FzjpHTElG.pdf?token=">报告原文</a>。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>Open Source Initiative（OSI）近期发布了一个报告《Delayed Open Source Publication:&nbsp;</span>A Survey of Historical and Current Practices<span>》（</span>延迟开源发布：历史与当前实践调研<span>），作者是Seth Schoen、James Vasile和Karl Fogel。</span></p>
-<p>Delayed Open Source Publication，简称DOSP，延迟开源发布的意思，这份报告研究了它的历史和现状。报告核心要点：</p>
-<p><strong>延迟开源发布（DOSP）定义</strong>：DOSP是指软件最初在专有许可下发布，然后计划性地在某个时间点将源代码以开源许可的形式公开。</p>
-<p><strong>历史背景</strong>：DOSP的做法可以追溯到GNU项目，并且一直延续至今。公司尝试各种商业模式，以在有限时间内保持独家权利，然后过渡到OSI（开放源代码倡议）批准的许可。</p>
-<p><strong>策略类型</strong>：DOSP分为三种类型：无条件计划性重新许可、事件驱动的重新许可和有条件的重新许可。</p>
-<p><strong>商业源许可（BUSL）</strong>：BUSL是一种新兴的DOSP许可方式，它要求在特定的“变更日期”后，软件的许可将变为开源许可。这种做法在数据库系统中尤为常见。BUSL的采用正在迅速增长，尤其是在云和软件即服务（SaaS）领域。（以往也叫 BSL）</p>
-<p>以下是当前知名的 16 个使用 BUSL 的项目，都是延迟几年后转型成开源协议：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-a6f19cc42b.png"></p>
-<p><strong>反竞争条款</strong>：一些DOSP许可中包含反竞争条款，旨在防止许可证持有者使用软件提供与许可方直接竞争的服务。</p>
-<p><strong>后果和影响</strong>：从开源许可转变为DOSP许可的项目可能会受到批评，有时会导致用户转向其他项目或维护竞争性的分支。</p>
-<p><strong>未来研究问题</strong>：报告提出了一些未来研究的问题，包括AGPL与DOSP许可的比较、DOSP对外部贡献的影响、BUSL额外使用授权的分类、以及在初始开源发布后重新许可的策略。</p>
-<p><strong>结论</strong>：DOSP自开源运动早期以来一直在使用，公司通常利用它来保持商业优势，同时尽可能保留开源的优势。报告强调，DOSP的实验性和多样性比预期的要多，且这种趋势可能会继续。</p>
-<p>详情可以查看<a href="https://apiv1.oschina.net/api/files/jhim80u9qm1ofsw/27nfbrttho0ynu9/delayed_open_source_publication_2FzjpHTElG.pdf?token=">报告原文</a>。</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-a6f19cc42b.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-a6f19cc42b.png" medium="image"/>
-    <pubDate>Tue, 27 Feb 2024 11:57:00 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[终于，我们拿下了硅谷的那个 Linear]]></title>
-    <link>https://my.oschina.net/u/6148470/blog/11044874</link>
-    <itunes:title><![CDATA[终于，我们拿下了硅谷的那个 Linear]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91e625027b.png" alt="file"></p>
-<p>就像设计领域的 Figma，文档领域的 Notion，Linear 同样在软件开发管理领域推出了革命性的工具。而且以其名字 Linear Style 命名的设计风格，也成为了一股软件设计潮流。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8dd6db4d1e.png" alt="file"></p>
-<p>Linear 于 2019 年在美国 🇺🇸 旧金山创立。目前服务的对象涵盖了从新兴初创到知名上市公司的广泛范围，其中包括 Vercel、Arc、Runway，Supercell 和 OpenSea 等知名企业。其产品因能显著提升团队生产力和协作效率而成为近几年硅谷新兴公司的首选。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60beacf437.png" alt="file"></p>
-<p><strong>Linear 使用 Bytebase 管理其数据库的全开发生命周期。收口员工查询数据库操作，通过 Bytebase API 将数据库变更集成进现有 CI/CD 工作流。</strong></p>
-<p>Linear 的员工统一在 SQL 编辑器查询数据，通过权限管控、数据脱敏及行为审计，限制查询范围、监控行为并满足合规需求。</p>
-<p>通过 Bytebase API 将数据库变更的审核部署集成进现有的代码提交部署工作流中，触发在 Bytebase 中建立工单，自动进行 SQL 预审核以减少人力降低错误可能性；根据变更的风险等级，通过自定义审批流确保相应的审批管理；并且，通过变更记录的查询功能，便于锁定特定的变更，以利于后续的审计。此外，单点登录 (SSO)，双因子身份验证 (2FA) 等功能进一步为账户管理带来了便利性和安全性保障。</p>
-<p>未来 Linear 还将利用 Bytebase 的批量变更能力管理部署在不同地域的同构数据库。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c047d9d214.png" alt="file"></p>
-<p>对开发者工具极其挑剔的 Linear 最终选择了 Bytebase。正如我们在 <a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzkzMjI2MDY5OQ%3D%3D%26mid%3D2247483664%26idx%3D1%26sn%3Dbd6be60909c156c2d54687ad90ba4825%26chksm%3Dc25f3f24f528b63261d5d86fb9ddcad8f36826bdaa16fdb43da555d5457313c5036aa1665b78%26scene%3D21%23wechat_redirect" target="_blank">2021 年发布 Bytebase</a> 时设想的那样，<strong>Bytebase 会站上世界最高的舞台，成为现代软件研发工具链上的核心一环</strong>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bfa73fa5fc.png" alt="file"></p>
-<hr>
-<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91e625027b.png" alt="file"></p>
-<p>就像设计领域的 Figma，文档领域的 Notion，Linear 同样在软件开发管理领域推出了革命性的工具。而且以其名字 Linear Style 命名的设计风格，也成为了一股软件设计潮流。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8dd6db4d1e.png" alt="file"></p>
-<p>Linear 于 2019 年在美国 🇺🇸 旧金山创立。目前服务的对象涵盖了从新兴初创到知名上市公司的广泛范围，其中包括 Vercel、Arc、Runway，Supercell 和 OpenSea 等知名企业。其产品因能显著提升团队生产力和协作效率而成为近几年硅谷新兴公司的首选。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60beacf437.png" alt="file"></p>
-<p><strong>Linear 使用 Bytebase 管理其数据库的全开发生命周期。收口员工查询数据库操作，通过 Bytebase API 将数据库变更集成进现有 CI/CD 工作流。</strong></p>
-<p>Linear 的员工统一在 SQL 编辑器查询数据，通过权限管控、数据脱敏及行为审计，限制查询范围、监控行为并满足合规需求。</p>
-<p>通过 Bytebase API 将数据库变更的审核部署集成进现有的代码提交部署工作流中，触发在 Bytebase 中建立工单，自动进行 SQL 预审核以减少人力降低错误可能性；根据变更的风险等级，通过自定义审批流确保相应的审批管理；并且，通过变更记录的查询功能，便于锁定特定的变更，以利于后续的审计。此外，单点登录 (SSO)，双因子身份验证 (2FA) 等功能进一步为账户管理带来了便利性和安全性保障。</p>
-<p>未来 Linear 还将利用 Bytebase 的批量变更能力管理部署在不同地域的同构数据库。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c047d9d214.png" alt="file"></p>
-<p>对开发者工具极其挑剔的 Linear 最终选择了 Bytebase。正如我们在 <a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzkzMjI2MDY5OQ%3D%3D%26mid%3D2247483664%26idx%3D1%26sn%3Dbd6be60909c156c2d54687ad90ba4825%26chksm%3Dc25f3f24f528b63261d5d86fb9ddcad8f36826bdaa16fdb43da555d5457313c5036aa1665b78%26scene%3D21%23wechat_redirect" target="_blank">2021 年发布 Bytebase</a> 时设想的那样，<strong>Bytebase 会站上世界最高的舞台，成为现代软件研发工具链上的核心一环</strong>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bfa73fa5fc.png" alt="file"></p>
-<hr>
-<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91e625027b.png" alt="file"></p>
-<p>就像设计领域的 Figma，文档领域的 Notion，Linear 同样在软件开发管理领域推出了革命性的工具。而且以其名字 Linear Style 命名的设计风格，也成为了一股软件设计潮流。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8dd6db4d1e.png" alt="file"></p>
-<p>Linear 于 2019 年在美国 🇺🇸 旧金山创立。目前服务的对象涵盖了从新兴初创到知名上市公司的广泛范围，其中包括 Vercel、Arc、Runway，Supercell 和 OpenSea 等知名企业。其产品因能显著提升团队生产力和协作效率而成为近几年硅谷新兴公司的首选。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-60beacf437.png" alt="file"></p>
-<p><strong>Linear 使用 Bytebase 管理其数据库的全开发生命周期。收口员工查询数据库操作，通过 Bytebase API 将数据库变更集成进现有 CI/CD 工作流。</strong></p>
-<p>Linear 的员工统一在 SQL 编辑器查询数据，通过权限管控、数据脱敏及行为审计，限制查询范围、监控行为并满足合规需求。</p>
-<p>通过 Bytebase API 将数据库变更的审核部署集成进现有的代码提交部署工作流中，触发在 Bytebase 中建立工单，自动进行 SQL 预审核以减少人力降低错误可能性；根据变更的风险等级，通过自定义审批流确保相应的审批管理；并且，通过变更记录的查询功能，便于锁定特定的变更，以利于后续的审计。此外，单点登录 (SSO)，双因子身份验证 (2FA) 等功能进一步为账户管理带来了便利性和安全性保障。</p>
-<p>未来 Linear 还将利用 Bytebase 的批量变更能力管理部署在不同地域的同构数据库。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c047d9d214.png" alt="file"></p>
-<p>对开发者工具极其挑剔的 Linear 最终选择了 Bytebase。正如我们在 <a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzkzMjI2MDY5OQ%3D%3D%26mid%3D2247483664%26idx%3D1%26sn%3Dbd6be60909c156c2d54687ad90ba4825%26chksm%3Dc25f3f24f528b63261d5d86fb9ddcad8f36826bdaa16fdb43da555d5457313c5036aa1665b78%26scene%3D21%23wechat_redirect" target="_blank">2021 年发布 Bytebase</a> 时设想的那样，<strong>Bytebase 会站上世界最高的舞台，成为现代软件研发工具链上的核心一环</strong>。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bfa73fa5fc.png" alt="file"></p>
-<hr>
-<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91e625027b.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91e625027b.png" medium="image"/>
-    <pubDate>Tue, 27 Feb 2024 11:51:05 +0800</pubDate>
   </item></channel>
 </rss>

@@ -30,6 +30,285 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[GUID 叢集索引測試 3 - 觀察索引重組與索引重建對寫入動作的影響]]></title>
+    <link>https://blog.darkthread.net/blog/index-reorg-n-index-rebuild/</link>
+    <itunes:title><![CDATA[GUID 叢集索引測試 3 - 觀察索引重組與索引重建對寫入動作的影響]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>接連兩篇談完 GUID 叢集索引會造成 <a href="/blog/how-guid-clust-index-bad-is/">INSERT 變慢</a>以及<a href="/blog/guid-clust-idx-frag-n-space/">資料表虛胖</a>，簡單有效解決是另建 BIGINT 或 INT 自動跳號欄位當叢集索引，GUID 仍可做為 Primary Key。(參考：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>對上線運轉多年的現有系統來說，Schema 很難說改就改，異動資料表欄位如同飛航過程修改飛機骨架，光用想的就頭皮發麻，尋求可以減緩 GUID 叢集索引負面影響的對策才是較務實的做法。套句廣告詞：先求不傷身體，再講求效果。</p> <p>要改善 SQL Server 索引碎片化問題，主要可透過索引重建(Rebuild)或索引重組(Reorganize)，而索引重建再分為離線作業及線上作業(加上 ONLINE = ON 參數) ，故共有三種選項：</p> <ul><li>ALTER INDEX ... ON ... REBUILD<br> 離線執行重建，所需時間最短，但過程需卸除和重新建立索引，期間資料庫無法使用</li> <li>ALTER INDEX ... ON ... REBUILD (ONLINE = ON)<br> 線上索引重建，期間資料表可繼續使用，但修改資料時需更新索引的額外副本，影響效能 <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">參考</a></li> <li>ALTER INDEX ... ON ... REORGANIZE<br> 重新組織索引耗費的資源最少，是官方最建議的做法，期間資料表可繼續查詢或更新，但耗費時間較久</li></ul> <p>延伸閱讀：</p> <ul><li><a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">將索引維護最佳化以改善查詢效能並降低資源耗用量</a></li> <li><a href="https://caryhsu.blogspot.com/2011/08/sql-server.html">SQL Server 上大型資料表的索引效能調整與維護 by CaryHsu</a></li></ul> <p>離線重建索引是最快的，但營運中的系統也不太可能為了重建索引停用資料表，我試在 INSERT 過程執行 <code>ALTER INDEX ... ON ... REBUILD</code>，不意外地當下那筆作被卡住 15 秒直到重建完成，</p> <pre><code>1000001: 0ms
+1000002: 0ms
+1000003: 0ms
+1000004: 0ms
+1000005: 15596ms
+1000006: 0ms
+1000007: 0ms
+1000008: 0ms
+</code></pre> <p>不管是線上索引重建或索引重組，執行同時一定會影響效能，所以我修改了先前的測試程式，計劃完成三組測試：</p> <ol><li>每 10 萬筆觸發索引重組(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li> <li>每 10 萬筆暫停寫入，執行索引重組(想像成離峰時間執行，不影響日間作業)再繼續，在 GUID 叢集索引資料表 INSERT 1000 萬筆 3. 每 10 萬筆觸發線上索引重建(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li></ol> <p>程式如下，每 10 萬筆觸發另起 Task 同步跑 <code>ALTER INDEX ... ON ... REORGANIZE</code>，用 bool Running 偵測前次若在執行中就略過。</p> <pre><code>using System.Diagnostics;
+using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum
+{
+GuidClustIdx,
+IntClustIdx
+}
+static int CurrRowIdx = 0;
+static int NextReorgIdx = 0;
+public static void InsertData(TableNameEnum tableName, long rowCount, int reorgCount)
+{
+NextReorgIdx = reorgCount;
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+CurrRowIdx = i;
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+if (i &gt; NextReorgIdx)
+{
+Task.Run(() =&gt; ReoraganizeIndex(tableName));
+NextReorgIdx += reorgCount;
+}
+}
+logger.Flush();
+logger.Dispose();
+}
+static bool Running = false;
+const string logPath = "results\\ReorgIndex.log";
+public static void ReoraganizeIndex(TableNameEnum tableName)
+{
+if (Running) return;
+try
+{
+Running = true;
+Console.WriteLine("Reorganizing Index");
+int startRowIdx = CurrRowIdx;
+var sw = new Stopwatch();
+sw.Start();
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"ALTER INDEX PK_{tableName} ON {tableName} REORGANIZE", cn);
+cmd.CommandTimeout = 0; // No Timeout
+cmd.ExecuteNonQuery();
+int endRowIdx = CurrRowIdx;
+sw.Stop();
+Console.WriteLine($"Reorganize Index Elapsed: {sw.ElapsedMilliseconds}ms");
+File.AppendAllText(logPath, $"{tableName} from {startRowIdx} to {endRowIdx} rows, Elapsed: {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+Running = false;
+}
+catch (Exception ex)
+{
+Console.WriteLine(ex.Message);
+File.AppendAllText(logPath, ex.Message + Environment.NewLine);
+}
+}
+}
+</code></pre> <p>先看沒有索引重組或線上索引重建的數據：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png"></p> <p>邊索引重組邊 INSERT 的數據如下，最大值不時會拉長到 1 秒以上，但 99% (綠色) 仍壓在 0.5 秒以下，不算太嚴重。1000 萬筆寫入時間變長兩倍多，由兩小時出頭延長到六小時。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448994894874303.png"></p> <p>將 <code>Task.Run(() =&gt; ReoraganizeIndex(tableName));</code> 改為 <code>ReoraganizeIndex(tableName);</code>，模擬每天離峰索引重組，看看結果比不重組改善多少。有點意外，我沒看出明顯改善：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448994897096397.png"></p> <p>第三組測試比照邊索引重組邊 INSERT，但改成一邊線上索引重建(ALTER INDEX ... ON ... REBUILD (ONLINE = ON) )一邊 INSERT。線上索引重建對寫入效的影響比較明顯，最大值不時突破 10 秒，大部分的寫入還是可以零秒完成，但平均值跟 99 百分位數都拉高了，而 1000 萬筆寫入時間拉長 10 倍跑了 10 小時才完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448994899293319.png"></p> <p>而另一個值得觀察的點是邊 INSERT 邊重組、專心專組、邊 INSERT 邊重建耗費的時間。</p> <p>邊 INSERT 邊索引重組與資料筆數大致成線性關係，由於需待前次做完進行下次，執行時機不固定，最後一次發生在 680 萬筆左右，耗時超過一小時 (4472 秒, 1h14m)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638448994901446551.png"></p> <p>停止 INSERT 專心索引重組耗時與資料筆數也是呈線性關係，但時間大幅縮短一半，1000 萬筆耗時 1352 秒，只要 22 分鐘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638448994903589827.png"></p> <p>若不考慮執期間影響寫入作業的效能，線上索引重建比線上重組有效率多了，1000 萬也只要 502 秒，八分多鐘，快了 N 倍。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638448994905773432.png"></p> <p>做個結論：</p> <ol><li>索引重組或索引重建對 GUID 叢集索引 INSERT 作業的效能改善不明顯(但原本也不嚴重就是了)，但減少資料分頁數量、消除碎片化及節省磁碟空間有益無害。</li> <li>如果系統有明確的離峰時段(當下極少人使用，且能容忍延遲)，線上索引重建是最有效率的做法；由測試結果，索引重組對 INSERT 效能的影響比預期小，邊重組邊寫入造成的效能拖累不明顯。</li></ol> <p>不過，如果可以，避免用 GUID 當叢集索引(當 PK 沒問題，但好像不少把兩件事綁在一起)是更好的解法。</p> <p data-slug="index-reorg-n-index-rebuild" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>接連兩篇談完 GUID 叢集索引會造成 <a href="/blog/how-guid-clust-index-bad-is/">INSERT 變慢</a>以及<a href="/blog/guid-clust-idx-frag-n-space/">資料表虛胖</a>，簡單有效解決是另建 BIGINT 或 INT 自動跳號欄位當叢集索引，GUID 仍可做為 Primary Key。(參考：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>對上線運轉多年的現有系統來說，Schema 很難說改就改，異動資料表欄位如同飛航過程修改飛機骨架，光用想的就頭皮發麻，尋求可以減緩 GUID 叢集索引負面影響的對策才是較務實的做法。套句廣告詞：先求不傷身體，再講求效果。</p> <p>要改善 SQL Server 索引碎片化問題，主要可透過索引重建(Rebuild)或索引重組(Reorganize)，而索引重建再分為離線作業及線上作業(加上 ONLINE = ON 參數) ，故共有三種選項：</p> <ul><li>ALTER INDEX ... ON ... REBUILD<br> 離線執行重建，所需時間最短，但過程需卸除和重新建立索引，期間資料庫無法使用</li> <li>ALTER INDEX ... ON ... REBUILD (ONLINE = ON)<br> 線上索引重建，期間資料表可繼續使用，但修改資料時需更新索引的額外副本，影響效能 <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">參考</a></li> <li>ALTER INDEX ... ON ... REORGANIZE<br> 重新組織索引耗費的資源最少，是官方最建議的做法，期間資料表可繼續查詢或更新，但耗費時間較久</li></ul> <p>延伸閱讀：</p> <ul><li><a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">將索引維護最佳化以改善查詢效能並降低資源耗用量</a></li> <li><a href="https://caryhsu.blogspot.com/2011/08/sql-server.html">SQL Server 上大型資料表的索引效能調整與維護 by CaryHsu</a></li></ul> <p>離線重建索引是最快的，但營運中的系統也不太可能為了重建索引停用資料表，我試在 INSERT 過程執行 <code>ALTER INDEX ... ON ... REBUILD</code>，不意外地當下那筆作被卡住 15 秒直到重建完成，</p> <pre><code>1000001: 0ms
+1000002: 0ms
+1000003: 0ms
+1000004: 0ms
+1000005: 15596ms
+1000006: 0ms
+1000007: 0ms
+1000008: 0ms
+</code></pre> <p>不管是線上索引重建或索引重組，執行同時一定會影響效能，所以我修改了先前的測試程式，計劃完成三組測試：</p> <ol><li>每 10 萬筆觸發索引重組(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li> <li>每 10 萬筆暫停寫入，執行索引重組(想像成離峰時間執行，不影響日間作業)再繼續，在 GUID 叢集索引資料表 INSERT 1000 萬筆 3. 每 10 萬筆觸發線上索引重建(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li></ol> <p>程式如下，每 10 萬筆觸發另起 Task 同步跑 <code>ALTER INDEX ... ON ... REORGANIZE</code>，用 bool Running 偵測前次若在執行中就略過。</p> <pre><code>using System.Diagnostics;
+using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum
+{
+GuidClustIdx,
+IntClustIdx
+}
+static int CurrRowIdx = 0;
+static int NextReorgIdx = 0;
+public static void InsertData(TableNameEnum tableName, long rowCount, int reorgCount)
+{
+NextReorgIdx = reorgCount;
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+CurrRowIdx = i;
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+if (i &gt; NextReorgIdx)
+{
+Task.Run(() =&gt; ReoraganizeIndex(tableName));
+NextReorgIdx += reorgCount;
+}
+}
+logger.Flush();
+logger.Dispose();
+}
+static bool Running = false;
+const string logPath = "results\\ReorgIndex.log";
+public static void ReoraganizeIndex(TableNameEnum tableName)
+{
+if (Running) return;
+try
+{
+Running = true;
+Console.WriteLine("Reorganizing Index");
+int startRowIdx = CurrRowIdx;
+var sw = new Stopwatch();
+sw.Start();
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"ALTER INDEX PK_{tableName} ON {tableName} REORGANIZE", cn);
+cmd.CommandTimeout = 0; // No Timeout
+cmd.ExecuteNonQuery();
+int endRowIdx = CurrRowIdx;
+sw.Stop();
+Console.WriteLine($"Reorganize Index Elapsed: {sw.ElapsedMilliseconds}ms");
+File.AppendAllText(logPath, $"{tableName} from {startRowIdx} to {endRowIdx} rows, Elapsed: {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+Running = false;
+}
+catch (Exception ex)
+{
+Console.WriteLine(ex.Message);
+File.AppendAllText(logPath, ex.Message + Environment.NewLine);
+}
+}
+}
+</code></pre> <p>先看沒有索引重組或線上索引重建的數據：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png"></p> <p>邊索引重組邊 INSERT 的數據如下，最大值不時會拉長到 1 秒以上，但 99% (綠色) 仍壓在 0.5 秒以下，不算太嚴重。1000 萬筆寫入時間變長兩倍多，由兩小時出頭延長到六小時。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448994894874303.png"></p> <p>將 <code>Task.Run(() =&gt; ReoraganizeIndex(tableName));</code> 改為 <code>ReoraganizeIndex(tableName);</code>，模擬每天離峰索引重組，看看結果比不重組改善多少。有點意外，我沒看出明顯改善：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448994897096397.png"></p> <p>第三組測試比照邊索引重組邊 INSERT，但改成一邊線上索引重建(ALTER INDEX ... ON ... REBUILD (ONLINE = ON) )一邊 INSERT。線上索引重建對寫入效的影響比較明顯，最大值不時突破 10 秒，大部分的寫入還是可以零秒完成，但平均值跟 99 百分位數都拉高了，而 1000 萬筆寫入時間拉長 10 倍跑了 10 小時才完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448994899293319.png"></p> <p>而另一個值得觀察的點是邊 INSERT 邊重組、專心專組、邊 INSERT 邊重建耗費的時間。</p> <p>邊 INSERT 邊索引重組與資料筆數大致成線性關係，由於需待前次做完進行下次，執行時機不固定，最後一次發生在 680 萬筆左右，耗時超過一小時 (4472 秒, 1h14m)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638448994901446551.png"></p> <p>停止 INSERT 專心索引重組耗時與資料筆數也是呈線性關係，但時間大幅縮短一半，1000 萬筆耗時 1352 秒，只要 22 分鐘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638448994903589827.png"></p> <p>若不考慮執期間影響寫入作業的效能，線上索引重建比線上重組有效率多了，1000 萬也只要 502 秒，八分多鐘，快了 N 倍。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638448994905773432.png"></p> <p>做個結論：</p> <ol><li>索引重組或索引重建對 GUID 叢集索引 INSERT 作業的效能改善不明顯(但原本也不嚴重就是了)，但減少資料分頁數量、消除碎片化及節省磁碟空間有益無害。</li> <li>如果系統有明確的離峰時段(當下極少人使用，且能容忍延遲)，線上索引重建是最有效率的做法；由測試結果，索引重組對 INSERT 效能的影響比預期小，邊重組邊寫入造成的效能拖累不明顯。</li></ol> <p>不過，如果可以，避免用 GUID 當叢集索引(當 PK 沒問題，但好像不少把兩件事綁在一起)是更好的解法。</p> <p data-slug="index-reorg-n-index-rebuild" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>接連兩篇談完 GUID 叢集索引會造成 <a href="/blog/how-guid-clust-index-bad-is/">INSERT 變慢</a>以及<a href="/blog/guid-clust-idx-frag-n-space/">資料表虛胖</a>，簡單有效解決是另建 BIGINT 或 INT 自動跳號欄位當叢集索引，GUID 仍可做為 Primary Key。(參考：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>對上線運轉多年的現有系統來說，Schema 很難說改就改，異動資料表欄位如同飛航過程修改飛機骨架，光用想的就頭皮發麻，尋求可以減緩 GUID 叢集索引負面影響的對策才是較務實的做法。套句廣告詞：先求不傷身體，再講求效果。</p> <p>要改善 SQL Server 索引碎片化問題，主要可透過索引重建(Rebuild)或索引重組(Reorganize)，而索引重建再分為離線作業及線上作業(加上 ONLINE = ON 參數) ，故共有三種選項：</p> <ul><li>ALTER INDEX ... ON ... REBUILD<br> 離線執行重建，所需時間最短，但過程需卸除和重新建立索引，期間資料庫無法使用</li> <li>ALTER INDEX ... ON ... REBUILD (ONLINE = ON)<br> 線上索引重建，期間資料表可繼續使用，但修改資料時需更新索引的額外副本，影響效能 <a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">參考</a></li> <li>ALTER INDEX ... ON ... REORGANIZE<br> 重新組織索引耗費的資源最少，是官方最建議的做法，期間資料表可繼續查詢或更新，但耗費時間較久</li></ul> <p>延伸閱讀：</p> <ul><li><a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/indexes/reorganize-and-rebuild-indexes?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#rebuild-an-index">將索引維護最佳化以改善查詢效能並降低資源耗用量</a></li> <li><a href="https://caryhsu.blogspot.com/2011/08/sql-server.html">SQL Server 上大型資料表的索引效能調整與維護 by CaryHsu</a></li></ul> <p>離線重建索引是最快的，但營運中的系統也不太可能為了重建索引停用資料表，我試在 INSERT 過程執行 <code>ALTER INDEX ... ON ... REBUILD</code>，不意外地當下那筆作被卡住 15 秒直到重建完成，</p> <pre><code>1000001: 0ms
+1000002: 0ms
+1000003: 0ms
+1000004: 0ms
+1000005: 15596ms
+1000006: 0ms
+1000007: 0ms
+1000008: 0ms
+</code></pre> <p>不管是線上索引重建或索引重組，執行同時一定會影響效能，所以我修改了先前的測試程式，計劃完成三組測試：</p> <ol><li>每 10 萬筆觸發索引重組(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li> <li>每 10 萬筆暫停寫入，執行索引重組(想像成離峰時間執行，不影響日間作業)再繼續，在 GUID 叢集索引資料表 INSERT 1000 萬筆 3. 每 10 萬筆觸發線上索引重建(若前次沒做完就跳過)，在 GUID 叢集索引資料表 INSERT 1000 萬筆</li></ol> <p>程式如下，每 10 萬筆觸發另起 Task 同步跑 <code>ALTER INDEX ... ON ... REORGANIZE</code>，用 bool Running 偵測前次若在執行中就略過。</p> <pre><code>using System.Diagnostics;
+using Microsoft.Data.SqlClient;
+public class SqlRunner
+{
+const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
+public enum TableNameEnum
+{
+GuidClustIdx,
+IntClustIdx
+}
+static int CurrRowIdx = 0;
+static int NextReorgIdx = 0;
+public static void InsertData(TableNameEnum tableName, long rowCount, int reorgCount)
+{
+NextReorgIdx = reorgCount;
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
+cmd.CommandTimeout = 300;
+var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
+var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
+pText.Value = new string('x', 1000);
+var sw = new System.Diagnostics.Stopwatch();
+Directory.CreateDirectory("logs");
+Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
+StreamWriter logger = new StreamWriter(getFileName());
+for (var i = 0; i &lt; rowCount; i++)
+{
+CurrRowIdx = i;
+pPK.Value = Guid.NewGuid();
+sw.Restart();
+cmd.ExecuteNonQuery();
+sw.Stop();
+if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
+if (i % 500_000 == 0)
+{
+logger.Flush();
+logger.Dispose();
+logger = new StreamWriter(getFileName());
+}
+logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
+if (i &gt; NextReorgIdx)
+{
+Task.Run(() =&gt; ReoraganizeIndex(tableName));
+NextReorgIdx += reorgCount;
+}
+}
+logger.Flush();
+logger.Dispose();
+}
+static bool Running = false;
+const string logPath = "results\\ReorgIndex.log";
+public static void ReoraganizeIndex(TableNameEnum tableName)
+{
+if (Running) return;
+try
+{
+Running = true;
+Console.WriteLine("Reorganizing Index");
+int startRowIdx = CurrRowIdx;
+var sw = new Stopwatch();
+sw.Start();
+using var cn = new SqlConnection(cs);
+cn.Open();
+using var cmd = new SqlCommand($"ALTER INDEX PK_{tableName} ON {tableName} REORGANIZE", cn);
+cmd.CommandTimeout = 0; // No Timeout
+cmd.ExecuteNonQuery();
+int endRowIdx = CurrRowIdx;
+sw.Stop();
+Console.WriteLine($"Reorganize Index Elapsed: {sw.ElapsedMilliseconds}ms");
+File.AppendAllText(logPath, $"{tableName} from {startRowIdx} to {endRowIdx} rows, Elapsed: {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+Running = false;
+}
+catch (Exception ex)
+{
+Console.WriteLine(ex.Message);
+File.AppendAllText(logPath, ex.Message + Environment.NewLine);
+}
+}
+}
+</code></pre> <p>先看沒有索引重組或線上索引重建的數據：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png"></p> <p>邊索引重組邊 INSERT 的數據如下，最大值不時會拉長到 1 秒以上，但 99% (綠色) 仍壓在 0.5 秒以下，不算太嚴重。1000 萬筆寫入時間變長兩倍多，由兩小時出頭延長到六小時。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448994894874303.png"></p> <p>將 <code>Task.Run(() =&gt; ReoraganizeIndex(tableName));</code> 改為 <code>ReoraganizeIndex(tableName);</code>，模擬每天離峰索引重組，看看結果比不重組改善多少。有點意外，我沒看出明顯改善：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448994897096397.png"></p> <p>第三組測試比照邊索引重組邊 INSERT，但改成一邊線上索引重建(ALTER INDEX ... ON ... REBUILD (ONLINE = ON) )一邊 INSERT。線上索引重建對寫入效的影響比較明顯，最大值不時突破 10 秒，大部分的寫入還是可以零秒完成，但平均值跟 99 百分位數都拉高了，而 1000 萬筆寫入時間拉長 10 倍跑了 10 小時才完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448994899293319.png"></p> <p>而另一個值得觀察的點是邊 INSERT 邊重組、專心專組、邊 INSERT 邊重建耗費的時間。</p> <p>邊 INSERT 邊索引重組與資料筆數大致成線性關係，由於需待前次做完進行下次，執行時機不固定，最後一次發生在 680 萬筆左右，耗時超過一小時 (4472 秒, 1h14m)。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638448994901446551.png"></p> <p>停止 INSERT 專心索引重組耗時與資料筆數也是呈線性關係，但時間大幅縮短一半，1000 萬筆耗時 1352 秒，只要 22 分鐘。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638448994903589827.png"></p> <p>若不考慮執期間影響寫入作業的效能，線上索引重建比線上重組有效率多了，1000 萬也只要 502 秒，八分多鐘，快了 N 倍。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638448994905773432.png"></p> <p>做個結論：</p> <ol><li>索引重組或索引重建對 GUID 叢集索引 INSERT 作業的效能改善不明顯(但原本也不嚴重就是了)，但減少資料分頁數量、消除碎片化及節省磁碟空間有益無害。</li> <li>如果系統有明確的離峰時段(當下極少人使用，且能容忍延遲)，線上索引重建是最有效率的做法；由測試結果，索引重組對 INSERT 效能的影響比預期小，邊重組邊寫入造成的效能拖累不明顯。</li></ol> <p>不過，如果可以，避免用 GUID 當叢集索引(當 PK 沒問題，但好像不少把兩件事綁在一起)是更好的解法。</p> <p data-slug="index-reorg-n-index-rebuild" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png" medium="image"/>
+    <pubDate>Fri, 01 Mar 2024 14:12:01 GMT</pubDate>
+  </item><item>
     <title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></title>
     <link>https://blog.darkthread.net/blog/view-aspnet-core-error-detail-in-iis/</link>
     <itunes:title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></itunes:title>
@@ -1388,440 +1667,5 @@ break;
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638436065118158748.gif"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638436065118158748.gif" medium="image"/>
     <pubDate>Thu, 15 Feb 2024 15:04:06 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - 高斯消去法解聯立方程式]]></title>
-    <link>https://blog.darkthread.net/blog/guassian-elimination/</link>
-    <itunes:title><![CDATA[Coding4Fun - 高斯消去法解聯立方程式]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>用電腦解<a href="https://zh.wikipedia.org/wiki/%E6%96%B9%E7%A8%8B%E7%BB%84">聯立方程式</a>，一般會使用<a href="https://zh.wikipedia.org/zh-tw/%E9%AB%98%E6%96%AF%E6%B6%88%E5%8E%BB%E6%B3%95">高斯消去法</a>用矩陣求解：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png"></p> <p>在 .NET 做矩陣運算，<a href="https://zh.wikipedia.org/zh-tw/Math.NET_Numerics">Math.NET Numerics 程式庫</a>是首選。</p> <p>Math.Net Numerics 是個<a href="https://github.com/mathnet/mathnet-numerics">開源數學程式庫</a>，囊括矩陣、線性代數求解、機率、線性回歸、積分、傅立葉轉換... 等各種你想得到的數學運算，且被學術論文和期刊廣泛引用，其專業性毋庸置疑。總之，遇到 .NET 算數學需求，先找 Math.Net Numerics 就對了，別急著自己造輪子。</p> <p>練習題為假設有聯立方程式組如下，求解 x, y, z 為何？</p> <pre><code>7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-</code></pre> <p>先用 MathNet.Numerics.LinearAlgebra 函式庫求解。在專案 <code>dotnet add package MathNet.Numerics</code> 加入參照，只需幾行程式建個 Matrix 物件呼叫 .Solve() 便能完成：<a href="https://numerics.mathdotnet.com/LinearEquations">參考</a></p> <pre><code>using MathNet.Numerics.LinearAlgebra;
-public class MathNetDemo
-{
-public static void Solve()
-{
-var matrix = Matrix&lt;double&gt;.Build.DenseOfArray(new double[,]
-{
-{7, -2, 3},
-{2, -1, 4},
-{-1, 3, -1}
-});
-var vector = Vector&lt;double&gt;.Build.Dense(new double[] {12, 12, 2});
-var result = matrix.Solve(vector);
-Console.WriteLine($"x = {result[0]}, y = {result[1]}, z = {result[2]}");
-}
-}
-</code></pre> <p>小缺點是 MathNet 的 Matrix/Vector 的數字只支援 Double、Single、Complex 及 Complex32 四種型別(<code>Matrices and vectors of type 'Frac' are not supported. Only Double, Single, Complex or Complex32 are supported at this point.</code>)，使用 double 浮點數計算會包含浮點數誤差(Floating-Point Error)，得到 <code>x = 1.0000000000000002, y = 2, z = 2.9999999999999996</code>，有時遇到分數無法整除只能以循環小數表示，雖然實務應用不致造成問題，但在做數學習題時，這答案就是不完美。</p> <p>前幾天寫的<a href="/blog/cs-fraction-type/">分數型別</a>剛好可以避開上述問題，而高斯消去法邏輯不難，我打算自己實作玩看看，順便把解題過程印出來幫助了解原理，以上就是本次的計劃。</p> <p>用矩陣運算求解聯立方程式的概念是將常數值轉成矩陣形式(我用 Frac[,] 二維陣列模擬)，先排序將每一行最大值移到對角線，接著將對角線係數調成 1，對角線以下的係數調成 0 形成<a href="https://zh.wikipedia.org/zh-tw/%E9%98%B6%E6%A2%AF%E5%BD%A2%E7%9F%A9%E9%98%B5">列階梯形矩陣</a>，最後再將非對角線係數也調成 0，即可得解。</p> <p>實作程式邏輯如下：(註：我有為 Frac 增加 Abs() 方法 <code>public Frac Abs() =&gt; this &gt; 0 ? this : -this;</code> 計算絕對值)</p> <pre><code>public class FracMatrixDemo
-{
-public static void GaussianEliminationDemo()
-{
-/*
-聯立方程組
-7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-*/
-Frac[,] matrix = new Frac[3, 4]
-{
-{7, -2, 3, 12},
-{2, -1, 4, 12},
-{-1, 3, -1, 2}
-};
-PrintMatrix(matrix, "原矩陣");
-// 排序將絕對值最大的列放在最上面
-SortRows(matrix);
-PrintMatrix(matrix, "排序後");
-// 將矩陣化為上三角矩陣
-Console.WriteLine("列階梯形矩陣");
-ToRowEchelonForm(matrix);
-// 將對角線以外係數調成 0
-Console.WriteLine("簡化列階梯形矩陣");
-ToDiagonal(matrix);
-}
-static void ToRowEchelonForm(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-// 將對角線係數調成 1
-var diag = matrix[i, i];
-for (int j = i; j &lt; colCount; j++)
-{
-matrix[i, j] /= diag;
-}
-PrintMatrix(matrix, $"({i}, {i}) 改為 1");
-// 將對角線以下係數調成 0
-for (int k = i + 1; k &lt; rowCount; k++)
-{
-var factor = matrix[k, i];
-for (int l = i; l &lt; colCount; l++)
-{
-matrix[k, l] -= matrix[i, l] * factor;
-if (k == l &amp;&amp; matrix[k, l] == 0)
-{
-throw new ApplicationException("無限多組解");
-}
-}
-}
-if (i &lt; rowCount - 1)
-PrintMatrix(matrix, $"({i}, {i}) 以下改為 0");
-}
-}
-static void ToDiagonal(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = rowCount - 1; i &gt; 0; i--)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-for (int j = i - 1; j &gt;= 0; j--)
-{
-var factor = matrix[j, i];
-for (int k = i; k &lt; colCount; k++)
-{
-matrix[j, k] -= matrix[i, k] * factor;
-}
-}
-PrintMatrix(matrix, $"({i}, {i}) 以上改為 0");
-}
-}
-static void SortRows(Frac[,] matrix)
-{
-// 排序將對角線元素絕對值較大者放在最上面
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-int maxRow = i;
-for (int j = i + 1; j &lt; rowCount; j++)
-{
-if (matrix[j, i].Abs() &gt; matrix[maxRow, i].Abs())
-{
-maxRow = j;
-}
-}
-// 與最大列交換
-if (maxRow != i)
-{
-for (int k = 0; k &lt; colCount; k++)
-{
-var temp = matrix[i, k];
-matrix[i, k] = matrix[maxRow, k];
-matrix[maxRow, k] = temp;
-}
-}
-}
-}
-public static void PrintMatrix(Frac[,] matrix, string title)
-{
-var len = Math.Max(5, matrix.Cast&lt;Frac&gt;().Max(o =&gt; o.ToString().Length) + 2);
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(title);
-Console.ForegroundColor = ConsoleColor.Yellow;
-for (int i = 0; i &lt; matrix.GetLength(0); i++)
-{
-for (int j = 0; j &lt; matrix.GetLength(1); j++)
-{
-Console.Write(matrix[i, j].ToString().PadLeft(len));
-}
-Console.WriteLine();
-}
-Console.WriteLine();
-Console.ResetColor();
-}
-}
-</code></pre> <p>執行結果如下，成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638435121926223442.png"></p> <p>註：範例程式已更新至 <a href="https://github.com/darkthread/frac-type">Github</a></p> <p data-slug="guassian-elimination" data-title-en="Implementating Gussian elimination with C#" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">This article introduces how to solve a system of simultaneous equations using the MathNet library and implement the Gaussian elimination method with a custom fraction type to obtain accurate solutions</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>用電腦解<a href="https://zh.wikipedia.org/wiki/%E6%96%B9%E7%A8%8B%E7%BB%84">聯立方程式</a>，一般會使用<a href="https://zh.wikipedia.org/zh-tw/%E9%AB%98%E6%96%AF%E6%B6%88%E5%8E%BB%E6%B3%95">高斯消去法</a>用矩陣求解：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png"></p> <p>在 .NET 做矩陣運算，<a href="https://zh.wikipedia.org/zh-tw/Math.NET_Numerics">Math.NET Numerics 程式庫</a>是首選。</p> <p>Math.Net Numerics 是個<a href="https://github.com/mathnet/mathnet-numerics">開源數學程式庫</a>，囊括矩陣、線性代數求解、機率、線性回歸、積分、傅立葉轉換... 等各種你想得到的數學運算，且被學術論文和期刊廣泛引用，其專業性毋庸置疑。總之，遇到 .NET 算數學需求，先找 Math.Net Numerics 就對了，別急著自己造輪子。</p> <p>練習題為假設有聯立方程式組如下，求解 x, y, z 為何？</p> <pre><code>7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-</code></pre> <p>先用 MathNet.Numerics.LinearAlgebra 函式庫求解。在專案 <code>dotnet add package MathNet.Numerics</code> 加入參照，只需幾行程式建個 Matrix 物件呼叫 .Solve() 便能完成：<a href="https://numerics.mathdotnet.com/LinearEquations">參考</a></p> <pre><code>using MathNet.Numerics.LinearAlgebra;
-public class MathNetDemo
-{
-public static void Solve()
-{
-var matrix = Matrix&lt;double&gt;.Build.DenseOfArray(new double[,]
-{
-{7, -2, 3},
-{2, -1, 4},
-{-1, 3, -1}
-});
-var vector = Vector&lt;double&gt;.Build.Dense(new double[] {12, 12, 2});
-var result = matrix.Solve(vector);
-Console.WriteLine($"x = {result[0]}, y = {result[1]}, z = {result[2]}");
-}
-}
-</code></pre> <p>小缺點是 MathNet 的 Matrix/Vector 的數字只支援 Double、Single、Complex 及 Complex32 四種型別(<code>Matrices and vectors of type 'Frac' are not supported. Only Double, Single, Complex or Complex32 are supported at this point.</code>)，使用 double 浮點數計算會包含浮點數誤差(Floating-Point Error)，得到 <code>x = 1.0000000000000002, y = 2, z = 2.9999999999999996</code>，有時遇到分數無法整除只能以循環小數表示，雖然實務應用不致造成問題，但在做數學習題時，這答案就是不完美。</p> <p>前幾天寫的<a href="/blog/cs-fraction-type/">分數型別</a>剛好可以避開上述問題，而高斯消去法邏輯不難，我打算自己實作玩看看，順便把解題過程印出來幫助了解原理，以上就是本次的計劃。</p> <p>用矩陣運算求解聯立方程式的概念是將常數值轉成矩陣形式(我用 Frac[,] 二維陣列模擬)，先排序將每一行最大值移到對角線，接著將對角線係數調成 1，對角線以下的係數調成 0 形成<a href="https://zh.wikipedia.org/zh-tw/%E9%98%B6%E6%A2%AF%E5%BD%A2%E7%9F%A9%E9%98%B5">列階梯形矩陣</a>，最後再將非對角線係數也調成 0，即可得解。</p> <p>實作程式邏輯如下：(註：我有為 Frac 增加 Abs() 方法 <code>public Frac Abs() =&gt; this &gt; 0 ? this : -this;</code> 計算絕對值)</p> <pre><code>public class FracMatrixDemo
-{
-public static void GaussianEliminationDemo()
-{
-/*
-聯立方程組
-7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-*/
-Frac[,] matrix = new Frac[3, 4]
-{
-{7, -2, 3, 12},
-{2, -1, 4, 12},
-{-1, 3, -1, 2}
-};
-PrintMatrix(matrix, "原矩陣");
-// 排序將絕對值最大的列放在最上面
-SortRows(matrix);
-PrintMatrix(matrix, "排序後");
-// 將矩陣化為上三角矩陣
-Console.WriteLine("列階梯形矩陣");
-ToRowEchelonForm(matrix);
-// 將對角線以外係數調成 0
-Console.WriteLine("簡化列階梯形矩陣");
-ToDiagonal(matrix);
-}
-static void ToRowEchelonForm(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-// 將對角線係數調成 1
-var diag = matrix[i, i];
-for (int j = i; j &lt; colCount; j++)
-{
-matrix[i, j] /= diag;
-}
-PrintMatrix(matrix, $"({i}, {i}) 改為 1");
-// 將對角線以下係數調成 0
-for (int k = i + 1; k &lt; rowCount; k++)
-{
-var factor = matrix[k, i];
-for (int l = i; l &lt; colCount; l++)
-{
-matrix[k, l] -= matrix[i, l] * factor;
-if (k == l &amp;&amp; matrix[k, l] == 0)
-{
-throw new ApplicationException("無限多組解");
-}
-}
-}
-if (i &lt; rowCount - 1)
-PrintMatrix(matrix, $"({i}, {i}) 以下改為 0");
-}
-}
-static void ToDiagonal(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = rowCount - 1; i &gt; 0; i--)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-for (int j = i - 1; j &gt;= 0; j--)
-{
-var factor = matrix[j, i];
-for (int k = i; k &lt; colCount; k++)
-{
-matrix[j, k] -= matrix[i, k] * factor;
-}
-}
-PrintMatrix(matrix, $"({i}, {i}) 以上改為 0");
-}
-}
-static void SortRows(Frac[,] matrix)
-{
-// 排序將對角線元素絕對值較大者放在最上面
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-int maxRow = i;
-for (int j = i + 1; j &lt; rowCount; j++)
-{
-if (matrix[j, i].Abs() &gt; matrix[maxRow, i].Abs())
-{
-maxRow = j;
-}
-}
-// 與最大列交換
-if (maxRow != i)
-{
-for (int k = 0; k &lt; colCount; k++)
-{
-var temp = matrix[i, k];
-matrix[i, k] = matrix[maxRow, k];
-matrix[maxRow, k] = temp;
-}
-}
-}
-}
-public static void PrintMatrix(Frac[,] matrix, string title)
-{
-var len = Math.Max(5, matrix.Cast&lt;Frac&gt;().Max(o =&gt; o.ToString().Length) + 2);
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(title);
-Console.ForegroundColor = ConsoleColor.Yellow;
-for (int i = 0; i &lt; matrix.GetLength(0); i++)
-{
-for (int j = 0; j &lt; matrix.GetLength(1); j++)
-{
-Console.Write(matrix[i, j].ToString().PadLeft(len));
-}
-Console.WriteLine();
-}
-Console.WriteLine();
-Console.ResetColor();
-}
-}
-</code></pre> <p>執行結果如下，成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638435121926223442.png"></p> <p>註：範例程式已更新至 <a href="https://github.com/darkthread/frac-type">Github</a></p> <p data-slug="guassian-elimination" data-title-en="Implementating Gussian elimination with C#" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">This article introduces how to solve a system of simultaneous equations using the MathNet library and implement the Gaussian elimination method with a custom fraction type to obtain accurate solutions</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>用電腦解<a href="https://zh.wikipedia.org/wiki/%E6%96%B9%E7%A8%8B%E7%BB%84">聯立方程式</a>，一般會使用<a href="https://zh.wikipedia.org/zh-tw/%E9%AB%98%E6%96%AF%E6%B6%88%E5%8E%BB%E6%B3%95">高斯消去法</a>用矩陣求解：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png"></p> <p>在 .NET 做矩陣運算，<a href="https://zh.wikipedia.org/zh-tw/Math.NET_Numerics">Math.NET Numerics 程式庫</a>是首選。</p> <p>Math.Net Numerics 是個<a href="https://github.com/mathnet/mathnet-numerics">開源數學程式庫</a>，囊括矩陣、線性代數求解、機率、線性回歸、積分、傅立葉轉換... 等各種你想得到的數學運算，且被學術論文和期刊廣泛引用，其專業性毋庸置疑。總之，遇到 .NET 算數學需求，先找 Math.Net Numerics 就對了，別急著自己造輪子。</p> <p>練習題為假設有聯立方程式組如下，求解 x, y, z 為何？</p> <pre><code>7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-</code></pre> <p>先用 MathNet.Numerics.LinearAlgebra 函式庫求解。在專案 <code>dotnet add package MathNet.Numerics</code> 加入參照，只需幾行程式建個 Matrix 物件呼叫 .Solve() 便能完成：<a href="https://numerics.mathdotnet.com/LinearEquations">參考</a></p> <pre><code>using MathNet.Numerics.LinearAlgebra;
-public class MathNetDemo
-{
-public static void Solve()
-{
-var matrix = Matrix&lt;double&gt;.Build.DenseOfArray(new double[,]
-{
-{7, -2, 3},
-{2, -1, 4},
-{-1, 3, -1}
-});
-var vector = Vector&lt;double&gt;.Build.Dense(new double[] {12, 12, 2});
-var result = matrix.Solve(vector);
-Console.WriteLine($"x = {result[0]}, y = {result[1]}, z = {result[2]}");
-}
-}
-</code></pre> <p>小缺點是 MathNet 的 Matrix/Vector 的數字只支援 Double、Single、Complex 及 Complex32 四種型別(<code>Matrices and vectors of type 'Frac' are not supported. Only Double, Single, Complex or Complex32 are supported at this point.</code>)，使用 double 浮點數計算會包含浮點數誤差(Floating-Point Error)，得到 <code>x = 1.0000000000000002, y = 2, z = 2.9999999999999996</code>，有時遇到分數無法整除只能以循環小數表示，雖然實務應用不致造成問題，但在做數學習題時，這答案就是不完美。</p> <p>前幾天寫的<a href="/blog/cs-fraction-type/">分數型別</a>剛好可以避開上述問題，而高斯消去法邏輯不難，我打算自己實作玩看看，順便把解題過程印出來幫助了解原理，以上就是本次的計劃。</p> <p>用矩陣運算求解聯立方程式的概念是將常數值轉成矩陣形式(我用 Frac[,] 二維陣列模擬)，先排序將每一行最大值移到對角線，接著將對角線係數調成 1，對角線以下的係數調成 0 形成<a href="https://zh.wikipedia.org/zh-tw/%E9%98%B6%E6%A2%AF%E5%BD%A2%E7%9F%A9%E9%98%B5">列階梯形矩陣</a>，最後再將非對角線係數也調成 0，即可得解。</p> <p>實作程式邏輯如下：(註：我有為 Frac 增加 Abs() 方法 <code>public Frac Abs() =&gt; this &gt; 0 ? this : -this;</code> 計算絕對值)</p> <pre><code>public class FracMatrixDemo
-{
-public static void GaussianEliminationDemo()
-{
-/*
-聯立方程組
-7x - 2y + 3z = 12
-2x - y + 4z = 12
--x + 3y - z = 2
-*/
-Frac[,] matrix = new Frac[3, 4]
-{
-{7, -2, 3, 12},
-{2, -1, 4, 12},
-{-1, 3, -1, 2}
-};
-PrintMatrix(matrix, "原矩陣");
-// 排序將絕對值最大的列放在最上面
-SortRows(matrix);
-PrintMatrix(matrix, "排序後");
-// 將矩陣化為上三角矩陣
-Console.WriteLine("列階梯形矩陣");
-ToRowEchelonForm(matrix);
-// 將對角線以外係數調成 0
-Console.WriteLine("簡化列階梯形矩陣");
-ToDiagonal(matrix);
-}
-static void ToRowEchelonForm(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-// 將對角線係數調成 1
-var diag = matrix[i, i];
-for (int j = i; j &lt; colCount; j++)
-{
-matrix[i, j] /= diag;
-}
-PrintMatrix(matrix, $"({i}, {i}) 改為 1");
-// 將對角線以下係數調成 0
-for (int k = i + 1; k &lt; rowCount; k++)
-{
-var factor = matrix[k, i];
-for (int l = i; l &lt; colCount; l++)
-{
-matrix[k, l] -= matrix[i, l] * factor;
-if (k == l &amp;&amp; matrix[k, l] == 0)
-{
-throw new ApplicationException("無限多組解");
-}
-}
-}
-if (i &lt; rowCount - 1)
-PrintMatrix(matrix, $"({i}, {i}) 以下改為 0");
-}
-}
-static void ToDiagonal(Frac[,] matrix)
-{
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = rowCount - 1; i &gt; 0; i--)
-{
-Console.WriteLine($"** 第 {i + 1} 列 **");
-for (int j = i - 1; j &gt;= 0; j--)
-{
-var factor = matrix[j, i];
-for (int k = i; k &lt; colCount; k++)
-{
-matrix[j, k] -= matrix[i, k] * factor;
-}
-}
-PrintMatrix(matrix, $"({i}, {i}) 以上改為 0");
-}
-}
-static void SortRows(Frac[,] matrix)
-{
-// 排序將對角線元素絕對值較大者放在最上面
-var rowCount = matrix.GetLength(0);
-var colCount = matrix.GetLength(1);
-for (int i = 0; i &lt; rowCount; i++)
-{
-int maxRow = i;
-for (int j = i + 1; j &lt; rowCount; j++)
-{
-if (matrix[j, i].Abs() &gt; matrix[maxRow, i].Abs())
-{
-maxRow = j;
-}
-}
-// 與最大列交換
-if (maxRow != i)
-{
-for (int k = 0; k &lt; colCount; k++)
-{
-var temp = matrix[i, k];
-matrix[i, k] = matrix[maxRow, k];
-matrix[maxRow, k] = temp;
-}
-}
-}
-}
-public static void PrintMatrix(Frac[,] matrix, string title)
-{
-var len = Math.Max(5, matrix.Cast&lt;Frac&gt;().Max(o =&gt; o.ToString().Length) + 2);
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine(title);
-Console.ForegroundColor = ConsoleColor.Yellow;
-for (int i = 0; i &lt; matrix.GetLength(0); i++)
-{
-for (int j = 0; j &lt; matrix.GetLength(1); j++)
-{
-Console.Write(matrix[i, j].ToString().PadLeft(len));
-}
-Console.WriteLine();
-}
-Console.WriteLine();
-Console.ResetColor();
-}
-}
-</code></pre> <p>執行結果如下，成功。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638435121926223442.png"></p> <p>註：範例程式已更新至 <a href="https://github.com/darkthread/frac-type">Github</a></p> <p data-slug="guassian-elimination" data-title-en="Implementating Gussian elimination with C#" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2018/12/09/08/50/pattern-3864533_960_720.jpg#960#720">This article introduces how to solve a system of simultaneous equations using the MathNet library and implement the Gaussian elimination method with a custom fraction type to obtain accurate solutions</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638435121923942262.png" medium="image"/>
-    <pubDate>Wed, 14 Feb 2024 04:33:19 GMT</pubDate>
   </item></channel>
 </rss>
