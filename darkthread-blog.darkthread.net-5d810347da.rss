@@ -30,6 +30,468 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[使用 .NET Git 程式庫 LibGit2Sharp 檔案不落地生成異動對照表]]></title>
+    <link>https://blog.darkthread.net/blog/libgit2sharp/</link>
+    <itunes:title><![CDATA[使用 .NET Git 程式庫 LibGit2Sharp 檔案不落地生成異動對照表]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>遇到一個小需求，想用 .NET 出一份檔案修改前後對照表，我心中最理想的方案是用 <a href="/blog/diff2html-webpage/">git diff + diff2html</a> 產生 HTML 報表，省時省力又好看。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png"></p> <p>git diff 指令跟產生 diff2html 網頁技能是現成的，最不花腦的解決方法是用 .NET 將修改前後檔案雙雙寫成檔案，呼叫外部程式 git.exe 跑 <code>git diff a.txt b.txt</code> 取得結果，再交給 diff2html 顯示對照表。有沒有更輕巧簡潔的解法？</p> <p><a href="https://libgit2.org/">libgit2</a> 是一個用 C 開發的開源 Git 可攜程式庫，讓你不用安裝 Git 直接引用 Git 的各項功能，<a href="https://github.com/libgit2/libgit2sharp">libgit2sharp</a> 則為 libgit2 提供了 .NET 相容介面，會比呼叫 git.exe 更優雅。</p> <p>在專案執行 <code>dotnet add package libgit2sharp</code> 或從 NuGet 安裝後，就可以在 .NET 程式裡直接進行各項 Git 操作。</p> <p>以下是個簡單範例，示範 用 C# 建立一個 Git 儲存庫，加入 test.txt、Commit、修改 test.txt、再次 Commit、列出 Commit 記錄、顯示 Commit 的異動內容：</p> <pre><code>using LibGit2Sharp;
+Func&lt;string&gt; CreateTempRepo = () =&gt;
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+};
+var userName = "Tester";
+var email = "tester@mail.net";
+// Signature 物件，代表 Commit 的作者或提交者
+Func&lt;Signature&gt; getSignature = () =&gt; new Signature(userName, email, DateTimeOffset.Now);
+var repoPath = CreateTempRepo();
+using (var repo = new Repository(repoPath))
+{
+var fileName = "test.txt";
+var path = Path.Combine(repoPath, fileName);
+File.WriteAllText(path, "Hello, World!
+First Commit");
+Commands.Stage(repo, fileName);
+repo.Commit("Initial commit",
+// Author       Committer
+getSignature(), getSignature());
+File.AppendAllText(path, "
+Second Commit");
+Commands.Stage(repo, fileName);
+Thread.Sleep(1000);
+repo.Commit("Second commit", getSignature(), getSignature());
+print("**** Commit 紀錄 ****", ConsoleColor.Magenta);
+foreach (var commit in repo.Commits)
+{
+print("Commit: " + commit.Id, ConsoleColor.Cyan);
+print("  " + commit.Message, noNewLine: true);
+print($"  by {commit.Author.Name} at {commit.Author.When:HH:mm:ss}", ConsoleColor.Green);
+}
+var commit1 = repo.Commits.Last();
+var commit2 = repo.Commits.First();
+var changes = repo.Diff.Compare&lt;Patch&gt;(commit1.Tree, commit2.Tree);
+print("**** 異動比對 ****", ConsoleColor.Magenta);
+foreach (var change in changes)
+{
+print(change.Patch, ConsoleColor.DarkYellow);
+}
+}
+void print(string text, ConsoleColor color = ConsoleColor.White, bool noNewLine = false)
+{
+Console.ForegroundColor = color;
+if (noNewLine)
+Console.Write(text);
+else
+Console.WriteLine(text);
+Console.ResetColor();
+}
+</code></pre> <p>輕輕鬆鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638452451363215435.png"></p> <p>最後，來看一下一開始的 XML 修改前後對照是怎麼做出來的？</p> <pre><code>public static void Run()
+{
+var xml= XDocument.Parse(@"
+&lt;list&gt;
+&lt;item id=""N1""&gt;Item 1&lt;/item&gt;
+&lt;item id=""N2""&gt;Item 2&lt;/item&gt;
+&lt;item id=""N3""&gt;Item 3&lt;/item&gt;
+&lt;item id=""N4""&gt;Item 4&lt;/item&gt;
+&lt;/list&gt;
+");
+var origin = xml.ToString();
+xml.Root.Elements("item").Skip(1).First().SetAttributeValue("id", "N2-new");
+xml.Root.Elements("item").Skip(2).First().Value = "Item 3 (modified)";
+xml.Root.Add(new XElement("item", new XAttribute("id", "N5"), "Item 5"));
+var modified = xml.ToString();
+var html = GitDiffTool.GenGitDiffHtmlReport(origin, modified, "origin.xml", "modified.xml");
+File.WriteAllText("D:\\Report.html", html);
+// 用預設瀏覽器開啟
+System.Diagnostics.Process.Start("cmd", @"/c ""start D:\Report.html""");
+}
+</code></pre> <p>關鍵的 GitDiffTool.GenGitDiffHtmlReport 如下，建立一個暫存目錄，直接將修改前後字串內容轉成 Blob 交由 Diff.Comapre() 比對。結果字串交給 diff2html 顯示，過程我用了 <a href="/blog/gzip-decompression-with-js/">HTML 單檔文件挑戰 - 內嵌 .js GZIP 壓縮檔</a>展示過的技巧，將差異結果用 Base64 內嵌在網頁裡。</p> <pre><code>using System.Text;
+using LibGit2Sharp;
+public class GitDiffTool
+{
+static string CreateTempRepo()
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+}
+const string html = @"
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;link rel=""stylesheet"" type=""text/css""
+href=""https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css"" /&gt;
+&lt;script src=""https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js""&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script id='diff.txt' type=""text/base64""&gt;
+[$diff.txt$]
+&lt;/script&gt;
+&lt;div id=report&gt;
+&lt;/div&gt;
+&lt;script&gt;
+var diffText = new TextDecoder().decode(
+new Uint8Array(
+atob(
+document.getElementById('diff.txt').innerHTML.replace(/[
+\r \t]/g, '')
+).split('').map(c =&gt; c.charCodeAt(0))
+)
+);
+var diffHtml = Diff2Html.html(diffText, {
+drawFileList: true,
+matching: 'lines',
+outputFormat: 'side-by-side',
+});
+document.getElementById('report').innerHTML = diffHtml;
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;";
+public static string GenGitDiff(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+using (var repo = new Repository(CreateTempRepo()))
+{
+var lines = new[] { "Line 1", "Line 2", "Line 3" };
+var blob1 = repo.ObjectDatabase.CreateBlob(
+// 由字串建立 Blob 物件 (也可改成讀檔案傳入 FileStream)
+new MemoryStream(Encoding.UTF8.GetBytes(oldText)));
+var blob2 = repo.ObjectDatabase.CreateBlob(
+new MemoryStream(Encoding.UTF8.GetBytes(newText)));
+// 比較兩個 Blob 物件差異
+var patch = $@"
+diff --git a/{oldFile} b/{newFile}
+index aaaaaaa..bbbbbbb 100644
+--- a/{oldFile}
++++ b/{newFile}
+{repo.Diff.Compare(blob1, blob2).Patch}";
+return patch;
+}
+}
+public static string GenGitDiffHtmlReport(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+var diff = GenGitDiff(oldText, newText, oldFile, newFile);
+var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(diff));
+var pem = new StringBuilder();
+const int maxWidth = 160;
+for (int i = 0; i &lt; base64.Length; i += maxWidth)
+{
+pem.AppendLine(base64.Substring(i, Math.Min(maxWidth, base64.Length - i)));
+}
+return html.Replace("[$diff.txt$]", pem.ToString());
+}
+}
+</code></pre> <p>就醬，又解掉一件任務。</p> <p data-slug="libgit2sharp" data-fbimg="https://i.imgur.com/0UbIRZt.png#960#540"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>遇到一個小需求，想用 .NET 出一份檔案修改前後對照表，我心中最理想的方案是用 <a href="/blog/diff2html-webpage/">git diff + diff2html</a> 產生 HTML 報表，省時省力又好看。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png"></p> <p>git diff 指令跟產生 diff2html 網頁技能是現成的，最不花腦的解決方法是用 .NET 將修改前後檔案雙雙寫成檔案，呼叫外部程式 git.exe 跑 <code>git diff a.txt b.txt</code> 取得結果，再交給 diff2html 顯示對照表。有沒有更輕巧簡潔的解法？</p> <p><a href="https://libgit2.org/">libgit2</a> 是一個用 C 開發的開源 Git 可攜程式庫，讓你不用安裝 Git 直接引用 Git 的各項功能，<a href="https://github.com/libgit2/libgit2sharp">libgit2sharp</a> 則為 libgit2 提供了 .NET 相容介面，會比呼叫 git.exe 更優雅。</p> <p>在專案執行 <code>dotnet add package libgit2sharp</code> 或從 NuGet 安裝後，就可以在 .NET 程式裡直接進行各項 Git 操作。</p> <p>以下是個簡單範例，示範 用 C# 建立一個 Git 儲存庫，加入 test.txt、Commit、修改 test.txt、再次 Commit、列出 Commit 記錄、顯示 Commit 的異動內容：</p> <pre><code>using LibGit2Sharp;
+Func&lt;string&gt; CreateTempRepo = () =&gt;
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+};
+var userName = "Tester";
+var email = "tester@mail.net";
+// Signature 物件，代表 Commit 的作者或提交者
+Func&lt;Signature&gt; getSignature = () =&gt; new Signature(userName, email, DateTimeOffset.Now);
+var repoPath = CreateTempRepo();
+using (var repo = new Repository(repoPath))
+{
+var fileName = "test.txt";
+var path = Path.Combine(repoPath, fileName);
+File.WriteAllText(path, "Hello, World!
+First Commit");
+Commands.Stage(repo, fileName);
+repo.Commit("Initial commit",
+// Author       Committer
+getSignature(), getSignature());
+File.AppendAllText(path, "
+Second Commit");
+Commands.Stage(repo, fileName);
+Thread.Sleep(1000);
+repo.Commit("Second commit", getSignature(), getSignature());
+print("**** Commit 紀錄 ****", ConsoleColor.Magenta);
+foreach (var commit in repo.Commits)
+{
+print("Commit: " + commit.Id, ConsoleColor.Cyan);
+print("  " + commit.Message, noNewLine: true);
+print($"  by {commit.Author.Name} at {commit.Author.When:HH:mm:ss}", ConsoleColor.Green);
+}
+var commit1 = repo.Commits.Last();
+var commit2 = repo.Commits.First();
+var changes = repo.Diff.Compare&lt;Patch&gt;(commit1.Tree, commit2.Tree);
+print("**** 異動比對 ****", ConsoleColor.Magenta);
+foreach (var change in changes)
+{
+print(change.Patch, ConsoleColor.DarkYellow);
+}
+}
+void print(string text, ConsoleColor color = ConsoleColor.White, bool noNewLine = false)
+{
+Console.ForegroundColor = color;
+if (noNewLine)
+Console.Write(text);
+else
+Console.WriteLine(text);
+Console.ResetColor();
+}
+</code></pre> <p>輕輕鬆鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638452451363215435.png"></p> <p>最後，來看一下一開始的 XML 修改前後對照是怎麼做出來的？</p> <pre><code>public static void Run()
+{
+var xml= XDocument.Parse(@"
+&lt;list&gt;
+&lt;item id=""N1""&gt;Item 1&lt;/item&gt;
+&lt;item id=""N2""&gt;Item 2&lt;/item&gt;
+&lt;item id=""N3""&gt;Item 3&lt;/item&gt;
+&lt;item id=""N4""&gt;Item 4&lt;/item&gt;
+&lt;/list&gt;
+");
+var origin = xml.ToString();
+xml.Root.Elements("item").Skip(1).First().SetAttributeValue("id", "N2-new");
+xml.Root.Elements("item").Skip(2).First().Value = "Item 3 (modified)";
+xml.Root.Add(new XElement("item", new XAttribute("id", "N5"), "Item 5"));
+var modified = xml.ToString();
+var html = GitDiffTool.GenGitDiffHtmlReport(origin, modified, "origin.xml", "modified.xml");
+File.WriteAllText("D:\\Report.html", html);
+// 用預設瀏覽器開啟
+System.Diagnostics.Process.Start("cmd", @"/c ""start D:\Report.html""");
+}
+</code></pre> <p>關鍵的 GitDiffTool.GenGitDiffHtmlReport 如下，建立一個暫存目錄，直接將修改前後字串內容轉成 Blob 交由 Diff.Comapre() 比對。結果字串交給 diff2html 顯示，過程我用了 <a href="/blog/gzip-decompression-with-js/">HTML 單檔文件挑戰 - 內嵌 .js GZIP 壓縮檔</a>展示過的技巧，將差異結果用 Base64 內嵌在網頁裡。</p> <pre><code>using System.Text;
+using LibGit2Sharp;
+public class GitDiffTool
+{
+static string CreateTempRepo()
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+}
+const string html = @"
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;link rel=""stylesheet"" type=""text/css""
+href=""https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css"" /&gt;
+&lt;script src=""https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js""&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script id='diff.txt' type=""text/base64""&gt;
+[$diff.txt$]
+&lt;/script&gt;
+&lt;div id=report&gt;
+&lt;/div&gt;
+&lt;script&gt;
+var diffText = new TextDecoder().decode(
+new Uint8Array(
+atob(
+document.getElementById('diff.txt').innerHTML.replace(/[
+\r \t]/g, '')
+).split('').map(c =&gt; c.charCodeAt(0))
+)
+);
+var diffHtml = Diff2Html.html(diffText, {
+drawFileList: true,
+matching: 'lines',
+outputFormat: 'side-by-side',
+});
+document.getElementById('report').innerHTML = diffHtml;
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;";
+public static string GenGitDiff(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+using (var repo = new Repository(CreateTempRepo()))
+{
+var lines = new[] { "Line 1", "Line 2", "Line 3" };
+var blob1 = repo.ObjectDatabase.CreateBlob(
+// 由字串建立 Blob 物件 (也可改成讀檔案傳入 FileStream)
+new MemoryStream(Encoding.UTF8.GetBytes(oldText)));
+var blob2 = repo.ObjectDatabase.CreateBlob(
+new MemoryStream(Encoding.UTF8.GetBytes(newText)));
+// 比較兩個 Blob 物件差異
+var patch = $@"
+diff --git a/{oldFile} b/{newFile}
+index aaaaaaa..bbbbbbb 100644
+--- a/{oldFile}
++++ b/{newFile}
+{repo.Diff.Compare(blob1, blob2).Patch}";
+return patch;
+}
+}
+public static string GenGitDiffHtmlReport(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+var diff = GenGitDiff(oldText, newText, oldFile, newFile);
+var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(diff));
+var pem = new StringBuilder();
+const int maxWidth = 160;
+for (int i = 0; i &lt; base64.Length; i += maxWidth)
+{
+pem.AppendLine(base64.Substring(i, Math.Min(maxWidth, base64.Length - i)));
+}
+return html.Replace("[$diff.txt$]", pem.ToString());
+}
+}
+</code></pre> <p>就醬，又解掉一件任務。</p> <p data-slug="libgit2sharp" data-fbimg="https://i.imgur.com/0UbIRZt.png#960#540"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>遇到一個小需求，想用 .NET 出一份檔案修改前後對照表，我心中最理想的方案是用 <a href="/blog/diff2html-webpage/">git diff + diff2html</a> 產生 HTML 報表，省時省力又好看。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png"></p> <p>git diff 指令跟產生 diff2html 網頁技能是現成的，最不花腦的解決方法是用 .NET 將修改前後檔案雙雙寫成檔案，呼叫外部程式 git.exe 跑 <code>git diff a.txt b.txt</code> 取得結果，再交給 diff2html 顯示對照表。有沒有更輕巧簡潔的解法？</p> <p><a href="https://libgit2.org/">libgit2</a> 是一個用 C 開發的開源 Git 可攜程式庫，讓你不用安裝 Git 直接引用 Git 的各項功能，<a href="https://github.com/libgit2/libgit2sharp">libgit2sharp</a> 則為 libgit2 提供了 .NET 相容介面，會比呼叫 git.exe 更優雅。</p> <p>在專案執行 <code>dotnet add package libgit2sharp</code> 或從 NuGet 安裝後，就可以在 .NET 程式裡直接進行各項 Git 操作。</p> <p>以下是個簡單範例，示範 用 C# 建立一個 Git 儲存庫，加入 test.txt、Commit、修改 test.txt、再次 Commit、列出 Commit 記錄、顯示 Commit 的異動內容：</p> <pre><code>using LibGit2Sharp;
+Func&lt;string&gt; CreateTempRepo = () =&gt;
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+};
+var userName = "Tester";
+var email = "tester@mail.net";
+// Signature 物件，代表 Commit 的作者或提交者
+Func&lt;Signature&gt; getSignature = () =&gt; new Signature(userName, email, DateTimeOffset.Now);
+var repoPath = CreateTempRepo();
+using (var repo = new Repository(repoPath))
+{
+var fileName = "test.txt";
+var path = Path.Combine(repoPath, fileName);
+File.WriteAllText(path, "Hello, World!
+First Commit");
+Commands.Stage(repo, fileName);
+repo.Commit("Initial commit",
+// Author       Committer
+getSignature(), getSignature());
+File.AppendAllText(path, "
+Second Commit");
+Commands.Stage(repo, fileName);
+Thread.Sleep(1000);
+repo.Commit("Second commit", getSignature(), getSignature());
+print("**** Commit 紀錄 ****", ConsoleColor.Magenta);
+foreach (var commit in repo.Commits)
+{
+print("Commit: " + commit.Id, ConsoleColor.Cyan);
+print("  " + commit.Message, noNewLine: true);
+print($"  by {commit.Author.Name} at {commit.Author.When:HH:mm:ss}", ConsoleColor.Green);
+}
+var commit1 = repo.Commits.Last();
+var commit2 = repo.Commits.First();
+var changes = repo.Diff.Compare&lt;Patch&gt;(commit1.Tree, commit2.Tree);
+print("**** 異動比對 ****", ConsoleColor.Magenta);
+foreach (var change in changes)
+{
+print(change.Patch, ConsoleColor.DarkYellow);
+}
+}
+void print(string text, ConsoleColor color = ConsoleColor.White, bool noNewLine = false)
+{
+Console.ForegroundColor = color;
+if (noNewLine)
+Console.Write(text);
+else
+Console.WriteLine(text);
+Console.ResetColor();
+}
+</code></pre> <p>輕輕鬆鬆搞定。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638452451363215435.png"></p> <p>最後，來看一下一開始的 XML 修改前後對照是怎麼做出來的？</p> <pre><code>public static void Run()
+{
+var xml= XDocument.Parse(@"
+&lt;list&gt;
+&lt;item id=""N1""&gt;Item 1&lt;/item&gt;
+&lt;item id=""N2""&gt;Item 2&lt;/item&gt;
+&lt;item id=""N3""&gt;Item 3&lt;/item&gt;
+&lt;item id=""N4""&gt;Item 4&lt;/item&gt;
+&lt;/list&gt;
+");
+var origin = xml.ToString();
+xml.Root.Elements("item").Skip(1).First().SetAttributeValue("id", "N2-new");
+xml.Root.Elements("item").Skip(2).First().Value = "Item 3 (modified)";
+xml.Root.Add(new XElement("item", new XAttribute("id", "N5"), "Item 5"));
+var modified = xml.ToString();
+var html = GitDiffTool.GenGitDiffHtmlReport(origin, modified, "origin.xml", "modified.xml");
+File.WriteAllText("D:\\Report.html", html);
+// 用預設瀏覽器開啟
+System.Diagnostics.Process.Start("cmd", @"/c ""start D:\Report.html""");
+}
+</code></pre> <p>關鍵的 GitDiffTool.GenGitDiffHtmlReport 如下，建立一個暫存目錄，直接將修改前後字串內容轉成 Blob 交由 Diff.Comapre() 比對。結果字串交給 diff2html 顯示，過程我用了 <a href="/blog/gzip-decompression-with-js/">HTML 單檔文件挑戰 - 內嵌 .js GZIP 壓縮檔</a>展示過的技巧，將差異結果用 Base64 內嵌在網頁裡。</p> <pre><code>using System.Text;
+using LibGit2Sharp;
+public class GitDiffTool
+{
+static string CreateTempRepo()
+{
+var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+Directory.CreateDirectory(path);
+Repository.Init(path, false);
+return path;
+}
+const string html = @"
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;link rel=""stylesheet"" type=""text/css""
+href=""https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css"" /&gt;
+&lt;script src=""https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js""&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script id='diff.txt' type=""text/base64""&gt;
+[$diff.txt$]
+&lt;/script&gt;
+&lt;div id=report&gt;
+&lt;/div&gt;
+&lt;script&gt;
+var diffText = new TextDecoder().decode(
+new Uint8Array(
+atob(
+document.getElementById('diff.txt').innerHTML.replace(/[
+\r \t]/g, '')
+).split('').map(c =&gt; c.charCodeAt(0))
+)
+);
+var diffHtml = Diff2Html.html(diffText, {
+drawFileList: true,
+matching: 'lines',
+outputFormat: 'side-by-side',
+});
+document.getElementById('report').innerHTML = diffHtml;
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;";
+public static string GenGitDiff(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+using (var repo = new Repository(CreateTempRepo()))
+{
+var lines = new[] { "Line 1", "Line 2", "Line 3" };
+var blob1 = repo.ObjectDatabase.CreateBlob(
+// 由字串建立 Blob 物件 (也可改成讀檔案傳入 FileStream)
+new MemoryStream(Encoding.UTF8.GetBytes(oldText)));
+var blob2 = repo.ObjectDatabase.CreateBlob(
+new MemoryStream(Encoding.UTF8.GetBytes(newText)));
+// 比較兩個 Blob 物件差異
+var patch = $@"
+diff --git a/{oldFile} b/{newFile}
+index aaaaaaa..bbbbbbb 100644
+--- a/{oldFile}
++++ b/{newFile}
+{repo.Diff.Compare(blob1, blob2).Patch}";
+return patch;
+}
+}
+public static string GenGitDiffHtmlReport(string oldText, string newText, string oldFile = "old", string newFile = "new")
+{
+var diff = GenGitDiff(oldText, newText, oldFile, newFile);
+var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(diff));
+var pem = new StringBuilder();
+const int maxWidth = 160;
+for (int i = 0; i &lt; base64.Length; i += maxWidth)
+{
+pem.AppendLine(base64.Substring(i, Math.Min(maxWidth, base64.Length - i)));
+}
+return html.Replace("[$diff.txt$]", pem.ToString());
+}
+}
+</code></pre> <p>就醬，又解掉一件任務。</p> <p data-slug="libgit2sharp" data-fbimg="https://i.imgur.com/0UbIRZt.png#960#540"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png" medium="image"/>
+    <pubDate>Tue, 05 Mar 2024 12:28:57 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Obsidian 匯出 PDF 之程式區塊顏色調整]]></title>
     <link>https://blog.darkthread.net/blog/change-obsidian-pdf-style/</link>
     <itunes:title><![CDATA[Obsidian 匯出 PDF 之程式區塊顏色調整]]></itunes:title>
@@ -1322,119 +1784,5 @@ iisreset /start
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638442964022201848.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638442964022201848.png" medium="image"/>
     <pubDate>Fri, 23 Feb 2024 14:40:09 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[IIS AlwaysRunning 深入研究 - 幽靈排程與自動啟動行為]]></title>
-    <link>https://blog.darkthread.net/blog/iis-always-running-tips/</link>
-    <itunes:title><![CDATA[IIS AlwaysRunning 深入研究 - 幽靈排程與自動啟動行為]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Threading" %&gt;
-&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
-&lt;%@ Import Namespace="System.Diagnostics" %&gt;
-&lt;script RunAt="server"&gt;
-CancellationTokenSource cts;
-void Log(string msg)
-{
-System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
-Process.GetCurrentProcess().Id +
-"#" + AppDomain.CurrentDomain.Id +
-" - " + msg + "
-");
-}
-void Application_Start(object sender, EventArgs e)
-{
-Log("Application Start");
-cts = new CancellationTokenSource();
-Task.Run(async () =&gt;
-{
-while (!cts.Token.IsCancellationRequested)
-{
-Log(DateTime.Now.ToString("HH:mm:ss"));
-await Task.Delay(1000, cts.Token);
-}
-});
-}
-void Application_End(object sender, EventArgs e)
-{
-cts.Cancel();
-Log("Application End");
-}
-&lt;/script&gt;
-</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Threading" %&gt;
-&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
-&lt;%@ Import Namespace="System.Diagnostics" %&gt;
-&lt;script RunAt="server"&gt;
-CancellationTokenSource cts;
-void Log(string msg)
-{
-System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
-Process.GetCurrentProcess().Id +
-"#" + AppDomain.CurrentDomain.Id +
-" - " + msg + "
-");
-}
-void Application_Start(object sender, EventArgs e)
-{
-Log("Application Start");
-cts = new CancellationTokenSource();
-Task.Run(async () =&gt;
-{
-while (!cts.Token.IsCancellationRequested)
-{
-Log(DateTime.Now.ToString("HH:mm:ss"));
-await Task.Delay(1000, cts.Token);
-}
-});
-}
-void Application_End(object sender, EventArgs e)
-{
-cts.Cancel();
-Log("Application End");
-}
-&lt;/script&gt;
-</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>之前研究過<a href="/blog/hangfire-recurringjob-notes/">確保網站永遠處於執行狀態的 IIS 設定方式</a>，最近遇上網站停用但網站背景排程照跑的靈異事件，發現事情跟我想的不一樣，自己對 IIS 站台 Process 模式及 AlwaysRunning 行為有些誤解，寫篇筆記備忘。</p> <p>我們都知道 IIS 管理員站台有組控制鈕，可以重新啟動、啟動或停止站台。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"></p> <p>大家想像按下去的動作是什麼？重啟或切換 AppPool 狀態？並不是! 這也是這次我誤解的主要來源。</p> <p>.NET 在一個 Process 裡可建立多個記憶體空間和資源獨立的 AppDomain，達到比另建 Process 省資源又兼顧安全及穩定性隔離的效果。(參考：<a href="https://vito-note.blogspot.com/2012/03/appdomain.html">VITO の 學習筆記：什麼是應用程式定義域 ( application domain )</a>)。IIS 7+ 的做法是在第一次收到 ASP.NET 網頁要求時，由 IIS 受控引擎模組在記憶體建立 AppDomain，由 AppDomain 處理 aspx 頁面要求。(詳情可參考<a href="https://learn.microsoft.com/zh-tw/iis/manage/scripting/managing-worker-processes-and-appdomains-in-iis-with-wmi?WT.mc_id=DOP-MVP-37580#appdomains"> MS Learn 文件</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400389394892.png"><br> <a href="https://vito-note.blogspot.com/2012/03/appdomain.html">圖片來源</a></p> <p>為了實地驗證，我做了一個簡單的 ASP.NET Web Site Project 網站，並<a href="/blog/hangfire-recurringjob-notes/">設好 AlwaysRunning、Preload Enabled</a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400391452608.png"></p> <p>Global.asax 會啟動一個 Task 跑背景排程，每一秒寫入一筆 Log，另外，在站啟動及結束時也會寫 Log。Log 訊息前方則會加上 Process ID # AppDomain ID 方便觀察： (延伸閱讀：<a href="/blog/tpl-threadpool-usage/">新時代 .NET ThreadPool 程式寫法以及為什麼你該用力 async/await</a>)</p> <pre><code>&lt;%@ Application Language="C#" %&gt;
-&lt;%@ Import Namespace="System.Threading" %&gt;
-&lt;%@ Import Namespace="System.Threading.Tasks" %&gt;
-&lt;%@ Import Namespace="System.Diagnostics" %&gt;
-&lt;script RunAt="server"&gt;
-CancellationTokenSource cts;
-void Log(string msg)
-{
-System.IO.File.AppendAllText("D:\\Logs\\trace.txt",
-Process.GetCurrentProcess().Id +
-"#" + AppDomain.CurrentDomain.Id +
-" - " + msg + "
-");
-}
-void Application_Start(object sender, EventArgs e)
-{
-Log("Application Start");
-cts = new CancellationTokenSource();
-Task.Run(async () =&gt;
-{
-while (!cts.Token.IsCancellationRequested)
-{
-Log(DateTime.Now.ToString("HH:mm:ss"));
-await Task.Delay(1000, cts.Token);
-}
-});
-}
-void Application_End(object sender, EventArgs e)
-{
-cts.Cancel();
-Log("Application End");
-}
-&lt;/script&gt;
-</code></pre> <p>有了這個小實驗，我的疑惑很快獲得解答：</p> <ol><li>啟動停止中的站台時會自動啟動網站嗎？<br> 答案是不會， AlwaysRunning、Preload Enabled 自動啟動網站只適用電腦重開或 AppPool 重啟時。如下面展示，按下 Start 網站沒開始寫 Log，得等呼叫 <code>http://localhost:8000/</code> 後才開始：<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638440400395896314.gif"><br> 如前面所提，站台需等到第一個請求進來時才啟動 AppDoamin。而由 Process ID / AppDomain ID 可證明站台重啟後仍是同一個 Process，只有換 AppDomain。<br> 同理，更新 bin、web.config 也會造成 AppDomain 停止，之後需發出 HTTP 請求才能啟動網站。(註：web.config 的 initializationPage 設定是在網站啟動後自動呼叫，無法用來觸發停止中的站台)<br> 以下展示在 bin 寫入檔案讓網站停止，停止後用 PowerShell 發送 HTTP 請求後才被喚醒另建 AppDomain 執行：(AppDomain Id 由 4 變 5)<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638440400398351903.gif"></li> <li>那 IISEREST 或重啟 W3WC 服務後網站會自動啟動嗎？<br> AppPool 重啟時，不需 HTTP 請求便可啟動 AlwaysRunning + Preload 網站，實驗可觀察到重啟後 ProcessID 不同。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400400957056.gif"></li> <li>「站台已停用，網站背景程序卻還在執行」的靈異現象是怎麼發生的？<br> 如第 2 點所說，設定 AlwaysRunning 的站台會在機器重啟或 IISRESET 時自動啟動，即便站台已被停用。簡單解釋是停用站台是停掉目前執行中的 AppDoamin 並拒絕接收 HTTP 請求，但 AlwaysRunning + Preload Enabled 會在 AppPool 啟動時建立 AppDomain 執行，造成這次的靈異現象。<br> <img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638440400403397714.gif"></li></ol> <p>歸納結論：</p> <ol><li>IIS 站台是以 AppDomain 方式執行，一個 AppPool Process 可有多個 AppDomain，IIS 管理的站台啟動、停止、重啟功能控制的是 AppDomain，bin 或 web.config 異動也會造成 AppDomain 結束</li> <li>AlwaysRunning + Preload Enabled 適用重新開機、AppPool 啟動、IISREST 後自動啟動網站，IIS 管理員重啟站台後需對網站發動請求才會建立 AppDomain</li> <li>站台停用狀態下，AlwaysRunning + Preload Enabled 網站會在 AppPool 啟動時自動啟動。若不想程式被誤執行，可將 AppPool 也停用 (註：IIS 管理員設定停止的 AppPool 及站台，重新開機後仍會維持停止狀態)</li></ol> <p data-slug="iis-always-running-tips" data-title-en="Why a stopped website is still running?" data-catg="Web Development" data-fbimg="https://images.pexels.com/photos/296357/pexels-photo-296357.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">Explanation of AppDomain operation design in IIS sites and how AlwaysRunning and Preload Enabled settings work, demonstrated by experiments.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig2_638440400387242809.png" medium="image"/>
-    <pubDate>Tue, 20 Feb 2024 15:31:13 GMT</pubDate>
   </item></channel>
 </rss>
