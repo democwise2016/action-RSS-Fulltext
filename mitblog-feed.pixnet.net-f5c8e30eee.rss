@@ -30,6 +30,803 @@
     </itunes:owner>
     <itunes:image href="https://i.ibb.co/HNYFwkF/sausage.png"/>
 <item>
+    <title><![CDATA[[Windows 11] mklink 命令、符號連結（Symbolic Links）、硬連結（Hard Links）、連接點（Junction Points）]]></title>
+    <link>https://mitblog.pixnet.net/blog/post/45625721</link>
+    <itunes:title><![CDATA[[Windows 11] mklink 命令、符號連結（Symbolic Links）、硬連結（Hard Links）、連接點（Junction Points）]]></itunes:title>
+    <itunes:author><![CDATA[香腸炒章魚[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span><strong>Linux</strong> 愛用者，想必對&nbsp;<strong>ln</strong> 命令不陌生。使用該命令，可以在 <strong>Linux</strong> 系統上建立針對檔案或目錄的符號鏈接，實現一個檔案（目錄）兩個名字的功能。 </span></p>
+<p><span><strong>Windows</strong> 上也有一個類似功能的命令，它是 <strong>mklink</strong>。不過它的行為和 <strong>ln</strong> 不太一樣。此外，<strong>Windows</strong> 上還有「快捷方式」，此方式也能實現一個檔案（目錄）兩個名字的功能。但它和 <strong>mklink</strong> 建立的符號鏈接不一樣，它是 <strong>Windows</strong> 上特有的一種檔案格式，專門用來指向其它檔案（目錄）。</span></p>
+<hr>
+<p><strong><span>mklink 命令語法</span></strong></p>
+<p><span><strong>mklink</strong> 命令需要<span>系統管理員權限</span>，因此，<span>以系統管理員身分</span>來執行命令提示字元（<strong>cmd.exe</strong>）。</span></p>
+<p><span>執行</span><span>&nbsp;<strong>mklink</strong> 命令，不帶任何 <strong>flags</strong> 及 <strong>arguments</strong>，可以查看它的語法說明（官方網頁版說明）。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+Creates a symbolic link.
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      Creates a directory symbolic link.  Default is a file
+symbolic link.
+/H      Creates a hard link instead of a symbolic link.
+/J      Creates a Directory Junction.
+Link    Specifies the new symbolic link name.
+Target  Specifies the path (relative or absolute) that the new link
+refers to.</pre>
+<p><span>對照一下中文說明。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+建立符號鏈接。
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      建立目錄符號鏈接。預設為檔案符號鏈接。
+/H      建立硬鏈接而非符號鏈接。
+/J      建立目錄聯結。
+Link    指定新的符號鏈接名稱。
+Target  指定新鏈接引用的路徑（相對或絕對）。
+</pre>
+<table border="1" cellpadding="1" cellspacing="1">
+<caption>
+<p><strong><span>速查表</span></strong></p>
+</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td><strong><span>不帶參數</span></strong></td>
+<td><strong><span>/D 參數</span></strong></td>
+<td><strong><span>/H 參數</span></strong></td>
+<td><strong><span>/J 參數</span></strong></td>
+</tr>
+<tr>
+<td><span>中文名稱</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>硬鏈接</span></td>
+<td><span>聯接</span></td>
+</tr>
+<tr>
+<td><span>英文名稱</span></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Hard Link</span></strong></td>
+<td><strong><span>Junction</span></strong></td>
+</tr>
+<tr>
+<td><span>作用對象</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+</tr>
+<tr>
+<td><span>是否一定指向路徑</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span><strong>dir</strong> 類型</span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span>無特殊顯示</span></td>
+<td><span><strong>JUNCTION</strong></span></td>
+</tr>
+<tr>
+<td><span>資源管理器類型</span></td>
+<td><span><strong>.symlink</strong></span></td>
+<td><span>資料夾</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾</span></td>
+</tr>
+<tr>
+<td><span>資源管理器圖標</span></td>
+<td><span>快捷方式</span></td>
+<td><span>資料夾快捷方式</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾快捷方式</span></td>
+</tr>
+<tr>
+<td><span>修改同步</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span>刪除同步</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+</tr>
+<tr>
+<td><span>徹底刪除源</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除所有硬鏈接</span></td>
+<td><span>刪除源路徑</span></td>
+</tr>
+<tr>
+<td><span>引用錯誤報錯</span></td>
+<td><span>無</span></td>
+<td><span>引用了一個不可用的位置</span></td>
+<td><strong><span>-</span></strong></td>
+<td><span>引用了一個不可用的位置</span></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p><strong><span>符號連結（Symbolic Links）</span></strong></p>
+<p><span>符號連結類似於快捷方式，它指向另一個<span>檔案</span>或<span>目錄</span>。它不僅<span>可以跨越不同</span>的<span>檔案系統</span>，還可以<span>指向網絡位置</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>符號連結可以跨磁碟分區（例如 <strong>C,&nbsp;D</strong> 槽可以建立連結）。</span></li>
+<li><span>如果目標檔案或目錄被刪除，符號連結仍然存在，但會指向一個不存在的位置。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><span>目前 <strong>C:\Demo</strong>（<span>共享資料夾</span>） 目錄樹狀結構。</span></p>
+<pre>C:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+C:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:17    &lt;DIR&gt;          .
+2024/03/16  下午 04:17    &lt;SYMLINK&gt;      LinkFile.txt [TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例二</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>C:\Demo\TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt C:\Demo\TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; C:\Demo\TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:47    &lt;DIR&gt;          .
+2024/03/16  下午 04:47    &lt;SYMLINK&gt;      LinkFile.txt [C:\Demo\TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例三</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>C:\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder C:\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; C:\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:02    &lt;DIR&gt;          .
+2024/03/16  下午 05:02    &lt;SYMLINKD&gt;     LinkFolder [C:\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例四</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>\\192.168.0.10\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder \\192.168.0.10\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\192.168.0.10\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的</span><span>類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:15    &lt;DIR&gt;          .
+2024/03/16  下午 05:15    &lt;SYMLINKD&gt;     LinkFolder [\\127.0.0.1\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free
+D:\Demo&gt;mklink /D LinkFolder \\127.0.0.1\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\127.0.0.1\Demo</pre>
+<hr>
+<p><strong><span>硬連結（Hard Links）</span></strong></p>
+<p><span>硬連結是指向檔案的另一個名稱。與<span>原始檔案共享相同</span>的<span>實際數據</span>。僅限於<span>檔案</span>，不能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>硬連結不能跨越不同的磁碟分區。</span></li>
+<li><span>當所有硬連結都被刪除時，檔案的實際數據才會被刪除。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /H</strong>&nbsp;命令來產生<span>硬鏈接</span>（<strong>LinkFile.txt</strong>）&nbsp;<span>連結</span>到 <strong>TargetFile.txt</strong>&nbsp;檔案。</span></p>
+<pre>D:\Demo&gt;mklink /H LinkFile.txt TargetFile.txt
+Hardlink created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看。<span>硬連結</span>是與<span>原始檔案共享相同</span>的<span>實際數據</span>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:40    &lt;DIR&gt;          .
+2024/03/16  下午 06:39                 4 LinkFile.txt
+2024/03/16  下午 06:39                 4 TargetFile.txt
+2 File(s)              8 bytes
+1 Dir(s)  352,502,214,656 bytes free</pre>
+<hr>
+<p><strong><span>連接點（Junction Points）</span></strong></p>
+<p><span>連接點類似於<span>目錄</span>的<span>符號連結</span>，但僅限於<span>本地電腦</span>且只能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>連接點可以實現目錄之間的透明轉接。</span></li>
+<li><span>不能跨越不同的磁碟分區。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+└─TargetFolder
+New Text Document.txt</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /J</strong>&nbsp;命令來產生<span>目錄聯結</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>TargetFolder</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /J LinkFolder TargetFolder
+Junction created for LinkFolder &lt;&lt;===&gt;&gt; TargetFolder</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>目錄聯結</span>（<strong>LinkFolder</strong>）的類型是<font color="#e17704">連接點</font>&nbsp;<strong>&lt;JUNCTION&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:29    &lt;DIR&gt;          .
+2024/03/16  下午 06:29    &lt;JUNCTION&gt;     LinkFolder [D:\Demo\TargetFolder]
+2024/03/16  下午 06:28    &lt;DIR&gt;          TargetFolder
+0 File(s)              0 bytes
+3 Dir(s)  352,502,214,656 bytes free</pre>
+<p><span>Reference：https://liam.page/2018/12/10/mklink-in-Windows/</span></p>
+<p><span>Reference：https://www.spatialgeolab.com/windows-links/</span></p>
+<p><span>Reference：https://blog.walterlv.com/post/mklink-junction-in-dotnet.html</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span><strong>Linux</strong> 愛用者，想必對&nbsp;<strong>ln</strong> 命令不陌生。使用該命令，可以在 <strong>Linux</strong> 系統上建立針對檔案或目錄的符號鏈接，實現一個檔案（目錄）兩個名字的功能。 </span></p>
+<p><span><strong>Windows</strong> 上也有一個類似功能的命令，它是 <strong>mklink</strong>。不過它的行為和 <strong>ln</strong> 不太一樣。此外，<strong>Windows</strong> 上還有「快捷方式」，此方式也能實現一個檔案（目錄）兩個名字的功能。但它和 <strong>mklink</strong> 建立的符號鏈接不一樣，它是 <strong>Windows</strong> 上特有的一種檔案格式，專門用來指向其它檔案（目錄）。</span></p>
+<hr>
+<p><strong><span>mklink 命令語法</span></strong></p>
+<p><span><strong>mklink</strong> 命令需要<span>系統管理員權限</span>，因此，<span>以系統管理員身分</span>來執行命令提示字元（<strong>cmd.exe</strong>）。</span></p>
+<p><span>執行</span><span>&nbsp;<strong>mklink</strong> 命令，不帶任何 <strong>flags</strong> 及 <strong>arguments</strong>，可以查看它的語法說明（官方網頁版說明）。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+Creates a symbolic link.
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      Creates a directory symbolic link.  Default is a file
+symbolic link.
+/H      Creates a hard link instead of a symbolic link.
+/J      Creates a Directory Junction.
+Link    Specifies the new symbolic link name.
+Target  Specifies the path (relative or absolute) that the new link
+refers to.</pre>
+<p><span>對照一下中文說明。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+建立符號鏈接。
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      建立目錄符號鏈接。預設為檔案符號鏈接。
+/H      建立硬鏈接而非符號鏈接。
+/J      建立目錄聯結。
+Link    指定新的符號鏈接名稱。
+Target  指定新鏈接引用的路徑（相對或絕對）。
+</pre>
+<table border="1" cellpadding="1" cellspacing="1">
+<caption>
+<p><strong><span>速查表</span></strong></p>
+</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td><strong><span>不帶參數</span></strong></td>
+<td><strong><span>/D 參數</span></strong></td>
+<td><strong><span>/H 參數</span></strong></td>
+<td><strong><span>/J 參數</span></strong></td>
+</tr>
+<tr>
+<td><span>中文名稱</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>硬鏈接</span></td>
+<td><span>聯接</span></td>
+</tr>
+<tr>
+<td><span>英文名稱</span></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Hard Link</span></strong></td>
+<td><strong><span>Junction</span></strong></td>
+</tr>
+<tr>
+<td><span>作用對象</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+</tr>
+<tr>
+<td><span>是否一定指向路徑</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span><strong>dir</strong> 類型</span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span>無特殊顯示</span></td>
+<td><span><strong>JUNCTION</strong></span></td>
+</tr>
+<tr>
+<td><span>資源管理器類型</span></td>
+<td><span><strong>.symlink</strong></span></td>
+<td><span>資料夾</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾</span></td>
+</tr>
+<tr>
+<td><span>資源管理器圖標</span></td>
+<td><span>快捷方式</span></td>
+<td><span>資料夾快捷方式</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾快捷方式</span></td>
+</tr>
+<tr>
+<td><span>修改同步</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span>刪除同步</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+</tr>
+<tr>
+<td><span>徹底刪除源</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除所有硬鏈接</span></td>
+<td><span>刪除源路徑</span></td>
+</tr>
+<tr>
+<td><span>引用錯誤報錯</span></td>
+<td><span>無</span></td>
+<td><span>引用了一個不可用的位置</span></td>
+<td><strong><span>-</span></strong></td>
+<td><span>引用了一個不可用的位置</span></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p><strong><span>符號連結（Symbolic Links）</span></strong></p>
+<p><span>符號連結類似於快捷方式，它指向另一個<span>檔案</span>或<span>目錄</span>。它不僅<span>可以跨越不同</span>的<span>檔案系統</span>，還可以<span>指向網絡位置</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>符號連結可以跨磁碟分區（例如 <strong>C,&nbsp;D</strong> 槽可以建立連結）。</span></li>
+<li><span>如果目標檔案或目錄被刪除，符號連結仍然存在，但會指向一個不存在的位置。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><span>目前 <strong>C:\Demo</strong>（<span>共享資料夾</span>） 目錄樹狀結構。</span></p>
+<pre>C:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+C:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:17    &lt;DIR&gt;          .
+2024/03/16  下午 04:17    &lt;SYMLINK&gt;      LinkFile.txt [TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例二</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>C:\Demo\TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt C:\Demo\TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; C:\Demo\TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:47    &lt;DIR&gt;          .
+2024/03/16  下午 04:47    &lt;SYMLINK&gt;      LinkFile.txt [C:\Demo\TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例三</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>C:\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder C:\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; C:\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:02    &lt;DIR&gt;          .
+2024/03/16  下午 05:02    &lt;SYMLINKD&gt;     LinkFolder [C:\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例四</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>\\192.168.0.10\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder \\192.168.0.10\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\192.168.0.10\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的</span><span>類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:15    &lt;DIR&gt;          .
+2024/03/16  下午 05:15    &lt;SYMLINKD&gt;     LinkFolder [\\127.0.0.1\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free
+D:\Demo&gt;mklink /D LinkFolder \\127.0.0.1\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\127.0.0.1\Demo</pre>
+<hr>
+<p><strong><span>硬連結（Hard Links）</span></strong></p>
+<p><span>硬連結是指向檔案的另一個名稱。與<span>原始檔案共享相同</span>的<span>實際數據</span>。僅限於<span>檔案</span>，不能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>硬連結不能跨越不同的磁碟分區。</span></li>
+<li><span>當所有硬連結都被刪除時，檔案的實際數據才會被刪除。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /H</strong>&nbsp;命令來產生<span>硬鏈接</span>（<strong>LinkFile.txt</strong>）&nbsp;<span>連結</span>到 <strong>TargetFile.txt</strong>&nbsp;檔案。</span></p>
+<pre>D:\Demo&gt;mklink /H LinkFile.txt TargetFile.txt
+Hardlink created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看。<span>硬連結</span>是與<span>原始檔案共享相同</span>的<span>實際數據</span>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:40    &lt;DIR&gt;          .
+2024/03/16  下午 06:39                 4 LinkFile.txt
+2024/03/16  下午 06:39                 4 TargetFile.txt
+2 File(s)              8 bytes
+1 Dir(s)  352,502,214,656 bytes free</pre>
+<hr>
+<p><strong><span>連接點（Junction Points）</span></strong></p>
+<p><span>連接點類似於<span>目錄</span>的<span>符號連結</span>，但僅限於<span>本地電腦</span>且只能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>連接點可以實現目錄之間的透明轉接。</span></li>
+<li><span>不能跨越不同的磁碟分區。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+└─TargetFolder
+New Text Document.txt</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /J</strong>&nbsp;命令來產生<span>目錄聯結</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>TargetFolder</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /J LinkFolder TargetFolder
+Junction created for LinkFolder &lt;&lt;===&gt;&gt; TargetFolder</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>目錄聯結</span>（<strong>LinkFolder</strong>）的類型是<font color="#e17704">連接點</font>&nbsp;<strong>&lt;JUNCTION&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:29    &lt;DIR&gt;          .
+2024/03/16  下午 06:29    &lt;JUNCTION&gt;     LinkFolder [D:\Demo\TargetFolder]
+2024/03/16  下午 06:28    &lt;DIR&gt;          TargetFolder
+0 File(s)              0 bytes
+3 Dir(s)  352,502,214,656 bytes free</pre>
+<p><span>Reference：https://liam.page/2018/12/10/mklink-in-Windows/</span></p>
+<p><span>Reference：https://www.spatialgeolab.com/windows-links/</span></p>
+<p><span>Reference：https://blog.walterlv.com/post/mklink-junction-in-dotnet.html</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span><strong>Linux</strong> 愛用者，想必對&nbsp;<strong>ln</strong> 命令不陌生。使用該命令，可以在 <strong>Linux</strong> 系統上建立針對檔案或目錄的符號鏈接，實現一個檔案（目錄）兩個名字的功能。 </span></p>
+<p><span><strong>Windows</strong> 上也有一個類似功能的命令，它是 <strong>mklink</strong>。不過它的行為和 <strong>ln</strong> 不太一樣。此外，<strong>Windows</strong> 上還有「快捷方式」，此方式也能實現一個檔案（目錄）兩個名字的功能。但它和 <strong>mklink</strong> 建立的符號鏈接不一樣，它是 <strong>Windows</strong> 上特有的一種檔案格式，專門用來指向其它檔案（目錄）。</span></p>
+<hr>
+<p><strong><span>mklink 命令語法</span></strong></p>
+<p><span><strong>mklink</strong> 命令需要<span>系統管理員權限</span>，因此，<span>以系統管理員身分</span>來執行命令提示字元（<strong>cmd.exe</strong>）。</span></p>
+<p><span>執行</span><span>&nbsp;<strong>mklink</strong> 命令，不帶任何 <strong>flags</strong> 及 <strong>arguments</strong>，可以查看它的語法說明（官方網頁版說明）。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+Creates a symbolic link.
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      Creates a directory symbolic link.  Default is a file
+symbolic link.
+/H      Creates a hard link instead of a symbolic link.
+/J      Creates a Directory Junction.
+Link    Specifies the new symbolic link name.
+Target  Specifies the path (relative or absolute) that the new link
+refers to.</pre>
+<p><span>對照一下中文說明。</span></p>
+<pre>Microsoft Windows [Version 10.0.22631.3235]
+(c) Microsoft Corporation. All rights reserved.
+D:\&gt;mklink
+建立符號鏈接。
+MKLINK [[/D] | [/H] | [/J]] Link Target
+/D      建立目錄符號鏈接。預設為檔案符號鏈接。
+/H      建立硬鏈接而非符號鏈接。
+/J      建立目錄聯結。
+Link    指定新的符號鏈接名稱。
+Target  指定新鏈接引用的路徑（相對或絕對）。
+</pre>
+<table border="1" cellpadding="1" cellspacing="1">
+<caption>
+<p><strong><span>速查表</span></strong></p>
+</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td><strong><span>不帶參數</span></strong></td>
+<td><strong><span>/D 參數</span></strong></td>
+<td><strong><span>/H 參數</span></strong></td>
+<td><strong><span>/J 參數</span></strong></td>
+</tr>
+<tr>
+<td><span>中文名稱</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>符號鏈接</span></td>
+<td><span>硬鏈接</span></td>
+<td><span>聯接</span></td>
+</tr>
+<tr>
+<td><span>英文名稱</span></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Symbolic Link</span></strong></td>
+<td><strong><span>Hard Link</span></strong></td>
+<td><strong><span>Junction</span></strong></td>
+</tr>
+<tr>
+<td><span>作用對象</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+<td><span>檔案</span></td>
+<td><span>目錄</span></td>
+</tr>
+<tr>
+<td><span>是否一定指向路徑</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span><strong>dir</strong> 類型</span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span><strong>SYMLINK</strong></span></td>
+<td><span>無特殊顯示</span></td>
+<td><span><strong>JUNCTION</strong></span></td>
+</tr>
+<tr>
+<td><span>資源管理器類型</span></td>
+<td><span><strong>.symlink</strong></span></td>
+<td><span>資料夾</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾</span></td>
+</tr>
+<tr>
+<td><span>資源管理器圖標</span></td>
+<td><span>快捷方式</span></td>
+<td><span>資料夾快捷方式</span></td>
+<td><span>無特殊顯示</span></td>
+<td><span>資料夾快捷方式</span></td>
+</tr>
+<tr>
+<td><span>修改同步</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+<td><span>是</span></td>
+</tr>
+<tr>
+<td><span>刪除同步</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+<td><span>否</span></td>
+</tr>
+<tr>
+<td><span>徹底刪除源</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除源路徑</span></td>
+<td><span>刪除所有硬鏈接</span></td>
+<td><span>刪除源路徑</span></td>
+</tr>
+<tr>
+<td><span>引用錯誤報錯</span></td>
+<td><span>無</span></td>
+<td><span>引用了一個不可用的位置</span></td>
+<td><strong><span>-</span></strong></td>
+<td><span>引用了一個不可用的位置</span></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p><strong><span>符號連結（Symbolic Links）</span></strong></p>
+<p><span>符號連結類似於快捷方式，它指向另一個<span>檔案</span>或<span>目錄</span>。它不僅<span>可以跨越不同</span>的<span>檔案系統</span>，還可以<span>指向網絡位置</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>符號連結可以跨磁碟分區（例如 <strong>C,&nbsp;D</strong> 槽可以建立連結）。</span></li>
+<li><span>如果目標檔案或目錄被刪除，符號連結仍然存在，但會指向一個不存在的位置。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><span>目前 <strong>C:\Demo</strong>（<span>共享資料夾</span>） 目錄樹狀結構。</span></p>
+<pre>C:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+C:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:17    &lt;DIR&gt;          .
+2024/03/16  下午 04:17    &lt;SYMLINK&gt;      LinkFile.txt [TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例二</span></strong></p>
+<p><span>使用 <strong>mklink</strong> 命令來產生<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong><span>連結</span>到 <strong>C:\Demo\TargetFile.txt</strong> 檔案。</span></p>
+<pre>D:\Demo&gt;mklink LinkFile.txt C:\Demo\TargetFile.txt
+symbolic link created for LinkFile.txt &lt;&lt;===&gt;&gt; C:\Demo\TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFile.txt）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 04:47    &lt;DIR&gt;          .
+2024/03/16  下午 04:47    &lt;SYMLINK&gt;      LinkFile.txt [C:\Demo\TargetFile.txt]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+2 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例三</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>C:\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder C:\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; C:\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:02    &lt;DIR&gt;          .
+2024/03/16  下午 05:02    &lt;SYMLINKD&gt;     LinkFolder [C:\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free</pre>
+<p><strong><span>範例四</span></strong></p>
+<p><span>使用 <strong>mklink /D</strong>&nbsp;命令來產生<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>\\192.168.0.10\Demo</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /D LinkFolder \\192.168.0.10\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\192.168.0.10\Demo</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>符號鏈接名稱</span>（<strong>LinkFolder）</strong>的</span><span>類型是<span>符號連結</span>&nbsp;<strong>&lt;SYMLINK&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 05:15    &lt;DIR&gt;          .
+2024/03/16  下午 05:15    &lt;SYMLINKD&gt;     LinkFolder [\\127.0.0.1\Demo]
+2024/03/16  下午 03:35                 4 TargetFile.txt
+1 File(s)              4 bytes
+2 Dir(s)  352,502,214,656 bytes free
+D:\Demo&gt;mklink /D LinkFolder \\127.0.0.1\Demo
+symbolic link created for LinkFolder &lt;&lt;===&gt;&gt; \\127.0.0.1\Demo</pre>
+<hr>
+<p><strong><span>硬連結（Hard Links）</span></strong></p>
+<p><span>硬連結是指向檔案的另一個名稱。與<span>原始檔案共享相同</span>的<span>實際數據</span>。僅限於<span>檔案</span>，不能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>硬連結不能跨越不同的磁碟分區。</span></li>
+<li><span>當所有硬連結都被刪除時，檔案的實際數據才會被刪除。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+TargetFile.txt
+No subfolders exist</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /H</strong>&nbsp;命令來產生<span>硬鏈接</span>（<strong>LinkFile.txt</strong>）&nbsp;<span>連結</span>到 <strong>TargetFile.txt</strong>&nbsp;檔案。</span></p>
+<pre>D:\Demo&gt;mklink /H LinkFile.txt TargetFile.txt
+Hardlink created for LinkFile.txt &lt;&lt;===&gt;&gt; TargetFile.txt</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看。<span>硬連結</span>是與<span>原始檔案共享相同</span>的<span>實際數據</span>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:40    &lt;DIR&gt;          .
+2024/03/16  下午 06:39                 4 LinkFile.txt
+2024/03/16  下午 06:39                 4 TargetFile.txt
+2 File(s)              8 bytes
+1 Dir(s)  352,502,214,656 bytes free</pre>
+<hr>
+<p><strong><span>連接點（Junction Points）</span></strong></p>
+<p><span>連接點類似於<span>目錄</span>的<span>符號連結</span>，但僅限於<span>本地電腦</span>且只能用於<span>目錄</span>。</span></p>
+<p><strong><span>特點</span></strong></p>
+<ul>
+<li><span>連接點可以實現目錄之間的透明轉接。</span></li>
+<li><span>不能跨越不同的磁碟分區。</span></li>
+</ul>
+<p><span>目前 <strong>D:\Demo</strong> 目錄樹狀結構。</span></p>
+<pre>D:\Demo&gt;tree /F
+Folder PATH listing
+Volume serial number is A610-B24E
+D:.
+└─TargetFolder
+New Text Document.txt</pre>
+<p><strong><span>範例一</span></strong></p>
+<p><span>使用 <strong>mklink /J</strong>&nbsp;命令來產生<span>目錄聯結</span>（<strong>LinkFolder）</strong><span>連結</span>到 <strong>TargetFolder</strong>&nbsp;目錄。</span></p>
+<pre>D:\Demo&gt;mklink /J LinkFolder TargetFolder
+Junction created for LinkFolder &lt;&lt;===&gt;&gt; TargetFolder</pre>
+<p><span>使用 <strong>dir</strong>&nbsp;命令查看<span>目錄聯結</span>（<strong>LinkFolder</strong>）的類型是<font color="#e17704">連接點</font>&nbsp;<strong>&lt;JUNCTION&gt;</strong>。</span></p>
+<pre>D:\Demo&gt;dir
+Volume in drive D has no label.
+Volume Serial Number is A610-B24E
+Directory of D:\Demo
+2024/03/16  下午 06:29    &lt;DIR&gt;          .
+2024/03/16  下午 06:29    &lt;JUNCTION&gt;     LinkFolder [D:\Demo\TargetFolder]
+2024/03/16  下午 06:28    &lt;DIR&gt;          TargetFolder
+0 File(s)              0 bytes
+3 Dir(s)  352,502,214,656 bytes free</pre>
+<p><span>Reference：https://liam.page/2018/12/10/mklink-in-Windows/</span></p>
+<p><span>Reference：https://www.spatialgeolab.com/windows-links/</span></p>
+<p><span>Reference：https://blog.walterlv.com/post/mklink-junction-in-dotnet.html</span></p>]]></content:encoded>
+    
+    <pubDate>Tue, 12 Mar 2024 20:35:31 +0800</pubDate>
+  </item><item>
     <title><![CDATA[[Windows 11] 停止共享資料夾、停止共享目錄]]></title>
     <link>https://mitblog.pixnet.net/blog/post/45625358</link>
     <itunes:title><![CDATA[[Windows 11] 停止共享資料夾、停止共享目錄]]></itunes:title>
@@ -3656,47 +4453,5 @@ PS D:\&gt;</pre>
 <p><span>Reference：https://zh.wikipedia.org/wiki/%E8%BB%9F%E4%BB%B6%E7%89%88%E6%9C%AC%E9%80%B1%E6%9C%9F</span></p>]]></content:encoded>
     
     <pubDate>Thu, 23 Dec 2021 00:24:18 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[[Office] 解決 World、Excel 找不到熟悉的標楷體、新細明體...等中文字型]]></title>
-    <link>https://mitblog.pixnet.net/blog/post/45138654</link>
-    <itunes:title><![CDATA[[Office] 解決 World、Excel 找不到熟悉的標楷體、新細明體...等中文字型]]></itunes:title>
-    <itunes:author><![CDATA[香腸炒章魚[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>最近在開啟 <strong>World</strong>、<strong>Excel</strong> 之後，發現找不到<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>；後來才嘗試修改系統語言格式才解決此問題。</span></p>
-<p><span><strong>操作步驟：</strong></span></p>
-<p><span>在<span>控制台</span>（<strong>Control Panel</strong>）找到<span>地區</span>（<strong>Region</strong>）點選開啟它；切換到<span>系統管理</span>（<strong>Administrative</strong>）。</span></p>
-<p><img alt="2021-11-20_082102.png" src="https://pic.pimg.tw/mitblog/1637368129-828489632-g.png" title="2021-11-20_082102.png"></p>
-<p><span>由上圖可以看到目前的使用的語言是 <strong>English（United States）</strong>；點選<span>變更系統地區設定</span>（<strong>Change system locale...</strong>）。</span></p>
-<p><span>接著選擇<span>中文</span>（<strong>繁體, 台灣</strong>），按 <strong>OK</strong>.</span></p>
-<p><img alt="2021-11-20_083520.png" src="https://pic.pimg.tw/mitblog/1637369012-4167032797-g.png" title="2021-11-20_083520.png"></p>
-<p><span>開啟 <strong>World</strong> 或 <strong>Excel</strong> 來確定是否可使用<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>。</span></p>
-<p><img alt="2021-11-20_084848.png" src="https://pic.pimg.tw/mitblog/1637369366-4123350919-g.png" title="2021-11-20_084848.png"></p>
-<p><span><span>Reference：https://www.youtube.com/watch?v=PccDdJNaru0</span></span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>最近在開啟 <strong>World</strong>、<strong>Excel</strong> 之後，發現找不到<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>；後來才嘗試修改系統語言格式才解決此問題。</span></p>
-<p><span><strong>操作步驟：</strong></span></p>
-<p><span>在<span>控制台</span>（<strong>Control Panel</strong>）找到<span>地區</span>（<strong>Region</strong>）點選開啟它；切換到<span>系統管理</span>（<strong>Administrative</strong>）。</span></p>
-<p><img alt="2021-11-20_082102.png" src="https://pic.pimg.tw/mitblog/1637368129-828489632-g.png" title="2021-11-20_082102.png"></p>
-<p><span>由上圖可以看到目前的使用的語言是 <strong>English（United States）</strong>；點選<span>變更系統地區設定</span>（<strong>Change system locale...</strong>）。</span></p>
-<p><span>接著選擇<span>中文</span>（<strong>繁體, 台灣</strong>），按 <strong>OK</strong>.</span></p>
-<p><img alt="2021-11-20_083520.png" src="https://pic.pimg.tw/mitblog/1637369012-4167032797-g.png" title="2021-11-20_083520.png"></p>
-<p><span>開啟 <strong>World</strong> 或 <strong>Excel</strong> 來確定是否可使用<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>。</span></p>
-<p><img alt="2021-11-20_084848.png" src="https://pic.pimg.tw/mitblog/1637369366-4123350919-g.png" title="2021-11-20_084848.png"></p>
-<p><span><span>Reference：https://www.youtube.com/watch?v=PccDdJNaru0</span></span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>最近在開啟 <strong>World</strong>、<strong>Excel</strong> 之後，發現找不到<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>；後來才嘗試修改系統語言格式才解決此問題。</span></p>
-<p><span><strong>操作步驟：</strong></span></p>
-<p><span>在<span>控制台</span>（<strong>Control Panel</strong>）找到<span>地區</span>（<strong>Region</strong>）點選開啟它；切換到<span>系統管理</span>（<strong>Administrative</strong>）。</span></p>
-<p><img alt="2021-11-20_082102.png" src="https://pic.pimg.tw/mitblog/1637368129-828489632-g.png" title="2021-11-20_082102.png"></p>
-<p><span>由上圖可以看到目前的使用的語言是 <strong>English（United States）</strong>；點選<span>變更系統地區設定</span>（<strong>Change system locale...</strong>）。</span></p>
-<p><span>接著選擇<span>中文</span>（<strong>繁體, 台灣</strong>），按 <strong>OK</strong>.</span></p>
-<p><img alt="2021-11-20_083520.png" src="https://pic.pimg.tw/mitblog/1637369012-4167032797-g.png" title="2021-11-20_083520.png"></p>
-<p><span>開啟 <strong>World</strong> 或 <strong>Excel</strong> 來確定是否可使用<span>標楷體</span>、<span>新細明體</span>...等<span>中文字型</span>。</span></p>
-<p><img alt="2021-11-20_084848.png" src="https://pic.pimg.tw/mitblog/1637369366-4123350919-g.png" title="2021-11-20_084848.png"></p>
-<p><span><span>Reference：https://www.youtube.com/watch?v=PccDdJNaru0</span></span></p>]]></content:encoded>
-    <itunes:image href="https://pic.pimg.tw/mitblog/1637368129-828489632-g.png"/>
-          <media:content url="https://pic.pimg.tw/mitblog/1637368129-828489632-g.png" medium="image"/>
-    <pubDate>Sat, 20 Nov 2021 08:03:07 +0800</pubDate>
   </item></channel>
 </rss>
