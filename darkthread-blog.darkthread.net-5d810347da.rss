@@ -30,6 +30,81 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET Secret Manager 安全強化 - 無腦加密版]]></title>
+    <link>https://blog.darkthread.net/blog/encrypt-dotnet-secret-manager/</link>
+    <itunes:title><![CDATA[.NET Secret Manager 安全強化 - 無腦加密版]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>昨天提到 <a href="/blog/dotnet-secrets-manager/">.NET Secret Manager 機制</a>，可取代 appsettings.json 或環境變數作為本機開發測試時的 ApiKey 或密碼保存容器，但美中不足是它用明碼儲存，檔案一旦外流便無險可守。我想應用 Secret Manager 的情境除了開發測試，也會用於在本機跑一些自用的 RAG 或 ChatGPT 整合應用，既然是 Windows 平台，<a href="/blog/protecteddata/">用 DPAPI/ProtectedData 無腦加密</a>感覺是好主意。<br> (註：DPAPI 的優點是加密不需想金鑰，由 OS 層次鎖定特定主機及登入帳號，即便被改掉密碼強行登入也無法解密)</p> <p>構想很簡單，我打算設計 ApiKey 或密碼時用 <a href="/blog/ps-secure-string/">PowerShell SecureString</a> 加密後再存入，設定部分沿用 <code>dotnet user-secrets set</code> CLI；讀取時也沿用 <code>ConfigurationBuilder().AddUserSecrets&lt;Program&gt;()</code>、<code>IConfigration["key-name"]</code> 讀取再用 <code>ProtectedData.Unprotect()</code> 解密，就這麼簡單。</p> <p>最近在看微軟範例時，看到許多場合開始用 C# Notebook 示範測試程式片段。這個概念源自 Python 好用的 Jupyter 筆記本，可在文件穿插 Markdown 說明及 Pythong 程式，很適用來寫作及分享學習筆記；而在 VSCode 裡也有個對等的 Polyglot Notebook，一樣可以穿插程式區塊及 Markdown 區塊，但支援的語言擴及 C#、F#、HTML、JavaScript、KQL、PowerShell、SQL，而在 VSCode 的好處是全程有 <a href="/blog/github-copilot-demo/">Github Copilot 黑魔法加持</a>，用左手就能把程式寫完(誤)。(延伸閱讀：<a href="/blog/dotnet-interactive/">用 Jupyter Notebook 寫 C# / PowerShell / JavaScript 筆記 - Ploygot Notebooks</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638465383295508551.png"></p> <p>我先開了一個 Ploygots .ipynb 文件，在其中寫分別用 PowerShell 讀入字串轉成 SecureString，ConvertFrom-SecureString 轉成 16 進位數字字串解析為 byte[]，最後編碼成 Base64 字串寫入檔案 D:\Temp\secret.txt。之後用 C# 引用 System.Security.Cryptography.ProtectedData，讀取 D:\Temp\secret.txt 解碼 Base64 後用 ProtectedData.Unprotect 解密還原得到原文。同一個 .ipynb 中同時使用 PowerShell 及 C#，還自帶文字說明，感覺很酷。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638465383298691659.png"></p> <p>實驗成功後，下一步我用一小段程式以 PowerShell 讀取使用者輸入內容轉 SecureString，將 16 進位字串用 <code>dotnet.exe user-secrets set "ApiKey" "dpapi:$encApiKey" --project ".\user-secret.csproj"</code> 在 Secret Manager 存入 ApiKey 設定 (前方加上 <code>enc:</code> 前綴，方便 C# 端判斷是否需解密)，我還另外設定一筆未加密的ApiUrl設定作為對照；之後用 PowerShell 從 .csproj XML 得到 UserSecretsId 算出 secrets.json 完整路徑，讀取內容觀察寫入值：</p> <pre><code>$encApiKey = Read-Host "ApiKey" -AsSecureString | ConvertFrom-SecureString
+dotnet.exe user-secrets set "ApiKey" "enc:$encApiKey" --project ".\user-secret.csproj"
+dotnet.exe user-secrets set "ApiUrl" "https://api.example.com" --project ".\user-secret.csproj"
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638465383300392482.png"></p> <p>設定完成後，來看 C# Program.cs 端如何讀取。還蠻簡單的，<code>new ConfigurationBuilder().AddUserSecrets&lt;Program&gt;().Build()</code> 引用 Secret Manager 建立 IConfiguration，用 config["ApiKey"] 讀到 "enc:01000000d08c9ddf0115d111..." 後，偵測到 "enc:" 字首時用將 16 進位字串還原 byte[]，用 <code>ProtectedData.Unprotect()</code> 解密；若無 "enc:" 前綴則為明碼，直接取值使用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+IConfiguration config = new ConfigurationBuilder()
+.AddUserSecrets&lt;Program&gt;().Build();
+Console.WriteLine("API Key: " + ReadValueFromSecretManager("ApiKey"));
+Console.WriteLine("API Url: " + ReadValueFromSecretManager("ApiUrl"));
+string ReadValueFromSecretManager(string key) {
+var val = config[key];
+if (string.IsNullOrEmpty(val) || !val.StartsWith("enc:")) return val!;
+var hex = val.Substring(4);
+var bytes = new byte[hex.Length / 2];
+for (int i = 0; i &lt; bytes.Length; i++) {
+bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+}
+return Encoding.Unicode.GetString(ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser));
+}
+</code></pre> <p>測試結果，加密的 ApiKey 與未加密碼的 ApiUrl 都成功讀取，輕鬆搞定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638465383302101502.png"></p> <p>就醬，透過幾行程式為 Secret Manager 加上加密功能，用起來就更安心囉~</p> <p data-slug="encrypt-dotnet-secret-manager" data-fbimg="https://cdn.pixabay.com/photo/2018/01/02/09/42/koala-3055832_960_720.jpg#960#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>昨天提到 <a href="/blog/dotnet-secrets-manager/">.NET Secret Manager 機制</a>，可取代 appsettings.json 或環境變數作為本機開發測試時的 ApiKey 或密碼保存容器，但美中不足是它用明碼儲存，檔案一旦外流便無險可守。我想應用 Secret Manager 的情境除了開發測試，也會用於在本機跑一些自用的 RAG 或 ChatGPT 整合應用，既然是 Windows 平台，<a href="/blog/protecteddata/">用 DPAPI/ProtectedData 無腦加密</a>感覺是好主意。<br> (註：DPAPI 的優點是加密不需想金鑰，由 OS 層次鎖定特定主機及登入帳號，即便被改掉密碼強行登入也無法解密)</p> <p>構想很簡單，我打算設計 ApiKey 或密碼時用 <a href="/blog/ps-secure-string/">PowerShell SecureString</a> 加密後再存入，設定部分沿用 <code>dotnet user-secrets set</code> CLI；讀取時也沿用 <code>ConfigurationBuilder().AddUserSecrets&lt;Program&gt;()</code>、<code>IConfigration["key-name"]</code> 讀取再用 <code>ProtectedData.Unprotect()</code> 解密，就這麼簡單。</p> <p>最近在看微軟範例時，看到許多場合開始用 C# Notebook 示範測試程式片段。這個概念源自 Python 好用的 Jupyter 筆記本，可在文件穿插 Markdown 說明及 Pythong 程式，很適用來寫作及分享學習筆記；而在 VSCode 裡也有個對等的 Polyglot Notebook，一樣可以穿插程式區塊及 Markdown 區塊，但支援的語言擴及 C#、F#、HTML、JavaScript、KQL、PowerShell、SQL，而在 VSCode 的好處是全程有 <a href="/blog/github-copilot-demo/">Github Copilot 黑魔法加持</a>，用左手就能把程式寫完(誤)。(延伸閱讀：<a href="/blog/dotnet-interactive/">用 Jupyter Notebook 寫 C# / PowerShell / JavaScript 筆記 - Ploygot Notebooks</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638465383295508551.png"></p> <p>我先開了一個 Ploygots .ipynb 文件，在其中寫分別用 PowerShell 讀入字串轉成 SecureString，ConvertFrom-SecureString 轉成 16 進位數字字串解析為 byte[]，最後編碼成 Base64 字串寫入檔案 D:\Temp\secret.txt。之後用 C# 引用 System.Security.Cryptography.ProtectedData，讀取 D:\Temp\secret.txt 解碼 Base64 後用 ProtectedData.Unprotect 解密還原得到原文。同一個 .ipynb 中同時使用 PowerShell 及 C#，還自帶文字說明，感覺很酷。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638465383298691659.png"></p> <p>實驗成功後，下一步我用一小段程式以 PowerShell 讀取使用者輸入內容轉 SecureString，將 16 進位字串用 <code>dotnet.exe user-secrets set "ApiKey" "dpapi:$encApiKey" --project ".\user-secret.csproj"</code> 在 Secret Manager 存入 ApiKey 設定 (前方加上 <code>enc:</code> 前綴，方便 C# 端判斷是否需解密)，我還另外設定一筆未加密的ApiUrl設定作為對照；之後用 PowerShell 從 .csproj XML 得到 UserSecretsId 算出 secrets.json 完整路徑，讀取內容觀察寫入值：</p> <pre><code>$encApiKey = Read-Host "ApiKey" -AsSecureString | ConvertFrom-SecureString
+dotnet.exe user-secrets set "ApiKey" "enc:$encApiKey" --project ".\user-secret.csproj"
+dotnet.exe user-secrets set "ApiUrl" "https://api.example.com" --project ".\user-secret.csproj"
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638465383300392482.png"></p> <p>設定完成後，來看 C# Program.cs 端如何讀取。還蠻簡單的，<code>new ConfigurationBuilder().AddUserSecrets&lt;Program&gt;().Build()</code> 引用 Secret Manager 建立 IConfiguration，用 config["ApiKey"] 讀到 "enc:01000000d08c9ddf0115d111..." 後，偵測到 "enc:" 字首時用將 16 進位字串還原 byte[]，用 <code>ProtectedData.Unprotect()</code> 解密；若無 "enc:" 前綴則為明碼，直接取值使用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+IConfiguration config = new ConfigurationBuilder()
+.AddUserSecrets&lt;Program&gt;().Build();
+Console.WriteLine("API Key: " + ReadValueFromSecretManager("ApiKey"));
+Console.WriteLine("API Url: " + ReadValueFromSecretManager("ApiUrl"));
+string ReadValueFromSecretManager(string key) {
+var val = config[key];
+if (string.IsNullOrEmpty(val) || !val.StartsWith("enc:")) return val!;
+var hex = val.Substring(4);
+var bytes = new byte[hex.Length / 2];
+for (int i = 0; i &lt; bytes.Length; i++) {
+bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+}
+return Encoding.Unicode.GetString(ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser));
+}
+</code></pre> <p>測試結果，加密的 ApiKey 與未加密碼的 ApiUrl 都成功讀取，輕鬆搞定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638465383302101502.png"></p> <p>就醬，透過幾行程式為 Secret Manager 加上加密功能，用起來就更安心囉~</p> <p data-slug="encrypt-dotnet-secret-manager" data-fbimg="https://cdn.pixabay.com/photo/2018/01/02/09/42/koala-3055832_960_720.jpg#960#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>昨天提到 <a href="/blog/dotnet-secrets-manager/">.NET Secret Manager 機制</a>，可取代 appsettings.json 或環境變數作為本機開發測試時的 ApiKey 或密碼保存容器，但美中不足是它用明碼儲存，檔案一旦外流便無險可守。我想應用 Secret Manager 的情境除了開發測試，也會用於在本機跑一些自用的 RAG 或 ChatGPT 整合應用，既然是 Windows 平台，<a href="/blog/protecteddata/">用 DPAPI/ProtectedData 無腦加密</a>感覺是好主意。<br> (註：DPAPI 的優點是加密不需想金鑰，由 OS 層次鎖定特定主機及登入帳號，即便被改掉密碼強行登入也無法解密)</p> <p>構想很簡單，我打算設計 ApiKey 或密碼時用 <a href="/blog/ps-secure-string/">PowerShell SecureString</a> 加密後再存入，設定部分沿用 <code>dotnet user-secrets set</code> CLI；讀取時也沿用 <code>ConfigurationBuilder().AddUserSecrets&lt;Program&gt;()</code>、<code>IConfigration["key-name"]</code> 讀取再用 <code>ProtectedData.Unprotect()</code> 解密，就這麼簡單。</p> <p>最近在看微軟範例時，看到許多場合開始用 C# Notebook 示範測試程式片段。這個概念源自 Python 好用的 Jupyter 筆記本，可在文件穿插 Markdown 說明及 Pythong 程式，很適用來寫作及分享學習筆記；而在 VSCode 裡也有個對等的 Polyglot Notebook，一樣可以穿插程式區塊及 Markdown 區塊，但支援的語言擴及 C#、F#、HTML、JavaScript、KQL、PowerShell、SQL，而在 VSCode 的好處是全程有 <a href="/blog/github-copilot-demo/">Github Copilot 黑魔法加持</a>，用左手就能把程式寫完(誤)。(延伸閱讀：<a href="/blog/dotnet-interactive/">用 Jupyter Notebook 寫 C# / PowerShell / JavaScript 筆記 - Ploygot Notebooks</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638465383295508551.png"></p> <p>我先開了一個 Ploygots .ipynb 文件，在其中寫分別用 PowerShell 讀入字串轉成 SecureString，ConvertFrom-SecureString 轉成 16 進位數字字串解析為 byte[]，最後編碼成 Base64 字串寫入檔案 D:\Temp\secret.txt。之後用 C# 引用 System.Security.Cryptography.ProtectedData，讀取 D:\Temp\secret.txt 解碼 Base64 後用 ProtectedData.Unprotect 解密還原得到原文。同一個 .ipynb 中同時使用 PowerShell 及 C#，還自帶文字說明，感覺很酷。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638465383298691659.png"></p> <p>實驗成功後，下一步我用一小段程式以 PowerShell 讀取使用者輸入內容轉 SecureString，將 16 進位字串用 <code>dotnet.exe user-secrets set "ApiKey" "dpapi:$encApiKey" --project ".\user-secret.csproj"</code> 在 Secret Manager 存入 ApiKey 設定 (前方加上 <code>enc:</code> 前綴，方便 C# 端判斷是否需解密)，我還另外設定一筆未加密的ApiUrl設定作為對照；之後用 PowerShell 從 .csproj XML 得到 UserSecretsId 算出 secrets.json 完整路徑，讀取內容觀察寫入值：</p> <pre><code>$encApiKey = Read-Host "ApiKey" -AsSecureString | ConvertFrom-SecureString
+dotnet.exe user-secrets set "ApiKey" "enc:$encApiKey" --project ".\user-secret.csproj"
+dotnet.exe user-secrets set "ApiUrl" "https://api.example.com" --project ".\user-secret.csproj"
+</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638465383300392482.png"></p> <p>設定完成後，來看 C# Program.cs 端如何讀取。還蠻簡單的，<code>new ConfigurationBuilder().AddUserSecrets&lt;Program&gt;().Build()</code> 引用 Secret Manager 建立 IConfiguration，用 config["ApiKey"] 讀到 "enc:01000000d08c9ddf0115d111..." 後，偵測到 "enc:" 字首時用將 16 進位字串還原 byte[]，用 <code>ProtectedData.Unprotect()</code> 解密；若無 "enc:" 前綴則為明碼，直接取值使用。</p> <pre><code>using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+IConfiguration config = new ConfigurationBuilder()
+.AddUserSecrets&lt;Program&gt;().Build();
+Console.WriteLine("API Key: " + ReadValueFromSecretManager("ApiKey"));
+Console.WriteLine("API Url: " + ReadValueFromSecretManager("ApiUrl"));
+string ReadValueFromSecretManager(string key) {
+var val = config[key];
+if (string.IsNullOrEmpty(val) || !val.StartsWith("enc:")) return val!;
+var hex = val.Substring(4);
+var bytes = new byte[hex.Length / 2];
+for (int i = 0; i &lt; bytes.Length; i++) {
+bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+}
+return Encoding.Unicode.GetString(ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser));
+}
+</code></pre> <p>測試結果，加密的 ApiKey 與未加密碼的 ApiUrl 都成功讀取，輕鬆搞定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638465383302101502.png"></p> <p>就醬，透過幾行程式為 Secret Manager 加上加密功能，用起來就更安心囉~</p> <p data-slug="encrypt-dotnet-secret-manager" data-fbimg="https://cdn.pixabay.com/photo/2018/01/02/09/42/koala-3055832_960_720.jpg#960#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638465383295508551.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638465383295508551.png" medium="image"/>
+    <pubDate>Wed, 20 Mar 2024 13:31:40 GMT</pubDate>
+  </item><item>
     <title><![CDATA[使用 dotnet user-secrets 儲存專案專屬秘密設定(API Key、密碼)]]></title>
     <link>https://blog.darkthread.net/blog/dotnet-secrets-manager/</link>
     <itunes:title><![CDATA[使用 dotnet user-secrets 儲存專案專屬秘密設定(API Key、密碼)]]></itunes:title>
@@ -1214,548 +1289,5 @@ logger.Dispose();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png" medium="image"/>
     <pubDate>Tue, 27 Feb 2024 13:51:40 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></title>
-    <link>https://blog.darkthread.net/blog/python-stats-cahrt/</link>
-    <itunes:title><![CDATA[分析 Log 計算平均、標準差、95 百分位數並繪製圖表 - 從 C# 到 Python]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
-9997242: 0ms
-9997243: 29ms
-9997244: 0ms
-9997245: 1ms
-9997246: 0ms
-9997247: 0ms
-9997248: 1ms
-9997249: 0ms
-...
-</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
-public class LogParser
-{
-// 百分位數
-static double percentile(int[] sorted, float percent)
-{
-if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
-throw new ArgumentException();
-var k = (sorted.Length - 1) * percent / 100.0;
-var i = (int)Math.Floor(k);
-var frac = k - i;
-return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
-}
-public static void Parse()
-{
-var filesNames = Directory.GetFiles("data", "Test-*.txt");
-var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
-Parallel.ForEach(filesNames, fileName =&gt;
-{
-var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
-foreach (var line in File.ReadAllLines(fileName))
-{
-var parts = line.Split(':');
-var idx = (int.Parse(parts[0]) - 1) / 100;
-var dura = int.Parse(parts[1].Replace("ms", string.Empty));
-if (!pool.ContainsKey(idx))
-{
-pool.TryAdd(idx, new List&lt;int&gt;());
-}
-pool[idx].Add(dura);
-}
-foreach (var kvp in pool)
-{
-var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
-var count = sorted.Length;
-var mean = (int)sorted.Average();
-var max = sorted.Max();
-// 標準差
-var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
-var p90 = (int)percentile(sorted, 90);
-var p95 = (int)percentile(sorted, 95);
-var p99 = (int)percentile(sorted, 99);
-data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
-}
-});
-var ordered = data.OrderBy(kvp =&gt; kvp.Key);
-using var sw = new StreamWriter("results\\stats-cs.csv");
-sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
-foreach (var kvp in ordered)
-{
-var v = kvp.Value;
-sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
-}
-}
-}
-</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
-import concurrent.futures
-import statistics
-def parse_file(file):
-with open(file, 'r') as f:
-# 資料格式：12345: 0ms
-lines = f.readlines()
-stats = {}
-for line in lines:
-p = line.split(':')
-seq = int(p[0]) - 1
-# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
-grpSeq = seq//100
-dura = int(p[1].strip('ms
-'))
-# setdefault 可在 Dictionary 無值時建空陣列
-stats.setdefault(grpSeq, []).append((seq, dura))
-# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
-data = []
-for k, v in stats.items():
-duras = [x[1] for x in v]
-duras.sort()
-count = len(v)
-mean = int(statistics.mean(duras))
-maxVal = max(duras)
-std = int(statistics.pstdev(duras, mu=mean))
-p90 = duras[int(count * 0.9) - 1]
-p95 = duras[int(count * 0.95) - 1]
-p99 = duras[int(count * 0.99) - 1]
-data.append((k, mean, maxVal, std, p90, p95, p99))
-return data
-files = glob.glob('.\data\Test-*.txt')
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-# 將結果組合成一個 list
-data = []
-for r in results:
-data += r
-# 依組別排序
-data.sort(key=lambda x: x[0])
-# 輸出成 csv 檔
-with open('results\stats-py.csv', 'w') as f:
-f.write('Index,Mean,Max,StdDev,P90,P95,P99
-')
-for d in data:
-f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
-')
-</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
-import pandas as pd
-import numpy as np
-def parse_file(file):
-df = pd.read_csv(file, sep=":", names=["seq", "dura"])
-df["dura"] = df["dura"].str.strip("ms
-").astype(int)
-df["Index"] = (df["seq"] - 1) // 100
-grouped = df.groupby("Index")["dura"]
-data = pd.concat(
-[
-grouped.mean().astype(int),
-grouped.max(),
-grouped.std().astype(int),
-grouped.quantile(0.9).astype(int),
-grouped.quantile(0.95).astype(int),
-grouped.quantile(0.99).astype(int),
-],
-axis=1,
-)
-data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
-return data.reset_index()
-files = glob.glob(".\data\Test-*.txt")
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-data = pd.concat(results).sort_values("Index")
-data.to_csv("results\stats-py2.csv", index=False)
-</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
-def plot_stats(filename, title):
-with open(filename, "r") as f:
-stats = f.readlines()
-# 略過第一行(Header)
-stats = stats[1:]
-stats = [list(map(int, row.strip().split(","))) for row in stats]
-x = [row[0] for row in stats] # Index
-yMean = [row[1] for row in stats] # Mean
-yMax = [row[2] for row in stats] # Max
-yP99 = [row[6] for row in stats] # P99
-# 設定 12 吋寬、4 吋高
-fig, ax1 = plt.subplots(figsize=(12, 4))
-ax1.plot(x, yMean, alpha=0.8, color="b")
-# 偵測 y 軸的最大值，設定 y 軸刻度
-maxY = max(yMean)
-if maxY &lt; 100:
-tick = 10
-elif maxY &lt; 1000:
-tick = 100
-ax1.set_yticks(range(0, int(maxY * 2), tick))
-ax1.set_ylabel("Avg(ms)", color="b")
-ax1.get_xaxis().set_major_formatter(
-plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
-)
-ax1.set_xlabel("rows (k)")
-# 最大值
-ax2 = ax1.twinx() # 與 ax1 共用 x 軸
-ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
-ax2.set_ylabel("Max/Percentile(ms)")
-# 加上 99 百分位數
-ax3 = ax1.twinx()
-ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
-ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
-plt.title(title)
-plt.show()
-plot_stats("results\stats-cs.csv", "Execution Time")
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
-9997242: 0ms
-9997243: 29ms
-9997244: 0ms
-9997245: 1ms
-9997246: 0ms
-9997247: 0ms
-9997248: 1ms
-9997249: 0ms
-...
-</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
-public class LogParser
-{
-// 百分位數
-static double percentile(int[] sorted, float percent)
-{
-if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
-throw new ArgumentException();
-var k = (sorted.Length - 1) * percent / 100.0;
-var i = (int)Math.Floor(k);
-var frac = k - i;
-return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
-}
-public static void Parse()
-{
-var filesNames = Directory.GetFiles("data", "Test-*.txt");
-var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
-Parallel.ForEach(filesNames, fileName =&gt;
-{
-var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
-foreach (var line in File.ReadAllLines(fileName))
-{
-var parts = line.Split(':');
-var idx = (int.Parse(parts[0]) - 1) / 100;
-var dura = int.Parse(parts[1].Replace("ms", string.Empty));
-if (!pool.ContainsKey(idx))
-{
-pool.TryAdd(idx, new List&lt;int&gt;());
-}
-pool[idx].Add(dura);
-}
-foreach (var kvp in pool)
-{
-var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
-var count = sorted.Length;
-var mean = (int)sorted.Average();
-var max = sorted.Max();
-// 標準差
-var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
-var p90 = (int)percentile(sorted, 90);
-var p95 = (int)percentile(sorted, 95);
-var p99 = (int)percentile(sorted, 99);
-data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
-}
-});
-var ordered = data.OrderBy(kvp =&gt; kvp.Key);
-using var sw = new StreamWriter("results\\stats-cs.csv");
-sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
-foreach (var kvp in ordered)
-{
-var v = kvp.Value;
-sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
-}
-}
-}
-</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
-import concurrent.futures
-import statistics
-def parse_file(file):
-with open(file, 'r') as f:
-# 資料格式：12345: 0ms
-lines = f.readlines()
-stats = {}
-for line in lines:
-p = line.split(':')
-seq = int(p[0]) - 1
-# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
-grpSeq = seq//100
-dura = int(p[1].strip('ms
-'))
-# setdefault 可在 Dictionary 無值時建空陣列
-stats.setdefault(grpSeq, []).append((seq, dura))
-# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
-data = []
-for k, v in stats.items():
-duras = [x[1] for x in v]
-duras.sort()
-count = len(v)
-mean = int(statistics.mean(duras))
-maxVal = max(duras)
-std = int(statistics.pstdev(duras, mu=mean))
-p90 = duras[int(count * 0.9) - 1]
-p95 = duras[int(count * 0.95) - 1]
-p99 = duras[int(count * 0.99) - 1]
-data.append((k, mean, maxVal, std, p90, p95, p99))
-return data
-files = glob.glob('.\data\Test-*.txt')
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-# 將結果組合成一個 list
-data = []
-for r in results:
-data += r
-# 依組別排序
-data.sort(key=lambda x: x[0])
-# 輸出成 csv 檔
-with open('results\stats-py.csv', 'w') as f:
-f.write('Index,Mean,Max,StdDev,P90,P95,P99
-')
-for d in data:
-f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
-')
-</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
-import pandas as pd
-import numpy as np
-def parse_file(file):
-df = pd.read_csv(file, sep=":", names=["seq", "dura"])
-df["dura"] = df["dura"].str.strip("ms
-").astype(int)
-df["Index"] = (df["seq"] - 1) // 100
-grouped = df.groupby("Index")["dura"]
-data = pd.concat(
-[
-grouped.mean().astype(int),
-grouped.max(),
-grouped.std().astype(int),
-grouped.quantile(0.9).astype(int),
-grouped.quantile(0.95).astype(int),
-grouped.quantile(0.99).astype(int),
-],
-axis=1,
-)
-data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
-return data.reset_index()
-files = glob.glob(".\data\Test-*.txt")
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-data = pd.concat(results).sort_values("Index")
-data.to_csv("results\stats-py2.csv", index=False)
-</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
-def plot_stats(filename, title):
-with open(filename, "r") as f:
-stats = f.readlines()
-# 略過第一行(Header)
-stats = stats[1:]
-stats = [list(map(int, row.strip().split(","))) for row in stats]
-x = [row[0] for row in stats] # Index
-yMean = [row[1] for row in stats] # Mean
-yMax = [row[2] for row in stats] # Max
-yP99 = [row[6] for row in stats] # P99
-# 設定 12 吋寬、4 吋高
-fig, ax1 = plt.subplots(figsize=(12, 4))
-ax1.plot(x, yMean, alpha=0.8, color="b")
-# 偵測 y 軸的最大值，設定 y 軸刻度
-maxY = max(yMean)
-if maxY &lt; 100:
-tick = 10
-elif maxY &lt; 1000:
-tick = 100
-ax1.set_yticks(range(0, int(maxY * 2), tick))
-ax1.set_ylabel("Avg(ms)", color="b")
-ax1.get_xaxis().set_major_formatter(
-plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
-)
-ax1.set_xlabel("rows (k)")
-# 最大值
-ax2 = ax1.twinx() # 與 ax1 共用 x 軸
-ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
-ax2.set_ylabel("Max/Percentile(ms)")
-# 加上 99 百分位數
-ax3 = ax1.twinx()
-ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
-ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
-plt.title(title)
-plt.show()
-plot_stats("results\stats-cs.csv", "Execution Time")
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>資料庫 INSERT 測試產生了一堆 Log 記錄檔，一個檔每 50 萬筆，每筆格式為<code>序號: 耗時ms</code>：</p> <pre><code>...
-9997242: 0ms
-9997243: 29ms
-9997244: 0ms
-9997245: 1ms
-9997246: 0ms
-9997247: 0ms
-9997248: 1ms
-9997249: 0ms
-...
-</code></pre> <p>我想寫個程式，以每 100 筆為單位統計輸出成平均毫秒數、最大值、標準差、90/95/99 百分位數(意指 99% 都低於多少 ms)。</p> <p>這對 .NET 來說是小菜一碟，花了點時間研究 <a href="/blog/calc-percentile/">百分位數</a>，60 行程式打發，用 Parallel.ForEach 平行處理，兩秒內跑完，名符其實的秒殺：</p> <pre><code>using System.Collections.Concurrent;
-public class LogParser
-{
-// 百分位數
-static double percentile(int[] sorted, float percent)
-{
-if (sorted == null || !sorted.Any() || percent &lt; 0 || percent &gt; 100)
-throw new ArgumentException();
-var k = (sorted.Length - 1) * percent / 100.0;
-var i = (int)Math.Floor(k);
-var frac = k - i;
-return sorted[i] + frac * (sorted[Math.Min(i + 1, sorted.Length - 1)] - sorted[i]);
-}
-public static void Parse()
-{
-var filesNames = Directory.GetFiles("data", "Test-*.txt");
-var data = new ConcurrentDictionary&lt;int, (int mean, int max, int stdDev, int p90, int p95, int p99)&gt;();
-Parallel.ForEach(filesNames, fileName =&gt;
-{
-var pool = new ConcurrentDictionary&lt;int, List&lt;int&gt;&gt;();
-foreach (var line in File.ReadAllLines(fileName))
-{
-var parts = line.Split(':');
-var idx = (int.Parse(parts[0]) - 1) / 100;
-var dura = int.Parse(parts[1].Replace("ms", string.Empty));
-if (!pool.ContainsKey(idx))
-{
-pool.TryAdd(idx, new List&lt;int&gt;());
-}
-pool[idx].Add(dura);
-}
-foreach (var kvp in pool)
-{
-var sorted = kvp.Value.OrderBy(x =&gt; x).ToArray();
-var count = sorted.Length;
-var mean = (int)sorted.Average();
-var max = sorted.Max();
-// 標準差
-var stdDev = (int)Math.Sqrt(sorted.Sum(x =&gt; Math.Pow(x - mean, 2)) / count);
-var p90 = (int)percentile(sorted, 90);
-var p95 = (int)percentile(sorted, 95);
-var p99 = (int)percentile(sorted, 99);
-data.TryAdd(kvp.Key, (mean, max, stdDev, p90, p95, p99));
-}
-});
-var ordered = data.OrderBy(kvp =&gt; kvp.Key);
-using var sw = new StreamWriter("results\\stats-cs.csv");
-sw.WriteLine("Index,Mean,Max,StdDev,P90,P95,P99");
-foreach (var kvp in ordered)
-{
-var v = kvp.Value;
-sw.WriteLine($"{kvp.Key},{v.mean},{v.max},{v.stdDev},{v.p90},{v.p95},{v.p99}");
-}
-}
-}
-</code></pre> <p>結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"></p> <p>過往，接下來我應該會開 Excel 匯 CSV 做圖表。今年我打算把 Python 也納入技能樹，決定練習改用 Python 來完成。</p> <p>問我想學 Python 的理由？</p> <p>很簡單，因為</p> <h3>Python 是 ChatGPT 跟 Github Copilot 的母語</h3> <p>可預見未來幾年 AI 將主導資訊系統發展方向，加上在學術研究領域的廣泛應用，簡單說，會 Python 跟懂英文的好處異曲同工，剩下的不需要多解釋了吧。</p> <p>手上已有 C# 版，雖然跟 Python 不熟，但在 Github Copliot 的指導下，我很快寫出一個可執行版本：</p> <pre><code>import glob
-import concurrent.futures
-import statistics
-def parse_file(file):
-with open(file, 'r') as f:
-# 資料格式：12345: 0ms
-lines = f.readlines()
-stats = {}
-for line in lines:
-p = line.split(':')
-seq = int(p[0]) - 1
-# 註：用 // 除會取整數(無條件捨去)、用 / 除為浮點數
-grpSeq = seq//100
-dura = int(p[1].strip('ms
-'))
-# setdefault 可在 Dictionary 無值時建空陣列
-stats.setdefault(grpSeq, []).append((seq, dura))
-# 計算每組之平均、最大、標準差，90%、95%, 99% 百分位數
-data = []
-for k, v in stats.items():
-duras = [x[1] for x in v]
-duras.sort()
-count = len(v)
-mean = int(statistics.mean(duras))
-maxVal = max(duras)
-std = int(statistics.pstdev(duras, mu=mean))
-p90 = duras[int(count * 0.9) - 1]
-p95 = duras[int(count * 0.95) - 1]
-p99 = duras[int(count * 0.99) - 1]
-data.append((k, mean, maxVal, std, p90, p95, p99))
-return data
-files = glob.glob('.\data\Test-*.txt')
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-# 將結果組合成一個 list
-data = []
-for r in results:
-data += r
-# 依組別排序
-data.sort(key=lambda x: x[0])
-# 輸出成 csv 檔
-with open('results\stats-py.csv', 'w') as f:
-f.write('Index,Mean,Max,StdDev,P90,P95,P99
-')
-for d in data:
-f.write(f'{d[0]},{d[1]},{d[2]},{d[3]},{d[4]},{d[5]},{d[6]}
-')
-</code></pre> <p>用類似的運算原理，換個語言寫，可得到跟 C# 完全相同的結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638444298468376971.png"></p> <p>但有個問題，以上的程式跑完要 16 秒，是 C# 的八倍! 不過，這是因為我並沒有用 Python 最擅長的方式處理數學運算，豐富且強大的數學程式庫是 Python 的強項，別什麼都自己來。但應該怎麼改？你為什麼不問問<del>神奇海螺</del> Copilot 呢？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638444298474866925.png"></p> <p>將程式碼丟給 Copilot 請它給建議，Copilot 建議我用 Pandas (排序、分群、統計用程式庫) 跟 NumPy (矩陣與數學運算百寶箱) 簡化程式，pandas 甚至有函式可以直接讀取 CSV，有現成的函式可以分群，計算百分位數，短短幾行做完。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638444298477657963.png"></p> <p>程式只有 Pool() 跑多執行緒的部分有點問題，我改成用 ThreadPoolExecutor()，精簡版就順利完成了。</p> <pre><code>import glob
-import pandas as pd
-import numpy as np
-def parse_file(file):
-df = pd.read_csv(file, sep=":", names=["seq", "dura"])
-df["dura"] = df["dura"].str.strip("ms
-").astype(int)
-df["Index"] = (df["seq"] - 1) // 100
-grouped = df.groupby("Index")["dura"]
-data = pd.concat(
-[
-grouped.mean().astype(int),
-grouped.max(),
-grouped.std().astype(int),
-grouped.quantile(0.9).astype(int),
-grouped.quantile(0.95).astype(int),
-grouped.quantile(0.99).astype(int),
-],
-axis=1,
-)
-data.columns = ["Mean", "Max", "StdDev", "P90", "P95", "P99"]
-return data.reset_index()
-files = glob.glob(".\data\Test-*.txt")
-with concurrent.futures.ThreadPoolExecutor() as executor:
-results = executor.map(parse_file, files)
-data = pd.concat(results).sort_values("Index")
-data.to_csv("results\stats-py2.csv", index=False)
-</code></pre> <p>Copilot 提供的版本 3 秒跑完，跟 C# 不相上下，除了標準差有點不同，其餘數字一致。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638444298479898674.png"></p> <p>算出結果，下一步靠 Python 豐富的程式庫把結果畫成圖表：(繼續請 Copilot 手把手帶著我寫完)</p> <pre><code>import matplotlib.pyplot as plt
-def plot_stats(filename, title):
-with open(filename, "r") as f:
-stats = f.readlines()
-# 略過第一行(Header)
-stats = stats[1:]
-stats = [list(map(int, row.strip().split(","))) for row in stats]
-x = [row[0] for row in stats] # Index
-yMean = [row[1] for row in stats] # Mean
-yMax = [row[2] for row in stats] # Max
-yP99 = [row[6] for row in stats] # P99
-# 設定 12 吋寬、4 吋高
-fig, ax1 = plt.subplots(figsize=(12, 4))
-ax1.plot(x, yMean, alpha=0.8, color="b")
-# 偵測 y 軸的最大值，設定 y 軸刻度
-maxY = max(yMean)
-if maxY &lt; 100:
-tick = 10
-elif maxY &lt; 1000:
-tick = 100
-ax1.set_yticks(range(0, int(maxY * 2), tick))
-ax1.set_ylabel("Avg(ms)", color="b")
-ax1.get_xaxis().set_major_formatter(
-plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x / 10)))
-)
-ax1.set_xlabel("rows (k)")
-# 最大值
-ax2 = ax1.twinx() # 與 ax1 共用 x 軸
-ax2.scatter(x, yMax, alpha=0.6, color="r", s=1)
-ax2.set_ylabel("Max/Percentile(ms)")
-# 加上 99 百分位數
-ax3 = ax1.twinx()
-ax3.set_ylim(ax2.get_ylim()) # 與 ax2 Y 軸刻度一致
-ax3.scatter(x, yP99, alpha=0.6, color="g", s=1.5)
-plt.title(title)
-plt.show()
-plot_stats("results\stats-cs.csv", "Execution Time")
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638444318567451143.png"></p> <p>就醬，在 Github Copliot 教練的細心指導下，我完成第一支解析測試結果繪成圖表的 Python 程式，技能老樹冒出新芽。未來遇到用 Python 更省時省力的場合，我就有更多選擇囉~</p> <p data-slug="python-stats-cahrt" data-title-en="Using Python to analyze test log and draw statistics chart" data-catg="Python" data-fbimg="https://i.imgur.com/wiGLwug.jpg#1280#720">An example of using Python to analyze test logs and calculate mean, max, percentile and draw statistics chart.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638444298466197269.png" medium="image"/>
-    <pubDate>Sun, 25 Feb 2024 03:45:12 GMT</pubDate>
   </item></channel>
 </rss>
