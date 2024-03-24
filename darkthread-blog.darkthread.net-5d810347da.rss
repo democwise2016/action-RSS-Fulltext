@@ -30,6 +30,330 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 小技巧 - 使用 PdfSharp / PdfSharpCore 合併 PDF、加浮水印]]></title>
+    <link>https://blog.darkthread.net/blog/pdfsharp/</link>
+    <itunes:title><![CDATA[.NET 小技巧 - 使用 PdfSharp / PdfSharpCore 合併 PDF、加浮水印]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>關於 .NET 用的開源 PDF 程式庫，先前介紹過 <a href="/blog/indented-text-from-pdf/">PdfPig</a>，最近在看<a href="/blog/rag/">微軟 RAG 範例程式</a>發現另一個程式庫選擇 - <a href="https://www.github.com/ststeiger/PdfSharpCore">PdfSharpCore</a>。</p> <p>PdfSharpCore 是老牌開源專案 <a href="https://www.pdfsharp.net/">PDFsharp 及 MigraDoc Foundation</a> 的 .NET 6+ 「跨平台」移植版，網路上較少聽到人討論，網路資源也偏少，但 <a href="https://www.nuget.org/packages/PdfSharpCore/">NuGet</a> 的下載統計也累積近 1170 萬。PdfSharpCore 使用 SixLabors.ImageSharp 及 SixLabors.Fonts 解決 GDI+ 繪圖程式庫為 Windows 專屬的問題，實現跨平台使用(延伸閱讀：<a href="/blog/netcore-iamge-processing/">.NET 6 圖形處理跨平台注意事項</a>，但這兩個資料庫))。但要留意，由於 SixLabors 程式庫不是採用 MIT 授權，依 Six Labors Split License，<a href="https://github.com/SixLabors/ImageSharp/blob/main/LICENSE">年營收超過 100 萬美金的企業直接引用(Direct Package Dependency)需付費</a>，透過 PdfSharpCore 引用 SixLabors 程式庫的做法我認為屬於 Transitive Dependecy (any Work in Object form that is installed indirectly by a third party dependency unrelated to Six Labors)，但稽查人員或管理權責單位是否願了解授權差異，會不會使出"我不要聽我不要聽"大絕就看大家的運氣了，願源力與你同在。</p> <p>但研究後發現，PDFsharp 也仍在持續發展，目前最新版為 <a href="https://github.com/empira/PDFsharp">PDFsharp &amp; MigraDoc 6</a>，可在 Windows、Linux 及任何 .NET 相容平台上使用，它共提供三種實作：跨平台版、Windows GDI+ 及 Windows WPF 版，跨平台版看起來是自行實繪圖功能，在效能、支援度及可靠性估計不如 GDI+ 或 SixLabors 專業，但如果應用場景限 Windows 平台，使用 GDI+/WPF 版或是只支援 .NET Framework 用的 1.5 版，是更好的選擇。</p> <p>因此，這篇文章的範例我會用 PdfSharpCore 示範，但它也適用於 PDFsharp &amp; MigraDoc 6、PDFsharp 1.5，中間可能有些小差異，但大致精神相同。在 API 文件方向，<a href="https://docs.pdfsharp.net/">新版網站</a>仍在施工中，部分文件尚未完備，缺少部分可參考<a href="https://www.pdfsharp.net/wiki/">1.5 舊版 Wiki</a>。</p> <p>在微軟的 RAG 範例中，只用 PdfSharpCore 將 PDF 分頁，一頁存成一個 PDF，但 PdfSharpCore 也可處理建立文件、合併文件、加浮水印等常見 PDF 基本操作，以下是簡單示範，共四組測試：用繪圖 API 產生 PDF、用文件模型產生 PDF、將兩個 PDF 合併、。</p> <pre><code>using System.Diagnostics;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
+using MigraDocCore.DocumentObjectModel;
+using PdfSharpCore.Pdf.IO;
+// 測試一，使用 PdfSharpCore 產生 PDF (畫布繪圖)
+// REF: https://github.com/empira/PDFsharp.Samples/tree/master
+var cover = new PdfDocument();
+cover.Info.Title = "Created with PDFsharp";
+cover.Info.Subject = "Just a simple Hello-World program.";
+var page = cover.AddPage();
+// 用繪圖方式製作 PDF (另有 MigraDoc 提供文件模型)
+var gfx = XGraphics.FromPdfPage(page);
+var width = page.Width;
+var height = page.Height;
+// 背景填色
+gfx.DrawRectangle(XBrushes.SteelBlue, 0, 0, width, height);
+// 繪製矩形，灰框白底
+double margin = 80;
+XPen grayPen = new XPen(XColors.Gray, 4);
+gfx.DrawRectangle(grayPen, XBrushes.White, margin, margin, width - 2 * margin, 150);
+// 繪製文字
+var font = new XFont("Tahoma", 32, XFontStyle.Bold);
+gfx.DrawString("THIS IS A BOOK.", font, XBrushes.DarkGray,
+new XRect(margin, margin, width - 2 * margin, 150), XStringFormats.Center);
+var coverFilePath = Path.GetTempFileName() + ".pdf";
+cover.Save(coverFilePath);
+Process.Start(new ProcessStartInfo(coverFilePath) { UseShellExecute = true });
+// 測試二，使用 MigraDocCore 產生 PDF (文件模型)
+//REF: https://github.com/empira/PDFsharp.Samples/blob/master/src/samples/src/MigraDoc/src/HelloMigraDoc/Styles.cs
+var document = new MigraDocCore.DocumentObjectModel.Document()
+{
+Info = {
+Title = "Created with MigraDoc",
+Subject = "Hello, World!",
+Author = "Jeffrey Lee"
+}
+};
+var style = document.Styles["Normal"] ?? throw new InvalidOperationException("Style Normal not found.");
+style.Font.Name = "Segoe UI";
+style = document.Styles["Heading1"];
+style.Font.Size = 16;
+style.Font.Bold = true;
+style.Font.Color = Colors.DarkBlue;
+style.ParagraphFormat.PageBreakBefore = true;
+style.ParagraphFormat.SpaceAfter = 6;
+style.ParagraphFormat.Alignment = ParagraphAlignment.Center;
+style.ParagraphFormat.KeepWithNext = true;
+var sec = document.AddSection();
+var para = sec.AddParagraph();
+para.AddFormattedText("Header Test", "Heading1");
+para = sec.AddParagraph();
+para.AddLineBreak();
+para.AddText("Hello, World!");
+var pdfRenderer = new MigraDocCore.Rendering.PdfDocumentRenderer()
+{
+Document = document,
+PdfDocument = new PdfDocument()
+};
+pdfRenderer.RenderDocument();
+var pdfFilePath = Path.GetTempFileName() + ".pdf";
+pdfRenderer.PdfDocument.Save(pdfFilePath);
+Process.Start(new ProcessStartInfo(pdfFilePath) { UseShellExecute = true });
+// 測試三，合併兩份 PDF
+var pdf1 = PdfReader.Open(coverFilePath, PdfDocumentOpenMode.Import);
+var pdf2 = PdfReader.Open(pdfFilePath, PdfDocumentOpenMode.Import);
+var pdf3 = new PdfDocument();
+for (int i = 0; i &lt; pdf1.PageCount; i++)
+{
+pdf3.AddPage(pdf1.Pages[i]);
+}
+for (int i = 0; i &lt; pdf2.PageCount; i++)
+{
+pdf3.AddPage(pdf2.Pages[i]);
+}
+var mergedFilePath = Path.GetTempFileName() + ".pdf";
+pdf3.Save(mergedFilePath);
+Process.Start(new ProcessStartInfo(mergedFilePath) { UseShellExecute = true });
+// 測試四，為 PDF 加上浮水印
+// https://www.pdfsharp.net/wiki/Watermark-sample.ashx
+var mergedPdf = PdfReader.Open(mergedFilePath, PdfDocumentOpenMode.Modify);
+string wartermarkText = "TOP SECRET";
+var formatWM = new XStringFormat()
+{
+Alignment = XStringAlignment.Near,
+LineAlignment = XLineAlignment.Near
+};
+var fontWM = new XFont("Tahoma", 48, XFontStyle.Bold);
+XBrush brushWM = new XSolidBrush(XColor.FromArgb(96, 255, 0, 0));
+foreach (var pg in mergedPdf.Pages)
+{
+var gfxWM = XGraphics.FromPdfPage(pg, XGraphicsPdfPageOptions.Append);
+var size = gfxWM.MeasureString(wartermarkText, fontWM);
+gfxWM.TranslateTransform(pg.Width.Point / 2, pg.Height.Point / 2);
+gfxWM.RotateTransform(-Math.Atan(pg.Height / pg.Width) * 180 / Math.PI);
+gfxWM.TranslateTransform(-pg.Width.Point / 2, -pg.Height.Point / 2);
+gfxWM.DrawString(wartermarkText, fontWM, brushWM,
+new XPoint((pg.Width.Point - size.Width) / 2, (pg.Height.Point - size.Height) / 2),
+formatWM);
+}
+var watermarkedFilePath = Path.GetTempFileName() + ".pdf";
+mergedPdf.Save(watermarkedFilePath);
+Process.Start(new ProcessStartInfo(watermarkedFilePath) { UseShellExecute = true });
+</code></pre> <p>專案需參照 <code>PdfSharpCore</code>、<code>MigraDocCore.DocumentObjectModel</code>、<code>MigraDocCore.Rendering</code>三個程式庫，實測成功：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638468934337934821.png"></p> <p>另外，順便也實測 .NET Framework 3.5 + PDFsharp 1.50：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638468934341044444.png"></p> <p>程式碼搬進 .NET 3.5 專案，將 Namespace 從 PdfSharpCore 改成 PdfSharp、MigraDocCore 改成 MigraDoc，可得到相同結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638468934344394770.png"></p> <p>結論：.NET Framework 要做 PDF 合併及浮水印，可考慮使用 PDFsharp 1.50；要配合 .NET 6+，可考慮 PdfSharp 6.0 GDI+ 或 WPF 版，若需跨平台則可使用 PdfSharp 6.0 跨平台版或 PdfSharpCore。PdfSharpCore 有引用非 MIT 授權的 SixLabors 圖形程式庫，雖屬 Transitive Depdency 理論可免費商用，但實務上要以稽查單位心證為準，較麻煩些。</p> <p>.NET 程式工具箱再添好用工具一枚。</p> <p data-slug="pdfsharp" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>關於 .NET 用的開源 PDF 程式庫，先前介紹過 <a href="/blog/indented-text-from-pdf/">PdfPig</a>，最近在看<a href="/blog/rag/">微軟 RAG 範例程式</a>發現另一個程式庫選擇 - <a href="https://www.github.com/ststeiger/PdfSharpCore">PdfSharpCore</a>。</p> <p>PdfSharpCore 是老牌開源專案 <a href="https://www.pdfsharp.net/">PDFsharp 及 MigraDoc Foundation</a> 的 .NET 6+ 「跨平台」移植版，網路上較少聽到人討論，網路資源也偏少，但 <a href="https://www.nuget.org/packages/PdfSharpCore/">NuGet</a> 的下載統計也累積近 1170 萬。PdfSharpCore 使用 SixLabors.ImageSharp 及 SixLabors.Fonts 解決 GDI+ 繪圖程式庫為 Windows 專屬的問題，實現跨平台使用(延伸閱讀：<a href="/blog/netcore-iamge-processing/">.NET 6 圖形處理跨平台注意事項</a>，但這兩個資料庫))。但要留意，由於 SixLabors 程式庫不是採用 MIT 授權，依 Six Labors Split License，<a href="https://github.com/SixLabors/ImageSharp/blob/main/LICENSE">年營收超過 100 萬美金的企業直接引用(Direct Package Dependency)需付費</a>，透過 PdfSharpCore 引用 SixLabors 程式庫的做法我認為屬於 Transitive Dependecy (any Work in Object form that is installed indirectly by a third party dependency unrelated to Six Labors)，但稽查人員或管理權責單位是否願了解授權差異，會不會使出"我不要聽我不要聽"大絕就看大家的運氣了，願源力與你同在。</p> <p>但研究後發現，PDFsharp 也仍在持續發展，目前最新版為 <a href="https://github.com/empira/PDFsharp">PDFsharp &amp; MigraDoc 6</a>，可在 Windows、Linux 及任何 .NET 相容平台上使用，它共提供三種實作：跨平台版、Windows GDI+ 及 Windows WPF 版，跨平台版看起來是自行實繪圖功能，在效能、支援度及可靠性估計不如 GDI+ 或 SixLabors 專業，但如果應用場景限 Windows 平台，使用 GDI+/WPF 版或是只支援 .NET Framework 用的 1.5 版，是更好的選擇。</p> <p>因此，這篇文章的範例我會用 PdfSharpCore 示範，但它也適用於 PDFsharp &amp; MigraDoc 6、PDFsharp 1.5，中間可能有些小差異，但大致精神相同。在 API 文件方向，<a href="https://docs.pdfsharp.net/">新版網站</a>仍在施工中，部分文件尚未完備，缺少部分可參考<a href="https://www.pdfsharp.net/wiki/">1.5 舊版 Wiki</a>。</p> <p>在微軟的 RAG 範例中，只用 PdfSharpCore 將 PDF 分頁，一頁存成一個 PDF，但 PdfSharpCore 也可處理建立文件、合併文件、加浮水印等常見 PDF 基本操作，以下是簡單示範，共四組測試：用繪圖 API 產生 PDF、用文件模型產生 PDF、將兩個 PDF 合併、。</p> <pre><code>using System.Diagnostics;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
+using MigraDocCore.DocumentObjectModel;
+using PdfSharpCore.Pdf.IO;
+// 測試一，使用 PdfSharpCore 產生 PDF (畫布繪圖)
+// REF: https://github.com/empira/PDFsharp.Samples/tree/master
+var cover = new PdfDocument();
+cover.Info.Title = "Created with PDFsharp";
+cover.Info.Subject = "Just a simple Hello-World program.";
+var page = cover.AddPage();
+// 用繪圖方式製作 PDF (另有 MigraDoc 提供文件模型)
+var gfx = XGraphics.FromPdfPage(page);
+var width = page.Width;
+var height = page.Height;
+// 背景填色
+gfx.DrawRectangle(XBrushes.SteelBlue, 0, 0, width, height);
+// 繪製矩形，灰框白底
+double margin = 80;
+XPen grayPen = new XPen(XColors.Gray, 4);
+gfx.DrawRectangle(grayPen, XBrushes.White, margin, margin, width - 2 * margin, 150);
+// 繪製文字
+var font = new XFont("Tahoma", 32, XFontStyle.Bold);
+gfx.DrawString("THIS IS A BOOK.", font, XBrushes.DarkGray,
+new XRect(margin, margin, width - 2 * margin, 150), XStringFormats.Center);
+var coverFilePath = Path.GetTempFileName() + ".pdf";
+cover.Save(coverFilePath);
+Process.Start(new ProcessStartInfo(coverFilePath) { UseShellExecute = true });
+// 測試二，使用 MigraDocCore 產生 PDF (文件模型)
+//REF: https://github.com/empira/PDFsharp.Samples/blob/master/src/samples/src/MigraDoc/src/HelloMigraDoc/Styles.cs
+var document = new MigraDocCore.DocumentObjectModel.Document()
+{
+Info = {
+Title = "Created with MigraDoc",
+Subject = "Hello, World!",
+Author = "Jeffrey Lee"
+}
+};
+var style = document.Styles["Normal"] ?? throw new InvalidOperationException("Style Normal not found.");
+style.Font.Name = "Segoe UI";
+style = document.Styles["Heading1"];
+style.Font.Size = 16;
+style.Font.Bold = true;
+style.Font.Color = Colors.DarkBlue;
+style.ParagraphFormat.PageBreakBefore = true;
+style.ParagraphFormat.SpaceAfter = 6;
+style.ParagraphFormat.Alignment = ParagraphAlignment.Center;
+style.ParagraphFormat.KeepWithNext = true;
+var sec = document.AddSection();
+var para = sec.AddParagraph();
+para.AddFormattedText("Header Test", "Heading1");
+para = sec.AddParagraph();
+para.AddLineBreak();
+para.AddText("Hello, World!");
+var pdfRenderer = new MigraDocCore.Rendering.PdfDocumentRenderer()
+{
+Document = document,
+PdfDocument = new PdfDocument()
+};
+pdfRenderer.RenderDocument();
+var pdfFilePath = Path.GetTempFileName() + ".pdf";
+pdfRenderer.PdfDocument.Save(pdfFilePath);
+Process.Start(new ProcessStartInfo(pdfFilePath) { UseShellExecute = true });
+// 測試三，合併兩份 PDF
+var pdf1 = PdfReader.Open(coverFilePath, PdfDocumentOpenMode.Import);
+var pdf2 = PdfReader.Open(pdfFilePath, PdfDocumentOpenMode.Import);
+var pdf3 = new PdfDocument();
+for (int i = 0; i &lt; pdf1.PageCount; i++)
+{
+pdf3.AddPage(pdf1.Pages[i]);
+}
+for (int i = 0; i &lt; pdf2.PageCount; i++)
+{
+pdf3.AddPage(pdf2.Pages[i]);
+}
+var mergedFilePath = Path.GetTempFileName() + ".pdf";
+pdf3.Save(mergedFilePath);
+Process.Start(new ProcessStartInfo(mergedFilePath) { UseShellExecute = true });
+// 測試四，為 PDF 加上浮水印
+// https://www.pdfsharp.net/wiki/Watermark-sample.ashx
+var mergedPdf = PdfReader.Open(mergedFilePath, PdfDocumentOpenMode.Modify);
+string wartermarkText = "TOP SECRET";
+var formatWM = new XStringFormat()
+{
+Alignment = XStringAlignment.Near,
+LineAlignment = XLineAlignment.Near
+};
+var fontWM = new XFont("Tahoma", 48, XFontStyle.Bold);
+XBrush brushWM = new XSolidBrush(XColor.FromArgb(96, 255, 0, 0));
+foreach (var pg in mergedPdf.Pages)
+{
+var gfxWM = XGraphics.FromPdfPage(pg, XGraphicsPdfPageOptions.Append);
+var size = gfxWM.MeasureString(wartermarkText, fontWM);
+gfxWM.TranslateTransform(pg.Width.Point / 2, pg.Height.Point / 2);
+gfxWM.RotateTransform(-Math.Atan(pg.Height / pg.Width) * 180 / Math.PI);
+gfxWM.TranslateTransform(-pg.Width.Point / 2, -pg.Height.Point / 2);
+gfxWM.DrawString(wartermarkText, fontWM, brushWM,
+new XPoint((pg.Width.Point - size.Width) / 2, (pg.Height.Point - size.Height) / 2),
+formatWM);
+}
+var watermarkedFilePath = Path.GetTempFileName() + ".pdf";
+mergedPdf.Save(watermarkedFilePath);
+Process.Start(new ProcessStartInfo(watermarkedFilePath) { UseShellExecute = true });
+</code></pre> <p>專案需參照 <code>PdfSharpCore</code>、<code>MigraDocCore.DocumentObjectModel</code>、<code>MigraDocCore.Rendering</code>三個程式庫，實測成功：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638468934337934821.png"></p> <p>另外，順便也實測 .NET Framework 3.5 + PDFsharp 1.50：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638468934341044444.png"></p> <p>程式碼搬進 .NET 3.5 專案，將 Namespace 從 PdfSharpCore 改成 PdfSharp、MigraDocCore 改成 MigraDoc，可得到相同結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638468934344394770.png"></p> <p>結論：.NET Framework 要做 PDF 合併及浮水印，可考慮使用 PDFsharp 1.50；要配合 .NET 6+，可考慮 PdfSharp 6.0 GDI+ 或 WPF 版，若需跨平台則可使用 PdfSharp 6.0 跨平台版或 PdfSharpCore。PdfSharpCore 有引用非 MIT 授權的 SixLabors 圖形程式庫，雖屬 Transitive Depdency 理論可免費商用，但實務上要以稽查單位心證為準，較麻煩些。</p> <p>.NET 程式工具箱再添好用工具一枚。</p> <p data-slug="pdfsharp" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>關於 .NET 用的開源 PDF 程式庫，先前介紹過 <a href="/blog/indented-text-from-pdf/">PdfPig</a>，最近在看<a href="/blog/rag/">微軟 RAG 範例程式</a>發現另一個程式庫選擇 - <a href="https://www.github.com/ststeiger/PdfSharpCore">PdfSharpCore</a>。</p> <p>PdfSharpCore 是老牌開源專案 <a href="https://www.pdfsharp.net/">PDFsharp 及 MigraDoc Foundation</a> 的 .NET 6+ 「跨平台」移植版，網路上較少聽到人討論，網路資源也偏少，但 <a href="https://www.nuget.org/packages/PdfSharpCore/">NuGet</a> 的下載統計也累積近 1170 萬。PdfSharpCore 使用 SixLabors.ImageSharp 及 SixLabors.Fonts 解決 GDI+ 繪圖程式庫為 Windows 專屬的問題，實現跨平台使用(延伸閱讀：<a href="/blog/netcore-iamge-processing/">.NET 6 圖形處理跨平台注意事項</a>，但這兩個資料庫))。但要留意，由於 SixLabors 程式庫不是採用 MIT 授權，依 Six Labors Split License，<a href="https://github.com/SixLabors/ImageSharp/blob/main/LICENSE">年營收超過 100 萬美金的企業直接引用(Direct Package Dependency)需付費</a>，透過 PdfSharpCore 引用 SixLabors 程式庫的做法我認為屬於 Transitive Dependecy (any Work in Object form that is installed indirectly by a third party dependency unrelated to Six Labors)，但稽查人員或管理權責單位是否願了解授權差異，會不會使出"我不要聽我不要聽"大絕就看大家的運氣了，願源力與你同在。</p> <p>但研究後發現，PDFsharp 也仍在持續發展，目前最新版為 <a href="https://github.com/empira/PDFsharp">PDFsharp &amp; MigraDoc 6</a>，可在 Windows、Linux 及任何 .NET 相容平台上使用，它共提供三種實作：跨平台版、Windows GDI+ 及 Windows WPF 版，跨平台版看起來是自行實繪圖功能，在效能、支援度及可靠性估計不如 GDI+ 或 SixLabors 專業，但如果應用場景限 Windows 平台，使用 GDI+/WPF 版或是只支援 .NET Framework 用的 1.5 版，是更好的選擇。</p> <p>因此，這篇文章的範例我會用 PdfSharpCore 示範，但它也適用於 PDFsharp &amp; MigraDoc 6、PDFsharp 1.5，中間可能有些小差異，但大致精神相同。在 API 文件方向，<a href="https://docs.pdfsharp.net/">新版網站</a>仍在施工中，部分文件尚未完備，缺少部分可參考<a href="https://www.pdfsharp.net/wiki/">1.5 舊版 Wiki</a>。</p> <p>在微軟的 RAG 範例中，只用 PdfSharpCore 將 PDF 分頁，一頁存成一個 PDF，但 PdfSharpCore 也可處理建立文件、合併文件、加浮水印等常見 PDF 基本操作，以下是簡單示範，共四組測試：用繪圖 API 產生 PDF、用文件模型產生 PDF、將兩個 PDF 合併、。</p> <pre><code>using System.Diagnostics;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
+using MigraDocCore.DocumentObjectModel;
+using PdfSharpCore.Pdf.IO;
+// 測試一，使用 PdfSharpCore 產生 PDF (畫布繪圖)
+// REF: https://github.com/empira/PDFsharp.Samples/tree/master
+var cover = new PdfDocument();
+cover.Info.Title = "Created with PDFsharp";
+cover.Info.Subject = "Just a simple Hello-World program.";
+var page = cover.AddPage();
+// 用繪圖方式製作 PDF (另有 MigraDoc 提供文件模型)
+var gfx = XGraphics.FromPdfPage(page);
+var width = page.Width;
+var height = page.Height;
+// 背景填色
+gfx.DrawRectangle(XBrushes.SteelBlue, 0, 0, width, height);
+// 繪製矩形，灰框白底
+double margin = 80;
+XPen grayPen = new XPen(XColors.Gray, 4);
+gfx.DrawRectangle(grayPen, XBrushes.White, margin, margin, width - 2 * margin, 150);
+// 繪製文字
+var font = new XFont("Tahoma", 32, XFontStyle.Bold);
+gfx.DrawString("THIS IS A BOOK.", font, XBrushes.DarkGray,
+new XRect(margin, margin, width - 2 * margin, 150), XStringFormats.Center);
+var coverFilePath = Path.GetTempFileName() + ".pdf";
+cover.Save(coverFilePath);
+Process.Start(new ProcessStartInfo(coverFilePath) { UseShellExecute = true });
+// 測試二，使用 MigraDocCore 產生 PDF (文件模型)
+//REF: https://github.com/empira/PDFsharp.Samples/blob/master/src/samples/src/MigraDoc/src/HelloMigraDoc/Styles.cs
+var document = new MigraDocCore.DocumentObjectModel.Document()
+{
+Info = {
+Title = "Created with MigraDoc",
+Subject = "Hello, World!",
+Author = "Jeffrey Lee"
+}
+};
+var style = document.Styles["Normal"] ?? throw new InvalidOperationException("Style Normal not found.");
+style.Font.Name = "Segoe UI";
+style = document.Styles["Heading1"];
+style.Font.Size = 16;
+style.Font.Bold = true;
+style.Font.Color = Colors.DarkBlue;
+style.ParagraphFormat.PageBreakBefore = true;
+style.ParagraphFormat.SpaceAfter = 6;
+style.ParagraphFormat.Alignment = ParagraphAlignment.Center;
+style.ParagraphFormat.KeepWithNext = true;
+var sec = document.AddSection();
+var para = sec.AddParagraph();
+para.AddFormattedText("Header Test", "Heading1");
+para = sec.AddParagraph();
+para.AddLineBreak();
+para.AddText("Hello, World!");
+var pdfRenderer = new MigraDocCore.Rendering.PdfDocumentRenderer()
+{
+Document = document,
+PdfDocument = new PdfDocument()
+};
+pdfRenderer.RenderDocument();
+var pdfFilePath = Path.GetTempFileName() + ".pdf";
+pdfRenderer.PdfDocument.Save(pdfFilePath);
+Process.Start(new ProcessStartInfo(pdfFilePath) { UseShellExecute = true });
+// 測試三，合併兩份 PDF
+var pdf1 = PdfReader.Open(coverFilePath, PdfDocumentOpenMode.Import);
+var pdf2 = PdfReader.Open(pdfFilePath, PdfDocumentOpenMode.Import);
+var pdf3 = new PdfDocument();
+for (int i = 0; i &lt; pdf1.PageCount; i++)
+{
+pdf3.AddPage(pdf1.Pages[i]);
+}
+for (int i = 0; i &lt; pdf2.PageCount; i++)
+{
+pdf3.AddPage(pdf2.Pages[i]);
+}
+var mergedFilePath = Path.GetTempFileName() + ".pdf";
+pdf3.Save(mergedFilePath);
+Process.Start(new ProcessStartInfo(mergedFilePath) { UseShellExecute = true });
+// 測試四，為 PDF 加上浮水印
+// https://www.pdfsharp.net/wiki/Watermark-sample.ashx
+var mergedPdf = PdfReader.Open(mergedFilePath, PdfDocumentOpenMode.Modify);
+string wartermarkText = "TOP SECRET";
+var formatWM = new XStringFormat()
+{
+Alignment = XStringAlignment.Near,
+LineAlignment = XLineAlignment.Near
+};
+var fontWM = new XFont("Tahoma", 48, XFontStyle.Bold);
+XBrush brushWM = new XSolidBrush(XColor.FromArgb(96, 255, 0, 0));
+foreach (var pg in mergedPdf.Pages)
+{
+var gfxWM = XGraphics.FromPdfPage(pg, XGraphicsPdfPageOptions.Append);
+var size = gfxWM.MeasureString(wartermarkText, fontWM);
+gfxWM.TranslateTransform(pg.Width.Point / 2, pg.Height.Point / 2);
+gfxWM.RotateTransform(-Math.Atan(pg.Height / pg.Width) * 180 / Math.PI);
+gfxWM.TranslateTransform(-pg.Width.Point / 2, -pg.Height.Point / 2);
+gfxWM.DrawString(wartermarkText, fontWM, brushWM,
+new XPoint((pg.Width.Point - size.Width) / 2, (pg.Height.Point - size.Height) / 2),
+formatWM);
+}
+var watermarkedFilePath = Path.GetTempFileName() + ".pdf";
+mergedPdf.Save(watermarkedFilePath);
+Process.Start(new ProcessStartInfo(watermarkedFilePath) { UseShellExecute = true });
+</code></pre> <p>專案需參照 <code>PdfSharpCore</code>、<code>MigraDocCore.DocumentObjectModel</code>、<code>MigraDocCore.Rendering</code>三個程式庫，實測成功：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638468934337934821.png"></p> <p>另外，順便也實測 .NET Framework 3.5 + PDFsharp 1.50：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638468934341044444.png"></p> <p>程式碼搬進 .NET 3.5 專案，將 Namespace 從 PdfSharpCore 改成 PdfSharp、MigraDocCore 改成 MigraDoc，可得到相同結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638468934344394770.png"></p> <p>結論：.NET Framework 要做 PDF 合併及浮水印，可考慮使用 PDFsharp 1.50；要配合 .NET 6+，可考慮 PdfSharp 6.0 GDI+ 或 WPF 版，若需跨平台則可使用 PdfSharp 6.0 跨平台版或 PdfSharpCore。PdfSharpCore 有引用非 MIT 授權的 SixLabors 圖形程式庫，雖屬 Transitive Depdency 理論可免費商用，但實務上要以稽查單位心證為準，較麻煩些。</p> <p>.NET 程式工具箱再添好用工具一枚。</p> <p data-slug="pdfsharp" data-fbimg="https://cdn.pixabay.com/photo/2014/09/13/21/46/milling-444493_960_720.jpg#960#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638468934337934821.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638468934337934821.png" medium="image"/>
+    <pubDate>Sun, 24 Mar 2024 15:59:26 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET Secret Manager 安全強化 - 無腦加密版]]></title>
     <link>https://blog.darkthread.net/blog/encrypt-dotnet-secret-manager/</link>
     <itunes:title><![CDATA[.NET Secret Manager 安全強化 - 無腦加密版]]></itunes:title>
@@ -1085,209 +1409,5 @@ AND si.index_id  = dt.index_id
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png" medium="image"/>
     <pubDate>Wed, 28 Feb 2024 14:35:11 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></title>
-    <link>https://blog.darkthread.net/blog/how-guid-clust-index-bad-is/</link>
-    <itunes:title><![CDATA[GUID 叢集索引測試 1 - 偶發寫入逾時之三千萬筆實測]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
-(
-[PK] ASC
-)
-)
-GO
-CREATE TABLE [dbo].[IntClustIdx](
-[SN] [bigint] IDENTITY(1,1) NOT NULL,
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
-(
-[PK] ASC
-),
-CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
-(
-[SN] ASC
-)
-)
-GO
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
-public class SqlRunner
-{
-const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
-public enum TableNameEnum {
-GuidClustIdx,
-IntClustIdx
-}
-public static void InsertData(TableNameEnum tableName, long rowCount)
-{
-using var cn = new SqlConnection(cs);
-cn.Open();
-using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
-cmd.CommandTimeout = 300;
-var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
-var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
-pText.Value = new string('x', 1000);
-var sw = new System.Diagnostics.Stopwatch();
-Directory.CreateDirectory("logs");
-Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
-StreamWriter logger = new StreamWriter(getFileName());
-for (var i = 0; i &lt; rowCount; i++)
-{
-pPK.Value = Guid.NewGuid();
-sw.Restart();
-cmd.ExecuteNonQuery();
-sw.Stop();
-if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
-if (i % 500_000 == 0)
-{
-logger.Flush();
-logger.Dispose();
-logger = new StreamWriter(getFileName());
-}
-logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
-}
-logger.Flush();
-logger.Dispose();
-}
-}
-</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
-(
-[PK] ASC
-)
-)
-GO
-CREATE TABLE [dbo].[IntClustIdx](
-[SN] [bigint] IDENTITY(1,1) NOT NULL,
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
-(
-[PK] ASC
-),
-CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
-(
-[SN] ASC
-)
-)
-GO
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
-public class SqlRunner
-{
-const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
-public enum TableNameEnum {
-GuidClustIdx,
-IntClustIdx
-}
-public static void InsertData(TableNameEnum tableName, long rowCount)
-{
-using var cn = new SqlConnection(cs);
-cn.Open();
-using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
-cmd.CommandTimeout = 300;
-var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
-var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
-pText.Value = new string('x', 1000);
-var sw = new System.Diagnostics.Stopwatch();
-Directory.CreateDirectory("logs");
-Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
-StreamWriter logger = new StreamWriter(getFileName());
-for (var i = 0; i &lt; rowCount; i++)
-{
-pPK.Value = Guid.NewGuid();
-sw.Restart();
-cmd.ExecuteNonQuery();
-sw.Stop();
-if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
-if (i % 500_000 == 0)
-{
-logger.Flush();
-logger.Dispose();
-logger = new StreamWriter(getFileName());
-}
-logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
-}
-logger.Flush();
-logger.Dispose();
-}
-}
-</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>我們都知道，資料庫使用 GUID 作為叢集索引易造成索引碎片化影響效能。若要用 GUID 作為 Primary Key，應另設自動跳號數字欄位當叢集索引。(註：不熟悉此議題的同學可先看這篇：<a href="/blog/guid-as-pk-on-db/">GUID Primary Key 資料庫避雷守則</a>)</p> <p>近期在古蹟專案遇到偶發 INSERT 逾時錯誤(SqlCommand 執行時間上限預設 30 秒)，由於該系統使用 SQL Uniqueueidentity (GUID) 欄位當 Primary Key 兼叢集索引，資料表又屬千萬筆等級，令人懷疑與 GUID 叢集索引有關，於是我想在實驗室環境模擬，觀察 GUID 叢集索引造成 INSERT 逾時的機率。</p> <p>測試環境為 SQL 2022，8 核 CPU，32G RAM，磁碟讀寫速度約 170MB/s。用以下 SQL 指令建立兩個以 GUID 當 Primary Key 的資料表，其中 GuidClustIdx 直接使用 Guid 型別當叢集索引，IntClustIdx 則另設了 BIGINT 型別自動跳號當叢集索引。</p> <pre><code>CREATE TABLE [dbo].[GuidClustIdx](
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_GuidClustIdx] PRIMARY KEY CLUSTERED
-(
-[PK] ASC
-)
-)
-GO
-CREATE TABLE [dbo].[IntClustIdx](
-[SN] [bigint] IDENTITY(1,1) NOT NULL,
-[PK] [uniqueidentifier] NOT NULL,
-[LongText] [nvarchar](max) NOT NULL,
-CONSTRAINT [PK_IntClustIdx] PRIMARY KEY NONCLUSTERED
-(
-[PK] ASC
-),
-CONSTRAINT [IX_IntClustIdx] UNIQUE CLUSTERED
-(
-[SN] ASC
-)
-)
-GO
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"></p> <p>SQL 伺服器設定<a href="https://learn.microsoft.com/zh-tw/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580">簡單復原模式</a>，資料庫檔案預先放大到 320GB，避免寫入過程序自動擴充干擾實驗。我寫了以下程式，可對 GuidClustIdx 或 IntClustIdx INSERT 指定筆數資料，NVARCHAR 欄位寫入 1000 個字元長度，過程記錄每次 INSERT 耗時，每 50 筆記錄切一次檔案。每次測試完用<a href="/blog/python-stats-cahrt/">昨天分享的程式</a>解析 Log 檔並繪成圖表。</p> <pre><code>using Microsoft.Data.SqlClient;
-public class SqlRunner
-{
-const string cs = "data source=.;initial catalog=FragPerfTest;integrated security=True;encrypt=false";
-public enum TableNameEnum {
-GuidClustIdx,
-IntClustIdx
-}
-public static void InsertData(TableNameEnum tableName, long rowCount)
-{
-using var cn = new SqlConnection(cs);
-cn.Open();
-using var cmd = new SqlCommand($"INSERT INTO {tableName} (PK, LongText) VALUES (@pk, @text)", cn);
-cmd.CommandTimeout = 300;
-var pPK = cmd.Parameters.Add("@pk", System.Data.SqlDbType.UniqueIdentifier);
-var pText = cmd.Parameters.Add("@text", System.Data.SqlDbType.NVarChar, -1);
-pText.Value = new string('x', 1000);
-var sw = new System.Diagnostics.Stopwatch();
-Directory.CreateDirectory("logs");
-Func&lt;string&gt; getFileName = () =&gt; $"logs\\Test-{DateTime.Now:MMdd-HHmmss}.txt";
-StreamWriter logger = new StreamWriter(getFileName());
-for (var i = 0; i &lt; rowCount; i++)
-{
-pPK.Value = Guid.NewGuid();
-sw.Restart();
-cmd.ExecuteNonQuery();
-sw.Stop();
-if (i % 100 == 0) Console.WriteLine($"{i:n0} Rows Inserted");
-if (i % 500_000 == 0)
-{
-logger.Flush();
-logger.Dispose();
-logger = new StreamWriter(getFileName());
-}
-logger.WriteLine($"{i + 1}: {sw.ElapsedMilliseconds}ms");
-}
-logger.Flush();
-logger.Dispose();
-}
-}
-</code></pre> <p>我反覆測了幾次，同樣 INSERT 1000 萬筆，用 GUID 當叢集索引速度慢了一倍，需花約兩個小時，BIGINT 叢集索引則是一個小時出頭做完。若每 100 筆統計一次，繪製平均 INSERT 時間(藍線)、最大時間(紅點)、99 百分位數時間(綠點)圖表如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638446393342883228.png"></p> <p>如上圖所示，GUID 雖然平均時間較慢(不時會到 40ms)，偶爾會有 2 秒以上的最大值，最糟到 4 秒多；INT 的平均值不超過 20ms，最大值也都在一秒以內，極值約 1.5 秒。但值得注意的是綠色部分，99 百分位數代表有 99% 的 INSERT 都低於這個時間，由於是以 100 筆統計，可視為其中第二慢的時間。GUID 的 99 百分位數值約 3ms，可解讀為 100 筆只有一筆特別高，其他 99 筆都在 3ms 以下。由此推測，GUID 叢集索引雖然效率較差，但與自動跳號叢集索引的差異並不懸殊，且在本實驗未重現 30 秒逾時這類嚴重狀況。</p> <p>繼續測試寫入到 2000 萬筆及 3000 萬筆：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638446400739600758.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638446400741931782.png"></p> <p>INT 表現穩定，GUID 也維持平均不超過 50ms，99% 低於 10ms，偶發最大值超過 4 秒的水準，時間並未隨著筆數增加拉長。</p> <p>由以上測試結果，在無其他查詢干擾的單純 INSERT 實驗裡，GUID 雖會造成 INSERT 變慢，100 筆裡可能有一兩筆時間長達 4-6 秒，但不足以直接引發超過 30 秒的逾時錯誤，且偏慢狀況也沒有隨筆數增加出現等比例或雪崩式惡化(因為 B+ Tree 是 O(log n)?) 。但在負載高於硬體效能水準的情境(Disk IO 消化不及應是主因)，偶發的偏慢可能被放大 N 倍，超過 30 秒並非不可能。</p> <p>結論：用 GUID 當叢集索引，雖然偏慢，但並不如想像會在筆數上升後出現崩盤式的惡化。在實驗室環境控制變因測試下，99% INSERT 都能在正常時間內完成，但會偶發慢達數秒的異常速度。若遇到伺服器硬體效能無法勝任負載時(Disk Time 100%、Disk Queue 過長)，偶發偏慢到數秒的 INSERT，惡化到超過 30 秒的機率是會比使用循序叢集索引來得高。</p> <p data-slug="how-guid-clust-index-bad-is" data-title-en="How bad is the performance of using Guid Clustered Index?" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/163016/crash-test-collision-60-km-h-distraction-163016.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article verifies whether there are serious performance issues with tables using Guid Clustered Index by empirically testing the insertion of 30 million pieces of data.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638446393336711000.png" medium="image"/>
-    <pubDate>Tue, 27 Feb 2024 13:51:40 GMT</pubDate>
   </item></channel>
 </rss>
