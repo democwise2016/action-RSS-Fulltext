@@ -30,6 +30,375 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Telerik PDF 處理範例：文件合併、加浮水印]]></title>
+    <link>https://blog.darkthread.net/blog/telerik-pdf-processing/</link>
+    <itunes:title><![CDATA[Telerik PDF 處理範例：文件合併、加浮水印]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>昨天<a href="/blog/pdfsharp/">提到 .NET PDF 程式庫</a>，事實上 Telerik 的許多程式庫(DevCraft, UI for ASP.NET Core, UI for ASP.NET MVC, UI for ASP.NET AJAX, UI for Blazor, UI for .NET MAUI, UI for Xamarin, UI for WPF, UI for WinForms, UI for Silverlight)有內建<a href="https://docs.telerik.com/devtools/document-processing/introduction">文件處理程式庫(Document Processing Libraries)</a>，也能處理檔案合併、加浮水印等 PDF 基本操作。因此若已有 Telerik 元件授權，倒也可以考慮用它處理 PDF，就不必另外尋覓程式庫或購買程式元件。</p> <p>Telerik 的文件模型有個特色是能同時匯出成 PDF、Word、RTF、HTML、Excel 等格式，滿足<a href="https://docs.telerik.com/devtools/document-processing/libraries/radwordsprocessing/formats-and-conversion/formats-and-conversion">需支援多種輸出格式</a>的場景，但這篇文章只會聚焦 PDF，以完成建立 PDF 檔、檔案合併及加浮水印等三項常見作業為目標。</p> <p>Telerik 的 PDF 處理主要靠 RadPdfProcessing 程式庫，.NET Framework 及 .NET 6+ 要參照的程式庫不同，細節可參考<a href="https://docs.telerik.com/devtools/document-processing/libraries/radpdfprocessing/getting-started#assembly-references">文件</a>。</p> <p>我的測試專案採用 .NET 4.7.2，要參照以下程式庫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638469717939165045.png"></p> <p>程式範例如下：</p> <pre><code>using System;
+using System.Diagnostics;
+using System.IO;
+using Telerik.Windows.Documents.Fixed.Model;
+using Telerik.Windows.Documents.Fixed.Model.Editing;
+using Telerik.Windows.Documents.Fixed.FormatProviders.Pdf;
+using Telerik.Windows.Documents.Fixed.Model.ColorSpaces;
+using Win = System.Windows;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Flow;
+using Telerik.Windows.Documents.Fixed.Model.Fonts;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Tables;
+using System.Windows.Media.Animation;
+namespace Net35Pdf
+{
+internal class Program
+{
+static string SavePdf(RadFixedDocument doc, bool viewPdf = true)
+{
+var provider = new PdfFormatProvider();
+var tempFilePath = System.IO.Path.GetTempFileName() + ".pdf";
+using (var fs = File.OpenWrite(tempFilePath))
+{
+provider.Export(doc, fs);
+}
+if (viewPdf) Process.Start(new ProcessStartInfo(tempFilePath) { UseShellExecute = true });
+return tempFilePath;
+}
+static void Main(string[] args)
+{
+// 從無到有建立 PDF
+// 方法一，使用 FixedContentEditor，以標準定位繪製文字及圖形
+var document = new RadFixedDocument();
+var page = document.Pages.AddPage();
+var editor = new FixedContentEditor(page);
+// 填滿背景色
+editor.GraphicProperties.FillColor = new RgbColor(0x46,0x82,0xB4); //SteelBlue
+editor.DrawRectangle(new Win.Rect(0, 0, page.Size.Width, page.Size.Height));
+// 繪製灰框白底矩形
+const int margin = 80;
+editor.GraphicProperties.FillColor = RgbColors.White;
+editor.GraphicProperties.StrokeColor = new RgbColor(0x80, 0x80, 0x80);
+editor.GraphicProperties.StrokeThickness = 4;
+editor.DrawRectangle(new Win.Rect(margin, margin, page.Size.Width - 2 * margin, 150));
+// 繪製文字
+var block = new Block();
+block.HorizontalAlignment = HorizontalAlignment.Center;
+block.VerticalAlignment = VerticalAlignment.Center;
+block.TextProperties.FontSize = 28;
+block.GraphicProperties.FillColor = new RgbColor(0x0, 0x0, 0x8b);
+block.InsertText("THIS IS A BOOK");
+// 位移至指定位置繪製文字
+editor.Position.Translate(margin, margin);
+editor.DrawBlock(block, new Win.Size(page.Size.Width - 2 * margin, 150));
+var cover = SavePdf(document, false);
+// REF: https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/CreatePdfUsingRadFixedDocumentEditor/Program.cs
+document = new RadFixedDocument();
+// 方法二，用 RadFixedDocumentEditor 以 Paragraph、Run 結構建立文件
+using (var fixEditor = new RadFixedDocumentEditor(document))
+{
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 20;
+FontsRepository.TryCreateFont(new Win.Media.FontFamily("Segoe UI"), Win.FontStyles.Normal, Win.FontWeights.Bold, out var font);
+fixEditor.CharacterProperties.Font = font;
+fixEditor.InsertRun("Header 1");
+fixEditor.InsertLineBreak();
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 18;
+fixEditor.CharacterProperties.Font = FontsRepository.Helvetica;
+fixEditor.InsertRun("Hello World!");
+// 測試繪製表格
+var tbl = new Table();
+var border = new Border(1, new RgbColor(0x80, 0x80, 0x80));
+tbl.Borders = new TableBorders(border);
+// 指定左上右下四個邊框
+tbl.DefaultCellProperties.Borders = new TableCellBorders(border, border, border, border);
+tbl.DefaultCellProperties.Padding = new Win.Thickness(5);
+Action&lt;TableRow, string&gt; insertCellText = (targetRow, text) =&gt;
+{
+var blk = targetRow.Cells.AddTableCell().Blocks.AddBlock();
+blk.TextProperties.FontSize = 16;
+blk.InsertText(text);
+};
+var row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 1");
+insertCellText(row, "Cell 2");
+insertCellText(row, "Cell 3");
+row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 4");
+insertCellText(row, "Cell 5");
+insertCellText(row, "Cell 6");
+fixEditor.InsertTable(tbl);
+}
+var content = SavePdf(document, false);
+// 合併 PDF
+PdfFormatProvider provider = new PdfFormatProvider();
+RadFixedDocument mergedDoc = provider.Import(File.ReadAllBytes(cover));
+mergedDoc.Merge(provider.Import(File.ReadAllBytes(content)));
+// 為合併後的文件加上浮水印
+// https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/ManipulatePages/Program.cs
+foreach (var pg in mergedDoc.Pages)
+{
+var blk = new Block();
+blk.GraphicProperties.FillColor = new RgbColor(127, 255, 0, 0);
+blk.TextProperties.FontSize = 96;
+blk.InsertText("TOP SECRET");
+Win.Size wmSize = blk.Measure();
+var squareSize = (wmSize.Width + wmSize.Height) / Math.Sqrt(2);
+var ed = new FixedContentEditor(pg);
+ed.Position.Rotate(-45);
+var nx = (pg.Size.Width - squareSize) / 2;
+var ny = (pg.Size.Height - squareSize) / 2 + (wmSize.Width / Math.Sqrt(2));
+ed.Position.Translate(nx, ny);
+ed.DrawBlock(blk);
+}
+var merged = SavePdf(mergedDoc);
+}
+}
+}
+</code></pre> <p>測試完畢。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638469717940804772.png"></p> <p data-slug="telerik-pdf-processing" data-fbimg="https://images.pexels.com/photos/4498606/pexels-photo-4498606.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>昨天<a href="/blog/pdfsharp/">提到 .NET PDF 程式庫</a>，事實上 Telerik 的許多程式庫(DevCraft, UI for ASP.NET Core, UI for ASP.NET MVC, UI for ASP.NET AJAX, UI for Blazor, UI for .NET MAUI, UI for Xamarin, UI for WPF, UI for WinForms, UI for Silverlight)有內建<a href="https://docs.telerik.com/devtools/document-processing/introduction">文件處理程式庫(Document Processing Libraries)</a>，也能處理檔案合併、加浮水印等 PDF 基本操作。因此若已有 Telerik 元件授權，倒也可以考慮用它處理 PDF，就不必另外尋覓程式庫或購買程式元件。</p> <p>Telerik 的文件模型有個特色是能同時匯出成 PDF、Word、RTF、HTML、Excel 等格式，滿足<a href="https://docs.telerik.com/devtools/document-processing/libraries/radwordsprocessing/formats-and-conversion/formats-and-conversion">需支援多種輸出格式</a>的場景，但這篇文章只會聚焦 PDF，以完成建立 PDF 檔、檔案合併及加浮水印等三項常見作業為目標。</p> <p>Telerik 的 PDF 處理主要靠 RadPdfProcessing 程式庫，.NET Framework 及 .NET 6+ 要參照的程式庫不同，細節可參考<a href="https://docs.telerik.com/devtools/document-processing/libraries/radpdfprocessing/getting-started#assembly-references">文件</a>。</p> <p>我的測試專案採用 .NET 4.7.2，要參照以下程式庫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638469717939165045.png"></p> <p>程式範例如下：</p> <pre><code>using System;
+using System.Diagnostics;
+using System.IO;
+using Telerik.Windows.Documents.Fixed.Model;
+using Telerik.Windows.Documents.Fixed.Model.Editing;
+using Telerik.Windows.Documents.Fixed.FormatProviders.Pdf;
+using Telerik.Windows.Documents.Fixed.Model.ColorSpaces;
+using Win = System.Windows;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Flow;
+using Telerik.Windows.Documents.Fixed.Model.Fonts;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Tables;
+using System.Windows.Media.Animation;
+namespace Net35Pdf
+{
+internal class Program
+{
+static string SavePdf(RadFixedDocument doc, bool viewPdf = true)
+{
+var provider = new PdfFormatProvider();
+var tempFilePath = System.IO.Path.GetTempFileName() + ".pdf";
+using (var fs = File.OpenWrite(tempFilePath))
+{
+provider.Export(doc, fs);
+}
+if (viewPdf) Process.Start(new ProcessStartInfo(tempFilePath) { UseShellExecute = true });
+return tempFilePath;
+}
+static void Main(string[] args)
+{
+// 從無到有建立 PDF
+// 方法一，使用 FixedContentEditor，以標準定位繪製文字及圖形
+var document = new RadFixedDocument();
+var page = document.Pages.AddPage();
+var editor = new FixedContentEditor(page);
+// 填滿背景色
+editor.GraphicProperties.FillColor = new RgbColor(0x46,0x82,0xB4); //SteelBlue
+editor.DrawRectangle(new Win.Rect(0, 0, page.Size.Width, page.Size.Height));
+// 繪製灰框白底矩形
+const int margin = 80;
+editor.GraphicProperties.FillColor = RgbColors.White;
+editor.GraphicProperties.StrokeColor = new RgbColor(0x80, 0x80, 0x80);
+editor.GraphicProperties.StrokeThickness = 4;
+editor.DrawRectangle(new Win.Rect(margin, margin, page.Size.Width - 2 * margin, 150));
+// 繪製文字
+var block = new Block();
+block.HorizontalAlignment = HorizontalAlignment.Center;
+block.VerticalAlignment = VerticalAlignment.Center;
+block.TextProperties.FontSize = 28;
+block.GraphicProperties.FillColor = new RgbColor(0x0, 0x0, 0x8b);
+block.InsertText("THIS IS A BOOK");
+// 位移至指定位置繪製文字
+editor.Position.Translate(margin, margin);
+editor.DrawBlock(block, new Win.Size(page.Size.Width - 2 * margin, 150));
+var cover = SavePdf(document, false);
+// REF: https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/CreatePdfUsingRadFixedDocumentEditor/Program.cs
+document = new RadFixedDocument();
+// 方法二，用 RadFixedDocumentEditor 以 Paragraph、Run 結構建立文件
+using (var fixEditor = new RadFixedDocumentEditor(document))
+{
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 20;
+FontsRepository.TryCreateFont(new Win.Media.FontFamily("Segoe UI"), Win.FontStyles.Normal, Win.FontWeights.Bold, out var font);
+fixEditor.CharacterProperties.Font = font;
+fixEditor.InsertRun("Header 1");
+fixEditor.InsertLineBreak();
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 18;
+fixEditor.CharacterProperties.Font = FontsRepository.Helvetica;
+fixEditor.InsertRun("Hello World!");
+// 測試繪製表格
+var tbl = new Table();
+var border = new Border(1, new RgbColor(0x80, 0x80, 0x80));
+tbl.Borders = new TableBorders(border);
+// 指定左上右下四個邊框
+tbl.DefaultCellProperties.Borders = new TableCellBorders(border, border, border, border);
+tbl.DefaultCellProperties.Padding = new Win.Thickness(5);
+Action&lt;TableRow, string&gt; insertCellText = (targetRow, text) =&gt;
+{
+var blk = targetRow.Cells.AddTableCell().Blocks.AddBlock();
+blk.TextProperties.FontSize = 16;
+blk.InsertText(text);
+};
+var row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 1");
+insertCellText(row, "Cell 2");
+insertCellText(row, "Cell 3");
+row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 4");
+insertCellText(row, "Cell 5");
+insertCellText(row, "Cell 6");
+fixEditor.InsertTable(tbl);
+}
+var content = SavePdf(document, false);
+// 合併 PDF
+PdfFormatProvider provider = new PdfFormatProvider();
+RadFixedDocument mergedDoc = provider.Import(File.ReadAllBytes(cover));
+mergedDoc.Merge(provider.Import(File.ReadAllBytes(content)));
+// 為合併後的文件加上浮水印
+// https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/ManipulatePages/Program.cs
+foreach (var pg in mergedDoc.Pages)
+{
+var blk = new Block();
+blk.GraphicProperties.FillColor = new RgbColor(127, 255, 0, 0);
+blk.TextProperties.FontSize = 96;
+blk.InsertText("TOP SECRET");
+Win.Size wmSize = blk.Measure();
+var squareSize = (wmSize.Width + wmSize.Height) / Math.Sqrt(2);
+var ed = new FixedContentEditor(pg);
+ed.Position.Rotate(-45);
+var nx = (pg.Size.Width - squareSize) / 2;
+var ny = (pg.Size.Height - squareSize) / 2 + (wmSize.Width / Math.Sqrt(2));
+ed.Position.Translate(nx, ny);
+ed.DrawBlock(blk);
+}
+var merged = SavePdf(mergedDoc);
+}
+}
+}
+</code></pre> <p>測試完畢。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638469717940804772.png"></p> <p data-slug="telerik-pdf-processing" data-fbimg="https://images.pexels.com/photos/4498606/pexels-photo-4498606.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>昨天<a href="/blog/pdfsharp/">提到 .NET PDF 程式庫</a>，事實上 Telerik 的許多程式庫(DevCraft, UI for ASP.NET Core, UI for ASP.NET MVC, UI for ASP.NET AJAX, UI for Blazor, UI for .NET MAUI, UI for Xamarin, UI for WPF, UI for WinForms, UI for Silverlight)有內建<a href="https://docs.telerik.com/devtools/document-processing/introduction">文件處理程式庫(Document Processing Libraries)</a>，也能處理檔案合併、加浮水印等 PDF 基本操作。因此若已有 Telerik 元件授權，倒也可以考慮用它處理 PDF，就不必另外尋覓程式庫或購買程式元件。</p> <p>Telerik 的文件模型有個特色是能同時匯出成 PDF、Word、RTF、HTML、Excel 等格式，滿足<a href="https://docs.telerik.com/devtools/document-processing/libraries/radwordsprocessing/formats-and-conversion/formats-and-conversion">需支援多種輸出格式</a>的場景，但這篇文章只會聚焦 PDF，以完成建立 PDF 檔、檔案合併及加浮水印等三項常見作業為目標。</p> <p>Telerik 的 PDF 處理主要靠 RadPdfProcessing 程式庫，.NET Framework 及 .NET 6+ 要參照的程式庫不同，細節可參考<a href="https://docs.telerik.com/devtools/document-processing/libraries/radpdfprocessing/getting-started#assembly-references">文件</a>。</p> <p>我的測試專案採用 .NET 4.7.2，要參照以下程式庫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638469717939165045.png"></p> <p>程式範例如下：</p> <pre><code>using System;
+using System.Diagnostics;
+using System.IO;
+using Telerik.Windows.Documents.Fixed.Model;
+using Telerik.Windows.Documents.Fixed.Model.Editing;
+using Telerik.Windows.Documents.Fixed.FormatProviders.Pdf;
+using Telerik.Windows.Documents.Fixed.Model.ColorSpaces;
+using Win = System.Windows;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Flow;
+using Telerik.Windows.Documents.Fixed.Model.Fonts;
+using Telerik.Windows.Documents.Fixed.Model.Editing.Tables;
+using System.Windows.Media.Animation;
+namespace Net35Pdf
+{
+internal class Program
+{
+static string SavePdf(RadFixedDocument doc, bool viewPdf = true)
+{
+var provider = new PdfFormatProvider();
+var tempFilePath = System.IO.Path.GetTempFileName() + ".pdf";
+using (var fs = File.OpenWrite(tempFilePath))
+{
+provider.Export(doc, fs);
+}
+if (viewPdf) Process.Start(new ProcessStartInfo(tempFilePath) { UseShellExecute = true });
+return tempFilePath;
+}
+static void Main(string[] args)
+{
+// 從無到有建立 PDF
+// 方法一，使用 FixedContentEditor，以標準定位繪製文字及圖形
+var document = new RadFixedDocument();
+var page = document.Pages.AddPage();
+var editor = new FixedContentEditor(page);
+// 填滿背景色
+editor.GraphicProperties.FillColor = new RgbColor(0x46,0x82,0xB4); //SteelBlue
+editor.DrawRectangle(new Win.Rect(0, 0, page.Size.Width, page.Size.Height));
+// 繪製灰框白底矩形
+const int margin = 80;
+editor.GraphicProperties.FillColor = RgbColors.White;
+editor.GraphicProperties.StrokeColor = new RgbColor(0x80, 0x80, 0x80);
+editor.GraphicProperties.StrokeThickness = 4;
+editor.DrawRectangle(new Win.Rect(margin, margin, page.Size.Width - 2 * margin, 150));
+// 繪製文字
+var block = new Block();
+block.HorizontalAlignment = HorizontalAlignment.Center;
+block.VerticalAlignment = VerticalAlignment.Center;
+block.TextProperties.FontSize = 28;
+block.GraphicProperties.FillColor = new RgbColor(0x0, 0x0, 0x8b);
+block.InsertText("THIS IS A BOOK");
+// 位移至指定位置繪製文字
+editor.Position.Translate(margin, margin);
+editor.DrawBlock(block, new Win.Size(page.Size.Width - 2 * margin, 150));
+var cover = SavePdf(document, false);
+// REF: https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/CreatePdfUsingRadFixedDocumentEditor/Program.cs
+document = new RadFixedDocument();
+// 方法二，用 RadFixedDocumentEditor 以 Paragraph、Run 結構建立文件
+using (var fixEditor = new RadFixedDocumentEditor(document))
+{
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 20;
+FontsRepository.TryCreateFont(new Win.Media.FontFamily("Segoe UI"), Win.FontStyles.Normal, Win.FontWeights.Bold, out var font);
+fixEditor.CharacterProperties.Font = font;
+fixEditor.InsertRun("Header 1");
+fixEditor.InsertLineBreak();
+fixEditor.InsertParagraph();
+fixEditor.CharacterProperties.FontSize = 18;
+fixEditor.CharacterProperties.Font = FontsRepository.Helvetica;
+fixEditor.InsertRun("Hello World!");
+// 測試繪製表格
+var tbl = new Table();
+var border = new Border(1, new RgbColor(0x80, 0x80, 0x80));
+tbl.Borders = new TableBorders(border);
+// 指定左上右下四個邊框
+tbl.DefaultCellProperties.Borders = new TableCellBorders(border, border, border, border);
+tbl.DefaultCellProperties.Padding = new Win.Thickness(5);
+Action&lt;TableRow, string&gt; insertCellText = (targetRow, text) =&gt;
+{
+var blk = targetRow.Cells.AddTableCell().Blocks.AddBlock();
+blk.TextProperties.FontSize = 16;
+blk.InsertText(text);
+};
+var row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 1");
+insertCellText(row, "Cell 2");
+insertCellText(row, "Cell 3");
+row = tbl.Rows.AddTableRow();
+insertCellText(row, "Cell 4");
+insertCellText(row, "Cell 5");
+insertCellText(row, "Cell 6");
+fixEditor.InsertTable(tbl);
+}
+var content = SavePdf(document, false);
+// 合併 PDF
+PdfFormatProvider provider = new PdfFormatProvider();
+RadFixedDocument mergedDoc = provider.Import(File.ReadAllBytes(cover));
+mergedDoc.Merge(provider.Import(File.ReadAllBytes(content)));
+// 為合併後的文件加上浮水印
+// https://github.com/telerik/document-processing-sdk/blob/master/PdfProcessing/ManipulatePages/Program.cs
+foreach (var pg in mergedDoc.Pages)
+{
+var blk = new Block();
+blk.GraphicProperties.FillColor = new RgbColor(127, 255, 0, 0);
+blk.TextProperties.FontSize = 96;
+blk.InsertText("TOP SECRET");
+Win.Size wmSize = blk.Measure();
+var squareSize = (wmSize.Width + wmSize.Height) / Math.Sqrt(2);
+var ed = new FixedContentEditor(pg);
+ed.Position.Rotate(-45);
+var nx = (pg.Size.Width - squareSize) / 2;
+var ny = (pg.Size.Height - squareSize) / 2 + (wmSize.Width / Math.Sqrt(2));
+ed.Position.Translate(nx, ny);
+ed.DrawBlock(blk);
+}
+var merged = SavePdf(mergedDoc);
+}
+}
+}
+</code></pre> <p>測試完畢。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638469717940804772.png"></p> <p data-slug="telerik-pdf-processing" data-fbimg="https://images.pexels.com/photos/4498606/pexels-photo-4498606.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=650&amp;w=940#940#650"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig2_638469717939165045.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig2_638469717939165045.png" medium="image"/>
+    <pubDate>Mon, 25 Mar 2024 13:56:48 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 小技巧 - 使用 PdfSharp / PdfSharpCore 合併 PDF、加浮水印]]></title>
     <link>https://blog.darkthread.net/blog/pdfsharp/</link>
     <itunes:title><![CDATA[.NET 小技巧 - 使用 PdfSharp / PdfSharpCore 合併 PDF、加浮水印]]></itunes:title>
@@ -1331,83 +1700,5 @@ stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png" medium="image"/>
     <pubDate>Thu, 29 Feb 2024 08:55:04 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></title>
-    <link>https://blog.darkthread.net/blog/guid-clust-idx-frag-n-space/</link>
-    <itunes:title><![CDATA[GUID 叢集索引測試 2：索引碎片化分析與資料表虛胖問題]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
-si.name,
-dt.index_level,
-dt.avg_fragmentation_in_percent,
-dt.avg_page_space_used_in_percent,
-dt.record_count,
-dt.avg_record_size_in_bytes
-FROM
-(SELECT object_id,
-index_id,
-index_level,
-avg_fragmentation_in_percent,
-avg_page_space_used_in_percent,
-record_count,
-avg_record_size_in_bytes
-FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
-WHERE   index_id &lt;&gt; 0
-) AS dt --does not return information about heaps
-INNER JOIN sys.indexes si
-ON     si.object_id = dt.object_id
-AND si.index_id  = dt.index_id
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
-si.name,
-dt.index_level,
-dt.avg_fragmentation_in_percent,
-dt.avg_page_space_used_in_percent,
-dt.record_count,
-dt.avg_record_size_in_bytes
-FROM
-(SELECT object_id,
-index_id,
-index_level,
-avg_fragmentation_in_percent,
-avg_page_space_used_in_percent,
-record_count,
-avg_record_size_in_bytes
-FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
-WHERE   index_id &lt;&gt; 0
-) AS dt --does not return information about heaps
-INNER JOIN sys.indexes si
-ON     si.object_id = dt.object_id
-AND si.index_id  = dt.index_id
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>上篇我們觀察到用 GUID 做為叢集索引，<a href="/blog/how-guid-clust-index-bad-is/">INSERT 耗時較久且偶發慢到 4 ~ 6 秒的狀況</a>。</p> <p>依直覺索引碎片化的影響主要在於讀寫效能不佳(要走過更多資料分頁)，但觀察容量計時我發現另一件有趣的事，同樣是一千萬筆資料，IntClustIdx 比 GuidClustIdx 多一個 BIGINT 欄位，每筆資料多 8 Bytes (2035 vs 2027)，但 IntClustIdx 用的空間比較少，只有 27 GB，少一個欄位的 GuidClustIdx 反而用掉 40GB，這是怎麼一回事？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"></p> <p>這也與叢集索引碎片化有關。</p> <p>由於 GUID 無連續性，INSERT 資料時會導致 Page Split，拆分為兩個分頁並<a href="https://dba.stackexchange.com/a/155258/197986">將資料拆成 50/50，各使用一半空間</a> (Internal Fragmentation)。</p> <p>要觀察索引碎片化狀態，<code>dm_db_index_physical_stats</code> 是最效的指標。(相關背景知識可參見保哥文章：<a href="https://blog.miniasp.com/post/2009/01/18/Let-SQL-Server-Tell-You-Which-Indexes-to-Rebuild-or-Reorganize">讓 SQL Server 告訴你有哪些索引應該被重建或重組</a>)</p> <p>使用 <code>dm_db_index_physical_stats</code> 查詢索引碎裂狀態，我們可以得到兩項重要指標：<code>avg_fragmentation_in_percent</code>、<code>avg_page_space_used_in_percent</code>。</p> <p><code>avg_fragmentation_in_percent</code> 可視為碎片化的程度。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-db-index-physical-stats-transact-sql?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#logical-fragmentation">Logical fragmentation</a> 官方翻譯為邏輯片段，我覺得譯成「邏輯碎片」更體切，指的是索引資料分頁邏輯順序與實體順序不一致，邏輯上依索引順序應該連續的資料分頁，被放在不連續的實體位置，如此存取將需要更多 IO 動作，拖慢效能。此值介於 10 到 15 之間時建議做索引重組，大於 15 時應考慮進行索引重建。</p> <p><code>avg_page_space_used_in_percent</code> 則是資料分頁存放資料的比率，比例過低將造成空間浪費(本案例的狀況)，代表要走訪更多分頁才能蒐集完所需要資料，勢必影響效能。這個值介於 60 到 75 之間時建議做索引重組，低於 60 時應考慮索引重建。</p> <p>以下 SQL 指令修改自保哥文章，增加顯示筆數與每筆資料長度：</p> <pre><code>SELECT OBJECT_NAME(dt.object_id),
-si.name,
-dt.index_level,
-dt.avg_fragmentation_in_percent,
-dt.avg_page_space_used_in_percent,
-dt.record_count,
-dt.avg_record_size_in_bytes
-FROM
-(SELECT object_id,
-index_id,
-index_level,
-avg_fragmentation_in_percent,
-avg_page_space_used_in_percent,
-record_count,
-avg_record_size_in_bytes
-FROM    sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED')
-WHERE   index_id &lt;&gt; 0
-) AS dt --does not return information about heaps
-INNER JOIN sys.indexes si
-ON     si.object_id = dt.object_id
-AND si.index_id  = dt.index_id
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638447277361338412.png"></p> <p>利用這個機會，來研究其中數字的奧祕。非 Leaf Page (index_level &gt; 0) 的每筆索引長度(<code>avg_record_size_in_bytes</code>) 為什麼是 23 [1] 及 15 [2]？</p> <p>由<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-variables-for-use-in-steps-2-and-3">官方文件</a>：<code>Index_Row_Size = Fixed_Key_Size + Variable_Key_Size + Index_Null_Bitmap + 1 (for row header overhead of an index row) + 6 (for the child page ID pointer)</code>，當索引沒有 Nullable 欄位，<code>Index_Null_Bitmap</code> = 0，因此 GuidClustIdx 為 16 (Uniqueidentity 長度) + 1 + 6 = 23，IntClustIdx 為 8 (Bigint 長度) + 1 + 6 = 15。</p> <p>至於叢集索引的 Leaf Page (index_level == 0) 會實際儲存資料內容，其結構為 TagA (1) + TagB (1) + Fsize (2) + Fdata (N, 固定欄位資料) + Ncol (2) + Nullbits (Ncol/8) + VarCount (2) + VarOffset (2*VarCount) + VarData(N) + VersioningTag (14 或 0)，LongText 欄位為長度 1000 的字串，以 Unicode 編碼儲存為 2000 Bytes。故 GuidClustIdx 資料列長度為 1 + 1 + 2 + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2027 [3]，IntClustIdx 長度為 1 + 1 + 2 + 8(SeqNo) + 16(PK) + 2 + 1 + 2 + 2 + 2000 = 2035 [4]。<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-1-calculate-the-space-used-to-store-data-in-the-leaf-level">詳細計算方式</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638447277363568068.png"><br> <a href="https://aboutsqlserver.com/2013/10/15/sql-server-storage-engine-data-pages-and-data-rows/">圖片來源</a></p> <p>由此推估，使用 GUID 叢集索引的問題在於碎片化造成資料分散在兩倍以上數量的資料分頁(Data Page)，每個分頁只咬半口，浪費空間是一回事，需走訪更多資料分頁影響效能是更嚴重的問題。每筆 2027 Bytes * 1000 萬筆理應 20GB，因資料分頁利用率 50% [5]，故實際佔用容量加倍成為 40GB。而 IntClustIdx 資料表資料分頁利用率 75% [5]，20G / 0.75 = 27G。</p> <p>追根究根，避用 GUID 當叢集索引是解緩索引碎片化的治本之道，但異動 Schema 工程浩大，不是所有系統都能配合修改，此時只能寄望索引重組或索引重建改善。</p> <p>很少有機會做出這個規模的測試資料，順便試試 120GB 3000 萬筆資料索引重建要花多久？我測了 <code>ALTER INDEX PK_GuidClustIdx ON GuidClustIdx REBUILD WITH (ONLINE = ON)</code> (線上模式，索引作業期間可讓並行使用者存取基礎資料表、叢集索引資料，及任何關聯的非叢集索引。但耗時會比較久且過程效能也會下降)</p> <p>索引重建前，破碎比例 99%，空間使用率 50%，耗用空間 120GB：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638447277365712993.png"></p> <p>實測線上重建三千萬筆資料叢集索引共耗時 15'50"。重建後，使用空間下降到 80G，破碎比例 0%，空間使用率上升到一般標準 75%。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638447277367970610.png"></p> <p>最後來研究索引各層的筆數(Record Count)。</p> <p>下圖是另一次 1000 萬筆測試的 <code>dm_db_index_physical_stats</code> 查詢結果，我在最後補了兩個欄位，每頁實際筆數 = rocord count / page count，每頁實際筆數 = 每頁實際筆數 / avg page space used %：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638447277370181690.png"></p> <p>在上圖中，我們可以看到 GuidClustIdx 跟 IntClustIdx 的叢集索引都是四層，Leaf 層(Level 0)都是 1000 萬筆，但 Level 1，GuidClustIdx 為 5000619 筆，IntClustIdx 為 3333334 筆，Level 2 為 22397 vs 15549。</p> <p>SQL 採用 <a href="https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#clustered-index-architecture">B+ 樹結構</a>：<br> (延伸閱讀與下圖來源：<a href="https://mark-lin.com/posts/20190911/">資料庫層的核心 - 索引結構演化論 B+樹 by 拿鐵派的馬克</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638447277372305002.png"></p> <p>依據<a href="https://learn.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-clustered-index?view=sql-server-ver16&amp;WT.mc_id=DOP-MVP-37580#step-2-calculate-the-space-used-to-store-index-information">官方文件</a>算出非 Leaf 層每個 Page 可以容納的索引資料列數為 <code>Index_Rows_Per_Page = 8096 / (Index_Row_Size + 2)</code>，故可得 Guid 叢集索引為 8096 / (23 + 2) = 322、BIGINT 叢集索引為 8096 / (15 + 2) = 474，這數字很接近【每頁原本筆數】(該欄位依實際狀況反推，每頁有多有少，故不會完全相等)，而下層可容納最多索引資數為上層的 322 及 474 倍，故 Level - 1 是 Level 層的 322/474 倍，322/474 為理論值，實際數字要用【每頁實際筆數】計算，GuidClustIdx 可得 106 * 211.29 = 22397，22397 * 223.27 = 5000619；IntClustIdx 為 73 * 214.37 = 15649、15649 * 213.006 = 3333334，數字就對上了。</p> <p>而 Leaf 層每頁可容納筆數的算法為 <code>Rows_Per_Page = 8096 / (Row_Size + 2)</code>，用 2027 或 2035 算約 3.9，依使用率 50.10%、75.48% 推算每頁 2 及 3 筆，Leaf 層筆數為 1000 萬，除以 2 及 3 便是 GuidClustIdx 與 IntClustIdx Level = 1 層 5000619 與 3333334 的由來。而依此估算，當 GuidClustIdx 資料超過 322^3 (約 3339 萬筆) 時，索引結構會用到五層。(註：實驗進行中，結果後補)</p> <p>再累積一些索引碎片化知識。</p> <p data-slug="guid-clust-idx-frag-n-space" data-fbimg="https://cdn.pixabay.com/photo/2016/07/14/19/55/fat-1517449_960_720.jpg#1280#720">The web page shows that using GUID causes more fragmentation, lower page space utilization, and slower INSERT performance than using BIGINT. It also explains the structure and size of the index rows and data pages, and how they affect the storage space and efficiency.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638447277359190777.png" medium="image"/>
-    <pubDate>Wed, 28 Feb 2024 14:35:11 GMT</pubDate>
   </item></channel>
 </rss>
