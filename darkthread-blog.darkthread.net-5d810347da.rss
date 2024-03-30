@@ -30,6 +30,261 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Coding4Fun - PDF 投影片兩張一頁排版列印]]></title>
+    <link>https://blog.darkthread.net/blog/slide-pdf-printing/</link>
+    <itunes:title><![CDATA[Coding4Fun - PDF 投影片兩張一頁排版列印]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
+using PdfSharp;
+using PdfSharp.Charting;
+using PdfSharp.Drawing;
+using PdfSharp.Fonts;
+using PdfSharp.Pdf;
+using PdfSharp.Pdf.IO;
+using PdfSharp.Snippets.Font;
+string filename = "D:\\Source.pdf";
+// 建立輸出 PDF 文件
+PdfDocument outputDocument = new PdfDocument();
+// 設定開啟 PDF 時顯示單頁
+outputDocument.PageLayout = PdfPageLayout.SinglePage;
+XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
+XStringFormat format = new XStringFormat();
+format.Alignment = XStringAlignment.Center;
+format.LineAlignment = XLineAlignment.Far;
+XGraphics gfx;
+XRect box;
+// 開啟來源 PDF 文件
+XPdfForm form = XPdfForm.FromFile(filename);
+// 指定 PDF 邊界
+var outCurPageNo = 1;
+// 指定裝訂邊界
+double bindingMargin = 18;
+double margin = 20;
+double leftMargin = 0;
+for (int idx = 0; idx &lt; form.PageCount; idx += 2)
+{
+// 建立新頁，直式放入兩頁橫式投影片頁
+PdfPage page = outputDocument.AddPage();
+page.Size = PageSize.A4;
+page.Orientation = PageOrientation.Portrait;
+double width = page.Width;
+double height = page.Height;
+// 左邊界 (保留打孔裝訂空間)
+// 單數頁偏右，雙數頁偏左
+leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
+gfx = XGraphics.FromPdfPage(page);
+// 切換來源 PDF 文件的頁數
+form.PageNumber = idx + 1;
+// 決定擺放位置及尺寸
+double scaleRatio = (width - bindingMargin - margin - margin) / width;
+var heightOffset = height / 2 * (1 - scaleRatio);
+box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
+// 將來源 PDF 文件的頁面畫到新頁上
+gfx.DrawImage(form, box);
+// 繪製投影片邊框
+gfx.DrawRectangle(XPens.DarkGray, box);
+// 若還有次頁
+if (idx + 1 &lt; form.PageCount)
+{
+// 將次頁畫在下半部
+form.PageNumber = idx + 2;
+box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
+gfx.DrawImage(form, box);
+gfx.DrawRectangle(XPens.DarkGray, box);
+}
+// 繪製打孔位置
+var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
+var ppcmY = height / (29.7 - 1.2);
+var pgNoX = 0;
+if (outCurPageNo % 2 == 1)
+{
+var y = ppcmY * (2.8 - 0.6);
+var holeSize = Convert.ToInt32(0.6 * ppcmX);
+for (var i = 0; i &lt; 4; i++)
+{
+gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
+(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
+holeSize, holeSize), 0, 360);
+}
+pgNoX = Convert.ToInt32(width - 65);
+}
+gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
+new XRect(pgNoX, height - 40, 65, 30), format);
+outCurPageNo++;
+}
+filename = "D:\\Final.pdf";
+outputDocument.Save(filename);
+</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
+using PdfSharp;
+using PdfSharp.Charting;
+using PdfSharp.Drawing;
+using PdfSharp.Fonts;
+using PdfSharp.Pdf;
+using PdfSharp.Pdf.IO;
+using PdfSharp.Snippets.Font;
+string filename = "D:\\Source.pdf";
+// 建立輸出 PDF 文件
+PdfDocument outputDocument = new PdfDocument();
+// 設定開啟 PDF 時顯示單頁
+outputDocument.PageLayout = PdfPageLayout.SinglePage;
+XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
+XStringFormat format = new XStringFormat();
+format.Alignment = XStringAlignment.Center;
+format.LineAlignment = XLineAlignment.Far;
+XGraphics gfx;
+XRect box;
+// 開啟來源 PDF 文件
+XPdfForm form = XPdfForm.FromFile(filename);
+// 指定 PDF 邊界
+var outCurPageNo = 1;
+// 指定裝訂邊界
+double bindingMargin = 18;
+double margin = 20;
+double leftMargin = 0;
+for (int idx = 0; idx &lt; form.PageCount; idx += 2)
+{
+// 建立新頁，直式放入兩頁橫式投影片頁
+PdfPage page = outputDocument.AddPage();
+page.Size = PageSize.A4;
+page.Orientation = PageOrientation.Portrait;
+double width = page.Width;
+double height = page.Height;
+// 左邊界 (保留打孔裝訂空間)
+// 單數頁偏右，雙數頁偏左
+leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
+gfx = XGraphics.FromPdfPage(page);
+// 切換來源 PDF 文件的頁數
+form.PageNumber = idx + 1;
+// 決定擺放位置及尺寸
+double scaleRatio = (width - bindingMargin - margin - margin) / width;
+var heightOffset = height / 2 * (1 - scaleRatio);
+box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
+// 將來源 PDF 文件的頁面畫到新頁上
+gfx.DrawImage(form, box);
+// 繪製投影片邊框
+gfx.DrawRectangle(XPens.DarkGray, box);
+// 若還有次頁
+if (idx + 1 &lt; form.PageCount)
+{
+// 將次頁畫在下半部
+form.PageNumber = idx + 2;
+box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
+gfx.DrawImage(form, box);
+gfx.DrawRectangle(XPens.DarkGray, box);
+}
+// 繪製打孔位置
+var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
+var ppcmY = height / (29.7 - 1.2);
+var pgNoX = 0;
+if (outCurPageNo % 2 == 1)
+{
+var y = ppcmY * (2.8 - 0.6);
+var holeSize = Convert.ToInt32(0.6 * ppcmX);
+for (var i = 0; i &lt; 4; i++)
+{
+gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
+(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
+holeSize, holeSize), 0, 360);
+}
+pgNoX = Convert.ToInt32(width - 65);
+}
+gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
+new XRect(pgNoX, height - 40, 65, 30), format);
+outCurPageNo++;
+}
+filename = "D:\\Final.pdf";
+outputDocument.Save(filename);
+</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
+using PdfSharp;
+using PdfSharp.Charting;
+using PdfSharp.Drawing;
+using PdfSharp.Fonts;
+using PdfSharp.Pdf;
+using PdfSharp.Pdf.IO;
+using PdfSharp.Snippets.Font;
+string filename = "D:\\Source.pdf";
+// 建立輸出 PDF 文件
+PdfDocument outputDocument = new PdfDocument();
+// 設定開啟 PDF 時顯示單頁
+outputDocument.PageLayout = PdfPageLayout.SinglePage;
+XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
+XStringFormat format = new XStringFormat();
+format.Alignment = XStringAlignment.Center;
+format.LineAlignment = XLineAlignment.Far;
+XGraphics gfx;
+XRect box;
+// 開啟來源 PDF 文件
+XPdfForm form = XPdfForm.FromFile(filename);
+// 指定 PDF 邊界
+var outCurPageNo = 1;
+// 指定裝訂邊界
+double bindingMargin = 18;
+double margin = 20;
+double leftMargin = 0;
+for (int idx = 0; idx &lt; form.PageCount; idx += 2)
+{
+// 建立新頁，直式放入兩頁橫式投影片頁
+PdfPage page = outputDocument.AddPage();
+page.Size = PageSize.A4;
+page.Orientation = PageOrientation.Portrait;
+double width = page.Width;
+double height = page.Height;
+// 左邊界 (保留打孔裝訂空間)
+// 單數頁偏右，雙數頁偏左
+leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
+gfx = XGraphics.FromPdfPage(page);
+// 切換來源 PDF 文件的頁數
+form.PageNumber = idx + 1;
+// 決定擺放位置及尺寸
+double scaleRatio = (width - bindingMargin - margin - margin) / width;
+var heightOffset = height / 2 * (1 - scaleRatio);
+box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
+// 將來源 PDF 文件的頁面畫到新頁上
+gfx.DrawImage(form, box);
+// 繪製投影片邊框
+gfx.DrawRectangle(XPens.DarkGray, box);
+// 若還有次頁
+if (idx + 1 &lt; form.PageCount)
+{
+// 將次頁畫在下半部
+form.PageNumber = idx + 2;
+box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
+gfx.DrawImage(form, box);
+gfx.DrawRectangle(XPens.DarkGray, box);
+}
+// 繪製打孔位置
+var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
+var ppcmY = height / (29.7 - 1.2);
+var pgNoX = 0;
+if (outCurPageNo % 2 == 1)
+{
+var y = ppcmY * (2.8 - 0.6);
+var holeSize = Convert.ToInt32(0.6 * ppcmX);
+for (var i = 0; i &lt; 4; i++)
+{
+gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
+(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
+holeSize, holeSize), 0, 360);
+}
+pgNoX = Convert.ToInt32(width - 65);
+}
+gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
+new XRect(pgNoX, height - 40, 65, 30), format);
+outCurPageNo++;
+}
+filename = "D:\\Final.pdf";
+outputDocument.Save(filename);
+</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png" medium="image"/>
+    <pubDate>Sat, 30 Mar 2024 14:01:36 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Telerik PDF 處理範例：文件合併、加浮水印]]></title>
     <link>https://blog.darkthread.net/blog/telerik-pdf-processing/</link>
     <itunes:title><![CDATA[Telerik PDF 處理範例：文件合併、加浮水印]]></itunes:title>
@@ -1661,44 +1916,5 @@ File.AppendAllText(logPath, ex.Message + Environment.NewLine);
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638448994890435871.png" medium="image"/>
     <pubDate>Fri, 01 Mar 2024 14:12:01 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></title>
-    <link>https://blog.darkthread.net/blog/view-aspnet-core-error-detail-in-iis/</link>
-    <itunes:title><![CDATA[取得部署 IIS 之 ASP.NET Core HTTP 500 錯誤細節]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
-</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
-&lt;environmentVariables&gt;
-&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
-&lt;/environmentVariables&gt;
-&lt;/aspNetCore&gt;
-</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
-</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
-&lt;environmentVariables&gt;
-&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
-&lt;/environmentVariables&gt;
-&lt;/aspNetCore&gt;
-</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>ASP.NET Core 有個預設行為，開發測試階段會顯示錯誤細節，包含錯誤訊息、Stack Trace 等資訊；當部署到 IIS 後，就只會顯示告知狀態碼為 HTTP ERROR 500，以避免程式資訊外洩形成資安風險：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"></p> <p>嚴譯的系統會設計 Log 機制補捉及記錄錯誤，提供介面查詢或是後送 ELK、Prometheus 之類監控系統，自有管道可查。但若為簡單的 ASP.NET Core 網站，沒有這些機制，要怎麼臨時開啟顯示詳細錯誤訊息？(提醒：顯示詳細錯誤有資安風險，此暫時性做法不宜用於正式環境) .NET Framework 時代的 ASP.NET 可<a href="https://learn.microsoft.com/zh-tw/aspnet/web-forms/overview/older-versions-getting-started/deploying-web-site-projects/displaying-a-custom-error-page-cs?WT.mc_id=DOP-MVP-37580#configuring-which-error-page-is-displayed">透過 <code>&lt;system.web&gt;&lt;customErrors mode="Off/RemoteOnly" /&gt;&lt;/system.web&gt;</code> 開啟</a>，ASP.NET Core 網站沒有 <code>&lt;system.web&gt;</code> 可設，要怎麼處堙？</p> <p>解法一：查事件檢視器</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638448174436058381.png"></p> <p>解法二：</p> <p>啟用 ASP.NET Core 執行 Log 檔記錄，web.config 找到 <a href="https://learn.microsoft.com/zh-tw/aspnet/core/host-and-deploy/iis/web-config?view=aspnetcore-8.0&amp;WT.mc_id=DOP-MVP-37580#attributes-of-the-aspnetcore-element">aspNetCore 元素</a>，將 stdoutLogEnabled 設為 true：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" /&gt;
-</code></pre> <p>但這個 Log 不會即時寫入磁碟，若要馬上看結果，可回收 AppPool：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638448174438165033.png"></p> <p>解法三：</p> <p>在 aspNetCore 元素加入 environmentVariable 指定 ASPNETCORE_ENVIRONMENT = Development：</p> <pre><code>&lt;aspNetCore processPath="dotnet" arguments=".\iis-hosting.dll"
-stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess"&gt;
-&lt;environmentVariables&gt;
-&lt;environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" /&gt;
-&lt;/environmentVariables&gt;
-&lt;/aspNetCore&gt;
-</code></pre> <p>如此 ASP.NET Core 網站會以開發模式運行，比照 F5 偵錯或 dotnet run 時顯示錯誤細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638448174440347930.png"></p> <p data-slug="view-aspnet-core-error-detail-in-iis" data-fbimg="https://cdn.pixabay.com/photo/2017/08/06/19/04/motor-2595269_1280.jpg#1280#720"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638448174433779846.png" medium="image"/>
-    <pubDate>Thu, 29 Feb 2024 08:55:04 GMT</pubDate>
   </item></channel>
 </rss>
