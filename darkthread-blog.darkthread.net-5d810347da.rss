@@ -30,6 +30,318 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[使用 Playwright 打造 HTML 轉 PDF 微服務]]></title>
+    <link>https://blog.darkthread.net/blog/html2pdf-w-playwright/</link>
+    <itunes:title><![CDATA[使用 Playwright 打造 HTML 轉 PDF 微服務]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
+const playwright = require('playwright');
+const fastq = require('fastq');
+const app = express();
+const port = 3000;
+const worker = async (task, callback) =&gt; {
+const browser = await playwright.chromium.launch();
+try {
+const context = await browser.newContext();
+const page = await context.newPage();
+if (task.url) {
+await page.goto(task.url);
+} else if (task.html) {
+await page.setContent(task.html);
+}
+const pdf = await page.pdf();
+callback(null, pdf);
+} catch (error) {
+callback(error);
+}
+finally{
+await browser.close();
+}
+};
+const concurrency = parseInt(process.argv[2]) || 4;
+const queue = fastq(worker, concurrency);
+app.post('/pdf', express.json(), async (req, res) =&gt; {
+const postData = req.body;
+if (!postData.url &amp;&amp; !postData.html) {
+return res.status(400).send('Missing parameter');
+}
+queue.push(postData, (err, result) =&gt; {
+if (err) {
+return res.status(500).send(err.message);
+}
+res.send(result);
+});
+});
+app.listen(port, () =&gt; {
+console.log(`Server running on port ${port}`);
+});
+</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
+const { pipeline } = require('stream/promises');
+const noProgress = process.argv.includes('--no-progress');
+async function generatePDF(jobId, html, pdfPath) {
+const start = process.hrtime.bigint();
+try {
+const response = await fetch('http://localhost:3000/pdf', {
+method: 'POST',
+body: JSON.stringify({ jobId, html }),
+headers: { 'Content-Type': 'application/json' }
+});
+if (!response.ok) {
+throw new Error(`Unexpected response ${response.statusText}`);
+}
+await pipeline(response.body, fs.createWriteStream(pdfPath));
+} catch (err) {
+console.error(err);
+}
+const end = process.hrtime.bigint();
+if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
+}
+if (!fs.existsSync('data')) fs.mkdirSync('data');
+const promises = [];
+const template = fs.readFileSync('template.html', 'utf8');
+const overallStart = process.hrtime.bigint();
+for (let i = 0; i &lt; 100; i++) {
+const promise = new Promise((resolve) =&gt; {
+const seqNo = i;
+setTimeout(() =&gt; {
+const randomNum = Math.floor(Math.random() * 1000);
+const htmlContent = template
+.replace('#Name#', 'User ' + seqNo)
+.replace('#Number#', randomNum);
+resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
+}, 100 * i);
+});
+promises.push(promise);
+}
+Promise.all(promises).then(() =&gt; {
+const overallEnd = process.hrtime.bigint();
+console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
+});
+</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
+const queue = fastq(worker, concurrency);
+</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
+RUN mkdir -p /home/app
+WORKDIR /home/app
+COPY package*.json ./
+RUN npm install
+COPY webapi.js .
+EXPOSE 3000
+CMD ["node", "webapi.js"]
+</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
+services:
+app:
+image: playwright-pdf-svc
+ports:
+- "3000:3000"
+</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
+const playwright = require('playwright');
+const fastq = require('fastq');
+const app = express();
+const port = 3000;
+const worker = async (task, callback) =&gt; {
+const browser = await playwright.chromium.launch();
+try {
+const context = await browser.newContext();
+const page = await context.newPage();
+if (task.url) {
+await page.goto(task.url);
+} else if (task.html) {
+await page.setContent(task.html);
+}
+const pdf = await page.pdf();
+callback(null, pdf);
+} catch (error) {
+callback(error);
+}
+finally{
+await browser.close();
+}
+};
+const concurrency = parseInt(process.argv[2]) || 4;
+const queue = fastq(worker, concurrency);
+app.post('/pdf', express.json(), async (req, res) =&gt; {
+const postData = req.body;
+if (!postData.url &amp;&amp; !postData.html) {
+return res.status(400).send('Missing parameter');
+}
+queue.push(postData, (err, result) =&gt; {
+if (err) {
+return res.status(500).send(err.message);
+}
+res.send(result);
+});
+});
+app.listen(port, () =&gt; {
+console.log(`Server running on port ${port}`);
+});
+</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
+const { pipeline } = require('stream/promises');
+const noProgress = process.argv.includes('--no-progress');
+async function generatePDF(jobId, html, pdfPath) {
+const start = process.hrtime.bigint();
+try {
+const response = await fetch('http://localhost:3000/pdf', {
+method: 'POST',
+body: JSON.stringify({ jobId, html }),
+headers: { 'Content-Type': 'application/json' }
+});
+if (!response.ok) {
+throw new Error(`Unexpected response ${response.statusText}`);
+}
+await pipeline(response.body, fs.createWriteStream(pdfPath));
+} catch (err) {
+console.error(err);
+}
+const end = process.hrtime.bigint();
+if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
+}
+if (!fs.existsSync('data')) fs.mkdirSync('data');
+const promises = [];
+const template = fs.readFileSync('template.html', 'utf8');
+const overallStart = process.hrtime.bigint();
+for (let i = 0; i &lt; 100; i++) {
+const promise = new Promise((resolve) =&gt; {
+const seqNo = i;
+setTimeout(() =&gt; {
+const randomNum = Math.floor(Math.random() * 1000);
+const htmlContent = template
+.replace('#Name#', 'User ' + seqNo)
+.replace('#Number#', randomNum);
+resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
+}, 100 * i);
+});
+promises.push(promise);
+}
+Promise.all(promises).then(() =&gt; {
+const overallEnd = process.hrtime.bigint();
+console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
+});
+</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
+const queue = fastq(worker, concurrency);
+</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
+RUN mkdir -p /home/app
+WORKDIR /home/app
+COPY package*.json ./
+RUN npm install
+COPY webapi.js .
+EXPOSE 3000
+CMD ["node", "webapi.js"]
+</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
+services:
+app:
+image: playwright-pdf-svc
+ports:
+- "3000:3000"
+</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
+const playwright = require('playwright');
+const fastq = require('fastq');
+const app = express();
+const port = 3000;
+const worker = async (task, callback) =&gt; {
+const browser = await playwright.chromium.launch();
+try {
+const context = await browser.newContext();
+const page = await context.newPage();
+if (task.url) {
+await page.goto(task.url);
+} else if (task.html) {
+await page.setContent(task.html);
+}
+const pdf = await page.pdf();
+callback(null, pdf);
+} catch (error) {
+callback(error);
+}
+finally{
+await browser.close();
+}
+};
+const concurrency = parseInt(process.argv[2]) || 4;
+const queue = fastq(worker, concurrency);
+app.post('/pdf', express.json(), async (req, res) =&gt; {
+const postData = req.body;
+if (!postData.url &amp;&amp; !postData.html) {
+return res.status(400).send('Missing parameter');
+}
+queue.push(postData, (err, result) =&gt; {
+if (err) {
+return res.status(500).send(err.message);
+}
+res.send(result);
+});
+});
+app.listen(port, () =&gt; {
+console.log(`Server running on port ${port}`);
+});
+</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
+const { pipeline } = require('stream/promises');
+const noProgress = process.argv.includes('--no-progress');
+async function generatePDF(jobId, html, pdfPath) {
+const start = process.hrtime.bigint();
+try {
+const response = await fetch('http://localhost:3000/pdf', {
+method: 'POST',
+body: JSON.stringify({ jobId, html }),
+headers: { 'Content-Type': 'application/json' }
+});
+if (!response.ok) {
+throw new Error(`Unexpected response ${response.statusText}`);
+}
+await pipeline(response.body, fs.createWriteStream(pdfPath));
+} catch (err) {
+console.error(err);
+}
+const end = process.hrtime.bigint();
+if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
+}
+if (!fs.existsSync('data')) fs.mkdirSync('data');
+const promises = [];
+const template = fs.readFileSync('template.html', 'utf8');
+const overallStart = process.hrtime.bigint();
+for (let i = 0; i &lt; 100; i++) {
+const promise = new Promise((resolve) =&gt; {
+const seqNo = i;
+setTimeout(() =&gt; {
+const randomNum = Math.floor(Math.random() * 1000);
+const htmlContent = template
+.replace('#Name#', 'User ' + seqNo)
+.replace('#Number#', randomNum);
+resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
+}, 100 * i);
+});
+promises.push(promise);
+}
+Promise.all(promises).then(() =&gt; {
+const overallEnd = process.hrtime.bigint();
+console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
+});
+</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
+const queue = fastq(worker, concurrency);
+</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
+RUN mkdir -p /home/app
+WORKDIR /home/app
+COPY package*.json ./
+RUN npm install
+COPY webapi.js .
+EXPOSE 3000
+CMD ["node", "webapi.js"]
+</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
+services:
+app:
+image: playwright-pdf-svc
+ports:
+- "3000:3000"
+</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" medium="image"/>
+    <pubDate>Tue, 02 Apr 2024 13:07:44 GMT</pubDate>
+  </item><item>
     <title><![CDATA[手機鋰電充電迷思：快充傷電池？只充八分飽能延年益壽？]]></title>
     <link>https://blog.darkthread.net/blog/battery-charging-mystery/</link>
     <itunes:title><![CDATA[手機鋰電充電迷思：快充傷電池？只充八分飽能延年益壽？]]></itunes:title>
@@ -1607,50 +1919,5 @@ return html.Replace("[$diff.txt$]", pem.ToString());
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638452451361125707.png" medium="image"/>
     <pubDate>Tue, 05 Mar 2024 12:28:57 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Obsidian 匯出 PDF 之程式區塊顏色調整]]></title>
-    <link>https://blog.darkthread.net/blog/change-obsidian-pdf-style/</link>
-    <itunes:title><![CDATA[Obsidian 匯出 PDF 之程式區塊顏色調整]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>Obsidian 內建程式區塊 Syntax Highlight 顯示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638450510459234049.png"></p> <p>但匯出 PDF 時有些文字顏色偏淺(例如：WriteLine、GetPercentile、JSON 的屬性名稱)，對比不明顯，程式區塊的背景也淡了點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638450510461459440.png"></p> <p>研究了一下，PDF 輸出樣式可在 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 放個 .css 用 <code>@media pring { ... }</code> 指定列印專用樣性調整。但如果你試過，會發現更改 <code>pre,code { ... }</code> 樣式沒什麼效果。查了文件，發現要透過以下 <a href="https://docs.obsidian.md/Reference/CSS+variables/Editor/Code">CSS 變數</a>指定：</p> <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td>--code-background</td><td>Code background color</td></tr><tr><td>--code-white-space</td><td>Code white-space</td></tr><tr><td>--code-size</td><td>Code font size</td></tr><tr><td>--code-normal</td><td>Non-highlighted syntax</td></tr><tr><td>--code-comment</td><td>Comments</td></tr><tr><td>--code-function</td><td>Functions</td></tr><tr><td>--code-important</td><td>Important, regex</td></tr><tr><td>--code-keyword</td><td>Keywords</td></tr><tr><td>--code-operator</td><td>Operators</td></tr><tr><td>--code-property</td><td>Properties</td></tr><tr><td>--code-punctuation</td><td>Punctuation</td></tr><tr><td>--code-string</td><td>Strings</td></tr><tr><td>--code-tag</td><td>Tags, symbols, constants</td></tr><tr><td>--code-value</td><td>Values</td></tr></tbody></table> <p>做了一個 pdf.css 放到 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 目錄：</p> <pre><code>@media print {
-body {
---code-background: #ccc;
---code-comment: #474;
---code-normal: #227;
---code-function: purple;
---code-property: drakblue;
---code-string: darkgreen;
-}
-}
-</code></pre> <p>設定啟用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638450510463773233.png"></p> <p>調整完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638450510465988298.png"></p> <p data-slug="change-obsidian-pdf-style" data-fbimb="https://images.pexels.com/photos/3862631/pexels-photo-3862631.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#2160#750"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>Obsidian 內建程式區塊 Syntax Highlight 顯示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638450510459234049.png"></p> <p>但匯出 PDF 時有些文字顏色偏淺(例如：WriteLine、GetPercentile、JSON 的屬性名稱)，對比不明顯，程式區塊的背景也淡了點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638450510461459440.png"></p> <p>研究了一下，PDF 輸出樣式可在 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 放個 .css 用 <code>@media pring { ... }</code> 指定列印專用樣性調整。但如果你試過，會發現更改 <code>pre,code { ... }</code> 樣式沒什麼效果。查了文件，發現要透過以下 <a href="https://docs.obsidian.md/Reference/CSS+variables/Editor/Code">CSS 變數</a>指定：</p> <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td>--code-background</td><td>Code background color</td></tr><tr><td>--code-white-space</td><td>Code white-space</td></tr><tr><td>--code-size</td><td>Code font size</td></tr><tr><td>--code-normal</td><td>Non-highlighted syntax</td></tr><tr><td>--code-comment</td><td>Comments</td></tr><tr><td>--code-function</td><td>Functions</td></tr><tr><td>--code-important</td><td>Important, regex</td></tr><tr><td>--code-keyword</td><td>Keywords</td></tr><tr><td>--code-operator</td><td>Operators</td></tr><tr><td>--code-property</td><td>Properties</td></tr><tr><td>--code-punctuation</td><td>Punctuation</td></tr><tr><td>--code-string</td><td>Strings</td></tr><tr><td>--code-tag</td><td>Tags, symbols, constants</td></tr><tr><td>--code-value</td><td>Values</td></tr></tbody></table> <p>做了一個 pdf.css 放到 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 目錄：</p> <pre><code>@media print {
-body {
---code-background: #ccc;
---code-comment: #474;
---code-normal: #227;
---code-function: purple;
---code-property: drakblue;
---code-string: darkgreen;
-}
-}
-</code></pre> <p>設定啟用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638450510463773233.png"></p> <p>調整完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638450510465988298.png"></p> <p data-slug="change-obsidian-pdf-style" data-fbimb="https://images.pexels.com/photos/3862631/pexels-photo-3862631.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#2160#750"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>Obsidian 內建程式區塊 Syntax Highlight 顯示：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638450510459234049.png"></p> <p>但匯出 PDF 時有些文字顏色偏淺(例如：WriteLine、GetPercentile、JSON 的屬性名稱)，對比不明顯，程式區塊的背景也淡了點：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638450510461459440.png"></p> <p>研究了一下，PDF 輸出樣式可在 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 放個 .css 用 <code>@media pring { ... }</code> 指定列印專用樣性調整。但如果你試過，會發現更改 <code>pre,code { ... }</code> 樣式沒什麼效果。查了文件，發現要透過以下 <a href="https://docs.obsidian.md/Reference/CSS+variables/Editor/Code">CSS 變數</a>指定：</p> <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td>--code-background</td><td>Code background color</td></tr><tr><td>--code-white-space</td><td>Code white-space</td></tr><tr><td>--code-size</td><td>Code font size</td></tr><tr><td>--code-normal</td><td>Non-highlighted syntax</td></tr><tr><td>--code-comment</td><td>Comments</td></tr><tr><td>--code-function</td><td>Functions</td></tr><tr><td>--code-important</td><td>Important, regex</td></tr><tr><td>--code-keyword</td><td>Keywords</td></tr><tr><td>--code-operator</td><td>Operators</td></tr><tr><td>--code-property</td><td>Properties</td></tr><tr><td>--code-punctuation</td><td>Punctuation</td></tr><tr><td>--code-string</td><td>Strings</td></tr><tr><td>--code-tag</td><td>Tags, symbols, constants</td></tr><tr><td>--code-value</td><td>Values</td></tr></tbody></table> <p>做了一個 pdf.css 放到 <code>&lt;vault-folder&gt;\.obsidian\snippets</code> 目錄：</p> <pre><code>@media print {
-body {
---code-background: #ccc;
---code-comment: #474;
---code-normal: #227;
---code-function: purple;
---code-property: drakblue;
---code-string: darkgreen;
-}
-}
-</code></pre> <p>設定啟用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638450510463773233.png"></p> <p>調整完成。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638450510465988298.png"></p> <p data-slug="change-obsidian-pdf-style" data-fbimb="https://images.pexels.com/photos/3862631/pexels-photo-3862631.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#2160#750"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638450510459234049.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638450510459234049.png" medium="image"/>
-    <pubDate>Sun, 03 Mar 2024 08:23:19 GMT</pubDate>
   </item></channel>
 </rss>
