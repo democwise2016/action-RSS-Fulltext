@@ -30,6 +30,213 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[傻瓜 LLM 架設 - Ollama + Open WebUI 之 Docker Compose 懶人包]]></title>
+    <link>https://blog.darkthread.net/blog/ollam-open-webui/</link>
+    <itunes:title><![CDATA[傻瓜 LLM 架設 - Ollama + Open WebUI 之 Docker Compose 懶人包]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>不久前發現不需要 GPU 也能在本機跑 LLM 模型的 <a href="/blog/llama-cpp/">llama.cpp</a>，接著如雨後春筍冒出一堆好用地端 LLM 整合平台或工具，例如：可一個指令下載安裝跑 LLM 的 Ollama (延伸閱讀：<a href="https://blog.miniasp.com/post/2024/03/04/Useful-tool-Ollama">介紹好用工具：Ollama 快速在本地啟動並執行大型語言模型 by 保哥</a>)，還有為 Ollama 加上 GUI 介面，連指令都不用敲就能架個 LLM 跟你聊天的 <a href="https://github.com/open-webui/open-webui">Open WebUI</a>(原 Ollama WebUI 改版)。複雜繁瑣的地端 LLM 架設工作簡化到像傻瓜相機一樣簡便，稍具概念便能上手。(小朋友：傻瓜相機是什麼？)</p> <p>要懶就賴到最高點，裝 Ollama 用 Docker 容器跑比安裝方便，而 Open WebUI 需搭配 Ollama 運行，一次跑兩個容器當然是用 <a href="/blog/aspnetcore-docker-notes-2/">Docker Compose</a> 做成同綁包更省事。</p> <p>在 Github 找到網友寫的 <a href="https://github.com/valiantlynx/ollama-docker">Docker Compose 版本</a>，但它多跑一個 App 容器放了簡單的 Pynthon 導引網站，對我來說是多餘的。另外，它還在用 Ollama WebUI，也該改成新版 Open WebUI，於是我改寫成以下的 docker-compose.yml：</p> <pre><code>version: '3.8'
+services:
+ollama:
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+volumes:
+- .:/code
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: always
+networks:
+- ollama-docker
+open-webui:
+image: ghcr.io/open-webui/open-webui:main
+container_name: open-webui
+volumes:
+- ./ollama/open-webui:/app/backend/data
+depends_on:
+- ollama
+ports:
+- 8080:8080
+environment:
+- '/ollama/api=http://ollama:11434/api'
+extra_hosts:
+- host.docker.internal:host-gateway
+restart: unless-stopped
+networks:
+- ollama-docker
+networks:
+ollama-docker:
+external: false
+</code></pre> <p>註：上述範例是 CPU 版本，若你有 Nvidia 顯卡想用 GPU 加速，可參考專案說明，執行以下程序安裝 CUDA 支援並測試：</p> <pre><code>curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+&amp;&amp; curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+# Configure NVIDIA Container Toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+# Test GPU integration
+docker run --gpus all nvidia/cuda:11.5.2-base-ubuntu20.04 nvidia-smi
+</code></pre> <p>docker-compose.yml ollama 部分則可修改如下：</p> <pre><code>  ollama:
+volumes:
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: unless-stopped
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+networks:
+- ollama-docker
+deploy:
+resources:
+reservations:
+devices:
+- driver: nvidia
+count: 1
+capabilities: [gpu]
+</code></pre> <p>準備好 docker-comopse.yml，在有安裝 Docker 的主機執行 <code>docker-compose up -d</code>，容器啟動後下載執行後便可連上 <code>http://localhost:8080/</code> 進入 Open WebUI。介面需要登入，Sign Up 輸入姓名、Email (隨便敲) 及密碼註冊，第一位註冊的使用者會成為管理者，接著如下圖輸入模型名稱按 Pull &lt;domain-name&gt; from Ollama.com 就會自動下載安裝模型，稍後便可跟它愉快聊天。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638484442614218826.png"></p> <p>若不確定模型名稱，可在 <a href="https://ollama.com">https://ollama.com</a> 輸入關鍵字查詢，例如，輸入 breeze-7b 可查到聯發科集團聯發創新基地釋出的繁體中文強化 LLM - <a href="https://huggingface.co/MediaTek-Research/Breeze-7B-Instruct-v0_1"><code>breeze-7b-instruct-v1_0</code></a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638484442617336219.png"></p> <p>小試一下它知不知道何謂「專業的五樓」，驗證 Breeze 是地端的在地 LLM 無誤，呵。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638484442620901794.png"></p> <p data-slug="ollam-open-webui" data-fbimg="https://i.imgur.com/reCYdY5.png#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>不久前發現不需要 GPU 也能在本機跑 LLM 模型的 <a href="/blog/llama-cpp/">llama.cpp</a>，接著如雨後春筍冒出一堆好用地端 LLM 整合平台或工具，例如：可一個指令下載安裝跑 LLM 的 Ollama (延伸閱讀：<a href="https://blog.miniasp.com/post/2024/03/04/Useful-tool-Ollama">介紹好用工具：Ollama 快速在本地啟動並執行大型語言模型 by 保哥</a>)，還有為 Ollama 加上 GUI 介面，連指令都不用敲就能架個 LLM 跟你聊天的 <a href="https://github.com/open-webui/open-webui">Open WebUI</a>(原 Ollama WebUI 改版)。複雜繁瑣的地端 LLM 架設工作簡化到像傻瓜相機一樣簡便，稍具概念便能上手。(小朋友：傻瓜相機是什麼？)</p> <p>要懶就賴到最高點，裝 Ollama 用 Docker 容器跑比安裝方便，而 Open WebUI 需搭配 Ollama 運行，一次跑兩個容器當然是用 <a href="/blog/aspnetcore-docker-notes-2/">Docker Compose</a> 做成同綁包更省事。</p> <p>在 Github 找到網友寫的 <a href="https://github.com/valiantlynx/ollama-docker">Docker Compose 版本</a>，但它多跑一個 App 容器放了簡單的 Pynthon 導引網站，對我來說是多餘的。另外，它還在用 Ollama WebUI，也該改成新版 Open WebUI，於是我改寫成以下的 docker-compose.yml：</p> <pre><code>version: '3.8'
+services:
+ollama:
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+volumes:
+- .:/code
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: always
+networks:
+- ollama-docker
+open-webui:
+image: ghcr.io/open-webui/open-webui:main
+container_name: open-webui
+volumes:
+- ./ollama/open-webui:/app/backend/data
+depends_on:
+- ollama
+ports:
+- 8080:8080
+environment:
+- '/ollama/api=http://ollama:11434/api'
+extra_hosts:
+- host.docker.internal:host-gateway
+restart: unless-stopped
+networks:
+- ollama-docker
+networks:
+ollama-docker:
+external: false
+</code></pre> <p>註：上述範例是 CPU 版本，若你有 Nvidia 顯卡想用 GPU 加速，可參考專案說明，執行以下程序安裝 CUDA 支援並測試：</p> <pre><code>curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+&amp;&amp; curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+# Configure NVIDIA Container Toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+# Test GPU integration
+docker run --gpus all nvidia/cuda:11.5.2-base-ubuntu20.04 nvidia-smi
+</code></pre> <p>docker-compose.yml ollama 部分則可修改如下：</p> <pre><code>  ollama:
+volumes:
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: unless-stopped
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+networks:
+- ollama-docker
+deploy:
+resources:
+reservations:
+devices:
+- driver: nvidia
+count: 1
+capabilities: [gpu]
+</code></pre> <p>準備好 docker-comopse.yml，在有安裝 Docker 的主機執行 <code>docker-compose up -d</code>，容器啟動後下載執行後便可連上 <code>http://localhost:8080/</code> 進入 Open WebUI。介面需要登入，Sign Up 輸入姓名、Email (隨便敲) 及密碼註冊，第一位註冊的使用者會成為管理者，接著如下圖輸入模型名稱按 Pull &lt;domain-name&gt; from Ollama.com 就會自動下載安裝模型，稍後便可跟它愉快聊天。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638484442614218826.png"></p> <p>若不確定模型名稱，可在 <a href="https://ollama.com">https://ollama.com</a> 輸入關鍵字查詢，例如，輸入 breeze-7b 可查到聯發科集團聯發創新基地釋出的繁體中文強化 LLM - <a href="https://huggingface.co/MediaTek-Research/Breeze-7B-Instruct-v0_1"><code>breeze-7b-instruct-v1_0</code></a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638484442617336219.png"></p> <p>小試一下它知不知道何謂「專業的五樓」，驗證 Breeze 是地端的在地 LLM 無誤，呵。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638484442620901794.png"></p> <p data-slug="ollam-open-webui" data-fbimg="https://i.imgur.com/reCYdY5.png#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>不久前發現不需要 GPU 也能在本機跑 LLM 模型的 <a href="/blog/llama-cpp/">llama.cpp</a>，接著如雨後春筍冒出一堆好用地端 LLM 整合平台或工具，例如：可一個指令下載安裝跑 LLM 的 Ollama (延伸閱讀：<a href="https://blog.miniasp.com/post/2024/03/04/Useful-tool-Ollama">介紹好用工具：Ollama 快速在本地啟動並執行大型語言模型 by 保哥</a>)，還有為 Ollama 加上 GUI 介面，連指令都不用敲就能架個 LLM 跟你聊天的 <a href="https://github.com/open-webui/open-webui">Open WebUI</a>(原 Ollama WebUI 改版)。複雜繁瑣的地端 LLM 架設工作簡化到像傻瓜相機一樣簡便，稍具概念便能上手。(小朋友：傻瓜相機是什麼？)</p> <p>要懶就賴到最高點，裝 Ollama 用 Docker 容器跑比安裝方便，而 Open WebUI 需搭配 Ollama 運行，一次跑兩個容器當然是用 <a href="/blog/aspnetcore-docker-notes-2/">Docker Compose</a> 做成同綁包更省事。</p> <p>在 Github 找到網友寫的 <a href="https://github.com/valiantlynx/ollama-docker">Docker Compose 版本</a>，但它多跑一個 App 容器放了簡單的 Pynthon 導引網站，對我來說是多餘的。另外，它還在用 Ollama WebUI，也該改成新版 Open WebUI，於是我改寫成以下的 docker-compose.yml：</p> <pre><code>version: '3.8'
+services:
+ollama:
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+volumes:
+- .:/code
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: always
+networks:
+- ollama-docker
+open-webui:
+image: ghcr.io/open-webui/open-webui:main
+container_name: open-webui
+volumes:
+- ./ollama/open-webui:/app/backend/data
+depends_on:
+- ollama
+ports:
+- 8080:8080
+environment:
+- '/ollama/api=http://ollama:11434/api'
+extra_hosts:
+- host.docker.internal:host-gateway
+restart: unless-stopped
+networks:
+- ollama-docker
+networks:
+ollama-docker:
+external: false
+</code></pre> <p>註：上述範例是 CPU 版本，若你有 Nvidia 顯卡想用 GPU 加速，可參考專案說明，執行以下程序安裝 CUDA 支援並測試：</p> <pre><code>curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+&amp;&amp; curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+# Configure NVIDIA Container Toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+# Test GPU integration
+docker run --gpus all nvidia/cuda:11.5.2-base-ubuntu20.04 nvidia-smi
+</code></pre> <p>docker-compose.yml ollama 部分則可修改如下：</p> <pre><code>  ollama:
+volumes:
+- ./ollama/ollama:/root/.ollama
+container_name: ollama
+pull_policy: always
+tty: true
+restart: unless-stopped
+image: ollama/ollama:latest
+ports:
+- 11434:11434
+networks:
+- ollama-docker
+deploy:
+resources:
+reservations:
+devices:
+- driver: nvidia
+count: 1
+capabilities: [gpu]
+</code></pre> <p>準備好 docker-comopse.yml，在有安裝 Docker 的主機執行 <code>docker-compose up -d</code>，容器啟動後下載執行後便可連上 <code>http://localhost:8080/</code> 進入 Open WebUI。介面需要登入，Sign Up 輸入姓名、Email (隨便敲) 及密碼註冊，第一位註冊的使用者會成為管理者，接著如下圖輸入模型名稱按 Pull &lt;domain-name&gt; from Ollama.com 就會自動下載安裝模型，稍後便可跟它愉快聊天。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638484442614218826.png"></p> <p>若不確定模型名稱，可在 <a href="https://ollama.com">https://ollama.com</a> 輸入關鍵字查詢，例如，輸入 breeze-7b 可查到聯發科集團聯發創新基地釋出的繁體中文強化 LLM - <a href="https://huggingface.co/MediaTek-Research/Breeze-7B-Instruct-v0_1"><code>breeze-7b-instruct-v1_0</code></a>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638484442617336219.png"></p> <p>小試一下它知不知道何謂「專業的五樓」，驗證 Breeze 是地端的在地 LLM 無誤，呵。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638484442620901794.png"></p> <p data-slug="ollam-open-webui" data-fbimg="https://i.imgur.com/reCYdY5.png#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638484442614218826.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638484442614218826.png" medium="image"/>
+    <pubDate>Thu, 11 Apr 2024 14:56:39 GMT</pubDate>
+  </item><item>
     <title><![CDATA[不專業整理 - A100 / RTX 6000 / 4090 價格與 LLM 效能數據]]></title>
     <link>https://blog.darkthread.net/blog/gpu-4-llm-price-n-performance/</link>
     <itunes:title><![CDATA[不專業整理 - A100 / RTX 6000 / 4090 價格與 LLM 效能數據]]></itunes:title>
@@ -587,260 +794,5 @@ ports:
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638474676990120016.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638474676990120016.png" medium="image"/>
     <pubDate>Sun, 31 Mar 2024 07:40:56 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[Coding4Fun - PDF 投影片兩張一頁排版列印]]></title>
-    <link>https://blog.darkthread.net/blog/slide-pdf-printing/</link>
-    <itunes:title><![CDATA[Coding4Fun - PDF 投影片兩張一頁排版列印]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
-using PdfSharp;
-using PdfSharp.Charting;
-using PdfSharp.Drawing;
-using PdfSharp.Fonts;
-using PdfSharp.Pdf;
-using PdfSharp.Pdf.IO;
-using PdfSharp.Snippets.Font;
-string filename = "D:\\Source.pdf";
-// 建立輸出 PDF 文件
-PdfDocument outputDocument = new PdfDocument();
-// 設定開啟 PDF 時顯示單頁
-outputDocument.PageLayout = PdfPageLayout.SinglePage;
-XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
-XStringFormat format = new XStringFormat();
-format.Alignment = XStringAlignment.Center;
-format.LineAlignment = XLineAlignment.Far;
-XGraphics gfx;
-XRect box;
-// 開啟來源 PDF 文件
-XPdfForm form = XPdfForm.FromFile(filename);
-// 指定 PDF 邊界
-var outCurPageNo = 1;
-// 指定裝訂邊界
-double bindingMargin = 18;
-double margin = 20;
-double leftMargin = 0;
-for (int idx = 0; idx &lt; form.PageCount; idx += 2)
-{
-// 建立新頁，直式放入兩頁橫式投影片頁
-PdfPage page = outputDocument.AddPage();
-page.Size = PageSize.A4;
-page.Orientation = PageOrientation.Portrait;
-double width = page.Width;
-double height = page.Height;
-// 左邊界 (保留打孔裝訂空間)
-// 單數頁偏右，雙數頁偏左
-leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
-gfx = XGraphics.FromPdfPage(page);
-// 切換來源 PDF 文件的頁數
-form.PageNumber = idx + 1;
-// 決定擺放位置及尺寸
-double scaleRatio = (width - bindingMargin - margin - margin) / width;
-var heightOffset = height / 2 * (1 - scaleRatio);
-box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
-// 將來源 PDF 文件的頁面畫到新頁上
-gfx.DrawImage(form, box);
-// 繪製投影片邊框
-gfx.DrawRectangle(XPens.DarkGray, box);
-// 若還有次頁
-if (idx + 1 &lt; form.PageCount)
-{
-// 將次頁畫在下半部
-form.PageNumber = idx + 2;
-box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
-gfx.DrawImage(form, box);
-gfx.DrawRectangle(XPens.DarkGray, box);
-}
-// 繪製打孔位置
-var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
-var ppcmY = height / (29.7 - 1.2);
-var pgNoX = 0;
-if (outCurPageNo % 2 == 1)
-{
-var y = ppcmY * (2.8 - 0.6);
-var holeSize = Convert.ToInt32(0.6 * ppcmX);
-for (var i = 0; i &lt; 4; i++)
-{
-gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
-(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
-holeSize, holeSize), 0, 360);
-}
-pgNoX = Convert.ToInt32(width - 65);
-}
-gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
-new XRect(pgNoX, height - 40, 65, 30), format);
-outCurPageNo++;
-}
-filename = "D:\\Final.pdf";
-outputDocument.Save(filename);
-</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
-using PdfSharp;
-using PdfSharp.Charting;
-using PdfSharp.Drawing;
-using PdfSharp.Fonts;
-using PdfSharp.Pdf;
-using PdfSharp.Pdf.IO;
-using PdfSharp.Snippets.Font;
-string filename = "D:\\Source.pdf";
-// 建立輸出 PDF 文件
-PdfDocument outputDocument = new PdfDocument();
-// 設定開啟 PDF 時顯示單頁
-outputDocument.PageLayout = PdfPageLayout.SinglePage;
-XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
-XStringFormat format = new XStringFormat();
-format.Alignment = XStringAlignment.Center;
-format.LineAlignment = XLineAlignment.Far;
-XGraphics gfx;
-XRect box;
-// 開啟來源 PDF 文件
-XPdfForm form = XPdfForm.FromFile(filename);
-// 指定 PDF 邊界
-var outCurPageNo = 1;
-// 指定裝訂邊界
-double bindingMargin = 18;
-double margin = 20;
-double leftMargin = 0;
-for (int idx = 0; idx &lt; form.PageCount; idx += 2)
-{
-// 建立新頁，直式放入兩頁橫式投影片頁
-PdfPage page = outputDocument.AddPage();
-page.Size = PageSize.A4;
-page.Orientation = PageOrientation.Portrait;
-double width = page.Width;
-double height = page.Height;
-// 左邊界 (保留打孔裝訂空間)
-// 單數頁偏右，雙數頁偏左
-leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
-gfx = XGraphics.FromPdfPage(page);
-// 切換來源 PDF 文件的頁數
-form.PageNumber = idx + 1;
-// 決定擺放位置及尺寸
-double scaleRatio = (width - bindingMargin - margin - margin) / width;
-var heightOffset = height / 2 * (1 - scaleRatio);
-box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
-// 將來源 PDF 文件的頁面畫到新頁上
-gfx.DrawImage(form, box);
-// 繪製投影片邊框
-gfx.DrawRectangle(XPens.DarkGray, box);
-// 若還有次頁
-if (idx + 1 &lt; form.PageCount)
-{
-// 將次頁畫在下半部
-form.PageNumber = idx + 2;
-box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
-gfx.DrawImage(form, box);
-gfx.DrawRectangle(XPens.DarkGray, box);
-}
-// 繪製打孔位置
-var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
-var ppcmY = height / (29.7 - 1.2);
-var pgNoX = 0;
-if (outCurPageNo % 2 == 1)
-{
-var y = ppcmY * (2.8 - 0.6);
-var holeSize = Convert.ToInt32(0.6 * ppcmX);
-for (var i = 0; i &lt; 4; i++)
-{
-gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
-(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
-holeSize, holeSize), 0, 360);
-}
-pgNoX = Convert.ToInt32(width - 65);
-}
-gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
-new XRect(pgNoX, height - 40, 65, 30), format);
-outCurPageNo++;
-}
-filename = "D:\\Final.pdf";
-outputDocument.Save(filename);
-</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>近年來愈來愈多的投影片會採用 PDF 格式提供，我想整理成一張 A4 紙兩頁，雙面列印，用 4 孔夾裝冊。每張投影片希望加上邊框，配合裝訂孔要單數頁右靠、雙數頁右靠，頁碼也依單雙頁放在右下角或左下角。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"></p> <p>這需求有些龜毛，我猜有現成軟體或印表機功能可實現，但我實在懶得花時間找，加上前陣子<a href="/blog/pdfsharp/">剛學了 PdfSharp</a>，就把它當題目練手感吧~</p> <p>很幸運有找到<a href="https://www.pdfsharp.net/wiki/TwoPagesOnOne-sample.ashx">兩頁直式 A4 排進一頁橫式 A4 的官方範例</a>，從中學會 gfx.DrawImage(XForm, XRectBox) 的技巧，在 PdfSharp 中，<a href="https://www.pdfsharp.net/wiki/Form_Objects.ashx">Form 物件</a>可將一堆圖形、文字、圖片及其他 Form 物件視為一個集合，將整塊內容繪製到指定的矩形範圍，實現複製或縮放整頁內容，配合一些簡單的邊界、尺寸計算，依輸出結果校正打孔位置，一個 100% 客製化的投影片排版程式就完成了：</p> <pre><code>using System.Drawing.Printing;
-using PdfSharp;
-using PdfSharp.Charting;
-using PdfSharp.Drawing;
-using PdfSharp.Fonts;
-using PdfSharp.Pdf;
-using PdfSharp.Pdf.IO;
-using PdfSharp.Snippets.Font;
-string filename = "D:\\Source.pdf";
-// 建立輸出 PDF 文件
-PdfDocument outputDocument = new PdfDocument();
-// 設定開啟 PDF 時顯示單頁
-outputDocument.PageLayout = PdfPageLayout.SinglePage;
-XFont font = new XFont("Tahoma", 12, XFontStyleEx.Bold);
-XStringFormat format = new XStringFormat();
-format.Alignment = XStringAlignment.Center;
-format.LineAlignment = XLineAlignment.Far;
-XGraphics gfx;
-XRect box;
-// 開啟來源 PDF 文件
-XPdfForm form = XPdfForm.FromFile(filename);
-// 指定 PDF 邊界
-var outCurPageNo = 1;
-// 指定裝訂邊界
-double bindingMargin = 18;
-double margin = 20;
-double leftMargin = 0;
-for (int idx = 0; idx &lt; form.PageCount; idx += 2)
-{
-// 建立新頁，直式放入兩頁橫式投影片頁
-PdfPage page = outputDocument.AddPage();
-page.Size = PageSize.A4;
-page.Orientation = PageOrientation.Portrait;
-double width = page.Width;
-double height = page.Height;
-// 左邊界 (保留打孔裝訂空間)
-// 單數頁偏右，雙數頁偏左
-leftMargin = outCurPageNo % 2 == 1 ? bindingMargin + margin : margin;
-gfx = XGraphics.FromPdfPage(page);
-// 切換來源 PDF 文件的頁數
-form.PageNumber = idx + 1;
-// 決定擺放位置及尺寸
-double scaleRatio = (width - bindingMargin - margin - margin) / width;
-var heightOffset = height / 2 * (1 - scaleRatio);
-box = new XRect(leftMargin, heightOffset * 2 / 3, width * scaleRatio, height / 2 * scaleRatio);
-// 將來源 PDF 文件的頁面畫到新頁上
-gfx.DrawImage(form, box);
-// 繪製投影片邊框
-gfx.DrawRectangle(XPens.DarkGray, box);
-// 若還有次頁
-if (idx + 1 &lt; form.PageCount)
-{
-// 將次頁畫在下半部
-form.PageNumber = idx + 2;
-box = new XRect(leftMargin, height / 2 + (heightOffset / 3), width * scaleRatio, height / 2 * scaleRatio);
-gfx.DrawImage(form, box);
-gfx.DrawRectangle(XPens.DarkGray, box);
-}
-// 繪製打孔位置
-var ppcmX = width / (21.1 - 0.8); // A4 尺寸需扣除印表機無法印到的部分
-var ppcmY = height / (29.7 - 1.2);
-var pgNoX = 0;
-if (outCurPageNo % 2 == 1)
-{
-var y = ppcmY * (2.8 - 0.6);
-var holeSize = Convert.ToInt32(0.6 * ppcmX);
-for (var i = 0; i &lt; 4; i++)
-{
-gfx.DrawPie(XPens.Black, new System.Drawing.RectangleF(
-(float)(ppcmX * 0.3), (float)(i * 8 * ppcmY + y),
-holeSize, holeSize), 0, 360);
-}
-pgNoX = Convert.ToInt32(width - 65);
-}
-gfx.DrawString("P." + outCurPageNo, font, XBrushes.Black,
-new XRect(pgNoX, height - 40, 65, 30), format);
-outCurPageNo++;
-}
-filename = "D:\\Final.pdf";
-outputDocument.Save(filename);
-</code></pre> <p>成功!</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638474042300890288.jpg"></p> <p>題外話，家裡印表機的列印品質愈來愈差(顏色變淡、模糊化)，懷疑是感光鼓壞了，猶豫要不要賭一把換看看，有人有相關經驗可分享嗎？</p> <p data-slug="slide-pdf-printing" data-fbimg="https://cdn.pixabay.com/photo/2014/12/31/19/54/machine-585262_640.jpg#960#640"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638474042298790427.png" medium="image"/>
-    <pubDate>Sat, 30 Mar 2024 14:01:36 GMT</pubDate>
   </item></channel>
 </rss>
