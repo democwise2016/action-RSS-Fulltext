@@ -30,6 +30,366 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[Qdrant 向量資料庫基本練習]]></title>
+    <link>https://blog.darkthread.net/blog/qdrant-w-cs/</link>
+    <itunes:title><![CDATA[Qdrant 向量資料庫基本練習]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>昨天看了一輪<a href="/blog/vector-db-survey/">常見的向量資料庫</a>，Rust 開發，<a href="https://qdrant.tech/benchmarks/">強調效能</a>支援 Docker 執行的 <a href="https://qdrant.tech/">Qdrant</a> 深得我心。這篇將練習用 C# 寫入向量資料到 Qdrant 並進行向量相似性搜索，開始前需要對 Embedding、向量相似性等有概念，還不清楚的同學推薦前幾天的<a href="/blog/vector-db-concept/">向量資料庫概念科普影片</a>，而這次會借用之前<a href="/blog/text-embedding-ada-002-lab/">使用 OpenAI Embedding 模型比對文字相似性</a>範例，主要不同在於上回我們是自己寫演算法，所有向量兩兩相比暴力搜尋，用餘弦相似性找出最相近的資料，實務上要面對成千上萬甚至億級資料，得改用 HNSW 等演算法才符合效率要求。有了向量資料庫，我們只需寫入向量內容，如何實現有效率儲存、查詢，閃開讓專業的來準沒錯。</p> <p>第一步先建立一個 Docker 容器跑 Qdrant 服務。</p> <p>Qdrant 的<a href="https://qdrant.tech/documentation/quick-start/">說明文件</a>完整，對初學者十分友善。我選擇用 Docker Compose 執行，官方文件有 <a href="https://qdrant.tech/documentation/guides/installation/#docker-compose">docker-compose.yml 範例</a>：(註：其中用到 configs，需要 Docker Engine v25+、Docker Desktop v4.26+ 版本)</p> <pre><code>services:
+qdrant:
+image: qdrant/qdrant:latest
+restart: always
+container_name: qdrant
+ports:
+- 6333:6333
+- 6334:6334
+expose:
+- 6333
+- 6334
+- 6335
+configs:
+- source: qdrant_config
+target: /qdrant/config/production.yaml
+volumes:
+- ./qdrant_data:/qdrant_data
+configs:
+qdrant_config:
+content: |
+log_level: INFO
+</code></pre> <p>執行 <code>docker-compose up -d</code>，啟動後由 <code>http://localhost:6333/dashboard</code> 可進入管理介面，可檢視存入的資料，並有 Console 可以測試查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638485566428302043.png"></p> <p>Qdrant 有提供 C# 程式庫 - <a href="https://github.com/qdrant/qdrant-dotnet">Qdrant.Client</a>，在專案 <code>dotnet add package Qdrant.Client</code> 從 NuGet 安裝後用 <code>var client = new QdrantClient("localhost");</code> 建立客戶端就可以開始玩了。(提醒：實務應用需啟用 API Key 認證及 TLS 加密傳輸)</p> <p>我的示範程式如下：</p> <pre><code>using Azure;
+using Azure.AI.OpenAI;
+using Qdrant.Client;
+using Qdrant.Client.Grpc;
+using GrpcCond = Qdrant.Client.Grpc.Conditions;
+var keywd = args.Any() ? args[0] : "向量";
+#region OpenAI Embedding API
+// 加密版環境變數 https://blog.darkthread.net/blog/secure-apikey-for-console-app/
+var endPoint = ProtectedEnvironmentVariables.Get("SK_EndPoint", true);
+var apiKey = ProtectedEnvironmentVariables.Get("SK_ApiKey", true);
+AzureKeyCredential credentials = new(apiKey);
+OpenAIClient openAIClient = new(new Uri(endPoint), credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+#endregion
+// 實務上應使用 API Key 驗證，此處省略
+var client = new QdrantClient("localhost");
+var colName = "text_embedding";
+// 若集合不存在，則建立集合
+var chkCol = await client.CollectionExistsAsync(colName);
+if (!chkCol)
+{
+await client.CreateCollectionAsync(colName,
+new VectorParams { Size = 1536, Distance = Distance.Cosine });
+}
+// 若集合內無資料，則新增資料
+var count = await client.CountAsync(colName);
+if (count == 0)
+{
+var texts = new string[] {
+"詩歌\t我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"詩歌\t如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"詩歌\t我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"醫療\t我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"醫療\t當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"資訊\t內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"資訊\t每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+ulong i = 0;
+var points = texts.Select(t =&gt;
+{
+var p = t.Split('\t');
+var catg = p[0];
+var text = p[1];
+return new PointStruct
+{
+Id = (ulong)i++,
+Vectors = GetEmbedding(text),
+Payload =
+{
+["catg"] = catg,
+["text"] = text
+}
+};
+}).ToList();
+var updateResult = await client.UpsertAsync(colName, points);
+}
+// 將查詢語句轉換為向量
+var queryVector = GetEmbedding(keywd);
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine($"# 查詢：{keywd}");
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度, TOP 5)");
+Console.ResetColor();
+Func&lt;string, string&gt; ellipsis = (text) =&gt; text.Length &gt; 32 ? text.Substring(0, 30) + "..." : text;
+var top5 = await client.SearchAsync(
+colName,
+queryVector,
+limit: 5);
+int rank = 1;
+foreach (var p in top5)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {p.Payload["catg"].StringValue} {ellipsis(p.Payload["text"].StringValue)}");
+}
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度 + 限定詩歌類, TOP 3)");
+Console.ResetColor();
+var top3poem = await client.SearchAsync(
+colName,
+queryVector,
+filter: Conditions.MatchText("catg", "詩歌"),
+limit: 3);
+rank = 1;
+foreach (var p in top3poem)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {ellipsis(p.Payload["text"].StringValue)}");
+}
+</code></pre> <p>桯式呼叫 OpenAI text-embedding-ada-002 模型將文字向量化，並使用先前分享的<a href="/blog/secure-apikey-for-console-app/">環境變數無腦加密技巧</a>保存 Azure API Key。建立 QdrantClient 後先檢查是否已建立名為 text_embedding 的集合，若無則新增集合，指定向量維度 1536 (OpenAI 規格)、用餘弦函數計算距離；再來檢查集合中是否有資料，若無則將上回範例的七段文字向量化存入。為了測試屬性篩選，我為每段文字加了類別，在新增資料點時，與內文一起作為 Payload 資料寫入。</p> <p>測試部分則將查詢語句向量化當成參數傳入 .Search()，找出最相近的五筆內容，顯示其 Score (愈相似分數愈高)，並由 Payload 取出類別及文字內容顯示。最後在查詢時限定類別為詩歌的篩選功能，完成整段測試。</p> <p>以下是胡亂測試結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638485566432956108.png"></p> <p>第一句問消化機制，前兩筆有命中，但其他無關內容也算得出 Score，可以排名，當資料有限時，硬抓前幾名有可能前幾名會混入無關內容，一般需配合 BM25、TF-IDF 等演算法讓結果更精確。第三個測試很有趣，查超司牛肉堡，我達達的馬蹄排名在血糖文之前，猜想是"牛"與"馬"的語意相似性推了一把。由此可知，向量比對可捕捉相近語意的特性，可彌補關鍵字比對必須文字吻合的侷限性，但也容易混入無關內容，在實作 RAG 時，如何提高搜索精準度也是門大學問。</p> <p data-slug="qdrant-w-cs" data-title-en="Qdrant C# tutorial" data-catg="C#" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A C# tutorial for Qdrant to create collection, store embedding vectors and query.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>昨天看了一輪<a href="/blog/vector-db-survey/">常見的向量資料庫</a>，Rust 開發，<a href="https://qdrant.tech/benchmarks/">強調效能</a>支援 Docker 執行的 <a href="https://qdrant.tech/">Qdrant</a> 深得我心。這篇將練習用 C# 寫入向量資料到 Qdrant 並進行向量相似性搜索，開始前需要對 Embedding、向量相似性等有概念，還不清楚的同學推薦前幾天的<a href="/blog/vector-db-concept/">向量資料庫概念科普影片</a>，而這次會借用之前<a href="/blog/text-embedding-ada-002-lab/">使用 OpenAI Embedding 模型比對文字相似性</a>範例，主要不同在於上回我們是自己寫演算法，所有向量兩兩相比暴力搜尋，用餘弦相似性找出最相近的資料，實務上要面對成千上萬甚至億級資料，得改用 HNSW 等演算法才符合效率要求。有了向量資料庫，我們只需寫入向量內容，如何實現有效率儲存、查詢，閃開讓專業的來準沒錯。</p> <p>第一步先建立一個 Docker 容器跑 Qdrant 服務。</p> <p>Qdrant 的<a href="https://qdrant.tech/documentation/quick-start/">說明文件</a>完整，對初學者十分友善。我選擇用 Docker Compose 執行，官方文件有 <a href="https://qdrant.tech/documentation/guides/installation/#docker-compose">docker-compose.yml 範例</a>：(註：其中用到 configs，需要 Docker Engine v25+、Docker Desktop v4.26+ 版本)</p> <pre><code>services:
+qdrant:
+image: qdrant/qdrant:latest
+restart: always
+container_name: qdrant
+ports:
+- 6333:6333
+- 6334:6334
+expose:
+- 6333
+- 6334
+- 6335
+configs:
+- source: qdrant_config
+target: /qdrant/config/production.yaml
+volumes:
+- ./qdrant_data:/qdrant_data
+configs:
+qdrant_config:
+content: |
+log_level: INFO
+</code></pre> <p>執行 <code>docker-compose up -d</code>，啟動後由 <code>http://localhost:6333/dashboard</code> 可進入管理介面，可檢視存入的資料，並有 Console 可以測試查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638485566428302043.png"></p> <p>Qdrant 有提供 C# 程式庫 - <a href="https://github.com/qdrant/qdrant-dotnet">Qdrant.Client</a>，在專案 <code>dotnet add package Qdrant.Client</code> 從 NuGet 安裝後用 <code>var client = new QdrantClient("localhost");</code> 建立客戶端就可以開始玩了。(提醒：實務應用需啟用 API Key 認證及 TLS 加密傳輸)</p> <p>我的示範程式如下：</p> <pre><code>using Azure;
+using Azure.AI.OpenAI;
+using Qdrant.Client;
+using Qdrant.Client.Grpc;
+using GrpcCond = Qdrant.Client.Grpc.Conditions;
+var keywd = args.Any() ? args[0] : "向量";
+#region OpenAI Embedding API
+// 加密版環境變數 https://blog.darkthread.net/blog/secure-apikey-for-console-app/
+var endPoint = ProtectedEnvironmentVariables.Get("SK_EndPoint", true);
+var apiKey = ProtectedEnvironmentVariables.Get("SK_ApiKey", true);
+AzureKeyCredential credentials = new(apiKey);
+OpenAIClient openAIClient = new(new Uri(endPoint), credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+#endregion
+// 實務上應使用 API Key 驗證，此處省略
+var client = new QdrantClient("localhost");
+var colName = "text_embedding";
+// 若集合不存在，則建立集合
+var chkCol = await client.CollectionExistsAsync(colName);
+if (!chkCol)
+{
+await client.CreateCollectionAsync(colName,
+new VectorParams { Size = 1536, Distance = Distance.Cosine });
+}
+// 若集合內無資料，則新增資料
+var count = await client.CountAsync(colName);
+if (count == 0)
+{
+var texts = new string[] {
+"詩歌\t我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"詩歌\t如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"詩歌\t我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"醫療\t我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"醫療\t當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"資訊\t內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"資訊\t每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+ulong i = 0;
+var points = texts.Select(t =&gt;
+{
+var p = t.Split('\t');
+var catg = p[0];
+var text = p[1];
+return new PointStruct
+{
+Id = (ulong)i++,
+Vectors = GetEmbedding(text),
+Payload =
+{
+["catg"] = catg,
+["text"] = text
+}
+};
+}).ToList();
+var updateResult = await client.UpsertAsync(colName, points);
+}
+// 將查詢語句轉換為向量
+var queryVector = GetEmbedding(keywd);
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine($"# 查詢：{keywd}");
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度, TOP 5)");
+Console.ResetColor();
+Func&lt;string, string&gt; ellipsis = (text) =&gt; text.Length &gt; 32 ? text.Substring(0, 30) + "..." : text;
+var top5 = await client.SearchAsync(
+colName,
+queryVector,
+limit: 5);
+int rank = 1;
+foreach (var p in top5)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {p.Payload["catg"].StringValue} {ellipsis(p.Payload["text"].StringValue)}");
+}
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度 + 限定詩歌類, TOP 3)");
+Console.ResetColor();
+var top3poem = await client.SearchAsync(
+colName,
+queryVector,
+filter: Conditions.MatchText("catg", "詩歌"),
+limit: 3);
+rank = 1;
+foreach (var p in top3poem)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {ellipsis(p.Payload["text"].StringValue)}");
+}
+</code></pre> <p>桯式呼叫 OpenAI text-embedding-ada-002 模型將文字向量化，並使用先前分享的<a href="/blog/secure-apikey-for-console-app/">環境變數無腦加密技巧</a>保存 Azure API Key。建立 QdrantClient 後先檢查是否已建立名為 text_embedding 的集合，若無則新增集合，指定向量維度 1536 (OpenAI 規格)、用餘弦函數計算距離；再來檢查集合中是否有資料，若無則將上回範例的七段文字向量化存入。為了測試屬性篩選，我為每段文字加了類別，在新增資料點時，與內文一起作為 Payload 資料寫入。</p> <p>測試部分則將查詢語句向量化當成參數傳入 .Search()，找出最相近的五筆內容，顯示其 Score (愈相似分數愈高)，並由 Payload 取出類別及文字內容顯示。最後在查詢時限定類別為詩歌的篩選功能，完成整段測試。</p> <p>以下是胡亂測試結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638485566432956108.png"></p> <p>第一句問消化機制，前兩筆有命中，但其他無關內容也算得出 Score，可以排名，當資料有限時，硬抓前幾名有可能前幾名會混入無關內容，一般需配合 BM25、TF-IDF 等演算法讓結果更精確。第三個測試很有趣，查超司牛肉堡，我達達的馬蹄排名在血糖文之前，猜想是"牛"與"馬"的語意相似性推了一把。由此可知，向量比對可捕捉相近語意的特性，可彌補關鍵字比對必須文字吻合的侷限性，但也容易混入無關內容，在實作 RAG 時，如何提高搜索精準度也是門大學問。</p> <p data-slug="qdrant-w-cs" data-title-en="Qdrant C# tutorial" data-catg="C#" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A C# tutorial for Qdrant to create collection, store embedding vectors and query.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>昨天看了一輪<a href="/blog/vector-db-survey/">常見的向量資料庫</a>，Rust 開發，<a href="https://qdrant.tech/benchmarks/">強調效能</a>支援 Docker 執行的 <a href="https://qdrant.tech/">Qdrant</a> 深得我心。這篇將練習用 C# 寫入向量資料到 Qdrant 並進行向量相似性搜索，開始前需要對 Embedding、向量相似性等有概念，還不清楚的同學推薦前幾天的<a href="/blog/vector-db-concept/">向量資料庫概念科普影片</a>，而這次會借用之前<a href="/blog/text-embedding-ada-002-lab/">使用 OpenAI Embedding 模型比對文字相似性</a>範例，主要不同在於上回我們是自己寫演算法，所有向量兩兩相比暴力搜尋，用餘弦相似性找出最相近的資料，實務上要面對成千上萬甚至億級資料，得改用 HNSW 等演算法才符合效率要求。有了向量資料庫，我們只需寫入向量內容，如何實現有效率儲存、查詢，閃開讓專業的來準沒錯。</p> <p>第一步先建立一個 Docker 容器跑 Qdrant 服務。</p> <p>Qdrant 的<a href="https://qdrant.tech/documentation/quick-start/">說明文件</a>完整，對初學者十分友善。我選擇用 Docker Compose 執行，官方文件有 <a href="https://qdrant.tech/documentation/guides/installation/#docker-compose">docker-compose.yml 範例</a>：(註：其中用到 configs，需要 Docker Engine v25+、Docker Desktop v4.26+ 版本)</p> <pre><code>services:
+qdrant:
+image: qdrant/qdrant:latest
+restart: always
+container_name: qdrant
+ports:
+- 6333:6333
+- 6334:6334
+expose:
+- 6333
+- 6334
+- 6335
+configs:
+- source: qdrant_config
+target: /qdrant/config/production.yaml
+volumes:
+- ./qdrant_data:/qdrant_data
+configs:
+qdrant_config:
+content: |
+log_level: INFO
+</code></pre> <p>執行 <code>docker-compose up -d</code>，啟動後由 <code>http://localhost:6333/dashboard</code> 可進入管理介面，可檢視存入的資料，並有 Console 可以測試查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638485566428302043.png"></p> <p>Qdrant 有提供 C# 程式庫 - <a href="https://github.com/qdrant/qdrant-dotnet">Qdrant.Client</a>，在專案 <code>dotnet add package Qdrant.Client</code> 從 NuGet 安裝後用 <code>var client = new QdrantClient("localhost");</code> 建立客戶端就可以開始玩了。(提醒：實務應用需啟用 API Key 認證及 TLS 加密傳輸)</p> <p>我的示範程式如下：</p> <pre><code>using Azure;
+using Azure.AI.OpenAI;
+using Qdrant.Client;
+using Qdrant.Client.Grpc;
+using GrpcCond = Qdrant.Client.Grpc.Conditions;
+var keywd = args.Any() ? args[0] : "向量";
+#region OpenAI Embedding API
+// 加密版環境變數 https://blog.darkthread.net/blog/secure-apikey-for-console-app/
+var endPoint = ProtectedEnvironmentVariables.Get("SK_EndPoint", true);
+var apiKey = ProtectedEnvironmentVariables.Get("SK_ApiKey", true);
+AzureKeyCredential credentials = new(apiKey);
+OpenAIClient openAIClient = new(new Uri(endPoint), credentials);
+Func&lt;string, float[]&gt; GetEmbedding = (text) =&gt;
+{
+EmbeddingsOptions embeddingOptions = new()
+{
+DeploymentName = "embedding",
+Input = { text },
+};
+return openAIClient.GetEmbeddings(embeddingOptions).Value.Data[0].Embedding.ToArray();
+};
+#endregion
+// 實務上應使用 API Key 驗證，此處省略
+var client = new QdrantClient("localhost");
+var colName = "text_embedding";
+// 若集合不存在，則建立集合
+var chkCol = await client.CollectionExistsAsync(colName);
+if (!chkCol)
+{
+await client.CreateCollectionAsync(colName,
+new VectorParams { Size = 1536, Distance = Distance.Cosine });
+}
+// 若集合內無資料，則新增資料
+var count = await client.CountAsync(colName);
+if (count == 0)
+{
+var texts = new string[] {
+"詩歌\t我達達的馬蹄是美麗的錯誤 我不是歸人，是個過客",
+"詩歌\t如何讓你遇見我 在我最美麗的時刻 為這 我已在佛前 求了五百年 求他讓我們結一段塵緣",
+"詩歌\t我們還能不能再見面 我在佛前苦苦求了幾千年 願意用幾世換我們一世情缘 希望可以感動上天",
+"醫療\t我們吃下碳水化合物，消化後將轉為葡萄糖進入血液，血糖上升會刺激胰臟 β 細胞分泌「胰島素」，讓血糖進入細胞給細胞利用，並將多餘血糖合成肝醣儲存到肝臟及肌肉",
+"醫療\t當血糖被消耗，血糖濃度會下降，此時胰臟 α 細胞會分泌「升糖素」，分解肝醣釋出葡萄糖以及糖質新生（把體內其他原料轉變為葡萄糖）提高血糖濃度",
+"資訊\t內嵌是一種特殊的數據表示格式，可供機器學習模型和演算法輕鬆使用。內嵌是文字片段語意意義的資訊密集表示法。",
+"資訊\t每個內嵌都是浮點數的向量，因此，在向量空間中兩個內嵌之間的距離與原始格式兩個輸入之間的語意相似度相互關聯。",
+};
+ulong i = 0;
+var points = texts.Select(t =&gt;
+{
+var p = t.Split('\t');
+var catg = p[0];
+var text = p[1];
+return new PointStruct
+{
+Id = (ulong)i++,
+Vectors = GetEmbedding(text),
+Payload =
+{
+["catg"] = catg,
+["text"] = text
+}
+};
+}).ToList();
+var updateResult = await client.UpsertAsync(colName, points);
+}
+// 將查詢語句轉換為向量
+var queryVector = GetEmbedding(keywd);
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine($"# 查詢：{keywd}");
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度, TOP 5)");
+Console.ResetColor();
+Func&lt;string, string&gt; ellipsis = (text) =&gt; text.Length &gt; 32 ? text.Substring(0, 30) + "..." : text;
+var top5 = await client.SearchAsync(
+colName,
+queryVector,
+limit: 5);
+int rank = 1;
+foreach (var p in top5)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {p.Payload["catg"].StringValue} {ellipsis(p.Payload["text"].StringValue)}");
+}
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"(向量相似度 + 限定詩歌類, TOP 3)");
+Console.ResetColor();
+var top3poem = await client.SearchAsync(
+colName,
+queryVector,
+filter: Conditions.MatchText("catg", "詩歌"),
+limit: 3);
+rank = 1;
+foreach (var p in top3poem)
+{
+Console.WriteLine($"{rank++}. {p.Score:n4} {ellipsis(p.Payload["text"].StringValue)}");
+}
+</code></pre> <p>桯式呼叫 OpenAI text-embedding-ada-002 模型將文字向量化，並使用先前分享的<a href="/blog/secure-apikey-for-console-app/">環境變數無腦加密技巧</a>保存 Azure API Key。建立 QdrantClient 後先檢查是否已建立名為 text_embedding 的集合，若無則新增集合，指定向量維度 1536 (OpenAI 規格)、用餘弦函數計算距離；再來檢查集合中是否有資料，若無則將上回範例的七段文字向量化存入。為了測試屬性篩選，我為每段文字加了類別，在新增資料點時，與內文一起作為 Payload 資料寫入。</p> <p>測試部分則將查詢語句向量化當成參數傳入 .Search()，找出最相近的五筆內容，顯示其 Score (愈相似分數愈高)，並由 Payload 取出類別及文字內容顯示。最後在查詢時限定類別為詩歌的篩選功能，完成整段測試。</p> <p>以下是胡亂測試結果：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638485566432956108.png"></p> <p>第一句問消化機制，前兩筆有命中，但其他無關內容也算得出 Score，可以排名，當資料有限時，硬抓前幾名有可能前幾名會混入無關內容，一般需配合 BM25、TF-IDF 等演算法讓結果更精確。第三個測試很有趣，查超司牛肉堡，我達達的馬蹄排名在血糖文之前，猜想是"牛"與"馬"的語意相似性推了一把。由此可知，向量比對可捕捉相近語意的特性，可彌補關鍵字比對必須文字吻合的侷限性，但也容易混入無關內容，在實作 RAG 時，如何提高搜索精準度也是門大學問。</p> <p data-slug="qdrant-w-cs" data-title-en="Qdrant C# tutorial" data-catg="C#" data-fbimg="https://cdn.pixabay.com/photo/2016/10/18/06/03/run-1749410_960_720.jpg#960#720">A C# tutorial for Qdrant to create collection, store embedding vectors and query.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638485566428302043.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638485566428302043.png" medium="image"/>
+    <pubDate>Fri, 12 Apr 2024 22:10:49 GMT</pubDate>
+  </item><item>
     <title><![CDATA[RAG 基礎 - 常見向量資料庫整理]]></title>
     <link>https://blog.darkthread.net/blog/vector-db-survey/</link>
     <itunes:title><![CDATA[RAG 基礎 - 常見向量資料庫整理]]></itunes:title>
@@ -482,317 +842,5 @@ p.AddLineBreak();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png" medium="image"/>
     <pubDate>Wed, 03 Apr 2024 15:49:56 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[使用 Playwright 打造 HTML 轉 PDF 微服務]]></title>
-    <link>https://blog.darkthread.net/blog/html2pdf-w-playwright/</link>
-    <itunes:title><![CDATA[使用 Playwright 打造 HTML 轉 PDF 微服務]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
-const playwright = require('playwright');
-const fastq = require('fastq');
-const app = express();
-const port = 3000;
-const worker = async (task, callback) =&gt; {
-const browser = await playwright.chromium.launch();
-try {
-const context = await browser.newContext();
-const page = await context.newPage();
-if (task.url) {
-await page.goto(task.url);
-} else if (task.html) {
-await page.setContent(task.html);
-}
-const pdf = await page.pdf();
-callback(null, pdf);
-} catch (error) {
-callback(error);
-}
-finally{
-await browser.close();
-}
-};
-const concurrency = parseInt(process.argv[2]) || 4;
-const queue = fastq(worker, concurrency);
-app.post('/pdf', express.json(), async (req, res) =&gt; {
-const postData = req.body;
-if (!postData.url &amp;&amp; !postData.html) {
-return res.status(400).send('Missing parameter');
-}
-queue.push(postData, (err, result) =&gt; {
-if (err) {
-return res.status(500).send(err.message);
-}
-res.send(result);
-});
-});
-app.listen(port, () =&gt; {
-console.log(`Server running on port ${port}`);
-});
-</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
-const { pipeline } = require('stream/promises');
-const noProgress = process.argv.includes('--no-progress');
-async function generatePDF(jobId, html, pdfPath) {
-const start = process.hrtime.bigint();
-try {
-const response = await fetch('http://localhost:3000/pdf', {
-method: 'POST',
-body: JSON.stringify({ jobId, html }),
-headers: { 'Content-Type': 'application/json' }
-});
-if (!response.ok) {
-throw new Error(`Unexpected response ${response.statusText}`);
-}
-await pipeline(response.body, fs.createWriteStream(pdfPath));
-} catch (err) {
-console.error(err);
-}
-const end = process.hrtime.bigint();
-if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
-}
-if (!fs.existsSync('data')) fs.mkdirSync('data');
-const promises = [];
-const template = fs.readFileSync('template.html', 'utf8');
-const overallStart = process.hrtime.bigint();
-for (let i = 0; i &lt; 100; i++) {
-const promise = new Promise((resolve) =&gt; {
-const seqNo = i;
-setTimeout(() =&gt; {
-const randomNum = Math.floor(Math.random() * 1000);
-const htmlContent = template
-.replace('#Name#', 'User ' + seqNo)
-.replace('#Number#', randomNum);
-resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
-}, 100 * i);
-});
-promises.push(promise);
-}
-Promise.all(promises).then(() =&gt; {
-const overallEnd = process.hrtime.bigint();
-console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
-});
-</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
-const queue = fastq(worker, concurrency);
-</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
-RUN mkdir -p /home/app
-WORKDIR /home/app
-COPY package*.json ./
-RUN npm install
-COPY webapi.js .
-EXPOSE 3000
-CMD ["node", "webapi.js"]
-</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
-services:
-app:
-image: playwright-pdf-svc
-ports:
-- "3000:3000"
-</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
-const playwright = require('playwright');
-const fastq = require('fastq');
-const app = express();
-const port = 3000;
-const worker = async (task, callback) =&gt; {
-const browser = await playwright.chromium.launch();
-try {
-const context = await browser.newContext();
-const page = await context.newPage();
-if (task.url) {
-await page.goto(task.url);
-} else if (task.html) {
-await page.setContent(task.html);
-}
-const pdf = await page.pdf();
-callback(null, pdf);
-} catch (error) {
-callback(error);
-}
-finally{
-await browser.close();
-}
-};
-const concurrency = parseInt(process.argv[2]) || 4;
-const queue = fastq(worker, concurrency);
-app.post('/pdf', express.json(), async (req, res) =&gt; {
-const postData = req.body;
-if (!postData.url &amp;&amp; !postData.html) {
-return res.status(400).send('Missing parameter');
-}
-queue.push(postData, (err, result) =&gt; {
-if (err) {
-return res.status(500).send(err.message);
-}
-res.send(result);
-});
-});
-app.listen(port, () =&gt; {
-console.log(`Server running on port ${port}`);
-});
-</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
-const { pipeline } = require('stream/promises');
-const noProgress = process.argv.includes('--no-progress');
-async function generatePDF(jobId, html, pdfPath) {
-const start = process.hrtime.bigint();
-try {
-const response = await fetch('http://localhost:3000/pdf', {
-method: 'POST',
-body: JSON.stringify({ jobId, html }),
-headers: { 'Content-Type': 'application/json' }
-});
-if (!response.ok) {
-throw new Error(`Unexpected response ${response.statusText}`);
-}
-await pipeline(response.body, fs.createWriteStream(pdfPath));
-} catch (err) {
-console.error(err);
-}
-const end = process.hrtime.bigint();
-if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
-}
-if (!fs.existsSync('data')) fs.mkdirSync('data');
-const promises = [];
-const template = fs.readFileSync('template.html', 'utf8');
-const overallStart = process.hrtime.bigint();
-for (let i = 0; i &lt; 100; i++) {
-const promise = new Promise((resolve) =&gt; {
-const seqNo = i;
-setTimeout(() =&gt; {
-const randomNum = Math.floor(Math.random() * 1000);
-const htmlContent = template
-.replace('#Name#', 'User ' + seqNo)
-.replace('#Number#', randomNum);
-resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
-}, 100 * i);
-});
-promises.push(promise);
-}
-Promise.all(promises).then(() =&gt; {
-const overallEnd = process.hrtime.bigint();
-console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
-});
-</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
-const queue = fastq(worker, concurrency);
-</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
-RUN mkdir -p /home/app
-WORKDIR /home/app
-COPY package*.json ./
-RUN npm install
-COPY webapi.js .
-EXPOSE 3000
-CMD ["node", "webapi.js"]
-</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
-services:
-app:
-image: playwright-pdf-svc
-ports:
-- "3000:3000"
-</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>前陣子講到 <a href="/blog/telerik-pdf-processing/">.NET PDF 文件製作</a>，讀者 fredli 提到 HTML 轉 PDF 缺乏 好用套件。在我心中，HTML 轉 PDF 首推微軟推出的 <a href="/blog/playwright-notes/">Playwright</a>，可選擇 Chromium 引擎，不必擔心 HTML 支援不夠力或渲染邏輯不對(網頁用 Chrome 看不正常，錯的當然是網頁)，而身為 E2E 測試解決方案，我直覺 Playwright 一定能放在伺服器端穩定執行(不然很難配合 CI 運轉)。這個議題挺有趣，於是有了這篇嘗試。</p> <p>查了一下，Playwright 有 <a href="https://playwright.dev/docs/docker">Docker Image</a>，做成微服務快速部署機動管理不成問題，而將其封裝成 WebAPI 裝進容器，在高負載情境時可視需要擴充節點數，配合負載平衡機制，只要預算足，沒有達不到的 Throughput，豈不美哉？</p> <p>Playwright Docker 內建基於 Node.js 的 <code>npx playwright</code> CLI，評估後我決定直接用 Node.js 寫 WebAPI，比額外裝 Runtime 跑 ASP.NET Core 輕巧省事，雖然跟 Node.js 不熟，但有 <a href="/blog/github-copilot-demo/">Github Copiot</a> 在，沒什麼好怕。如果是勇者欣梅爾的話，一定也會選擇用 Node.js 吧。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" alt="thumbnail"></p> <p>由於 Chromium 是以獨立 Process 形式運行，耗用記憶體與 CPU 資源遠比 In-Process 程式庫多，依過去寫 .NET 整合 Word 的<a href="/blog/word-to-pdf/">經驗</a>，最好要限定同時開啟 Chromuium 的數量，避免高請求量時啟動過多 Chromium 耗盡系統資源或因執行緒過多被 Context Switch 拖垮效能。</p> <p>參考 Copilot 建議，我用 <a href="https://developer.mozilla.org/zh-TW/docs/Learn/Server-side/Express_Nodejs">Express 網站框架</a>跑 WebAPI，用 <a href="https://github.com/mcollina/fastq">fastq Work Queue</a>以佇列方式消化 HTML 轉 PDF 請求，使用 Worker 函式從佇列依序取出待轉網頁，呼叫 Playwright 產生 PDF 傳回。fastq 可限制最多同時執行的 Worker 上限，確保系統不會無限制地啟動 Chromium 程序。</p> <p>WebAPI 範例如下，十分簡單，不到 50 行搞定：</p> <pre><code>const express = require('express');
-const playwright = require('playwright');
-const fastq = require('fastq');
-const app = express();
-const port = 3000;
-const worker = async (task, callback) =&gt; {
-const browser = await playwright.chromium.launch();
-try {
-const context = await browser.newContext();
-const page = await context.newPage();
-if (task.url) {
-await page.goto(task.url);
-} else if (task.html) {
-await page.setContent(task.html);
-}
-const pdf = await page.pdf();
-callback(null, pdf);
-} catch (error) {
-callback(error);
-}
-finally{
-await browser.close();
-}
-};
-const concurrency = parseInt(process.argv[2]) || 4;
-const queue = fastq(worker, concurrency);
-app.post('/pdf', express.json(), async (req, res) =&gt; {
-const postData = req.body;
-if (!postData.url &amp;&amp; !postData.html) {
-return res.status(400).send('Missing parameter');
-}
-queue.push(postData, (err, result) =&gt; {
-if (err) {
-return res.status(500).send(err.message);
-}
-res.send(result);
-});
-});
-app.listen(port, () =&gt; {
-console.log(`Server running on port ${port}`);
-});
-</code></pre> <p>/pdf WebAPI 接受 JSON 傳入 url 或 html 參數，將網頁轉成 PDF 傳回。同時並行作業(Concurrent Task)數量上限可由參數控制，方便比較不同並行作業數量的效能表現。</p> <p>接下來要實測效果。我請 ChatGPT 擬草稿，稍微加工做成中獎通知單範本網頁：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638476601533719652.png"></p> <p>測試程式的原理如下，以 0.1 秒一發的頻率呼叫 WebAPI 將 HTML 內容轉成 PDF，總共執行 100 次，再測量生成 100 個 PDF 所需時間。</p> <pre><code>const fs = require('fs');
-const { pipeline } = require('stream/promises');
-const noProgress = process.argv.includes('--no-progress');
-async function generatePDF(jobId, html, pdfPath) {
-const start = process.hrtime.bigint();
-try {
-const response = await fetch('http://localhost:3000/pdf', {
-method: 'POST',
-body: JSON.stringify({ jobId, html }),
-headers: { 'Content-Type': 'application/json' }
-});
-if (!response.ok) {
-throw new Error(`Unexpected response ${response.statusText}`);
-}
-await pipeline(response.body, fs.createWriteStream(pdfPath));
-} catch (err) {
-console.error(err);
-}
-const end = process.hrtime.bigint();
-if (!noProgress) console.log(`${pdfPath} in ${(end - start) / BigInt(1e6)}ms`);
-}
-if (!fs.existsSync('data')) fs.mkdirSync('data');
-const promises = [];
-const template = fs.readFileSync('template.html', 'utf8');
-const overallStart = process.hrtime.bigint();
-for (let i = 0; i &lt; 100; i++) {
-const promise = new Promise((resolve) =&gt; {
-const seqNo = i;
-setTimeout(() =&gt; {
-const randomNum = Math.floor(Math.random() * 1000);
-const htmlContent = template
-.replace('#Name#', 'User ' + seqNo)
-.replace('#Number#', randomNum);
-resolve(generatePDF('Job' + seqNo, htmlContent, 'data/result-' + seqNo + '.pdf'));
-}, 100 * i);
-});
-promises.push(promise);
-}
-Promise.all(promises).then(() =&gt; {
-const overallEnd = process.hrtime.bigint();
-console.log(`Overall time: ${(overallEnd - overallStart) / BigInt(1e6)}ms`);
-});
-</code></pre> <p>同時執行 WebAPI 及客戶端，便能獲得不同並行作業數時的測試數據。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638476601535367112.png"></p> <p>實測 Chromium 轉換一份 PDF 最快約 0.3 ~ 0.4s，但數量一多需排隊消化。而觀察效能瓶頸應卡在 CPU，連續處理時會同時開啟多個 chrome.exe 程序(Chromium 處理單一網頁原本就會啟動多個 Process)，CPU 維持在 98% ~ 100%，此時再增加並行作業數也難以再加快。這個系統架構應該還有不少優化空間，像是不要每次轉 PDF 都重新啟動 Chromium，改為新建 Page 處理請求(但依經驗，長期執行需注意記憶體用量)，應可減少資源消耗加快速度，這篇文章以 PoC 驗證為主，效能優化議題就此打住。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638476601537069995.png"></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638476601538786819.png"></p> <p>以下是在 i5 12500 隨興測試轉 100 個 PDF (每秒執行 10 筆) 的總耗時及平均值。(註：非嚴謹數據，未多次測試求平均，只約略看個趨勢)</p> <table><thead><tr><th>並行作業數</th><th>產生 100 個 PDF 耗時(ms)</th><th>每個 PDF 平均耗時(ms)</th></tr></thead><tbody><tr><td>1</td><td>30,381</td><td>304ms</td></tr><tr><td>2</td><td>19,528</td><td>195ms</td></tr><tr><td>3</td><td>16,836</td><td>168ms</td></tr><tr><td>4</td><td>15,592</td><td>156ms</td></tr><tr><td>5</td><td>14,961</td><td>150ms</td></tr><tr><td>6</td><td>14,388</td><td>144ms</td></tr><tr><td>7</td><td>14,326</td><td>143ms</td></tr><tr><td>8</td><td>14,603</td><td>146ms</td></tr></tbody></table> <p>結論是並行數設成 4 應該就有很不錯效果(平均 150ms 即可轉完一個 PDF)，再增加效果有限。</p> <p>下一步我嘗試將它包成 Docker 當成微服務使用，首先小改程式改從環境變數決定並行作業上限：</p> <pre><code>const concurrency = parseInt(process.env.FASTQ_CONCURRENCY) || 4;
-const queue = fastq(worker, concurrency);
-</code></pre> <p>Dockerfile 內容如下：</p> <pre><code>FROM mcr.microsoft.com/playwright:v1.42.1-jammy
-RUN mkdir -p /home/app
-WORKDIR /home/app
-COPY package*.json ./
-RUN npm install
-COPY webapi.js .
-EXPOSE 3000
-CMD ["node", "webapi.js"]
-</code></pre> <p>用 <code>docker build -t playwright-pdf-svc .</code> 建立 Docker Image，再準備 docker-compose.yml下：</p> <pre><code>version: '3'
-services:
-app:
-image: playwright-pdf-svc
-ports:
-- "3000:3000"
-</code></pre> <p>我找了一台 Azure Debian (B2 VM, 2 vCPU + 4G RAM) 實測，100 個 PDF 不用 20 秒，應付簡單應用沒什麼問題。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638476602491931859.png"></p> <p>由這個結果來看，在普通等級硬體上，簡單網頁轉成 PDF 的時間不到 200ms，這個速度應足以滿足一般的 PDF 轉檔應用，且由於採用 Docker 方式部署，當需要更大 Throughput 可靠增加節點數量簡單實現，是值得考慮的解決方案，列入口袋名單。</p> <p>程式範例我已放上 <a href="https://github.com/darkthread/playwright-html2pdf-svc">Github</a>，有興趣的同學可以 Clone 回去玩看看並分享心得。</p> <p data-slug="html2pdf-w-playwright" data-title-en="A HTML to PDF micro service PoC with Playwright" data-catg="Web Development" data-fbimg="https://cdn.pixabay.com/photo/2019/07/07/18/14/straw-4323010_960_720.jpg#960#720">In this article, I demostrate how to use Playwright and node.js to create a HTML to PDF micro service running in a docker.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638476601532070757.png" medium="image"/>
-    <pubDate>Tue, 02 Apr 2024 13:07:44 GMT</pubDate>
   </item></channel>
 </rss>
