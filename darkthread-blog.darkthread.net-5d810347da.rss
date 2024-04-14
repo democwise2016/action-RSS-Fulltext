@@ -30,6 +30,147 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[.NET 呼叫 Ollama 範例與 CPU 使用率問題]]></title>
+    <link>https://blog.darkthread.net/blog/ollama-cpu-usage-issue/</link>
+    <itunes:title><![CDATA[.NET 呼叫 Ollama 範例與 CPU 使用率問題]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>前幾天介紹過用 Ollama + Open WebUI 跑本地 LLM 的<a href="/blog/ollam-open-webui/">懶人做法</a>，只靠 CPU 速度不甚理想。</p> <p>沒 GPU 學人玩地端 LLM，慢到靠北也是剛好而已。。</p> <p>話雖如此，基於好奇我很想看看若 CPU 核數加倍再加倍，效能會不會有明顯提升，便在 Azure 開了台 48 vCPU VM 短暫小試一下。</p> <p>過程發現一件事，48 核 CPU 使用率最高只到 50% 就止步了，跟想像中所有 CPU 操好操滿不太一樣。如此豈不浪費資源，沒有火力全開？</p> <p>爬文查到不少人也提到 Ollama/llama.cpp 只用到 50% CPU 的問題：(註：Ollama 的底層也是 <a href="/blog/llama-cpp/">llama.cpp</a>)</p> <ul><li><a href="https://github.com/ollama/ollama/issues/2496">almost no RAM usage and only 50% CPU cores used</a></li> <li><a href="https://github.com/ggerganov/llama.cpp/issues/842">Performance e-core bug(?) - only 50% CPU utilization when using all threads - (Win11, Intel 13900k)</a></li></ul> <p>研究了一下，llama.cpp 有個 n_threads 參數可控制開幾條 Thread 跑 LLM 生成，ollama 則是由 <a href="https://www.pacenthink.io/post/understanding-modelfile-in-ollama/">Modelfile 的 num_thread 參數</a> 控制，而我查到一篇<a href="https://github.com/abetlen/llama-cpp-python/issues/89#issuecomment-1512587285">討論</a>，有個 llama.cpp Python 專案使用 <code>self.n_threads = n_threads or max(multiprocessing.cpu_count() // 2, 1)</code> 將 Thread 數設為 CPU 核數的一半，被質疑部分 CPU 閒置未達最佳化，在討論中提到：</p> <blockquote> <ul><li>Most physical systems are hyperthreaded</li> <li>Hyperthreading doesn't seem to improve performance due to the memory I/O bound nature of llama.cpp</li> <li>Might be invalid for VMs</li></ul> <p>This was tested in original llama. C++ implementation already utilities full available compute of physical cores, increasing amount of threads beyond would only to lower performance due to reason mentioned above.</p> </blockquote> <p>大意是說：經實測，llama.cpp 在實作上已充分運用實體核心的算力，且基於 Hyperthreading、Memory I/O Bound、VM 特性等理由，增加 Thread 數對效能並無助益。</p> <p>做個實驗驗證一下。</p> <p>為得到明確效能數字，我打算寫支測試程式呼叫 Ollama API 並計時，藉此機會也練習如何用 C# 整合 Ollama，補齊 RAG 整合地端 LLM 的必要技能。.NET 要連 Ollama 有個開源專案 <a href="https://github.com/awaescher/OllamaSharp">OllamaSharp</a>，<code>dotent add package OllamaSharp</code> 參照程式庫，幾行程式便可搞定。</p> <p>我寫了一個簡單的取關鍵字任務，程式如下：(Prompt 我請 ChatGPT 幫忙調整，比我最早想的版本專業多了)</p> <pre><code>using System.Diagnostics;
+using OllamaSharp;
+var ollama = new OllamaApiClient(new Uri("http://localhost:11434"));
+var prompt = @"As an AI, carefully read the given article and determine the 10 most crucial keywords.
+These should be listed in a string seperated by comma as follows: '1. keyword1, 2. keyword2, 3. keyword3...'.
+Don't give more than 10 keywords and no explanations and additional words are permitted.
+Here is the article:
+""""""
+Understand the Transformer architecture and explore large language models in Azure Machine Learning
+Introduction
+Foundation models, such as GPT-3, are state-of-the-art natural language processing models ... 內容省略
+""""""
+";
+string[] models = ["mistral", "mistral-16t", "mistral-32t", "mistral-47t"];
+foreach (var modelName in models)
+{
+await RunTest(modelName);
+await Task.Delay(10000);
+}
+async Task RunTest(string modelName)
+{
+ollama.SelectedModel = modelName;
+ConversationContext context = null!;
+Console.WriteLine($"Testing model {modelName}...");
+for (int i = 0; i &lt; 3; i++)
+{
+var sw = new Stopwatch();
+sw.Start();
+try
+{
+var resp = await ollama.GetCompletion(prompt, context);
+Console.WriteLine(resp.Response);
+}
+catch (Exception ex)
+{
+Console.WriteLine($"Error: {ex.Message}");
+continue;
+}
+sw.Stop();
+Console.WriteLine($" Run {i} - Time: {sw.ElapsedMilliseconds:n0}ms");
+}
+}
+</code></pre> <p>ollama 部分要透過 Modefile 指定 num_thread 建立不同模型，我先準備類似以下內容存成 Modelfile_mistral_32，使用 <code>ollama create "mistral-32t" -f ./Modelfile-mistral-32</code> 建立名為 <code>mistral-32t</code> 的模型，呼叫 ollama.GetCompletion() 前用 ollama.SelectedModel = modelName 指定使用模型的名稱，便可針對不同 Thread 數的模型進行測試。我在 48 核 VM 上測了不指定(系統自動決定)、16、32、48 四種 Thread 數，每種各跑三次。Linux 伺服器用 <code>sar -u 5</code> 每五秒記錄一次 CPU 使用率。切換不同模型間會休息 10 秒，故應有兩次 CPU 歸零做為區測，實測結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638487031616948247.png"></p> <p>結果完全符合預期數字，不指定 Thread 數時 CPU 使用率 50%；16 Thread 時用了 48 核的 1/3，使用率 32%；32 Thread CPU 65%；47 Thread 95%;</p> <p>那，提高 CPU 使用率，生成速度有變快嗎？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638487031618797226.png"></p> <p>並沒有，使用率 32% 時有略為變慢，但使用率 65% 及 95% 時，秒數並未明顯縮短；另外，切換模型的第一次，花的時間比較久，有可能是多了一切初始化動作。</p> <p>結論：以 mistral 7B 模型為例，Ollama/llama.cpp 預設 CPU 使用率 50% 下的效能表現已接近最佳，刻意調高 Thread 數提高 CPU 使用率無助加快速度，效能瓶頸應在他處。至於背後原因，我暫未查到相關解釋，大家如有相關情資經驗，歡迎分享。</p> <p data-slug="ollama-cpu-usage-issue" data-title-en="Ollama .NET example and CPU usage issue" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1092883/pexels-photo-1092883.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article provides an example of using C# to call Ollama for LLM generation, and through experimental testing, it explores the relationship between CPU usage and LLM generation speed. The results suggest that optimal performance is achieved at 50% CPU usage, eliminating the need to adjust the Thread to increase usage.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>前幾天介紹過用 Ollama + Open WebUI 跑本地 LLM 的<a href="/blog/ollam-open-webui/">懶人做法</a>，只靠 CPU 速度不甚理想。</p> <p>沒 GPU 學人玩地端 LLM，慢到靠北也是剛好而已。。</p> <p>話雖如此，基於好奇我很想看看若 CPU 核數加倍再加倍，效能會不會有明顯提升，便在 Azure 開了台 48 vCPU VM 短暫小試一下。</p> <p>過程發現一件事，48 核 CPU 使用率最高只到 50% 就止步了，跟想像中所有 CPU 操好操滿不太一樣。如此豈不浪費資源，沒有火力全開？</p> <p>爬文查到不少人也提到 Ollama/llama.cpp 只用到 50% CPU 的問題：(註：Ollama 的底層也是 <a href="/blog/llama-cpp/">llama.cpp</a>)</p> <ul><li><a href="https://github.com/ollama/ollama/issues/2496">almost no RAM usage and only 50% CPU cores used</a></li> <li><a href="https://github.com/ggerganov/llama.cpp/issues/842">Performance e-core bug(?) - only 50% CPU utilization when using all threads - (Win11, Intel 13900k)</a></li></ul> <p>研究了一下，llama.cpp 有個 n_threads 參數可控制開幾條 Thread 跑 LLM 生成，ollama 則是由 <a href="https://www.pacenthink.io/post/understanding-modelfile-in-ollama/">Modelfile 的 num_thread 參數</a> 控制，而我查到一篇<a href="https://github.com/abetlen/llama-cpp-python/issues/89#issuecomment-1512587285">討論</a>，有個 llama.cpp Python 專案使用 <code>self.n_threads = n_threads or max(multiprocessing.cpu_count() // 2, 1)</code> 將 Thread 數設為 CPU 核數的一半，被質疑部分 CPU 閒置未達最佳化，在討論中提到：</p> <blockquote> <ul><li>Most physical systems are hyperthreaded</li> <li>Hyperthreading doesn't seem to improve performance due to the memory I/O bound nature of llama.cpp</li> <li>Might be invalid for VMs</li></ul> <p>This was tested in original llama. C++ implementation already utilities full available compute of physical cores, increasing amount of threads beyond would only to lower performance due to reason mentioned above.</p> </blockquote> <p>大意是說：經實測，llama.cpp 在實作上已充分運用實體核心的算力，且基於 Hyperthreading、Memory I/O Bound、VM 特性等理由，增加 Thread 數對效能並無助益。</p> <p>做個實驗驗證一下。</p> <p>為得到明確效能數字，我打算寫支測試程式呼叫 Ollama API 並計時，藉此機會也練習如何用 C# 整合 Ollama，補齊 RAG 整合地端 LLM 的必要技能。.NET 要連 Ollama 有個開源專案 <a href="https://github.com/awaescher/OllamaSharp">OllamaSharp</a>，<code>dotent add package OllamaSharp</code> 參照程式庫，幾行程式便可搞定。</p> <p>我寫了一個簡單的取關鍵字任務，程式如下：(Prompt 我請 ChatGPT 幫忙調整，比我最早想的版本專業多了)</p> <pre><code>using System.Diagnostics;
+using OllamaSharp;
+var ollama = new OllamaApiClient(new Uri("http://localhost:11434"));
+var prompt = @"As an AI, carefully read the given article and determine the 10 most crucial keywords.
+These should be listed in a string seperated by comma as follows: '1. keyword1, 2. keyword2, 3. keyword3...'.
+Don't give more than 10 keywords and no explanations and additional words are permitted.
+Here is the article:
+""""""
+Understand the Transformer architecture and explore large language models in Azure Machine Learning
+Introduction
+Foundation models, such as GPT-3, are state-of-the-art natural language processing models ... 內容省略
+""""""
+";
+string[] models = ["mistral", "mistral-16t", "mistral-32t", "mistral-47t"];
+foreach (var modelName in models)
+{
+await RunTest(modelName);
+await Task.Delay(10000);
+}
+async Task RunTest(string modelName)
+{
+ollama.SelectedModel = modelName;
+ConversationContext context = null!;
+Console.WriteLine($"Testing model {modelName}...");
+for (int i = 0; i &lt; 3; i++)
+{
+var sw = new Stopwatch();
+sw.Start();
+try
+{
+var resp = await ollama.GetCompletion(prompt, context);
+Console.WriteLine(resp.Response);
+}
+catch (Exception ex)
+{
+Console.WriteLine($"Error: {ex.Message}");
+continue;
+}
+sw.Stop();
+Console.WriteLine($" Run {i} - Time: {sw.ElapsedMilliseconds:n0}ms");
+}
+}
+</code></pre> <p>ollama 部分要透過 Modefile 指定 num_thread 建立不同模型，我先準備類似以下內容存成 Modelfile_mistral_32，使用 <code>ollama create "mistral-32t" -f ./Modelfile-mistral-32</code> 建立名為 <code>mistral-32t</code> 的模型，呼叫 ollama.GetCompletion() 前用 ollama.SelectedModel = modelName 指定使用模型的名稱，便可針對不同 Thread 數的模型進行測試。我在 48 核 VM 上測了不指定(系統自動決定)、16、32、48 四種 Thread 數，每種各跑三次。Linux 伺服器用 <code>sar -u 5</code> 每五秒記錄一次 CPU 使用率。切換不同模型間會休息 10 秒，故應有兩次 CPU 歸零做為區測，實測結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638487031616948247.png"></p> <p>結果完全符合預期數字，不指定 Thread 數時 CPU 使用率 50%；16 Thread 時用了 48 核的 1/3，使用率 32%；32 Thread CPU 65%；47 Thread 95%;</p> <p>那，提高 CPU 使用率，生成速度有變快嗎？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638487031618797226.png"></p> <p>並沒有，使用率 32% 時有略為變慢，但使用率 65% 及 95% 時，秒數並未明顯縮短；另外，切換模型的第一次，花的時間比較久，有可能是多了一切初始化動作。</p> <p>結論：以 mistral 7B 模型為例，Ollama/llama.cpp 預設 CPU 使用率 50% 下的效能表現已接近最佳，刻意調高 Thread 數提高 CPU 使用率無助加快速度，效能瓶頸應在他處。至於背後原因，我暫未查到相關解釋，大家如有相關情資經驗，歡迎分享。</p> <p data-slug="ollama-cpu-usage-issue" data-title-en="Ollama .NET example and CPU usage issue" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1092883/pexels-photo-1092883.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article provides an example of using C# to call Ollama for LLM generation, and through experimental testing, it explores the relationship between CPU usage and LLM generation speed. The results suggest that optimal performance is achieved at 50% CPU usage, eliminating the need to adjust the Thread to increase usage.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>前幾天介紹過用 Ollama + Open WebUI 跑本地 LLM 的<a href="/blog/ollam-open-webui/">懶人做法</a>，只靠 CPU 速度不甚理想。</p> <p>沒 GPU 學人玩地端 LLM，慢到靠北也是剛好而已。。</p> <p>話雖如此，基於好奇我很想看看若 CPU 核數加倍再加倍，效能會不會有明顯提升，便在 Azure 開了台 48 vCPU VM 短暫小試一下。</p> <p>過程發現一件事，48 核 CPU 使用率最高只到 50% 就止步了，跟想像中所有 CPU 操好操滿不太一樣。如此豈不浪費資源，沒有火力全開？</p> <p>爬文查到不少人也提到 Ollama/llama.cpp 只用到 50% CPU 的問題：(註：Ollama 的底層也是 <a href="/blog/llama-cpp/">llama.cpp</a>)</p> <ul><li><a href="https://github.com/ollama/ollama/issues/2496">almost no RAM usage and only 50% CPU cores used</a></li> <li><a href="https://github.com/ggerganov/llama.cpp/issues/842">Performance e-core bug(?) - only 50% CPU utilization when using all threads - (Win11, Intel 13900k)</a></li></ul> <p>研究了一下，llama.cpp 有個 n_threads 參數可控制開幾條 Thread 跑 LLM 生成，ollama 則是由 <a href="https://www.pacenthink.io/post/understanding-modelfile-in-ollama/">Modelfile 的 num_thread 參數</a> 控制，而我查到一篇<a href="https://github.com/abetlen/llama-cpp-python/issues/89#issuecomment-1512587285">討論</a>，有個 llama.cpp Python 專案使用 <code>self.n_threads = n_threads or max(multiprocessing.cpu_count() // 2, 1)</code> 將 Thread 數設為 CPU 核數的一半，被質疑部分 CPU 閒置未達最佳化，在討論中提到：</p> <blockquote> <ul><li>Most physical systems are hyperthreaded</li> <li>Hyperthreading doesn't seem to improve performance due to the memory I/O bound nature of llama.cpp</li> <li>Might be invalid for VMs</li></ul> <p>This was tested in original llama. C++ implementation already utilities full available compute of physical cores, increasing amount of threads beyond would only to lower performance due to reason mentioned above.</p> </blockquote> <p>大意是說：經實測，llama.cpp 在實作上已充分運用實體核心的算力，且基於 Hyperthreading、Memory I/O Bound、VM 特性等理由，增加 Thread 數對效能並無助益。</p> <p>做個實驗驗證一下。</p> <p>為得到明確效能數字，我打算寫支測試程式呼叫 Ollama API 並計時，藉此機會也練習如何用 C# 整合 Ollama，補齊 RAG 整合地端 LLM 的必要技能。.NET 要連 Ollama 有個開源專案 <a href="https://github.com/awaescher/OllamaSharp">OllamaSharp</a>，<code>dotent add package OllamaSharp</code> 參照程式庫，幾行程式便可搞定。</p> <p>我寫了一個簡單的取關鍵字任務，程式如下：(Prompt 我請 ChatGPT 幫忙調整，比我最早想的版本專業多了)</p> <pre><code>using System.Diagnostics;
+using OllamaSharp;
+var ollama = new OllamaApiClient(new Uri("http://localhost:11434"));
+var prompt = @"As an AI, carefully read the given article and determine the 10 most crucial keywords.
+These should be listed in a string seperated by comma as follows: '1. keyword1, 2. keyword2, 3. keyword3...'.
+Don't give more than 10 keywords and no explanations and additional words are permitted.
+Here is the article:
+""""""
+Understand the Transformer architecture and explore large language models in Azure Machine Learning
+Introduction
+Foundation models, such as GPT-3, are state-of-the-art natural language processing models ... 內容省略
+""""""
+";
+string[] models = ["mistral", "mistral-16t", "mistral-32t", "mistral-47t"];
+foreach (var modelName in models)
+{
+await RunTest(modelName);
+await Task.Delay(10000);
+}
+async Task RunTest(string modelName)
+{
+ollama.SelectedModel = modelName;
+ConversationContext context = null!;
+Console.WriteLine($"Testing model {modelName}...");
+for (int i = 0; i &lt; 3; i++)
+{
+var sw = new Stopwatch();
+sw.Start();
+try
+{
+var resp = await ollama.GetCompletion(prompt, context);
+Console.WriteLine(resp.Response);
+}
+catch (Exception ex)
+{
+Console.WriteLine($"Error: {ex.Message}");
+continue;
+}
+sw.Stop();
+Console.WriteLine($" Run {i} - Time: {sw.ElapsedMilliseconds:n0}ms");
+}
+}
+</code></pre> <p>ollama 部分要透過 Modefile 指定 num_thread 建立不同模型，我先準備類似以下內容存成 Modelfile_mistral_32，使用 <code>ollama create "mistral-32t" -f ./Modelfile-mistral-32</code> 建立名為 <code>mistral-32t</code> 的模型，呼叫 ollama.GetCompletion() 前用 ollama.SelectedModel = modelName 指定使用模型的名稱，便可針對不同 Thread 數的模型進行測試。我在 48 核 VM 上測了不指定(系統自動決定)、16、32、48 四種 Thread 數，每種各跑三次。Linux 伺服器用 <code>sar -u 5</code> 每五秒記錄一次 CPU 使用率。切換不同模型間會休息 10 秒，故應有兩次 CPU 歸零做為區測，實測結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638487031616948247.png"></p> <p>結果完全符合預期數字，不指定 Thread 數時 CPU 使用率 50%；16 Thread 時用了 48 核的 1/3，使用率 32%；32 Thread CPU 65%；47 Thread 95%;</p> <p>那，提高 CPU 使用率，生成速度有變快嗎？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638487031618797226.png"></p> <p>並沒有，使用率 32% 時有略為變慢，但使用率 65% 及 95% 時，秒數並未明顯縮短；另外，切換模型的第一次，花的時間比較久，有可能是多了一切初始化動作。</p> <p>結論：以 mistral 7B 模型為例，Ollama/llama.cpp 預設 CPU 使用率 50% 下的效能表現已接近最佳，刻意調高 Thread 數提高 CPU 使用率無助加快速度，效能瓶頸應在他處。至於背後原因，我暫未查到相關解釋，大家如有相關情資經驗，歡迎分享。</p> <p data-slug="ollama-cpu-usage-issue" data-title-en="Ollama .NET example and CPU usage issue" data-catg=".NET" data-fbimg="https://images.pexels.com/photos/1092883/pexels-photo-1092883.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;h=750&amp;w=1260#1260#750">This article provides an example of using C# to call Ollama for LLM generation, and through experimental testing, it explores the relationship between CPU usage and LLM generation speed. The results suggest that optimal performance is achieved at 50% CPU usage, eliminating the need to adjust the Thread to increase usage.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638487031616948247.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638487031616948247.png" medium="image"/>
+    <pubDate>Sun, 14 Apr 2024 14:52:18 GMT</pubDate>
+  </item><item>
     <title><![CDATA[Qdrant 向量資料庫基本練習]]></title>
     <link>https://blog.darkthread.net/blog/qdrant-w-cs/</link>
     <itunes:title><![CDATA[Qdrant 向量資料庫基本練習]]></itunes:title>
@@ -827,20 +968,5 @@ p.AddLineBreak();
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png" medium="image"/>
     <pubDate>Fri, 05 Apr 2024 08:11:08 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[黑盒子等級瀏覽器網路問題分析工具 - Chrome/Edge NetLog]]></title>
-    <link>https://blog.darkthread.net/blog/chrome-netlog-dump/</link>
-    <itunes:title><![CDATA[黑盒子等級瀏覽器網路問題分析工具 - Chrome/Edge NetLog]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://www.chromium.org/for-testers/providing-network-details/">NetLog Dump</a> 是一個絕大部分人用不到的 Chrome/Edge 功能，其性質類似俗稱「黑盒子」的<a href="https://zh.wikipedia.org/zh-tw/%E9%A3%9B%E8%A1%8C%E7%B4%80%E9%8C%84%E5%84%80">飛行記錄器</a>。飛機的黑盒子通常會只會在空難或事故時派上用場，而查瀏覽器問題動用到 NetLog Dump，通常意味著你遇上魔王級的刁鑽茶包。</p> <p>啟用 NetLog 的方法很簡單，在網址列輸入 <code>edge://net-export/</code> 或 <code>chrome://net-export/</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png"></p> <p>一般建議選擇 Strip private information，其餘兩個選項會包含到 Cookie 或身分認證資料，處理不當可能導致機密資訊外流(當然，如果你的問題需要分析 Cookie、認證或原始傳輸資料就得啟用，請小心保管 Log 記錄)。按下「Start Logging to Disk」並選取 json 檔路徑，瀏覽器會開始記錄所有網路傳輸細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638477562862013381.png"></p> <p>試著瀏覽網站重現問題，按下「Stop Logging」停止錄製 Log，「Show File」會顯示 json 所在資料夾。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638477562863755666.png"></p> <p>要檢視 Log 內容，可開啟 <code>https://netlog-viewer.appspot.com/#events</code> 網頁，匯入 json 檔 (檔案只會在 瀏覽器端處理，不會上傳到網站)，</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638477562865390415.png"></p> <p>記錄檔保留的內容超級詳細，細到封包等級，基本上可解答關於瀏覽器背後網路動作的所有疑惑。不過，你也得有相關的專業知識才能完整解讀，這些特性還真的跟黑盒子一模一樣。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638477562867222238.png"></p> <p>希望大家上網順利，永遠不需要用到它。</p> <p data-slug="chrome-netlog-dump" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/ModernFlightDataRecorder.jpg/1024px-ModernFlightDataRecorder.jpg#1280#477"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://www.chromium.org/for-testers/providing-network-details/">NetLog Dump</a> 是一個絕大部分人用不到的 Chrome/Edge 功能，其性質類似俗稱「黑盒子」的<a href="https://zh.wikipedia.org/zh-tw/%E9%A3%9B%E8%A1%8C%E7%B4%80%E9%8C%84%E5%84%80">飛行記錄器</a>。飛機的黑盒子通常會只會在空難或事故時派上用場，而查瀏覽器問題動用到 NetLog Dump，通常意味著你遇上魔王級的刁鑽茶包。</p> <p>啟用 NetLog 的方法很簡單，在網址列輸入 <code>edge://net-export/</code> 或 <code>chrome://net-export/</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png"></p> <p>一般建議選擇 Strip private information，其餘兩個選項會包含到 Cookie 或身分認證資料，處理不當可能導致機密資訊外流(當然，如果你的問題需要分析 Cookie、認證或原始傳輸資料就得啟用，請小心保管 Log 記錄)。按下「Start Logging to Disk」並選取 json 檔路徑，瀏覽器會開始記錄所有網路傳輸細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638477562862013381.png"></p> <p>試著瀏覽網站重現問題，按下「Stop Logging」停止錄製 Log，「Show File」會顯示 json 所在資料夾。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638477562863755666.png"></p> <p>要檢視 Log 內容，可開啟 <code>https://netlog-viewer.appspot.com/#events</code> 網頁，匯入 json 檔 (檔案只會在 瀏覽器端處理，不會上傳到網站)，</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638477562865390415.png"></p> <p>記錄檔保留的內容超級詳細，細到封包等級，基本上可解答關於瀏覽器背後網路動作的所有疑惑。不過，你也得有相關的專業知識才能完整解讀，這些特性還真的跟黑盒子一模一樣。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638477562867222238.png"></p> <p>希望大家上網順利，永遠不需要用到它。</p> <p data-slug="chrome-netlog-dump" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/ModernFlightDataRecorder.jpg/1024px-ModernFlightDataRecorder.jpg#1280#477"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://www.chromium.org/for-testers/providing-network-details/">NetLog Dump</a> 是一個絕大部分人用不到的 Chrome/Edge 功能，其性質類似俗稱「黑盒子」的<a href="https://zh.wikipedia.org/zh-tw/%E9%A3%9B%E8%A1%8C%E7%B4%80%E9%8C%84%E5%84%80">飛行記錄器</a>。飛機的黑盒子通常會只會在空難或事故時派上用場，而查瀏覽器問題動用到 NetLog Dump，通常意味著你遇上魔王級的刁鑽茶包。</p> <p>啟用 NetLog 的方法很簡單，在網址列輸入 <code>edge://net-export/</code> 或 <code>chrome://net-export/</code>：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png"></p> <p>一般建議選擇 Strip private information，其餘兩個選項會包含到 Cookie 或身分認證資料，處理不當可能導致機密資訊外流(當然，如果你的問題需要分析 Cookie、認證或原始傳輸資料就得啟用，請小心保管 Log 記錄)。按下「Start Logging to Disk」並選取 json 檔路徑，瀏覽器會開始記錄所有網路傳輸細節：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638477562862013381.png"></p> <p>試著瀏覽網站重現問題，按下「Stop Logging」停止錄製 Log，「Show File」會顯示 json 所在資料夾。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638477562863755666.png"></p> <p>要檢視 Log 內容，可開啟 <code>https://netlog-viewer.appspot.com/#events</code> 網頁，匯入 json 檔 (檔案只會在 瀏覽器端處理，不會上傳到網站)，</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638477562865390415.png"></p> <p>記錄檔保留的內容超級詳細，細到封包等級，基本上可解答關於瀏覽器背後網路動作的所有疑惑。不過，你也得有相關的專業知識才能完整解讀，這些特性還真的跟黑盒子一模一樣。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638477562867222238.png"></p> <p>希望大家上網順利，永遠不需要用到它。</p> <p data-slug="chrome-netlog-dump" data-fbimg="https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/ModernFlightDataRecorder.jpg/1024px-ModernFlightDataRecorder.jpg#1280#477"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638477562860313600.png" medium="image"/>
-    <pubDate>Wed, 03 Apr 2024 15:49:56 GMT</pubDate>
   </item></channel>
 </rss>
