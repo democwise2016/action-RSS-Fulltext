@@ -30,6 +30,797 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[腾讯云4月8日故障复盘及情况说明]]></title>
+    <link>https://www.oschina.net/news/287629</link>
+    <itunes:title><![CDATA[腾讯云4月8日故障复盘及情况说明]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>腾讯云就4月8日<a href="https://www.oschina.net/news/286685">故障</a>发布了复盘及情况说明。</p>
+<p>4月8日15点23分，腾讯云团队发现云API服务异常，并收到大量客户反馈无法登录控制台。故障影响了依赖云API的公有云服务，如云函数、文字识别、微服务平台等，<strong>持续了近87分钟，期间共1957个客户报障</strong>。</p>
+<p>以下为全文：</p>
+<hr>
+<p>4月8日15点23分，腾讯云团队收到告警信息，云API服务处于异常状态；随即在腾讯云工单、售后服务群以及微博等渠道开始大量出现腾讯云控制台登录不上的客户反馈。</p>
+<p>经过故障定位发现，客户登录不上控制台正是由云API异常所导致。云API是云上统一的开放接口集合，客户可以通过API以编程方式管理和操控云端资源，云控制台通过组合云API提供交互式的网页功能。</p>
+<p>故障发生后，依赖云API提供产品能力的部分公有云服务，也因为云API的异常出现了无法使用的情况，比如云函数、文字识别、微服务平台、音频内容安全、验证码等。此次故障一共持续了近87分钟，期间共有1957个客户报障。</p>
+<p>从客户的视角来看，云服务大概可以分为数据面和控制面，数据面承载客户自身的业务，控制面负责操作云上不同产品。比如目前使用最广泛的IaaS服务基本上都是以直接面向数据面为主，控制面仅在客户购买或需要对资源层面进行调整操作时会涉及。此次发生故障的控制台和云API是对控制面的影响。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5812811fd.webp"></p>
+<p>通俗来讲，如果把云服务类比为酒店，控制台相当于酒店的前台，是一个统一的服务入口。一旦酒店前台发生故障，会导致入住、续住等管理能力不可用，但已入住的客房不受影响。</p>
+<p>这次故障中客户已经配置好的服务器等IaaS资源，包括已经部署运行的业务，没有受到云API异常的影响。其他以非云&nbsp;API&nbsp;方式提供服务的PaaS和SaaS服务，处于正常服务的状态。从数据上也验证了这一点。如图1显示，当天全产品进出流量趋势没有明显变化。</p>
+<p>图&nbsp;1：腾讯云全产品进出流量趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e9ed9442b2.webp"></p>
+<p>但是，用API提供的服务类产品（需要“酒店前台服务“）有不同程度的影响，比如腾讯云存储服务调用当天有明显下滑。期间售后团队协助部分客户做了业务容灾预案的实施，将受影响服务做调度以快速恢复客户的业务服务。从图2可以看出，当天存储服务调用有一个明显的波动。</p>
+<p>图&nbsp;2：存储服务调用数据趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b4d1ff85b.png"></p>
+<h2><strong>问题复盘</strong></h2>
+<p>整个处理过程如下：</p>
+<p>1.&nbsp; 15:23，监测到故障，立即执行服务的恢复，同时进行原因的排查；</p>
+<p>2.&nbsp; 15:47，发现通过回滚版本没能完全恢复服务，进一步定位问题；</p>
+<p>3.&nbsp; 15:57，定位出故障根因是配置数据出现错误，紧急设计数据修复方案；</p>
+<p>4.&nbsp; 16:02，对全地域进行数据修复工作，API服务逐地域恢复中；</p>
+<p>5.&nbsp; 16:05，观测到除上海外的地域API服务均已恢复，进一步定位上海地域的恢复问题；</p>
+<p>6.&nbsp; 16:25，定位到上海的技术组件存在API循环依赖问题，决定通过流量调度至其他地域来恢复；</p>
+<p>7.&nbsp; 16:45，观测到上海地域恢复了，此时API和依赖API的PaaS服务彻底恢复，但控制台流量剧增，按九倍容量进行了扩容；</p>
+<p>8.&nbsp; 16:50，请求量逐渐恢复到正常水平，业务稳定运行，控制台服务全部恢复；</p>
+<p>9.&nbsp; 17:45，持续观察一小时，未发现问题，按预案处理过程完毕。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-605c6fb2b3.png"></p>
+<p><strong>故障的原因是云API服务新版本向前兼容性考虑不够和配置数据灰度机制不足的问题</strong>。</p>
+<p>本次API升级过程中，由于新版本的接口协议发生了变化，在后台发布新版本之后对于旧版本前端传来的数据处理逻辑异常，导致生成了一条错误的配置数据，由于灰度机制不足导致异常数据快速扩散到了全网地域，造成整体API使用异常。</p>
+<p>发生故障后，按照标准回滚方案将服务后台和配置数据同时回滚到旧版本，并重启API后台服务，但此时因为承载API服务的容器平台也依赖API服务才能提供调度能力，即发生了循环依赖，导致服务无法自动拉起。通过运维手工启动方式才使API服务重启，完成整个故障恢复。</p>
+<h2><strong>改进措施</strong></h2>
+<p>综合盘点这次故障，最根本的原因是在版本变更过程中，没有有效执行沙箱验证和预案演练，暴露了在变更管理上的不足，接下来将从以下几个方面快速进行改进和完善，以减少故障的影响范围和影响时长。</p>
+<p>第一，提升系统韧性</p>
+<p>1、定期执行预定的变更策略模拟演练，确保在真实故障发生时，能够迅速切换到恢复模式，最小化服务中断时间。</p>
+<p>2、优化服务部署架构，通过分层架构、代码审查和监控等手段，&nbsp;避免API服务中潜在的循环依赖问题。</p>
+<p>3、提供API服务逃生通道，当故障发生时，可供调用方快速切换。</p>
+<p>第二，强化变更管理与保护措施</p>
+<p>1、完善自动化测试用例库，在系统变更前通过沙箱环境对变更内容进行严格验证。</p>
+<p>2、实施灰度发布策略，逐步推广新功能或配置更改，按集群、可用区、地域逐步生效，以便在发现问题时能够迅速回滚。</p>
+<p>3、引入异常自动熔断机制，当检测到系统异常时，能够立即中断变更过程。</p>
+<p>第三，增强故障响应与沟通能力</p>
+<p>1、对故障处理流程进行全面升级，确保实时更新故障处理进度和预计恢复时间点，提升故障报告发布效率。</p>
+<p>2、在对外发布的故障通知中，清晰阐述受影响的业务范围、故障根因及预计修复时长，保持透明度。</p>
+<p>3、优化腾讯云健康状态看板（StatusPage）的信息展示逻辑，解除对云API等云服务的依赖，通过引入缓存和容灾机制，确保即使在云服务出现故障时，能准确、及时地传递故障信息。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>腾讯云就4月8日<a href="https://www.oschina.net/news/286685">故障</a>发布了复盘及情况说明。</p>
+<p>4月8日15点23分，腾讯云团队发现云API服务异常，并收到大量客户反馈无法登录控制台。故障影响了依赖云API的公有云服务，如云函数、文字识别、微服务平台等，<strong>持续了近87分钟，期间共1957个客户报障</strong>。</p>
+<p>以下为全文：</p>
+<hr>
+<p>4月8日15点23分，腾讯云团队收到告警信息，云API服务处于异常状态；随即在腾讯云工单、售后服务群以及微博等渠道开始大量出现腾讯云控制台登录不上的客户反馈。</p>
+<p>经过故障定位发现，客户登录不上控制台正是由云API异常所导致。云API是云上统一的开放接口集合，客户可以通过API以编程方式管理和操控云端资源，云控制台通过组合云API提供交互式的网页功能。</p>
+<p>故障发生后，依赖云API提供产品能力的部分公有云服务，也因为云API的异常出现了无法使用的情况，比如云函数、文字识别、微服务平台、音频内容安全、验证码等。此次故障一共持续了近87分钟，期间共有1957个客户报障。</p>
+<p>从客户的视角来看，云服务大概可以分为数据面和控制面，数据面承载客户自身的业务，控制面负责操作云上不同产品。比如目前使用最广泛的IaaS服务基本上都是以直接面向数据面为主，控制面仅在客户购买或需要对资源层面进行调整操作时会涉及。此次发生故障的控制台和云API是对控制面的影响。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5812811fd.webp"></p>
+<p>通俗来讲，如果把云服务类比为酒店，控制台相当于酒店的前台，是一个统一的服务入口。一旦酒店前台发生故障，会导致入住、续住等管理能力不可用，但已入住的客房不受影响。</p>
+<p>这次故障中客户已经配置好的服务器等IaaS资源，包括已经部署运行的业务，没有受到云API异常的影响。其他以非云&nbsp;API&nbsp;方式提供服务的PaaS和SaaS服务，处于正常服务的状态。从数据上也验证了这一点。如图1显示，当天全产品进出流量趋势没有明显变化。</p>
+<p>图&nbsp;1：腾讯云全产品进出流量趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e9ed9442b2.webp"></p>
+<p>但是，用API提供的服务类产品（需要“酒店前台服务“）有不同程度的影响，比如腾讯云存储服务调用当天有明显下滑。期间售后团队协助部分客户做了业务容灾预案的实施，将受影响服务做调度以快速恢复客户的业务服务。从图2可以看出，当天存储服务调用有一个明显的波动。</p>
+<p>图&nbsp;2：存储服务调用数据趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b4d1ff85b.png"></p>
+<h2><strong>问题复盘</strong></h2>
+<p>整个处理过程如下：</p>
+<p>1.&nbsp; 15:23，监测到故障，立即执行服务的恢复，同时进行原因的排查；</p>
+<p>2.&nbsp; 15:47，发现通过回滚版本没能完全恢复服务，进一步定位问题；</p>
+<p>3.&nbsp; 15:57，定位出故障根因是配置数据出现错误，紧急设计数据修复方案；</p>
+<p>4.&nbsp; 16:02，对全地域进行数据修复工作，API服务逐地域恢复中；</p>
+<p>5.&nbsp; 16:05，观测到除上海外的地域API服务均已恢复，进一步定位上海地域的恢复问题；</p>
+<p>6.&nbsp; 16:25，定位到上海的技术组件存在API循环依赖问题，决定通过流量调度至其他地域来恢复；</p>
+<p>7.&nbsp; 16:45，观测到上海地域恢复了，此时API和依赖API的PaaS服务彻底恢复，但控制台流量剧增，按九倍容量进行了扩容；</p>
+<p>8.&nbsp; 16:50，请求量逐渐恢复到正常水平，业务稳定运行，控制台服务全部恢复；</p>
+<p>9.&nbsp; 17:45，持续观察一小时，未发现问题，按预案处理过程完毕。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-605c6fb2b3.png"></p>
+<p><strong>故障的原因是云API服务新版本向前兼容性考虑不够和配置数据灰度机制不足的问题</strong>。</p>
+<p>本次API升级过程中，由于新版本的接口协议发生了变化，在后台发布新版本之后对于旧版本前端传来的数据处理逻辑异常，导致生成了一条错误的配置数据，由于灰度机制不足导致异常数据快速扩散到了全网地域，造成整体API使用异常。</p>
+<p>发生故障后，按照标准回滚方案将服务后台和配置数据同时回滚到旧版本，并重启API后台服务，但此时因为承载API服务的容器平台也依赖API服务才能提供调度能力，即发生了循环依赖，导致服务无法自动拉起。通过运维手工启动方式才使API服务重启，完成整个故障恢复。</p>
+<h2><strong>改进措施</strong></h2>
+<p>综合盘点这次故障，最根本的原因是在版本变更过程中，没有有效执行沙箱验证和预案演练，暴露了在变更管理上的不足，接下来将从以下几个方面快速进行改进和完善，以减少故障的影响范围和影响时长。</p>
+<p>第一，提升系统韧性</p>
+<p>1、定期执行预定的变更策略模拟演练，确保在真实故障发生时，能够迅速切换到恢复模式，最小化服务中断时间。</p>
+<p>2、优化服务部署架构，通过分层架构、代码审查和监控等手段，&nbsp;避免API服务中潜在的循环依赖问题。</p>
+<p>3、提供API服务逃生通道，当故障发生时，可供调用方快速切换。</p>
+<p>第二，强化变更管理与保护措施</p>
+<p>1、完善自动化测试用例库，在系统变更前通过沙箱环境对变更内容进行严格验证。</p>
+<p>2、实施灰度发布策略，逐步推广新功能或配置更改，按集群、可用区、地域逐步生效，以便在发现问题时能够迅速回滚。</p>
+<p>3、引入异常自动熔断机制，当检测到系统异常时，能够立即中断变更过程。</p>
+<p>第三，增强故障响应与沟通能力</p>
+<p>1、对故障处理流程进行全面升级，确保实时更新故障处理进度和预计恢复时间点，提升故障报告发布效率。</p>
+<p>2、在对外发布的故障通知中，清晰阐述受影响的业务范围、故障根因及预计修复时长，保持透明度。</p>
+<p>3、优化腾讯云健康状态看板（StatusPage）的信息展示逻辑，解除对云API等云服务的依赖，通过引入缓存和容灾机制，确保即使在云服务出现故障时，能准确、及时地传递故障信息。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>腾讯云就4月8日<a href="https://www.oschina.net/news/286685">故障</a>发布了复盘及情况说明。</p>
+<p>4月8日15点23分，腾讯云团队发现云API服务异常，并收到大量客户反馈无法登录控制台。故障影响了依赖云API的公有云服务，如云函数、文字识别、微服务平台等，<strong>持续了近87分钟，期间共1957个客户报障</strong>。</p>
+<p>以下为全文：</p>
+<hr>
+<p>4月8日15点23分，腾讯云团队收到告警信息，云API服务处于异常状态；随即在腾讯云工单、售后服务群以及微博等渠道开始大量出现腾讯云控制台登录不上的客户反馈。</p>
+<p>经过故障定位发现，客户登录不上控制台正是由云API异常所导致。云API是云上统一的开放接口集合，客户可以通过API以编程方式管理和操控云端资源，云控制台通过组合云API提供交互式的网页功能。</p>
+<p>故障发生后，依赖云API提供产品能力的部分公有云服务，也因为云API的异常出现了无法使用的情况，比如云函数、文字识别、微服务平台、音频内容安全、验证码等。此次故障一共持续了近87分钟，期间共有1957个客户报障。</p>
+<p>从客户的视角来看，云服务大概可以分为数据面和控制面，数据面承载客户自身的业务，控制面负责操作云上不同产品。比如目前使用最广泛的IaaS服务基本上都是以直接面向数据面为主，控制面仅在客户购买或需要对资源层面进行调整操作时会涉及。此次发生故障的控制台和云API是对控制面的影响。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5812811fd.webp"></p>
+<p>通俗来讲，如果把云服务类比为酒店，控制台相当于酒店的前台，是一个统一的服务入口。一旦酒店前台发生故障，会导致入住、续住等管理能力不可用，但已入住的客房不受影响。</p>
+<p>这次故障中客户已经配置好的服务器等IaaS资源，包括已经部署运行的业务，没有受到云API异常的影响。其他以非云&nbsp;API&nbsp;方式提供服务的PaaS和SaaS服务，处于正常服务的状态。从数据上也验证了这一点。如图1显示，当天全产品进出流量趋势没有明显变化。</p>
+<p>图&nbsp;1：腾讯云全产品进出流量趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e9ed9442b2.webp"></p>
+<p>但是，用API提供的服务类产品（需要“酒店前台服务“）有不同程度的影响，比如腾讯云存储服务调用当天有明显下滑。期间售后团队协助部分客户做了业务容灾预案的实施，将受影响服务做调度以快速恢复客户的业务服务。从图2可以看出，当天存储服务调用有一个明显的波动。</p>
+<p>图&nbsp;2：存储服务调用数据趋势图</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6b4d1ff85b.png"></p>
+<h2><strong>问题复盘</strong></h2>
+<p>整个处理过程如下：</p>
+<p>1.&nbsp; 15:23，监测到故障，立即执行服务的恢复，同时进行原因的排查；</p>
+<p>2.&nbsp; 15:47，发现通过回滚版本没能完全恢复服务，进一步定位问题；</p>
+<p>3.&nbsp; 15:57，定位出故障根因是配置数据出现错误，紧急设计数据修复方案；</p>
+<p>4.&nbsp; 16:02，对全地域进行数据修复工作，API服务逐地域恢复中；</p>
+<p>5.&nbsp; 16:05，观测到除上海外的地域API服务均已恢复，进一步定位上海地域的恢复问题；</p>
+<p>6.&nbsp; 16:25，定位到上海的技术组件存在API循环依赖问题，决定通过流量调度至其他地域来恢复；</p>
+<p>7.&nbsp; 16:45，观测到上海地域恢复了，此时API和依赖API的PaaS服务彻底恢复，但控制台流量剧增，按九倍容量进行了扩容；</p>
+<p>8.&nbsp; 16:50，请求量逐渐恢复到正常水平，业务稳定运行，控制台服务全部恢复；</p>
+<p>9.&nbsp; 17:45，持续观察一小时，未发现问题，按预案处理过程完毕。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-605c6fb2b3.png"></p>
+<p><strong>故障的原因是云API服务新版本向前兼容性考虑不够和配置数据灰度机制不足的问题</strong>。</p>
+<p>本次API升级过程中，由于新版本的接口协议发生了变化，在后台发布新版本之后对于旧版本前端传来的数据处理逻辑异常，导致生成了一条错误的配置数据，由于灰度机制不足导致异常数据快速扩散到了全网地域，造成整体API使用异常。</p>
+<p>发生故障后，按照标准回滚方案将服务后台和配置数据同时回滚到旧版本，并重启API后台服务，但此时因为承载API服务的容器平台也依赖API服务才能提供调度能力，即发生了循环依赖，导致服务无法自动拉起。通过运维手工启动方式才使API服务重启，完成整个故障恢复。</p>
+<h2><strong>改进措施</strong></h2>
+<p>综合盘点这次故障，最根本的原因是在版本变更过程中，没有有效执行沙箱验证和预案演练，暴露了在变更管理上的不足，接下来将从以下几个方面快速进行改进和完善，以减少故障的影响范围和影响时长。</p>
+<p>第一，提升系统韧性</p>
+<p>1、定期执行预定的变更策略模拟演练，确保在真实故障发生时，能够迅速切换到恢复模式，最小化服务中断时间。</p>
+<p>2、优化服务部署架构，通过分层架构、代码审查和监控等手段，&nbsp;避免API服务中潜在的循环依赖问题。</p>
+<p>3、提供API服务逃生通道，当故障发生时，可供调用方快速切换。</p>
+<p>第二，强化变更管理与保护措施</p>
+<p>1、完善自动化测试用例库，在系统变更前通过沙箱环境对变更内容进行严格验证。</p>
+<p>2、实施灰度发布策略，逐步推广新功能或配置更改，按集群、可用区、地域逐步生效，以便在发现问题时能够迅速回滚。</p>
+<p>3、引入异常自动熔断机制，当检测到系统异常时，能够立即中断变更过程。</p>
+<p>第三，增强故障响应与沟通能力</p>
+<p>1、对故障处理流程进行全面升级，确保实时更新故障处理进度和预计恢复时间点，提升故障报告发布效率。</p>
+<p>2、在对外发布的故障通知中，清晰阐述受影响的业务范围、故障根因及预计修复时长，保持透明度。</p>
+<p>3、优化腾讯云健康状态看板（StatusPage）的信息展示逻辑，解除对云API等云服务的依赖，通过引入缓存和容灾机制，确保即使在云服务出现故障时，能准确、及时地传递故障信息。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5812811fd.webp"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5812811fd.webp" medium="image"/>
+    <pubDate>Sun, 14 Apr 2024 13:09:34 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Solon 的事务管理工具类（TranUtils）]]></title>
+    <link>https://www.oschina.net/news/287626/solon-tranutils</link>
+    <itunes:title><![CDATA[Solon 的事务管理工具类（TranUtils）]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Solon 在编码上，是强调注解与手写并重的一个风格。它有个<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解，用于事务管理（可以参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fsolon.noear.org%2Farticle%2F624" target="_blank">《事务的全局控制及应用》</a>）。这里，主要是讲讲它的手动处理工具类<span>&nbsp;</span><code>TranUtils</code>。</p>
+<h3>1、看看它的接口：</h3>
+<pre><code><span>public</span> <span>final</span> <span>class</span> <span>TranUtils</span> {
+<em>//执行事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>execute</span><span>(Tran tran, RunnableEx runnable)</span> <span>throws</span> Throwable;
+<em>//是否在事务中</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTrans</span><span>()</span>;
+<em>//是否在事务中且只读</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTransAndReadOnly</span><span>()</span>;
+<em>//监听事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>listen</span><span>(TranListener listener)</span> <span>throws</span> IllegalStateException;
+<em>//获取链接</em>
+<span>public</span> <span>static</span> Connection <span>getConnection</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+<em>//获取链接代理（方便，用于第三方框架事务对接）</em>
+<span>public</span> <span>static</span> Connection <span>getConnectionProxy</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+}
+</code></pre>
+<h3>2、那怎么用它呢？</h3>
+<ul>
+<li>用它判断当前是否在事务中？</li>
+</ul>
+<pre><code><span>if</span>(TranUtils.inTrans()){
+<em>//正在事务中喽...</em>
+}
+</code></pre>
+<ul>
+<li>做一个手动的事务控制（与<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解等同效果）</li>
+</ul>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span>{
+<em>//@Tran(policy=TranPolicy.requires_new) </em>
+<span>public</span> <span>void</span> <span>addUser</span><span>(UserModel user)</span>  <span>throws</span> Throwable{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>().policy(TranPolicy.requires_new), ()-&gt;{
+<em>//...</em>
+});
+}
+}
+<span>@Controller</span>
+<span>public</span> <span>class</span> <span>DemoController</span>{
+<span>@Inject</span>
+UserService userService;
+<em>//父回滚，子不回滚</em>
+<em>//</em>
+<em>//@Tran</em>
+<span>@Mapping("/user/add2")</span>
+pubblic <span>void</span> <span>addUser2</span><span>(UserModel user)</span>{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>(), ()-&gt;{
+userService.addUser(user);
+<span>throw</span> <span>new</span> <span>RuntimeException</span>(<span>"不让你加；但还是加了:("</span>);
+});
+}
+}
+</code></pre>
+<ul>
+<li>用它与 dbvisitor （或者别的第三方框架）做事务托管对接</li>
+</ul>
+<pre><code><span>public</span> <span>class</span> <span>SolonManagedDynamicConnection</span> <span>implements</span> <span>DynamicConnection</span> {
+<span>private</span> DataSource ds;
+<span>public</span> <span>SolonManagedDynamicConnection</span><span>(DataSource ds)</span> {
+<span>this</span>.ds = ds;
+}
+<span>@Override</span>
+<span>public</span> Connection <span>getConnection</span><span>()</span> <span>throws</span> SQLException {
+<span>return</span> TranUtils.getConnectionProxy(ds);
+}
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>releaseConnection</span><span>(Connection conn)</span> <span>throws</span> SQLException {
+conn.close();
+}
+}
+</code></pre>
+<h3>3、TranUtils 是个麻雀工具</h3>
+<p>麻雀虽然，五脏具全。还可以在运行时，动态添加事务监听哦。先看看事务监听器接口：</p>
+<pre><code><span>public</span> <span>interface</span> <span>TranListener</span> {
+<em>//顺序位</em>
+<span>default</span> <span>int</span> <span>getIndex</span><span>()</span>;
+<em>//提交之前（可以出异常触发回滚）</em>
+<span>default</span> <span>void</span> <span>beforeCommit</span><span>(<span>boolean</span> readOnly)</span> <span>throws</span> Throwable;
+<em>//完成之前</em>
+<span>default</span> <span>void</span> <span>beforeCompletion</span><span>()</span>;
+<em>//提交之后</em>
+<span>default</span> <span>void</span> <span>afterCommit</span><span>()</span>;
+<em>//完成之后</em>
+<span>default</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span>;
+}
+</code></pre>
+<p>然后，我们试着做一个事务监听：</p>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span> {
+<span>@Inject</span>
+UserDao userDao;
+<em>//添加并使用事务</em>
+<span>@Tran</span>
+<span>public</span> <span>void</span> <span>addUserAndTran</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+<em>//这里明确知道有事务</em>
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+<em>//添加（不使用事务）</em>
+<span>public</span> vod <span>addUser</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+}
+<span>private</span> <span>void</span> <span>onUserAdd</span><span>()</span>{
+<em>//这里不确定是否有事务，先判断下</em>
+<span>if</span>(TranUtils.inTrans()){
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+}
+}</code></pre>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Solon 在编码上，是强调注解与手写并重的一个风格。它有个<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解，用于事务管理（可以参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fsolon.noear.org%2Farticle%2F624" target="_blank">《事务的全局控制及应用》</a>）。这里，主要是讲讲它的手动处理工具类<span>&nbsp;</span><code>TranUtils</code>。</p>
+<h3>1、看看它的接口：</h3>
+<pre><code><span>public</span> <span>final</span> <span>class</span> <span>TranUtils</span> {
+<em>//执行事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>execute</span><span>(Tran tran, RunnableEx runnable)</span> <span>throws</span> Throwable;
+<em>//是否在事务中</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTrans</span><span>()</span>;
+<em>//是否在事务中且只读</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTransAndReadOnly</span><span>()</span>;
+<em>//监听事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>listen</span><span>(TranListener listener)</span> <span>throws</span> IllegalStateException;
+<em>//获取链接</em>
+<span>public</span> <span>static</span> Connection <span>getConnection</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+<em>//获取链接代理（方便，用于第三方框架事务对接）</em>
+<span>public</span> <span>static</span> Connection <span>getConnectionProxy</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+}
+</code></pre>
+<h3>2、那怎么用它呢？</h3>
+<ul>
+<li>用它判断当前是否在事务中？</li>
+</ul>
+<pre><code><span>if</span>(TranUtils.inTrans()){
+<em>//正在事务中喽...</em>
+}
+</code></pre>
+<ul>
+<li>做一个手动的事务控制（与<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解等同效果）</li>
+</ul>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span>{
+<em>//@Tran(policy=TranPolicy.requires_new) </em>
+<span>public</span> <span>void</span> <span>addUser</span><span>(UserModel user)</span>  <span>throws</span> Throwable{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>().policy(TranPolicy.requires_new), ()-&gt;{
+<em>//...</em>
+});
+}
+}
+<span>@Controller</span>
+<span>public</span> <span>class</span> <span>DemoController</span>{
+<span>@Inject</span>
+UserService userService;
+<em>//父回滚，子不回滚</em>
+<em>//</em>
+<em>//@Tran</em>
+<span>@Mapping("/user/add2")</span>
+pubblic <span>void</span> <span>addUser2</span><span>(UserModel user)</span>{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>(), ()-&gt;{
+userService.addUser(user);
+<span>throw</span> <span>new</span> <span>RuntimeException</span>(<span>"不让你加；但还是加了:("</span>);
+});
+}
+}
+</code></pre>
+<ul>
+<li>用它与 dbvisitor （或者别的第三方框架）做事务托管对接</li>
+</ul>
+<pre><code><span>public</span> <span>class</span> <span>SolonManagedDynamicConnection</span> <span>implements</span> <span>DynamicConnection</span> {
+<span>private</span> DataSource ds;
+<span>public</span> <span>SolonManagedDynamicConnection</span><span>(DataSource ds)</span> {
+<span>this</span>.ds = ds;
+}
+<span>@Override</span>
+<span>public</span> Connection <span>getConnection</span><span>()</span> <span>throws</span> SQLException {
+<span>return</span> TranUtils.getConnectionProxy(ds);
+}
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>releaseConnection</span><span>(Connection conn)</span> <span>throws</span> SQLException {
+conn.close();
+}
+}
+</code></pre>
+<h3>3、TranUtils 是个麻雀工具</h3>
+<p>麻雀虽然，五脏具全。还可以在运行时，动态添加事务监听哦。先看看事务监听器接口：</p>
+<pre><code><span>public</span> <span>interface</span> <span>TranListener</span> {
+<em>//顺序位</em>
+<span>default</span> <span>int</span> <span>getIndex</span><span>()</span>;
+<em>//提交之前（可以出异常触发回滚）</em>
+<span>default</span> <span>void</span> <span>beforeCommit</span><span>(<span>boolean</span> readOnly)</span> <span>throws</span> Throwable;
+<em>//完成之前</em>
+<span>default</span> <span>void</span> <span>beforeCompletion</span><span>()</span>;
+<em>//提交之后</em>
+<span>default</span> <span>void</span> <span>afterCommit</span><span>()</span>;
+<em>//完成之后</em>
+<span>default</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span>;
+}
+</code></pre>
+<p>然后，我们试着做一个事务监听：</p>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span> {
+<span>@Inject</span>
+UserDao userDao;
+<em>//添加并使用事务</em>
+<span>@Tran</span>
+<span>public</span> <span>void</span> <span>addUserAndTran</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+<em>//这里明确知道有事务</em>
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+<em>//添加（不使用事务）</em>
+<span>public</span> vod <span>addUser</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+}
+<span>private</span> <span>void</span> <span>onUserAdd</span><span>()</span>{
+<em>//这里不确定是否有事务，先判断下</em>
+<span>if</span>(TranUtils.inTrans()){
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+}
+}</code></pre>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Solon 在编码上，是强调注解与手写并重的一个风格。它有个<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解，用于事务管理（可以参考：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fsolon.noear.org%2Farticle%2F624" target="_blank">《事务的全局控制及应用》</a>）。这里，主要是讲讲它的手动处理工具类<span>&nbsp;</span><code>TranUtils</code>。</p>
+<h3>1、看看它的接口：</h3>
+<pre><code><span>public</span> <span>final</span> <span>class</span> <span>TranUtils</span> {
+<em>//执行事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>execute</span><span>(Tran tran, RunnableEx runnable)</span> <span>throws</span> Throwable;
+<em>//是否在事务中</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTrans</span><span>()</span>;
+<em>//是否在事务中且只读</em>
+<span>public</span> <span>static</span> <span>boolean</span> <span>inTransAndReadOnly</span><span>()</span>;
+<em>//监听事务</em>
+<span>public</span> <span>static</span> <span>void</span> <span>listen</span><span>(TranListener listener)</span> <span>throws</span> IllegalStateException;
+<em>//获取链接</em>
+<span>public</span> <span>static</span> Connection <span>getConnection</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+<em>//获取链接代理（方便，用于第三方框架事务对接）</em>
+<span>public</span> <span>static</span> Connection <span>getConnectionProxy</span><span>(DataSource ds)</span> <span>throws</span> SQLException;
+}
+</code></pre>
+<h3>2、那怎么用它呢？</h3>
+<ul>
+<li>用它判断当前是否在事务中？</li>
+</ul>
+<pre><code><span>if</span>(TranUtils.inTrans()){
+<em>//正在事务中喽...</em>
+}
+</code></pre>
+<ul>
+<li>做一个手动的事务控制（与<span>&nbsp;</span><code>@Tran</code><span>&nbsp;</span>注解等同效果）</li>
+</ul>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span>{
+<em>//@Tran(policy=TranPolicy.requires_new) </em>
+<span>public</span> <span>void</span> <span>addUser</span><span>(UserModel user)</span>  <span>throws</span> Throwable{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>().policy(TranPolicy.requires_new), ()-&gt;{
+<em>//...</em>
+});
+}
+}
+<span>@Controller</span>
+<span>public</span> <span>class</span> <span>DemoController</span>{
+<span>@Inject</span>
+UserService userService;
+<em>//父回滚，子不回滚</em>
+<em>//</em>
+<em>//@Tran</em>
+<span>@Mapping("/user/add2")</span>
+pubblic <span>void</span> <span>addUser2</span><span>(UserModel user)</span>{
+TranUtils.execute(<span>new</span> <span>TranAnno</span>(), ()-&gt;{
+userService.addUser(user);
+<span>throw</span> <span>new</span> <span>RuntimeException</span>(<span>"不让你加；但还是加了:("</span>);
+});
+}
+}
+</code></pre>
+<ul>
+<li>用它与 dbvisitor （或者别的第三方框架）做事务托管对接</li>
+</ul>
+<pre><code><span>public</span> <span>class</span> <span>SolonManagedDynamicConnection</span> <span>implements</span> <span>DynamicConnection</span> {
+<span>private</span> DataSource ds;
+<span>public</span> <span>SolonManagedDynamicConnection</span><span>(DataSource ds)</span> {
+<span>this</span>.ds = ds;
+}
+<span>@Override</span>
+<span>public</span> Connection <span>getConnection</span><span>()</span> <span>throws</span> SQLException {
+<span>return</span> TranUtils.getConnectionProxy(ds);
+}
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>releaseConnection</span><span>(Connection conn)</span> <span>throws</span> SQLException {
+conn.close();
+}
+}
+</code></pre>
+<h3>3、TranUtils 是个麻雀工具</h3>
+<p>麻雀虽然，五脏具全。还可以在运行时，动态添加事务监听哦。先看看事务监听器接口：</p>
+<pre><code><span>public</span> <span>interface</span> <span>TranListener</span> {
+<em>//顺序位</em>
+<span>default</span> <span>int</span> <span>getIndex</span><span>()</span>;
+<em>//提交之前（可以出异常触发回滚）</em>
+<span>default</span> <span>void</span> <span>beforeCommit</span><span>(<span>boolean</span> readOnly)</span> <span>throws</span> Throwable;
+<em>//完成之前</em>
+<span>default</span> <span>void</span> <span>beforeCompletion</span><span>()</span>;
+<em>//提交之后</em>
+<span>default</span> <span>void</span> <span>afterCommit</span><span>()</span>;
+<em>//完成之后</em>
+<span>default</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span>;
+}
+</code></pre>
+<p>然后，我们试着做一个事务监听：</p>
+<pre><code><span>@Component</span>
+<span>public</span> <span>class</span> <span>UserService</span> {
+<span>@Inject</span>
+UserDao userDao;
+<em>//添加并使用事务</em>
+<span>@Tran</span>
+<span>public</span> <span>void</span> <span>addUserAndTran</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+<em>//这里明确知道有事务</em>
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+<em>//添加（不使用事务）</em>
+<span>public</span> vod <span>addUser</span><span>(User user)</span>{
+userDao.add(user);
+onUserAdd();
+}
+<span>private</span> <span>void</span> <span>onUserAdd</span><span>()</span>{
+<em>//这里不确定是否有事务，先判断下</em>
+<span>if</span>(TranUtils.inTrans()){
+TranUtils.listen(<span>new</span> <span>TranListener</span>() {
+<span>@Override</span>
+<span>public</span> <span>void</span> <span>afterCompletion</span><span>(<span>int</span> status)</span> {
+System.err.println(<span>"---afterCompletion: "</span> + status);
+}
+});
+}
+}
+}</code></pre>]]></content:encoded>
+    
+    <pubDate>Sun, 14 Apr 2024 12:15:04 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[深数所发布 500 个行业多模态算料集]]></title>
+    <link>https://www.oschina.net/news/287623</link>
+    <itunes:title><![CDATA[深数所发布 500 个行业多模态算料集]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>在日前举办的“数·算·网”融合发展暨粤港澳大湾区算力服务联盟第一期交流研讨会上，深圳数据交易所发布了500个垂直行业多模态算料集，按照大模型应用的不同阶段，有的放矢地提供数据源，让国产大模型厂商“寻数有路”。</span></p>
+<p><span>此次深数所发布的首批500个人工智能大模型高质量训练数据集，由37家不同的数据商提供，涵盖12个“数据要素×”领域，3家境外数据商，7类数据模态（文本、图像、音频、视频、多模态、3D、GIS等）。</span></p>
+<p><span>且本批数据集首次汇聚了来自中国气象局、中国知网、中译语通、万邦同和、微梦数据（新浪微博）、前海数据、海天瑞声、拓尔思、数据堂、智慧芽、网智天元、柏川数据、深信科技等数据商的数据集作为大模型算料。其中大部分算料为全国首发。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9b76a7ae53.png"></span></p>
+<p><span>深数所人工智能行业有关人士表示，数据作为一个高效的“乘法”因子，能够与不同行业结合，显著提升行业的生产效率或创新能力，而人工智能技术则通过“加法”方式为传统产业带来渐进式的改进和优化，两者相互交织，共同成为数字经济发展的双翼。</span></p>
+<p><span>“数据都是零散的，国产大模型厂商无法实现批量采集数据，我们此次推出的算料集就是，将大模型需要的训练数据进行逻辑的汇聚，从而形成了一个大模型训练数据产业高地。”</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>在日前举办的“数·算·网”融合发展暨粤港澳大湾区算力服务联盟第一期交流研讨会上，深圳数据交易所发布了500个垂直行业多模态算料集，按照大模型应用的不同阶段，有的放矢地提供数据源，让国产大模型厂商“寻数有路”。</span></p>
+<p><span>此次深数所发布的首批500个人工智能大模型高质量训练数据集，由37家不同的数据商提供，涵盖12个“数据要素×”领域，3家境外数据商，7类数据模态（文本、图像、音频、视频、多模态、3D、GIS等）。</span></p>
+<p><span>且本批数据集首次汇聚了来自中国气象局、中国知网、中译语通、万邦同和、微梦数据（新浪微博）、前海数据、海天瑞声、拓尔思、数据堂、智慧芽、网智天元、柏川数据、深信科技等数据商的数据集作为大模型算料。其中大部分算料为全国首发。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9b76a7ae53.png"></span></p>
+<p><span>深数所人工智能行业有关人士表示，数据作为一个高效的“乘法”因子，能够与不同行业结合，显著提升行业的生产效率或创新能力，而人工智能技术则通过“加法”方式为传统产业带来渐进式的改进和优化，两者相互交织，共同成为数字经济发展的双翼。</span></p>
+<p><span>“数据都是零散的，国产大模型厂商无法实现批量采集数据，我们此次推出的算料集就是，将大模型需要的训练数据进行逻辑的汇聚，从而形成了一个大模型训练数据产业高地。”</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>在日前举办的“数·算·网”融合发展暨粤港澳大湾区算力服务联盟第一期交流研讨会上，深圳数据交易所发布了500个垂直行业多模态算料集，按照大模型应用的不同阶段，有的放矢地提供数据源，让国产大模型厂商“寻数有路”。</span></p>
+<p><span>此次深数所发布的首批500个人工智能大模型高质量训练数据集，由37家不同的数据商提供，涵盖12个“数据要素×”领域，3家境外数据商，7类数据模态（文本、图像、音频、视频、多模态、3D、GIS等）。</span></p>
+<p><span>且本批数据集首次汇聚了来自中国气象局、中国知网、中译语通、万邦同和、微梦数据（新浪微博）、前海数据、海天瑞声、拓尔思、数据堂、智慧芽、网智天元、柏川数据、深信科技等数据商的数据集作为大模型算料。其中大部分算料为全国首发。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9b76a7ae53.png"></span></p>
+<p><span>深数所人工智能行业有关人士表示，数据作为一个高效的“乘法”因子，能够与不同行业结合，显著提升行业的生产效率或创新能力，而人工智能技术则通过“加法”方式为传统产业带来渐进式的改进和优化，两者相互交织，共同成为数字经济发展的双翼。</span></p>
+<p><span>“数据都是零散的，国产大模型厂商无法实现批量采集数据，我们此次推出的算料集就是，将大模型需要的训练数据进行逻辑的汇聚，从而形成了一个大模型训练数据产业高地。”</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9b76a7ae53.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9b76a7ae53.png" medium="image"/>
+    <pubDate>Sun, 14 Apr 2024 11:53:24 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[重新审视 CXL 时代下的分布式内存]]></title>
+    <link>https://my.oschina.net/yunqi/blog/11048457</link>
+    <itunes:title><![CDATA[重新审视 CXL 时代下的分布式内存]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<h2><strong>消息传递与分布式共享内存</strong></h2>
+<p>随着摩尔定律增长的逐渐减缓，系统规模的水平扩展已经成为提升系统性能的关键策略。然而，这种扩展依赖于分布式系统架构的支持，而分布式编程的固有复杂性给构建高效、可靠及弹性的系统带来了严峻挑战。因此，简化分布式编程依旧是分布式编程框架追求的核心目标。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-17ef29c5a0.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>如图所示，在分布式编程领域，目前主流的编程范式主要分为两类：<strong>消息传递</strong>（Message Passing，MP）和<strong>分布式共享内存</strong>（Distributed Shared Memory，DSM）。DSM 范式因其提供一致的内存空间视图和抽象化的数据通信复杂性而更易于使用，这样的设计让分布式应用程序的能够直接编程就像在单机上进行多线程编程一样简单。然而，在实际应用中，较为直接但不太直观的 MP 模型却更为普遍。开发者对 MP 的偏好很大程度上基于这样一个假设：远程通信的高昂开销显著影响了 DSM 系统的性能。</p>
+<p>但是随着网络和互联技术的飞速发展，研究者在逐渐改变对于该领域的看法，特别是随着<span>&nbsp;</span><strong>Compute Express Link（CXL）技术</strong>的推出，我们站在了一个重新思考传统分布式编程范式的新起点。这个技术突破促使我们必须重新评估 DSM 在现代分布式系统中的应用潜力。</p>
+<h2><strong>从以太网到 RDMA 再到 CXL</strong></h2>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-e771ec341e.webp">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-dbdf251bc8.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>从工业界将重心从以太网转移到远程直接内存访问（RDMA），再到当前对Compute Express Link（CXL）的关注，这一连串变迁<strong>标志着互连技术领域</strong>的一系列重大突破。RDMA 的广泛采用极大地革新了现代数据中心的构架，并对众多流行的分布式系统设计产生了深远影响，其中包括许多影响深远的数据库和存储项目。通过利用<span>&nbsp;</span><strong>RDMA</strong>，我们能够将远程数据访问的延迟从 100 多毫秒显著降低到微秒量级，同时提供类似本机内存的读/写接口，<strong>极大地减少了远程操作的成本</strong>。作为最前沿的互联协议，CXL 旨在提供高速且具备缓存一致性的跨物理节点数据传输。例如，DirectCXL[1] 将主机处理器与远程内存资源连接，支持加载/存储指令，其远程 CXL内存访问的延迟大约为 300 纳秒，与访问远程 NUMA 节点的延迟相媲美。<strong>CXL 2.0 的一个关键进步在于引入了内存池化功能</strong>，该功能可以构建全局内存资源池，以此优化内存的总体利用率。内存池化可以通过 CXL 交换机和内存控制器实现，便于内存资源的动态分配与回收。Pond 作为第一个满足云服务提供商需求的全栈内存池[2]，其基于 CXL 的内存池系统已在 Microsoft Azure 云平台上进行了小范围部署。至今，大部分主流云服务提供商都相继宣布了支持并研发基于 CXL 内存池的计划。</p>
+<p>进一步地，已公布的 CXL 3.0/3.1 等规范版本，<strong>承诺将支持内存共享功能</strong>[3]。共享内存允许在多台机器间映射同一内存区域，在这样的配置下，硬件会自动管理不同机器并发访问产生的缓存一致性问题，从本质上实现了基于硬件的分布式共享内存模型。这一革命性的新功能为分布式计算的未来奠定了充满无限可能性的基石。</p>
+<h2><strong>重温 CXL 时代 DSM 范式下的分布式应用</strong></h2>
+<p>尽管 Compute Express Link（CXL）的规范版本已经发展至 3.1，实际的硬件实现却远未跟上规范的快速进步。但这正是一个在即将来临的 CXL 时代背景下，对消息传递（MP）和分布式共享内存（DSM）之间区别重新审视的绝佳时机，关键在于理解它们的差异性，并识别最适合它们的应用场景。这两种范式的<strong>主要区别在于它们所采用的接口</strong>：MP 依靠传统的发送/接收接口，而 CXL 通过提供更细粒度的远程 LOAD/STORE 指令集与 DSM 实现更紧密的一致性。然而，我们认为计算与内存关系的根本假设才是更关键的考量因素。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-c11395f271.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>首先，消息传递范式倾向于采取紧密耦合的架构，每个节点仅能访问其本地内存。而支持 CXL 的 DSM 系统则自然倾向于解耦架构，将计算和内存资源分散到不同的资源池中[4]，这样做能够实现资源的更灵活、更高效利用。其次，就数据通信而言，消息传递通常涉及将数据有效负载从一个节点复制到另一个节点，这是一种按值传递（pass-by-value）的方法。另一方面 DSM 使用了引用传递的方法，只需要交换对于对象的引用使用了引用传递（pass-by-reference）方法。这有助于仅访问必要的数据部分，并实现就地更新，为一些特性的场景带来显著的性能提升。例如，我们开发了一个基于 CXL 的 RPC 系统POC，用于验证引用传递的优势。它避免了数据复制和网络栈的开销，<strong>因此吞吐量比传统的基于 RDMA 的 RPC 系统高出 4 倍以上</strong>。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-fbfe35ac56.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>最后，DSM 提供了全局内存空间的可访问性，这意味着所有数据和状态都是共享的。这一特性有利于工作负载的快速迁移。例如，在“share-nothing”架构中解决负载不均衡问题通常需要数据的大量重新分区，而在“share-everything”模式下，只需交换代表数据分区所有权的元数据即可。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-f381cdebed.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>总而言之，在那些需要高度灵活性的应用场景中，基于 CXL 的 DSM 表现出色。CXL 架构自然支持这种灵活性，它提供了动态且高效的方式来分配和访问远程内存资源，这对于需要能够快速、高效扩展的系统来说至关重要。</p>
+<h2><strong>基于 CXL 的 DSM 面临的挑战</strong></h2>
+<p>然而，过渡到基于 CXL 的 DSM 范式不仅仅只是享受硬件进步的红利。DSM 范式通过使用同一地址内存空间来维护共享状态，从而实现更快的数据传输和迁移，同时将计算与内存解耦以增强可扩展性。然而，考虑到并发访问的情况以及可能出现的部分故障（partial failure），管理这些共享状态会比传统的 share-nothing 架构更加复杂。</p>
+<p>本质上，我们面临的挑战源于共享分布式对象和引用它们的客户端分别有单独的故障域。具有这种单独的故障域，能够允许客户端在执行任务期间自由加入、离开系统甚至宕机，因为它们创建、释放和交换对远程内存的引用。虽然这种灵活性是用户友好的，但它给内存管理带来了巨大的挑战。我们将其称为部分故障弹性 DSM (RDSM)，以将其与所有客户端同时失败的情况区分开来。我们认为，有效处理部分故障对于扩大 DSM 的使用至关重要。</p>
+<p>为了应对这些挑战，我们在 SOSP 23 上的论文“Partial Failure Resilient Memory Management System for (CXL-based) Distributed Shared Memory”[5] 提出了一种<strong>采用引用计数来减少回收远程内存所涉及的手动工作量的方法</strong>。然而，标准引用计数系统对于系统故障而言鲁棒性并不强。我们将维护自动引用计数的过程分为两个不同的操作。当客户端想要创建引用时，第一步是增加引用计数。接下来，我们通过将引用的值赋为被引用空间的地址来链接该引用。而回收引用是一个类似的两步过程：递减引用计数，然后将引用设置为 NULL。虽然只有两个简单的步骤，但它们的顺序至关重要。如果这两个步骤之间发生系统崩溃，就会出现问题。</p>
+<p>例如，如果我们增加引用计数但由于崩溃而未能设置引用，则可能会导致内存泄漏。一个简单的解决方案是使用锁来确保引用计数的修改是幂等的，并记录此更改以用于后续出现错误之后的恢复。然而这种方法仅在所有客户端同时失败的情况下才有效。在部分失败的情况下，客户端可能在获取锁后崩溃，这可能会导致我们方案进一步的复杂化。为了解决这个问题，我们改变了原始算法中使用锁的方式，转而使用了分布式矢量时钟来做非阻塞更新。这一调整使我们能够保持全局一致的时间表，而不需要锁机制。有关该方法的更多详细信息请参见论文。</p>
+<h2><strong>未来方向：基于 CXL 的 DSM 商业化策略</strong></h2>
+<p>除了探究基于 CXL 的部分故障容错 DSM 架构的技术细节，我们还发现这种范式与云计算的发展方向不谋而合；云计算本质上追求的是极致的弹性。云基础架构的演进带来了更细腻的计费模式，促使用户和提供方都能实现更高层次的资源使用效率。然而，由于传统应用程序固有的缺乏弹性，尤其是它们对内存状态的本地化处理，常常未能充分利用这些技术进步带来的潜在优势。突破这一局限，将是 CXL 研究领域面临的重要机会和挑战。</p>
+<h3><strong>后记</strong></h3>
+<p>受到 ACM SIGOPS（美国计算机协会操作系统兴趣组）邀请，本文英文版发表在该协会的博客上（<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.sigops.org%2F2024%2Frevisiting-distributed-memory-in-the-cxl-era%2F%253Fspm%253Da2c6h.13046898.publish-article.3.2f1c6ffabHEEj7" target="_blank">https://www.sigops.org/2024/revisiting-distributed-memory-in-the-cxl-era/</a></u></em>）。本文的相关工作 CXL-SHM 则发表在操作系统顶级会议 SOSP 23 上。</p>
+<p>作者：阿里巴巴技术专家马腾 、清华大学助理教授章明星</p>
+<h3><strong>引用</strong></h3>
+<ul>
+<li>[1] Donghyun Gouk, Sangwon Lee, Miryeong Kwon, and Myoungsoo Jung. 2022. Direct Access High-Performance Memory Disaggregation with DirectCXL. In 2022 USENIX Annual Technical Conference (USENIX ATC 22). 287–294.</li>
+<li>[2] LI, H., BERGER, D. S., HSU, L., ERNST, D., ZARDOSHTI, P., NOVAKOVIC, S., SHAH, M., RAJADNYA, S.,LEE, S., AGARWAL, I., ET AL. Pond: Cxl-based memory pooling systems for cloud platforms. In Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 (2023), pp. 574–587.</li>
+<li>[3] 2022. Compute Express Link 3.0.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.computeexpresslink.org%2F_files%2Fugd%2F0c1418_a8713008916044ae9604405d10a7773b.pdf.%253Fspm%253Da2c6h.13046898.publish-article.4.2f1c6ffabHEEj7" target="_blank">https://www.computeexpresslink.org/_files/ugd/0c1418_a8713008916044ae9604405d10a7773b.pdf.</a><br> [4] 2022. Compute Express Link CXL 3.0 is the Exciting Building Block for Disaggregation.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.servethehome.com%2Fcompute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation%2F%253Fspm%253Da2c6h.13046898.publish-article.5.2f1c6ffabHEEj7" target="_blank">https://www.servethehome.com/compute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation/</a></li>
+<li>[5] ZHANG, M., MA, T., HUA, J., LIU, Z., CHEN, K., DING, N., DU, F., JIANG, J., MA, T., AND WU, Y. Partial failure resilient memory management system for (cxl-based) distributed shared memory. In Proceedings of the 29th Symposium on Operating Systems Principles (2023), pp. 658–674.</li>
+</ul>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1432194%3Futm_content%3Dg_1000391695" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<h2><strong>消息传递与分布式共享内存</strong></h2>
+<p>随着摩尔定律增长的逐渐减缓，系统规模的水平扩展已经成为提升系统性能的关键策略。然而，这种扩展依赖于分布式系统架构的支持，而分布式编程的固有复杂性给构建高效、可靠及弹性的系统带来了严峻挑战。因此，简化分布式编程依旧是分布式编程框架追求的核心目标。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-17ef29c5a0.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>如图所示，在分布式编程领域，目前主流的编程范式主要分为两类：<strong>消息传递</strong>（Message Passing，MP）和<strong>分布式共享内存</strong>（Distributed Shared Memory，DSM）。DSM 范式因其提供一致的内存空间视图和抽象化的数据通信复杂性而更易于使用，这样的设计让分布式应用程序的能够直接编程就像在单机上进行多线程编程一样简单。然而，在实际应用中，较为直接但不太直观的 MP 模型却更为普遍。开发者对 MP 的偏好很大程度上基于这样一个假设：远程通信的高昂开销显著影响了 DSM 系统的性能。</p>
+<p>但是随着网络和互联技术的飞速发展，研究者在逐渐改变对于该领域的看法，特别是随着<span>&nbsp;</span><strong>Compute Express Link（CXL）技术</strong>的推出，我们站在了一个重新思考传统分布式编程范式的新起点。这个技术突破促使我们必须重新评估 DSM 在现代分布式系统中的应用潜力。</p>
+<h2><strong>从以太网到 RDMA 再到 CXL</strong></h2>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-e771ec341e.webp">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-dbdf251bc8.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>从工业界将重心从以太网转移到远程直接内存访问（RDMA），再到当前对Compute Express Link（CXL）的关注，这一连串变迁<strong>标志着互连技术领域</strong>的一系列重大突破。RDMA 的广泛采用极大地革新了现代数据中心的构架，并对众多流行的分布式系统设计产生了深远影响，其中包括许多影响深远的数据库和存储项目。通过利用<span>&nbsp;</span><strong>RDMA</strong>，我们能够将远程数据访问的延迟从 100 多毫秒显著降低到微秒量级，同时提供类似本机内存的读/写接口，<strong>极大地减少了远程操作的成本</strong>。作为最前沿的互联协议，CXL 旨在提供高速且具备缓存一致性的跨物理节点数据传输。例如，DirectCXL[1] 将主机处理器与远程内存资源连接，支持加载/存储指令，其远程 CXL内存访问的延迟大约为 300 纳秒，与访问远程 NUMA 节点的延迟相媲美。<strong>CXL 2.0 的一个关键进步在于引入了内存池化功能</strong>，该功能可以构建全局内存资源池，以此优化内存的总体利用率。内存池化可以通过 CXL 交换机和内存控制器实现，便于内存资源的动态分配与回收。Pond 作为第一个满足云服务提供商需求的全栈内存池[2]，其基于 CXL 的内存池系统已在 Microsoft Azure 云平台上进行了小范围部署。至今，大部分主流云服务提供商都相继宣布了支持并研发基于 CXL 内存池的计划。</p>
+<p>进一步地，已公布的 CXL 3.0/3.1 等规范版本，<strong>承诺将支持内存共享功能</strong>[3]。共享内存允许在多台机器间映射同一内存区域，在这样的配置下，硬件会自动管理不同机器并发访问产生的缓存一致性问题，从本质上实现了基于硬件的分布式共享内存模型。这一革命性的新功能为分布式计算的未来奠定了充满无限可能性的基石。</p>
+<h2><strong>重温 CXL 时代 DSM 范式下的分布式应用</strong></h2>
+<p>尽管 Compute Express Link（CXL）的规范版本已经发展至 3.1，实际的硬件实现却远未跟上规范的快速进步。但这正是一个在即将来临的 CXL 时代背景下，对消息传递（MP）和分布式共享内存（DSM）之间区别重新审视的绝佳时机，关键在于理解它们的差异性，并识别最适合它们的应用场景。这两种范式的<strong>主要区别在于它们所采用的接口</strong>：MP 依靠传统的发送/接收接口，而 CXL 通过提供更细粒度的远程 LOAD/STORE 指令集与 DSM 实现更紧密的一致性。然而，我们认为计算与内存关系的根本假设才是更关键的考量因素。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-c11395f271.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>首先，消息传递范式倾向于采取紧密耦合的架构，每个节点仅能访问其本地内存。而支持 CXL 的 DSM 系统则自然倾向于解耦架构，将计算和内存资源分散到不同的资源池中[4]，这样做能够实现资源的更灵活、更高效利用。其次，就数据通信而言，消息传递通常涉及将数据有效负载从一个节点复制到另一个节点，这是一种按值传递（pass-by-value）的方法。另一方面 DSM 使用了引用传递的方法，只需要交换对于对象的引用使用了引用传递（pass-by-reference）方法。这有助于仅访问必要的数据部分，并实现就地更新，为一些特性的场景带来显著的性能提升。例如，我们开发了一个基于 CXL 的 RPC 系统POC，用于验证引用传递的优势。它避免了数据复制和网络栈的开销，<strong>因此吞吐量比传统的基于 RDMA 的 RPC 系统高出 4 倍以上</strong>。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-fbfe35ac56.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>最后，DSM 提供了全局内存空间的可访问性，这意味着所有数据和状态都是共享的。这一特性有利于工作负载的快速迁移。例如，在“share-nothing”架构中解决负载不均衡问题通常需要数据的大量重新分区，而在“share-everything”模式下，只需交换代表数据分区所有权的元数据即可。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-f381cdebed.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>总而言之，在那些需要高度灵活性的应用场景中，基于 CXL 的 DSM 表现出色。CXL 架构自然支持这种灵活性，它提供了动态且高效的方式来分配和访问远程内存资源，这对于需要能够快速、高效扩展的系统来说至关重要。</p>
+<h2><strong>基于 CXL 的 DSM 面临的挑战</strong></h2>
+<p>然而，过渡到基于 CXL 的 DSM 范式不仅仅只是享受硬件进步的红利。DSM 范式通过使用同一地址内存空间来维护共享状态，从而实现更快的数据传输和迁移，同时将计算与内存解耦以增强可扩展性。然而，考虑到并发访问的情况以及可能出现的部分故障（partial failure），管理这些共享状态会比传统的 share-nothing 架构更加复杂。</p>
+<p>本质上，我们面临的挑战源于共享分布式对象和引用它们的客户端分别有单独的故障域。具有这种单独的故障域，能够允许客户端在执行任务期间自由加入、离开系统甚至宕机，因为它们创建、释放和交换对远程内存的引用。虽然这种灵活性是用户友好的，但它给内存管理带来了巨大的挑战。我们将其称为部分故障弹性 DSM (RDSM)，以将其与所有客户端同时失败的情况区分开来。我们认为，有效处理部分故障对于扩大 DSM 的使用至关重要。</p>
+<p>为了应对这些挑战，我们在 SOSP 23 上的论文“Partial Failure Resilient Memory Management System for (CXL-based) Distributed Shared Memory”[5] 提出了一种<strong>采用引用计数来减少回收远程内存所涉及的手动工作量的方法</strong>。然而，标准引用计数系统对于系统故障而言鲁棒性并不强。我们将维护自动引用计数的过程分为两个不同的操作。当客户端想要创建引用时，第一步是增加引用计数。接下来，我们通过将引用的值赋为被引用空间的地址来链接该引用。而回收引用是一个类似的两步过程：递减引用计数，然后将引用设置为 NULL。虽然只有两个简单的步骤，但它们的顺序至关重要。如果这两个步骤之间发生系统崩溃，就会出现问题。</p>
+<p>例如，如果我们增加引用计数但由于崩溃而未能设置引用，则可能会导致内存泄漏。一个简单的解决方案是使用锁来确保引用计数的修改是幂等的，并记录此更改以用于后续出现错误之后的恢复。然而这种方法仅在所有客户端同时失败的情况下才有效。在部分失败的情况下，客户端可能在获取锁后崩溃，这可能会导致我们方案进一步的复杂化。为了解决这个问题，我们改变了原始算法中使用锁的方式，转而使用了分布式矢量时钟来做非阻塞更新。这一调整使我们能够保持全局一致的时间表，而不需要锁机制。有关该方法的更多详细信息请参见论文。</p>
+<h2><strong>未来方向：基于 CXL 的 DSM 商业化策略</strong></h2>
+<p>除了探究基于 CXL 的部分故障容错 DSM 架构的技术细节，我们还发现这种范式与云计算的发展方向不谋而合；云计算本质上追求的是极致的弹性。云基础架构的演进带来了更细腻的计费模式，促使用户和提供方都能实现更高层次的资源使用效率。然而，由于传统应用程序固有的缺乏弹性，尤其是它们对内存状态的本地化处理，常常未能充分利用这些技术进步带来的潜在优势。突破这一局限，将是 CXL 研究领域面临的重要机会和挑战。</p>
+<h3><strong>后记</strong></h3>
+<p>受到 ACM SIGOPS（美国计算机协会操作系统兴趣组）邀请，本文英文版发表在该协会的博客上（<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.sigops.org%2F2024%2Frevisiting-distributed-memory-in-the-cxl-era%2F%253Fspm%253Da2c6h.13046898.publish-article.3.2f1c6ffabHEEj7" target="_blank">https://www.sigops.org/2024/revisiting-distributed-memory-in-the-cxl-era/</a></u></em>）。本文的相关工作 CXL-SHM 则发表在操作系统顶级会议 SOSP 23 上。</p>
+<p>作者：阿里巴巴技术专家马腾 、清华大学助理教授章明星</p>
+<h3><strong>引用</strong></h3>
+<ul>
+<li>[1] Donghyun Gouk, Sangwon Lee, Miryeong Kwon, and Myoungsoo Jung. 2022. Direct Access High-Performance Memory Disaggregation with DirectCXL. In 2022 USENIX Annual Technical Conference (USENIX ATC 22). 287–294.</li>
+<li>[2] LI, H., BERGER, D. S., HSU, L., ERNST, D., ZARDOSHTI, P., NOVAKOVIC, S., SHAH, M., RAJADNYA, S.,LEE, S., AGARWAL, I., ET AL. Pond: Cxl-based memory pooling systems for cloud platforms. In Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 (2023), pp. 574–587.</li>
+<li>[3] 2022. Compute Express Link 3.0.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.computeexpresslink.org%2F_files%2Fugd%2F0c1418_a8713008916044ae9604405d10a7773b.pdf.%253Fspm%253Da2c6h.13046898.publish-article.4.2f1c6ffabHEEj7" target="_blank">https://www.computeexpresslink.org/_files/ugd/0c1418_a8713008916044ae9604405d10a7773b.pdf.</a><br> [4] 2022. Compute Express Link CXL 3.0 is the Exciting Building Block for Disaggregation.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.servethehome.com%2Fcompute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation%2F%253Fspm%253Da2c6h.13046898.publish-article.5.2f1c6ffabHEEj7" target="_blank">https://www.servethehome.com/compute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation/</a></li>
+<li>[5] ZHANG, M., MA, T., HUA, J., LIU, Z., CHEN, K., DING, N., DU, F., JIANG, J., MA, T., AND WU, Y. Partial failure resilient memory management system for (cxl-based) distributed shared memory. In Proceedings of the 29th Symposium on Operating Systems Principles (2023), pp. 658–674.</li>
+</ul>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1432194%3Futm_content%3Dg_1000391695" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]>
+    </description>
+    <content:encoded><![CDATA[<h2><strong>消息传递与分布式共享内存</strong></h2>
+<p>随着摩尔定律增长的逐渐减缓，系统规模的水平扩展已经成为提升系统性能的关键策略。然而，这种扩展依赖于分布式系统架构的支持，而分布式编程的固有复杂性给构建高效、可靠及弹性的系统带来了严峻挑战。因此，简化分布式编程依旧是分布式编程框架追求的核心目标。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-17ef29c5a0.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>如图所示，在分布式编程领域，目前主流的编程范式主要分为两类：<strong>消息传递</strong>（Message Passing，MP）和<strong>分布式共享内存</strong>（Distributed Shared Memory，DSM）。DSM 范式因其提供一致的内存空间视图和抽象化的数据通信复杂性而更易于使用，这样的设计让分布式应用程序的能够直接编程就像在单机上进行多线程编程一样简单。然而，在实际应用中，较为直接但不太直观的 MP 模型却更为普遍。开发者对 MP 的偏好很大程度上基于这样一个假设：远程通信的高昂开销显著影响了 DSM 系统的性能。</p>
+<p>但是随着网络和互联技术的飞速发展，研究者在逐渐改变对于该领域的看法，特别是随着<span>&nbsp;</span><strong>Compute Express Link（CXL）技术</strong>的推出，我们站在了一个重新思考传统分布式编程范式的新起点。这个技术突破促使我们必须重新评估 DSM 在现代分布式系统中的应用潜力。</p>
+<h2><strong>从以太网到 RDMA 再到 CXL</strong></h2>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-e771ec341e.webp">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-dbdf251bc8.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>从工业界将重心从以太网转移到远程直接内存访问（RDMA），再到当前对Compute Express Link（CXL）的关注，这一连串变迁<strong>标志着互连技术领域</strong>的一系列重大突破。RDMA 的广泛采用极大地革新了现代数据中心的构架，并对众多流行的分布式系统设计产生了深远影响，其中包括许多影响深远的数据库和存储项目。通过利用<span>&nbsp;</span><strong>RDMA</strong>，我们能够将远程数据访问的延迟从 100 多毫秒显著降低到微秒量级，同时提供类似本机内存的读/写接口，<strong>极大地减少了远程操作的成本</strong>。作为最前沿的互联协议，CXL 旨在提供高速且具备缓存一致性的跨物理节点数据传输。例如，DirectCXL[1] 将主机处理器与远程内存资源连接，支持加载/存储指令，其远程 CXL内存访问的延迟大约为 300 纳秒，与访问远程 NUMA 节点的延迟相媲美。<strong>CXL 2.0 的一个关键进步在于引入了内存池化功能</strong>，该功能可以构建全局内存资源池，以此优化内存的总体利用率。内存池化可以通过 CXL 交换机和内存控制器实现，便于内存资源的动态分配与回收。Pond 作为第一个满足云服务提供商需求的全栈内存池[2]，其基于 CXL 的内存池系统已在 Microsoft Azure 云平台上进行了小范围部署。至今，大部分主流云服务提供商都相继宣布了支持并研发基于 CXL 内存池的计划。</p>
+<p>进一步地，已公布的 CXL 3.0/3.1 等规范版本，<strong>承诺将支持内存共享功能</strong>[3]。共享内存允许在多台机器间映射同一内存区域，在这样的配置下，硬件会自动管理不同机器并发访问产生的缓存一致性问题，从本质上实现了基于硬件的分布式共享内存模型。这一革命性的新功能为分布式计算的未来奠定了充满无限可能性的基石。</p>
+<h2><strong>重温 CXL 时代 DSM 范式下的分布式应用</strong></h2>
+<p>尽管 Compute Express Link（CXL）的规范版本已经发展至 3.1，实际的硬件实现却远未跟上规范的快速进步。但这正是一个在即将来临的 CXL 时代背景下，对消息传递（MP）和分布式共享内存（DSM）之间区别重新审视的绝佳时机，关键在于理解它们的差异性，并识别最适合它们的应用场景。这两种范式的<strong>主要区别在于它们所采用的接口</strong>：MP 依靠传统的发送/接收接口，而 CXL 通过提供更细粒度的远程 LOAD/STORE 指令集与 DSM 实现更紧密的一致性。然而，我们认为计算与内存关系的根本假设才是更关键的考量因素。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic3.zhimg.com-c11395f271.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>首先，消息传递范式倾向于采取紧密耦合的架构，每个节点仅能访问其本地内存。而支持 CXL 的 DSM 系统则自然倾向于解耦架构，将计算和内存资源分散到不同的资源池中[4]，这样做能够实现资源的更灵活、更高效利用。其次，就数据通信而言，消息传递通常涉及将数据有效负载从一个节点复制到另一个节点，这是一种按值传递（pass-by-value）的方法。另一方面 DSM 使用了引用传递的方法，只需要交换对于对象的引用使用了引用传递（pass-by-reference）方法。这有助于仅访问必要的数据部分，并实现就地更新，为一些特性的场景带来显著的性能提升。例如，我们开发了一个基于 CXL 的 RPC 系统POC，用于验证引用传递的优势。它避免了数据复制和网络栈的开销，<strong>因此吞吐量比传统的基于 RDMA 的 RPC 系统高出 4 倍以上</strong>。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic2.zhimg.com-fbfe35ac56.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>最后，DSM 提供了全局内存空间的可访问性，这意味着所有数据和状态都是共享的。这一特性有利于工作负载的快速迁移。例如，在“share-nothing”架构中解决负载不均衡问题通常需要数据的大量重新分区，而在“share-everything”模式下，只需交换代表数据分区所有权的元数据即可。</p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-f381cdebed.webp">
+</div>
+<div>
+&nbsp;
+</div>
+<p>总而言之，在那些需要高度灵活性的应用场景中，基于 CXL 的 DSM 表现出色。CXL 架构自然支持这种灵活性，它提供了动态且高效的方式来分配和访问远程内存资源，这对于需要能够快速、高效扩展的系统来说至关重要。</p>
+<h2><strong>基于 CXL 的 DSM 面临的挑战</strong></h2>
+<p>然而，过渡到基于 CXL 的 DSM 范式不仅仅只是享受硬件进步的红利。DSM 范式通过使用同一地址内存空间来维护共享状态，从而实现更快的数据传输和迁移，同时将计算与内存解耦以增强可扩展性。然而，考虑到并发访问的情况以及可能出现的部分故障（partial failure），管理这些共享状态会比传统的 share-nothing 架构更加复杂。</p>
+<p>本质上，我们面临的挑战源于共享分布式对象和引用它们的客户端分别有单独的故障域。具有这种单独的故障域，能够允许客户端在执行任务期间自由加入、离开系统甚至宕机，因为它们创建、释放和交换对远程内存的引用。虽然这种灵活性是用户友好的，但它给内存管理带来了巨大的挑战。我们将其称为部分故障弹性 DSM (RDSM)，以将其与所有客户端同时失败的情况区分开来。我们认为，有效处理部分故障对于扩大 DSM 的使用至关重要。</p>
+<p>为了应对这些挑战，我们在 SOSP 23 上的论文“Partial Failure Resilient Memory Management System for (CXL-based) Distributed Shared Memory”[5] 提出了一种<strong>采用引用计数来减少回收远程内存所涉及的手动工作量的方法</strong>。然而，标准引用计数系统对于系统故障而言鲁棒性并不强。我们将维护自动引用计数的过程分为两个不同的操作。当客户端想要创建引用时，第一步是增加引用计数。接下来，我们通过将引用的值赋为被引用空间的地址来链接该引用。而回收引用是一个类似的两步过程：递减引用计数，然后将引用设置为 NULL。虽然只有两个简单的步骤，但它们的顺序至关重要。如果这两个步骤之间发生系统崩溃，就会出现问题。</p>
+<p>例如，如果我们增加引用计数但由于崩溃而未能设置引用，则可能会导致内存泄漏。一个简单的解决方案是使用锁来确保引用计数的修改是幂等的，并记录此更改以用于后续出现错误之后的恢复。然而这种方法仅在所有客户端同时失败的情况下才有效。在部分失败的情况下，客户端可能在获取锁后崩溃，这可能会导致我们方案进一步的复杂化。为了解决这个问题，我们改变了原始算法中使用锁的方式，转而使用了分布式矢量时钟来做非阻塞更新。这一调整使我们能够保持全局一致的时间表，而不需要锁机制。有关该方法的更多详细信息请参见论文。</p>
+<h2><strong>未来方向：基于 CXL 的 DSM 商业化策略</strong></h2>
+<p>除了探究基于 CXL 的部分故障容错 DSM 架构的技术细节，我们还发现这种范式与云计算的发展方向不谋而合；云计算本质上追求的是极致的弹性。云基础架构的演进带来了更细腻的计费模式，促使用户和提供方都能实现更高层次的资源使用效率。然而，由于传统应用程序固有的缺乏弹性，尤其是它们对内存状态的本地化处理，常常未能充分利用这些技术进步带来的潜在优势。突破这一局限，将是 CXL 研究领域面临的重要机会和挑战。</p>
+<h3><strong>后记</strong></h3>
+<p>受到 ACM SIGOPS（美国计算机协会操作系统兴趣组）邀请，本文英文版发表在该协会的博客上（<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.sigops.org%2F2024%2Frevisiting-distributed-memory-in-the-cxl-era%2F%253Fspm%253Da2c6h.13046898.publish-article.3.2f1c6ffabHEEj7" target="_blank">https://www.sigops.org/2024/revisiting-distributed-memory-in-the-cxl-era/</a></u></em>）。本文的相关工作 CXL-SHM 则发表在操作系统顶级会议 SOSP 23 上。</p>
+<p>作者：阿里巴巴技术专家马腾 、清华大学助理教授章明星</p>
+<h3><strong>引用</strong></h3>
+<ul>
+<li>[1] Donghyun Gouk, Sangwon Lee, Miryeong Kwon, and Myoungsoo Jung. 2022. Direct Access High-Performance Memory Disaggregation with DirectCXL. In 2022 USENIX Annual Technical Conference (USENIX ATC 22). 287–294.</li>
+<li>[2] LI, H., BERGER, D. S., HSU, L., ERNST, D., ZARDOSHTI, P., NOVAKOVIC, S., SHAH, M., RAJADNYA, S.,LEE, S., AGARWAL, I., ET AL. Pond: Cxl-based memory pooling systems for cloud platforms. In Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 (2023), pp. 574–587.</li>
+<li>[3] 2022. Compute Express Link 3.0.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.computeexpresslink.org%2F_files%2Fugd%2F0c1418_a8713008916044ae9604405d10a7773b.pdf.%253Fspm%253Da2c6h.13046898.publish-article.4.2f1c6ffabHEEj7" target="_blank">https://www.computeexpresslink.org/_files/ugd/0c1418_a8713008916044ae9604405d10a7773b.pdf.</a><br> [4] 2022. Compute Express Link CXL 3.0 is the Exciting Building Block for Disaggregation.<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Flink.zhihu.com%2F%3Ftarget%3Dhttps%253A%2F%2Fwww.servethehome.com%2Fcompute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation%2F%253Fspm%253Da2c6h.13046898.publish-article.5.2f1c6ffabHEEj7" target="_blank">https://www.servethehome.com/compute-expresslink-cxl-3-0-is-the-exciting-building-block-for-disaggregation/</a></li>
+<li>[5] ZHANG, M., MA, T., HUA, J., LIU, Z., CHEN, K., DING, N., DU, F., JIANG, J., MA, T., AND WU, Y. Partial failure resilient memory management system for (cxl-based) distributed shared memory. In Proceedings of the 29th Symposium on Operating Systems Principles (2023), pp. 658–674.</li>
+</ul>
+<p><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdeveloper.aliyun.com%2Farticle%2F1432194%3Futm_content%3Dg_1000391695" target="_blank">原文链接</a></strong></p>
+<p><strong>本文为阿里云原创内容，未经允许不得转载。</strong></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-17ef29c5a0.webp"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/pic4.zhimg.com-17ef29c5a0.webp" medium="image"/>
+    <pubDate>Sun, 14 Apr 2024 11:36:51 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线]]></title>
+    <link>https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line</link>
+    <itunes:title><![CDATA[彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>彭博社援引知情人士<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
+<p><span>其中，iMac、低端 14 英寸 MacBook Pro、高端 14 英寸 MacBook Pro、16 英寸 MacBook Pro 和 Mac mini 机器将在 2024 年率先采用 M4 芯片，随后在 2025 年中期的某个时候更新 13 英寸和 15 英寸 MacBook Air 机型，Mac Studio 和 Mac Pro 则将在晚些时候获得更新。</span></p>
+<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
+<p><span>苹果将为入门级 MacBook Pro、MacBook Air 和低端 Mac Mini 添加 Donan 芯片。为高配置的 MacBook Pro、Mac Minis 和 Mac Studio 保留中端 Brava 芯片，为 Mac Pro 添加顶级 Hidra 芯片。</span></p>
+<p><span>去年 10 月份，苹果公司于发布了新一代 <a href="https://www.oschina.net/news/264233/apple-m3-silicon">M3 芯片</a>以及采用该芯片的新款 MacBook Pro 和 iMac 电脑。近段时间以来，苹果的 Mac 系列产品正值困难时期，其销量持续下滑；在苹果公司截至 9 月份的最近一个财年中，Mac 销量下降了 27%。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
+<p><span>有外媒认为，该公司可能会在 6 月的年度开发者大会上宣布新的 AI 合作伙伴关系，并公布 iOS 的重大变化。</span></p>
+<p><span>值得一提的是，微软也在加码高通</span><span>骁龙 X Elite 芯片，预计将其</span>应用于今年推出的多款 Windows 笔记本电脑中。<span>骁龙 X Elite 芯片于去年 10 月推出，并针对 AI 功能进行了优化。</span><span>微软</span>认为，搭载了这一芯片的设备<span>在 CPU 性能和 AI 加速任务方面均优于搭载了 M3 芯片的苹果 MacBook Air。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>彭博社援引知情人士<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
+<p><span>其中，iMac、低端 14 英寸 MacBook Pro、高端 14 英寸 MacBook Pro、16 英寸 MacBook Pro 和 Mac mini 机器将在 2024 年率先采用 M4 芯片，随后在 2025 年中期的某个时候更新 13 英寸和 15 英寸 MacBook Air 机型，Mac Studio 和 Mac Pro 则将在晚些时候获得更新。</span></p>
+<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
+<p><span>苹果将为入门级 MacBook Pro、MacBook Air 和低端 Mac Mini 添加 Donan 芯片。为高配置的 MacBook Pro、Mac Minis 和 Mac Studio 保留中端 Brava 芯片，为 Mac Pro 添加顶级 Hidra 芯片。</span></p>
+<p><span>去年 10 月份，苹果公司于发布了新一代 <a href="https://www.oschina.net/news/264233/apple-m3-silicon">M3 芯片</a>以及采用该芯片的新款 MacBook Pro 和 iMac 电脑。近段时间以来，苹果的 Mac 系列产品正值困难时期，其销量持续下滑；在苹果公司截至 9 月份的最近一个财年中，Mac 销量下降了 27%。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
+<p><span>有外媒认为，该公司可能会在 6 月的年度开发者大会上宣布新的 AI 合作伙伴关系，并公布 iOS 的重大变化。</span></p>
+<p><span>值得一提的是，微软也在加码高通</span><span>骁龙 X Elite 芯片，预计将其</span>应用于今年推出的多款 Windows 笔记本电脑中。<span>骁龙 X Elite 芯片于去年 10 月推出，并针对 AI 功能进行了优化。</span><span>微软</span>认为，搭载了这一芯片的设备<span>在 CPU 性能和 AI 加速任务方面均优于搭载了 M3 芯片的苹果 MacBook Air。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>彭博社援引知情人士<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
+<p><span>其中，iMac、低端 14 英寸 MacBook Pro、高端 14 英寸 MacBook Pro、16 英寸 MacBook Pro 和 Mac mini 机器将在 2024 年率先采用 M4 芯片，随后在 2025 年中期的某个时候更新 13 英寸和 15 英寸 MacBook Air 机型，Mac Studio 和 Mac Pro 则将在晚些时候获得更新。</span></p>
+<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
+<p><span>苹果将为入门级 MacBook Pro、MacBook Air 和低端 Mac Mini 添加 Donan 芯片。为高配置的 MacBook Pro、Mac Minis 和 Mac Studio 保留中端 Brava 芯片，为 Mac Pro 添加顶级 Hidra 芯片。</span></p>
+<p><span>去年 10 月份，苹果公司于发布了新一代 <a href="https://www.oschina.net/news/264233/apple-m3-silicon">M3 芯片</a>以及采用该芯片的新款 MacBook Pro 和 iMac 电脑。近段时间以来，苹果的 Mac 系列产品正值困难时期，其销量持续下滑；在苹果公司截至 9 月份的最近一个财年中，Mac 销量下降了 27%。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
+<p><span>有外媒认为，该公司可能会在 6 月的年度开发者大会上宣布新的 AI 合作伙伴关系，并公布 iOS 的重大变化。</span></p>
+<p><span>值得一提的是，微软也在加码高通</span><span>骁龙 X Elite 芯片，预计将其</span>应用于今年推出的多款 Windows 笔记本电脑中。<span>骁龙 X Elite 芯片于去年 10 月推出，并针对 AI 功能进行了优化。</span><span>微软</span>认为，搭载了这一芯片的设备<span>在 CPU 性能和 AI 加速任务方面均优于搭载了 M3 芯片的苹果 MacBook Air。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png" medium="image"/>
+    <pubDate>Sun, 14 Apr 2024 11:02:25 +0800</pubDate>
+  </item><item>
     <title><![CDATA[1Panel 官方出品丨MaxKB：基于 LLM 大模型的知识库问答系统]]></title>
     <link>https://www.oschina.net/news/287529</link>
     <itunes:title><![CDATA[1Panel 官方出品丨MaxKB：基于 LLM 大模型的知识库问答系统]]></itunes:title>
@@ -10831,244 +11622,5 @@ onLoop(({ delta }) =&gt; {
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd9e4a0a55.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cd9e4a0a55.png" medium="image"/>
     <pubDate>Wed, 10 Apr 2024 11:31:03 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[Mistral AI 开源 Mistral 8x22B Moe 大模型]]></title>
-    <link>https://www.oschina.net/news/286974/mistral-8-22b</link>
-    <itunes:title><![CDATA[Mistral AI 开源 Mistral 8x22B Moe 大模型]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>Mistral AI 公司刚刚再次用磁力链接开源了一款大模型 —— Mistral 8x22B，模型文件大小为 281.24 GB。</p>
-<p>从模型的名字来看，Mistral 8x22B 是去年开源的<a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">「mixtral-8x7b」</a>的超级大杯版本，参数规模增长三倍不止——由 8 个 220 亿参数规模 (8×22B) 的专家网络组成。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0132efcd2f.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f34cee0967.png"></p>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FMistralAI%2Fstatus%2F1777869263778291896" target="_blank">https://twitter.com/MistralAI/status/1777869263778291896</a></em></u></p>
-</blockquote>
-<p>磁力链接地址：</p>
-<pre><code>magnet:?xt=urn:btih:9238b09245d0d8cd915be09927769d5f7584c1c9&amp;dn=mixtral-8x22b&amp;tr=udp%3A%2F%http://2Fopen.demonii.com%3A1337%2Fannounce&amp;tr=http%3A%2F%http://2Ftracker.opentrackr.org%3A1337%2Fannounce</code></pre>
-<p>目前 Mistral AI 已经开源的模型如下：</p>
-<ul>
-<li><a href="https://www.oschina.net/news/259954/mistral-ai-mistral-7b">Mistral-Tiny：7B</a></li>
-<li><a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">Mistral-Small：8x7B</a></li>
-<li>Mistral-Medium：8x22B</li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>Mistral AI 公司刚刚再次用磁力链接开源了一款大模型 —— Mistral 8x22B，模型文件大小为 281.24 GB。</p>
-<p>从模型的名字来看，Mistral 8x22B 是去年开源的<a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">「mixtral-8x7b」</a>的超级大杯版本，参数规模增长三倍不止——由 8 个 220 亿参数规模 (8×22B) 的专家网络组成。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0132efcd2f.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f34cee0967.png"></p>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FMistralAI%2Fstatus%2F1777869263778291896" target="_blank">https://twitter.com/MistralAI/status/1777869263778291896</a></em></u></p>
-</blockquote>
-<p>磁力链接地址：</p>
-<pre><code>magnet:?xt=urn:btih:9238b09245d0d8cd915be09927769d5f7584c1c9&amp;dn=mixtral-8x22b&amp;tr=udp%3A%2F%http://2Fopen.demonii.com%3A1337%2Fannounce&amp;tr=http%3A%2F%http://2Ftracker.opentrackr.org%3A1337%2Fannounce</code></pre>
-<p>目前 Mistral AI 已经开源的模型如下：</p>
-<ul>
-<li><a href="https://www.oschina.net/news/259954/mistral-ai-mistral-7b">Mistral-Tiny：7B</a></li>
-<li><a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">Mistral-Small：8x7B</a></li>
-<li>Mistral-Medium：8x22B</li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p>Mistral AI 公司刚刚再次用磁力链接开源了一款大模型 —— Mistral 8x22B，模型文件大小为 281.24 GB。</p>
-<p>从模型的名字来看，Mistral 8x22B 是去年开源的<a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">「mixtral-8x7b」</a>的超级大杯版本，参数规模增长三倍不止——由 8 个 220 亿参数规模 (8×22B) 的专家网络组成。</p>
-<blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0132efcd2f.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f34cee0967.png"></p>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftwitter.com%2FMistralAI%2Fstatus%2F1777869263778291896" target="_blank">https://twitter.com/MistralAI/status/1777869263778291896</a></em></u></p>
-</blockquote>
-<p>磁力链接地址：</p>
-<pre><code>magnet:?xt=urn:btih:9238b09245d0d8cd915be09927769d5f7584c1c9&amp;dn=mixtral-8x22b&amp;tr=udp%3A%2F%http://2Fopen.demonii.com%3A1337%2Fannounce&amp;tr=http%3A%2F%http://2Ftracker.opentrackr.org%3A1337%2Fannounce</code></pre>
-<p>目前 Mistral AI 已经开源的模型如下：</p>
-<ul>
-<li><a href="https://www.oschina.net/news/259954/mistral-ai-mistral-7b">Mistral-Tiny：7B</a></li>
-<li><a href="https://www.oschina.net/news/270317/mixtral-8-7b-32kseqlen">Mistral-Small：8x7B</a></li>
-<li>Mistral-Medium：8x22B</li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0132efcd2f.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0132efcd2f.png" medium="image"/>
-    <pubDate>Wed, 10 Apr 2024 10:46:24 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[OpenSSL 3.3.0 发布]]></title>
-    <link>https://www.oschina.net/news/286970/openssl-3-3-0-final</link>
-    <itunes:title><![CDATA[OpenSSL 3.3.0 发布]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>OpenSSL 3.3.0 已发布，此版本在 OpenSSL 3.2 中引入的 QUIC 连接支持的基础上，对 QUIC 传输协议支持做了许多改进。</p>
-<p>OpenSSL 3.2 的重点是 QUIC 客户端支持，而 OpenSSL 3.3 则在 QUIC 服务器端做了更多工作。有关 OpenSSL 当前 QUIC HTTP/3 支持的详细信息，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Fblob%2Fopenssl-3.3.0%2FREADME-QUIC.md" target="_blank">查看此文档</a>。</p>
-<p>OpenSSL 3.3 的变化包括：</p>
-<ul>
-<li>支持用于跟踪 QUIC 连接的 qlogc</li>
-<li>围绕 QUIC 连接和多流 QUIC 服务器支持的许多新 API</li>
-<li>针对 Microsoft Azure Cobalt 100 的 AES-GCM unroll8 优化</li>
-<li>针对 ARM Neoverse V1 和 V2 处理器优化了 AES-CTR</li>
-<li>为 Apple Silicon M3 优化了 AES 和 SHA3</li>
-<li>在 LoongArch64 上实现了 MD5 的汇编</li>
-</ul>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Freleases%2Ftag%2Fopenssl-3.3.0" target="_blank">下载地址</a></em></u></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>OpenSSL 3.3.0 已发布，此版本在 OpenSSL 3.2 中引入的 QUIC 连接支持的基础上，对 QUIC 传输协议支持做了许多改进。</p>
-<p>OpenSSL 3.2 的重点是 QUIC 客户端支持，而 OpenSSL 3.3 则在 QUIC 服务器端做了更多工作。有关 OpenSSL 当前 QUIC HTTP/3 支持的详细信息，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Fblob%2Fopenssl-3.3.0%2FREADME-QUIC.md" target="_blank">查看此文档</a>。</p>
-<p>OpenSSL 3.3 的变化包括：</p>
-<ul>
-<li>支持用于跟踪 QUIC 连接的 qlogc</li>
-<li>围绕 QUIC 连接和多流 QUIC 服务器支持的许多新 API</li>
-<li>针对 Microsoft Azure Cobalt 100 的 AES-GCM unroll8 优化</li>
-<li>针对 ARM Neoverse V1 和 V2 处理器优化了 AES-CTR</li>
-<li>为 Apple Silicon M3 优化了 AES 和 SHA3</li>
-<li>在 LoongArch64 上实现了 MD5 的汇编</li>
-</ul>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Freleases%2Ftag%2Fopenssl-3.3.0" target="_blank">下载地址</a></em></u></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>OpenSSL 3.3.0 已发布，此版本在 OpenSSL 3.2 中引入的 QUIC 连接支持的基础上，对 QUIC 传输协议支持做了许多改进。</p>
-<p>OpenSSL 3.2 的重点是 QUIC 客户端支持，而 OpenSSL 3.3 则在 QUIC 服务器端做了更多工作。有关 OpenSSL 当前 QUIC HTTP/3 支持的详细信息，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Fblob%2Fopenssl-3.3.0%2FREADME-QUIC.md" target="_blank">查看此文档</a>。</p>
-<p>OpenSSL 3.3 的变化包括：</p>
-<ul>
-<li>支持用于跟踪 QUIC 连接的 qlogc</li>
-<li>围绕 QUIC 连接和多流 QUIC 服务器支持的许多新 API</li>
-<li>针对 Microsoft Azure Cobalt 100 的 AES-GCM unroll8 优化</li>
-<li>针对 ARM Neoverse V1 和 V2 处理器优化了 AES-CTR</li>
-<li>为 Apple Silicon M3 优化了 AES 和 SHA3</li>
-<li>在 LoongArch64 上实现了 MD5 的汇编</li>
-</ul>
-<p><u><em><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fopenssl%2Fopenssl%2Freleases%2Ftag%2Fopenssl-3.3.0" target="_blank">下载地址</a></em></u></p>]]></content:encoded>
-    
-    <pubDate>Wed, 10 Apr 2024 10:22:30 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[斯坦福团队开源端侧大模型 Octopusv2]]></title>
-    <link>https://www.oschina.net/news/286968</link>
-    <itunes:title><![CDATA[斯坦福团队开源端侧大模型 Octopusv2]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>斯坦福大学研究团队近日推出了一款全新的开源端侧大模型 Octopusv2。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7450c02d71.png"></p>
-<ul>
-<li>论文：Octopus v2: On-device language model for super agent</li>
-<li>论文地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2404.01744" target="_blank">https://arxiv.org/abs/2404.01744</a></li>
-<li>模型主页：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FNexaAIDev%2FOctopus-v2" target="_blank">https://huggingface.co/NexaAIDev/Octopus-v2</a></li>
-</ul>
-<p>Octopusv2是一款拥有20亿参数的开源语言模型，专为在Android设备上运行而设计，同时也适用于汽车、个人电脑等其他端侧设备，并将实用性扩展到从 Android 系统管理到多个设备的编排等各种应用程序。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6a86c783f.png"></p>
-<p>该模型在准确性和延迟方面的表现超越了GPT-4，并且在上下文长度上减少了95%，显示出了显著的性能优势。此外，Octopus v2 比 Llama7B + RAG 方案快 36 倍。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e1a306ce0a.png"></p>
-<p><span>Octopus-V2-2B模型的开发过程中，研究团队采用了创新的函数token策略，这使得模型在训练和推理阶段能够高效地生成复杂的函数调用。</span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>斯坦福大学研究团队近日推出了一款全新的开源端侧大模型 Octopusv2。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7450c02d71.png"></p>
-<ul>
-<li>论文：Octopus v2: On-device language model for super agent</li>
-<li>论文地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2404.01744" target="_blank">https://arxiv.org/abs/2404.01744</a></li>
-<li>模型主页：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FNexaAIDev%2FOctopus-v2" target="_blank">https://huggingface.co/NexaAIDev/Octopus-v2</a></li>
-</ul>
-<p>Octopusv2是一款拥有20亿参数的开源语言模型，专为在Android设备上运行而设计，同时也适用于汽车、个人电脑等其他端侧设备，并将实用性扩展到从 Android 系统管理到多个设备的编排等各种应用程序。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6a86c783f.png"></p>
-<p>该模型在准确性和延迟方面的表现超越了GPT-4，并且在上下文长度上减少了95%，显示出了显著的性能优势。此外，Octopus v2 比 Llama7B + RAG 方案快 36 倍。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e1a306ce0a.png"></p>
-<p><span>Octopus-V2-2B模型的开发过程中，研究团队采用了创新的函数token策略，这使得模型在训练和推理阶段能够高效地生成复杂的函数调用。</span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>斯坦福大学研究团队近日推出了一款全新的开源端侧大模型 Octopusv2。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7450c02d71.png"></p>
-<ul>
-<li>论文：Octopus v2: On-device language model for super agent</li>
-<li>论文地址：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Farxiv.org%2Fabs%2F2404.01744" target="_blank">https://arxiv.org/abs/2404.01744</a></li>
-<li>模型主页：<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FNexaAIDev%2FOctopus-v2" target="_blank">https://huggingface.co/NexaAIDev/Octopus-v2</a></li>
-</ul>
-<p>Octopusv2是一款拥有20亿参数的开源语言模型，专为在Android设备上运行而设计，同时也适用于汽车、个人电脑等其他端侧设备，并将实用性扩展到从 Android 系统管理到多个设备的编排等各种应用程序。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6a86c783f.png"></p>
-<p>该模型在准确性和延迟方面的表现超越了GPT-4，并且在上下文长度上减少了95%，显示出了显著的性能优势。此外，Octopus v2 比 Llama7B + RAG 方案快 36 倍。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e1a306ce0a.png"></p>
-<p><span>Octopus-V2-2B模型的开发过程中，研究团队采用了创新的函数token策略，这使得模型在训练和推理阶段能够高效地生成复杂的函数调用。</span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7450c02d71.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7450c02d71.png" medium="image"/>
-    <pubDate>Wed, 10 Apr 2024 10:17:50 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[2024 全球独角兽榜：字节跳动价值 1.56 万亿元居首]]></title>
-    <link>https://www.oschina.net/news/286964</link>
-    <itunes:title><![CDATA[2024 全球独角兽榜：字节跳动价值 1.56 万亿元居首]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>胡润研究院今日于广州<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">发布</a>《2024全球独角兽榜》，列出了全球成立于2000年之后，价值10亿美元以上的非上市公司。</span></p>
-<p><span>过去一年全球独角兽企业数量达到1453家，比去年增加7%，即92家。美国以703家独角兽领跑，增加37家，占全球总数的48%。中国以340家位居第二，增加24家。全球独角兽总价值4.6万亿美元，比去年增长7%。</span></p>
-<p><span>其中，OpenAI价值增长最快，增长近5700亿元人民币，以7100亿元成为全球第三大独角兽。SpaceX价值增长第二快，增长近3100亿元，达到1.28万亿元，位居第二。字节跳动仍然是全球价值最高的独角兽，价值1.56万亿元。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bd9889ca4.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-923a057bad.png"></p>
-<p><span>金融科技、人工智能、区块链和新能源是过去一年增长最快的行业。总体而言，金融科技以185家独角兽领跑，其次是软件服务（139家）和人工智能（115家）。中国独角兽主要来自人工智能、半导体和新能源行业，美国独角兽主要来自软件服务、金融科技和人工智能，世界其他地区的独角兽主要来自金融科技和电子商务。价值下降最多的是蚂蚁集团和菜鸟网络，分别下降2800多亿和近1200亿。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dbc065a929.png"></p>
-<blockquote>
-<p><span>“今年是AI之年。OpenAI领涨，价值增长近5700亿，达到7100亿元人民币。在中国，成立一年的总部北京的月之暗面和成立两年多的总部上海的名之梦在类似ChatGPT的产品方面处于领先地位。其他公司包括总部亚特兰大的OneTrust，该公司将AI用于数据安全，总部英国的Graphcore，该公司加速了全球计算能力竞争，以及总部印度的Glance，该公司展示了AI在改变移动平台内容消费方面的影响。”</span></p>
-</blockquote>
-<p><span>旧金山拥有190家独角兽企业，保持“全球独角兽之都”称号，并且是全球增长最快的城市，增加了9家。纽约以133家位居第二，北京以78家位居第三。新加坡是增长第二快的城市，增加了8家，达到17家。合肥是增长最快的中国城市，其次是广州、杭州、苏州，以及重新进入30强的南京。广州以24家位居前十，比去年增加2家。粤港澳大湾区共有70家独角兽，比去年增加7家。</span></p>
-<p><span>21家国企孵化的独角兽上榜，全部来自中国，以总部广州的的新能源汽车广汽埃安为首，价值1000亿元人民币，其次是总部武汉，由东风汽车所打造的新能源汽车岚图，价值305亿元人民币；总部上海，由上汽、张江高科和阿里巴巴联合打造的新能源汽车智己汽车，以及总部上海，由华大半导体所打造的积塔半导体，价值均达到300亿元人民币。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-15298af010.png"></span></p>
-<p><span>过去一年中国有18家独角兽上市，远远超过美国的5家和世界其他地区的6家。去年榜单的2.7%，即37家独角兽在上市或被并购后“升级”退出榜单。最成功的IPO是拼多多重要快递合作伙伴总部印尼的极兔速递和总部中国的豪华电动汽车制造商路特斯。美国最大的独角兽IPO是配送公司Instacart，目前价值只有独角兽估值的一半。</span></p>
-<p><span>更多详情可查看此处：</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">https://hurun.net/zh-CN/Info/Detail?num=JDW1AWCKDVPA</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>胡润研究院今日于广州<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">发布</a>《2024全球独角兽榜》，列出了全球成立于2000年之后，价值10亿美元以上的非上市公司。</span></p>
-<p><span>过去一年全球独角兽企业数量达到1453家，比去年增加7%，即92家。美国以703家独角兽领跑，增加37家，占全球总数的48%。中国以340家位居第二，增加24家。全球独角兽总价值4.6万亿美元，比去年增长7%。</span></p>
-<p><span>其中，OpenAI价值增长最快，增长近5700亿元人民币，以7100亿元成为全球第三大独角兽。SpaceX价值增长第二快，增长近3100亿元，达到1.28万亿元，位居第二。字节跳动仍然是全球价值最高的独角兽，价值1.56万亿元。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bd9889ca4.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-923a057bad.png"></p>
-<p><span>金融科技、人工智能、区块链和新能源是过去一年增长最快的行业。总体而言，金融科技以185家独角兽领跑，其次是软件服务（139家）和人工智能（115家）。中国独角兽主要来自人工智能、半导体和新能源行业，美国独角兽主要来自软件服务、金融科技和人工智能，世界其他地区的独角兽主要来自金融科技和电子商务。价值下降最多的是蚂蚁集团和菜鸟网络，分别下降2800多亿和近1200亿。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dbc065a929.png"></p>
-<blockquote>
-<p><span>“今年是AI之年。OpenAI领涨，价值增长近5700亿，达到7100亿元人民币。在中国，成立一年的总部北京的月之暗面和成立两年多的总部上海的名之梦在类似ChatGPT的产品方面处于领先地位。其他公司包括总部亚特兰大的OneTrust，该公司将AI用于数据安全，总部英国的Graphcore，该公司加速了全球计算能力竞争，以及总部印度的Glance，该公司展示了AI在改变移动平台内容消费方面的影响。”</span></p>
-</blockquote>
-<p><span>旧金山拥有190家独角兽企业，保持“全球独角兽之都”称号，并且是全球增长最快的城市，增加了9家。纽约以133家位居第二，北京以78家位居第三。新加坡是增长第二快的城市，增加了8家，达到17家。合肥是增长最快的中国城市，其次是广州、杭州、苏州，以及重新进入30强的南京。广州以24家位居前十，比去年增加2家。粤港澳大湾区共有70家独角兽，比去年增加7家。</span></p>
-<p><span>21家国企孵化的独角兽上榜，全部来自中国，以总部广州的的新能源汽车广汽埃安为首，价值1000亿元人民币，其次是总部武汉，由东风汽车所打造的新能源汽车岚图，价值305亿元人民币；总部上海，由上汽、张江高科和阿里巴巴联合打造的新能源汽车智己汽车，以及总部上海，由华大半导体所打造的积塔半导体，价值均达到300亿元人民币。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-15298af010.png"></span></p>
-<p><span>过去一年中国有18家独角兽上市，远远超过美国的5家和世界其他地区的6家。去年榜单的2.7%，即37家独角兽在上市或被并购后“升级”退出榜单。最成功的IPO是拼多多重要快递合作伙伴总部印尼的极兔速递和总部中国的豪华电动汽车制造商路特斯。美国最大的独角兽IPO是配送公司Instacart，目前价值只有独角兽估值的一半。</span></p>
-<p><span>更多详情可查看此处：</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">https://hurun.net/zh-CN/Info/Detail?num=JDW1AWCKDVPA</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>胡润研究院今日于广州<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">发布</a>《2024全球独角兽榜》，列出了全球成立于2000年之后，价值10亿美元以上的非上市公司。</span></p>
-<p><span>过去一年全球独角兽企业数量达到1453家，比去年增加7%，即92家。美国以703家独角兽领跑，增加37家，占全球总数的48%。中国以340家位居第二，增加24家。全球独角兽总价值4.6万亿美元，比去年增长7%。</span></p>
-<p><span>其中，OpenAI价值增长最快，增长近5700亿元人民币，以7100亿元成为全球第三大独角兽。SpaceX价值增长第二快，增长近3100亿元，达到1.28万亿元，位居第二。字节跳动仍然是全球价值最高的独角兽，价值1.56万亿元。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bd9889ca4.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-923a057bad.png"></p>
-<p><span>金融科技、人工智能、区块链和新能源是过去一年增长最快的行业。总体而言，金融科技以185家独角兽领跑，其次是软件服务（139家）和人工智能（115家）。中国独角兽主要来自人工智能、半导体和新能源行业，美国独角兽主要来自软件服务、金融科技和人工智能，世界其他地区的独角兽主要来自金融科技和电子商务。价值下降最多的是蚂蚁集团和菜鸟网络，分别下降2800多亿和近1200亿。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-dbc065a929.png"></p>
-<blockquote>
-<p><span>“今年是AI之年。OpenAI领涨，价值增长近5700亿，达到7100亿元人民币。在中国，成立一年的总部北京的月之暗面和成立两年多的总部上海的名之梦在类似ChatGPT的产品方面处于领先地位。其他公司包括总部亚特兰大的OneTrust，该公司将AI用于数据安全，总部英国的Graphcore，该公司加速了全球计算能力竞争，以及总部印度的Glance，该公司展示了AI在改变移动平台内容消费方面的影响。”</span></p>
-</blockquote>
-<p><span>旧金山拥有190家独角兽企业，保持“全球独角兽之都”称号，并且是全球增长最快的城市，增加了9家。纽约以133家位居第二，北京以78家位居第三。新加坡是增长第二快的城市，增加了8家，达到17家。合肥是增长最快的中国城市，其次是广州、杭州、苏州，以及重新进入30强的南京。广州以24家位居前十，比去年增加2家。粤港澳大湾区共有70家独角兽，比去年增加7家。</span></p>
-<p><span>21家国企孵化的独角兽上榜，全部来自中国，以总部广州的的新能源汽车广汽埃安为首，价值1000亿元人民币，其次是总部武汉，由东风汽车所打造的新能源汽车岚图，价值305亿元人民币；总部上海，由上汽、张江高科和阿里巴巴联合打造的新能源汽车智己汽车，以及总部上海，由华大半导体所打造的积塔半导体，价值均达到300亿元人民币。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-15298af010.png"></span></p>
-<p><span>过去一年中国有18家独角兽上市，远远超过美国的5家和世界其他地区的6家。去年榜单的2.7%，即37家独角兽在上市或被并购后“升级”退出榜单。最成功的IPO是拼多多重要快递合作伙伴总部印尼的极兔速递和总部中国的豪华电动汽车制造商路特斯。美国最大的独角兽IPO是配送公司Instacart，目前价值只有独角兽估值的一半。</span></p>
-<p><span>更多详情可查看此处：</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhurun.net%2Fzh-CN%2FInfo%2FDetail%3Fnum%3DJDW1AWCKDVPA" target="_blank">https://hurun.net/zh-CN/Info/Detail?num=JDW1AWCKDVPA</a></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bd9889ca4.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bd9889ca4.png" medium="image"/>
-    <pubDate>Wed, 10 Apr 2024 10:12:33 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[英特尔发布 AI 芯片 Gaudi 3，性能远超英伟达 H100]]></title>
-    <link>https://www.oschina.net/news/286960</link>
-    <itunes:title><![CDATA[英特尔发布 AI 芯片 Gaudi 3，性能远超英伟达 H100]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>英特尔发布了其最新的 AI 芯片Gaudi 3，预计将在第三季度广泛上市，包括戴尔、惠普和超微电脑在内的公司将使用该芯片。不过，英特尔没有提供Gaudi 3的价格范围。</span></p>
-<p><span>该公司声称，新款Gaudi 3芯片与英伟达H100芯片相比，推理能力平均提高50%，能效平均提高40%，运行人工智能模型的速度是H100的1.5倍。预计与英伟达最新的H200大致相当，甚至在某些领域表现更好。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-02bc0f1d24.png"></p>
-<p><span>英特尔云和企业解决方案事业部副总裁兼高级首席工程师Das Kamhout在电话会议上声称：“我们确实预计Gaudi 3能够与英伟达的最新芯片一较高下。从我们具有竞争力的价格，我们独特的开放式集成芯片网络，我们正在使用行业标准的以太网来看，我们相信这是一款强大的产品。”</span></p>
-<p><span>该公司已经在Meta的开源模型Llama上测试了Gaudi 3，英特尔表示，Gaudi 3可以帮助训练或部署 AI 大模型，包括用于文本到图像生成模型Stable Diffusion或OpenAI的语音识别模型Whisper。</span></p>
-<p><span>据英特尔介绍，Gaudi 3采用5纳米工艺制造，这是一种相对较新的制造技术，表明该公司正在使用外部代工厂生产芯片。除了设计Gaudi 3，英特尔还计划在俄亥俄州的一家新工厂生产 AI 芯片，预计将于2027年或2028年投产。</span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>英特尔发布了其最新的 AI 芯片Gaudi 3，预计将在第三季度广泛上市，包括戴尔、惠普和超微电脑在内的公司将使用该芯片。不过，英特尔没有提供Gaudi 3的价格范围。</span></p>
-<p><span>该公司声称，新款Gaudi 3芯片与英伟达H100芯片相比，推理能力平均提高50%，能效平均提高40%，运行人工智能模型的速度是H100的1.5倍。预计与英伟达最新的H200大致相当，甚至在某些领域表现更好。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-02bc0f1d24.png"></p>
-<p><span>英特尔云和企业解决方案事业部副总裁兼高级首席工程师Das Kamhout在电话会议上声称：“我们确实预计Gaudi 3能够与英伟达的最新芯片一较高下。从我们具有竞争力的价格，我们独特的开放式集成芯片网络，我们正在使用行业标准的以太网来看，我们相信这是一款强大的产品。”</span></p>
-<p><span>该公司已经在Meta的开源模型Llama上测试了Gaudi 3，英特尔表示，Gaudi 3可以帮助训练或部署 AI 大模型，包括用于文本到图像生成模型Stable Diffusion或OpenAI的语音识别模型Whisper。</span></p>
-<p><span>据英特尔介绍，Gaudi 3采用5纳米工艺制造，这是一种相对较新的制造技术，表明该公司正在使用外部代工厂生产芯片。除了设计Gaudi 3，英特尔还计划在俄亥俄州的一家新工厂生产 AI 芯片，预计将于2027年或2028年投产。</span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>英特尔发布了其最新的 AI 芯片Gaudi 3，预计将在第三季度广泛上市，包括戴尔、惠普和超微电脑在内的公司将使用该芯片。不过，英特尔没有提供Gaudi 3的价格范围。</span></p>
-<p><span>该公司声称，新款Gaudi 3芯片与英伟达H100芯片相比，推理能力平均提高50%，能效平均提高40%，运行人工智能模型的速度是H100的1.5倍。预计与英伟达最新的H200大致相当，甚至在某些领域表现更好。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-02bc0f1d24.png"></p>
-<p><span>英特尔云和企业解决方案事业部副总裁兼高级首席工程师Das Kamhout在电话会议上声称：“我们确实预计Gaudi 3能够与英伟达的最新芯片一较高下。从我们具有竞争力的价格，我们独特的开放式集成芯片网络，我们正在使用行业标准的以太网来看，我们相信这是一款强大的产品。”</span></p>
-<p><span>该公司已经在Meta的开源模型Llama上测试了Gaudi 3，英特尔表示，Gaudi 3可以帮助训练或部署 AI 大模型，包括用于文本到图像生成模型Stable Diffusion或OpenAI的语音识别模型Whisper。</span></p>
-<p><span>据英特尔介绍，Gaudi 3采用5纳米工艺制造，这是一种相对较新的制造技术，表明该公司正在使用外部代工厂生产芯片。除了设计Gaudi 3，英特尔还计划在俄亥俄州的一家新工厂生产 AI 芯片，预计将于2027年或2028年投产。</span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-02bc0f1d24.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-02bc0f1d24.png" medium="image"/>
-    <pubDate>Wed, 10 Apr 2024 10:00:48 +0800</pubDate>
   </item></channel>
 </rss>
