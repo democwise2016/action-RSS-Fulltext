@@ -30,6 +30,72 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[包山包海的殺手級 LLM 整合平台 - Anything LLM]]></title>
+    <link>https://blog.darkthread.net/blog/anything-llm/</link>
+    <itunes:title><![CDATA[包山包海的殺手級 LLM 整合平台 - Anything LLM]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>之前試過用 Chatty GPT <a href="/blog/chatty-gpt-azure-openai-version/">打造個人專屬 ChatGPT 聊天室</a>，但受限只能在本機桌面跑，無法多人使用。後來試了<a href="/blog/supabase/">自架 Chatbot UI 伺服器</a>因綁了 Supabase 太笨重，想等作者改 SQLite 版再用。</p> <p>現在看來不用等 Chatbot UI 了! 有個包山包海的殺手級 LLM 整合平台開源專案 - <a href="https://github.com/Mintplex-Labs/anything-llm">Anything LLM</a>，一口氣通吃所有 LLM API (ChatGPT、Azure OpenAI、Gemini、Hugging Face、Anthropic、Groq、Ollama... )、整進各大<a href="/blog/vector-db-survey/">向量資料庫</a> (Chroma、Qdrant、Pinecone、Weaviate、Milvus...)，甚至內建上傳 PDF 解析、爬網頁、掃 YouTube 影片... 等文字擷取及向量化功能，直接包辦 <a href="/blog/rag/">RAG</a> 的活兒。把這些全部整進一個聊天介面，還支援多使用者管理，能設定誰可以用哪些 LLM 功能... 一口氣把大部分想得到的 LLM 整合功能都包進去了，大家還玩什麼？<br> (讀者提醒：目前有一大塊還沒被包進去 - 整合外部資料或控制外部裝罝的 <a href="https://openai.com/blog/chatgpt-plugins">Plugin</a> 或 <a href="https://learn.microsoft.com/en-us/semantic-kernel/agents/?WT.mc_id=DOP-MVP-37580">Agent</a>。但該不會 Anything LLM 己在研發中？)</p> <p>Anything LLM 採 MIT 授權，下幾行指令跑個 Docker 容器，幾分鐘便能架好一台多人共用的 LLM 聊天網站，背後可以接 ChatGPT 也可以接地端 LLM，還能上傳 PDF 抓網頁玩 RAG，完全免費。基本上要做簡單 LLM 整合應用，不必求人，不用寫程式，稍具 Docker 與 LLM 知識即可輕鬆搞定，傻瓜到極點。<a href="https://mintplexlabs.com/">Mintplex Labs</a>這間公司真是佛心來著，但說來也算心狠手辣，Anything LLM 一口氣讓 LLM 基本技能徹底貶值，這下子你得研究到更深才能有點價值，內捲又內捲，捲到最高點。</p> <p>以下是我的安裝測試體驗筆記。(參考來源：國網中心莊朝鈞研究員線上課程 - <a href="https://www.youtube.com/watch?v=dsCYB1z64uo">大型語言模型-中階/基於RAG方案的專屬私有知識庫服務網站建置</a>)</p> <p>我選擇用以下 Docker Compose 檔案執行 Anything LLM。</p> <p>docker-compose.yml</p> <pre><code>version: '3.8'
+services:
+anythingllm:
+image: mintplexlabs/anythingllm
+container_name: anythingllm
+ports:
+- "3001:3001"
+volumes:
+- ./storage:/app/server/storage
+- ./env.txt:/app/server/.env
+environment:
+- STORAGE_DIR=/app/server/storage
+cap_add:
+- SYS_ADMIN
+extra_hosts:
+- "host.docker.internal:host-gateway"
+restart: unless-stopped
+</code></pre> <p>執行前先 <code>touch ./env.txt</code> 及 <code>.\mkdir storage</code> 建好檔案及資料夾，接著用 <code>sudo docker-compose up -d</code> 啟動容器，開瀏覽器連上 <code>http://localhost:3001</code> 即可開始使用。</p> <p>首次使用要先做初始設定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638488769173929615.png"></p> <p>先選預設 LLM 模型，清單把當今的主流 LLM 一網打盡，填一下 URL、API Key 就能用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig17_638488826557503171.png"></p> <p>選擇 Embedding 服務，AnythingLLM 有內建自己的版本：(延伸閱讀：<a href="/blog/text-embedding-ada-002-lab/">動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638488769179859904.png"></p> <p>接著選向量資料庫，預設可用免安裝的 <a href="https://lancedb.com/">LanceDB</a>：(延伸閱讀：<a href="/blog/vector-db-concept/">YT 筆記：向量資料庫概念科普</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638488769182140817.png"></p> <p>再來選擇單人使用還是多人共用，多人使用時要建立管理者帳號：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638488769183872101.png"></p> <p>接著系統提醒你 LLM、Embedding、向量資料庫的資料流向，告知哪些會上雲哪些在本地：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638488769185688225.png"></p> <p>再來建立第一個 Workspace：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638488769187518580.png"></p> <p>進入 Workspace，就是個標準 LLM 聊天介面，大家應能無痛上手：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638488769189593196.png"></p> <p>上圖 [1] 按下去是系統設定，其中 Users 功能可新增及管理使用者：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638488769191392527.png"></p> <p>Workspace 聊天畫面的 [2] 為 Workspace 設定，Members 頁籤可指定哪些使用者可使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638488769193111343.png"></p> <p>Workspace 聊天畫面的 [3] 按下去會帶出文件管理功能，你可以上傳 PDF、提供網址，甚至 YouTube 影片位址，讓 Anything LLM 擷取文字內容轉成向量供後續查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638488769194852547.png"></p> <p>按 Move to Workspace 轉入後，按 Save and Embbed 向量化：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638488769196607010.png"></p> <p>處理好記得按圖釘啟用文件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig13_638488769198277079.png"></p> <p>用上回<a href="/blog/rag/">小試 RAG - 整合 ChatGPT 與自有資料 (駕駛人手冊實測)</a> 的 PDF 測試，成功查到答案，並有附上出處 (Citation)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig14_638488769200075900.png"></p> <p>原始來源應來自 PDF 這段，回答內容有被大幅改寫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig15_638488769207588091.png"></p> <p>引用來源 (Citation) 顯示的內容也不算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig16_638488769209402189.png"></p> <p>但可算是成功由自訂文件查到內容，達成 RAG 的基本要求。</p> <p>【結論】</p> <p>靠著 Anything LLM，我們可以無腦架出好一個整合 ChatGPT 或地端 LLM 模型的聊天伺服器，不但內建上傳 PDF、爬網功能，還支援多使用者管理，可滿足基本 RAG 應用需求。對於想玩 LLM 整合的一般使用者來說，門檻一下變低了；而對於想投身 LLM 整合應用的開發者來說，門檻一下變高了。功能與效果不如 Anything LLM，你還玩屁？</p> <p>好捲啊~~~ 我還是躺平好了。</p> <p data-slug="anything-llm" data-fbimg="https://i.imgur.com/azddPE2.png#1280#720"> </p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>之前試過用 Chatty GPT <a href="/blog/chatty-gpt-azure-openai-version/">打造個人專屬 ChatGPT 聊天室</a>，但受限只能在本機桌面跑，無法多人使用。後來試了<a href="/blog/supabase/">自架 Chatbot UI 伺服器</a>因綁了 Supabase 太笨重，想等作者改 SQLite 版再用。</p> <p>現在看來不用等 Chatbot UI 了! 有個包山包海的殺手級 LLM 整合平台開源專案 - <a href="https://github.com/Mintplex-Labs/anything-llm">Anything LLM</a>，一口氣通吃所有 LLM API (ChatGPT、Azure OpenAI、Gemini、Hugging Face、Anthropic、Groq、Ollama... )、整進各大<a href="/blog/vector-db-survey/">向量資料庫</a> (Chroma、Qdrant、Pinecone、Weaviate、Milvus...)，甚至內建上傳 PDF 解析、爬網頁、掃 YouTube 影片... 等文字擷取及向量化功能，直接包辦 <a href="/blog/rag/">RAG</a> 的活兒。把這些全部整進一個聊天介面，還支援多使用者管理，能設定誰可以用哪些 LLM 功能... 一口氣把大部分想得到的 LLM 整合功能都包進去了，大家還玩什麼？<br> (讀者提醒：目前有一大塊還沒被包進去 - 整合外部資料或控制外部裝罝的 <a href="https://openai.com/blog/chatgpt-plugins">Plugin</a> 或 <a href="https://learn.microsoft.com/en-us/semantic-kernel/agents/?WT.mc_id=DOP-MVP-37580">Agent</a>。但該不會 Anything LLM 己在研發中？)</p> <p>Anything LLM 採 MIT 授權，下幾行指令跑個 Docker 容器，幾分鐘便能架好一台多人共用的 LLM 聊天網站，背後可以接 ChatGPT 也可以接地端 LLM，還能上傳 PDF 抓網頁玩 RAG，完全免費。基本上要做簡單 LLM 整合應用，不必求人，不用寫程式，稍具 Docker 與 LLM 知識即可輕鬆搞定，傻瓜到極點。<a href="https://mintplexlabs.com/">Mintplex Labs</a>這間公司真是佛心來著，但說來也算心狠手辣，Anything LLM 一口氣讓 LLM 基本技能徹底貶值，這下子你得研究到更深才能有點價值，內捲又內捲，捲到最高點。</p> <p>以下是我的安裝測試體驗筆記。(參考來源：國網中心莊朝鈞研究員線上課程 - <a href="https://www.youtube.com/watch?v=dsCYB1z64uo">大型語言模型-中階/基於RAG方案的專屬私有知識庫服務網站建置</a>)</p> <p>我選擇用以下 Docker Compose 檔案執行 Anything LLM。</p> <p>docker-compose.yml</p> <pre><code>version: '3.8'
+services:
+anythingllm:
+image: mintplexlabs/anythingllm
+container_name: anythingllm
+ports:
+- "3001:3001"
+volumes:
+- ./storage:/app/server/storage
+- ./env.txt:/app/server/.env
+environment:
+- STORAGE_DIR=/app/server/storage
+cap_add:
+- SYS_ADMIN
+extra_hosts:
+- "host.docker.internal:host-gateway"
+restart: unless-stopped
+</code></pre> <p>執行前先 <code>touch ./env.txt</code> 及 <code>.\mkdir storage</code> 建好檔案及資料夾，接著用 <code>sudo docker-compose up -d</code> 啟動容器，開瀏覽器連上 <code>http://localhost:3001</code> 即可開始使用。</p> <p>首次使用要先做初始設定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638488769173929615.png"></p> <p>先選預設 LLM 模型，清單把當今的主流 LLM 一網打盡，填一下 URL、API Key 就能用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig17_638488826557503171.png"></p> <p>選擇 Embedding 服務，AnythingLLM 有內建自己的版本：(延伸閱讀：<a href="/blog/text-embedding-ada-002-lab/">動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638488769179859904.png"></p> <p>接著選向量資料庫，預設可用免安裝的 <a href="https://lancedb.com/">LanceDB</a>：(延伸閱讀：<a href="/blog/vector-db-concept/">YT 筆記：向量資料庫概念科普</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638488769182140817.png"></p> <p>再來選擇單人使用還是多人共用，多人使用時要建立管理者帳號：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638488769183872101.png"></p> <p>接著系統提醒你 LLM、Embedding、向量資料庫的資料流向，告知哪些會上雲哪些在本地：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638488769185688225.png"></p> <p>再來建立第一個 Workspace：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638488769187518580.png"></p> <p>進入 Workspace，就是個標準 LLM 聊天介面，大家應能無痛上手：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638488769189593196.png"></p> <p>上圖 [1] 按下去是系統設定，其中 Users 功能可新增及管理使用者：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638488769191392527.png"></p> <p>Workspace 聊天畫面的 [2] 為 Workspace 設定，Members 頁籤可指定哪些使用者可使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638488769193111343.png"></p> <p>Workspace 聊天畫面的 [3] 按下去會帶出文件管理功能，你可以上傳 PDF、提供網址，甚至 YouTube 影片位址，讓 Anything LLM 擷取文字內容轉成向量供後續查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638488769194852547.png"></p> <p>按 Move to Workspace 轉入後，按 Save and Embbed 向量化：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638488769196607010.png"></p> <p>處理好記得按圖釘啟用文件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig13_638488769198277079.png"></p> <p>用上回<a href="/blog/rag/">小試 RAG - 整合 ChatGPT 與自有資料 (駕駛人手冊實測)</a> 的 PDF 測試，成功查到答案，並有附上出處 (Citation)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig14_638488769200075900.png"></p> <p>原始來源應來自 PDF 這段，回答內容有被大幅改寫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig15_638488769207588091.png"></p> <p>引用來源 (Citation) 顯示的內容也不算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig16_638488769209402189.png"></p> <p>但可算是成功由自訂文件查到內容，達成 RAG 的基本要求。</p> <p>【結論】</p> <p>靠著 Anything LLM，我們可以無腦架出好一個整合 ChatGPT 或地端 LLM 模型的聊天伺服器，不但內建上傳 PDF、爬網功能，還支援多使用者管理，可滿足基本 RAG 應用需求。對於想玩 LLM 整合的一般使用者來說，門檻一下變低了；而對於想投身 LLM 整合應用的開發者來說，門檻一下變高了。功能與效果不如 Anything LLM，你還玩屁？</p> <p>好捲啊~~~ 我還是躺平好了。</p> <p data-slug="anything-llm" data-fbimg="https://i.imgur.com/azddPE2.png#1280#720"> </p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>之前試過用 Chatty GPT <a href="/blog/chatty-gpt-azure-openai-version/">打造個人專屬 ChatGPT 聊天室</a>，但受限只能在本機桌面跑，無法多人使用。後來試了<a href="/blog/supabase/">自架 Chatbot UI 伺服器</a>因綁了 Supabase 太笨重，想等作者改 SQLite 版再用。</p> <p>現在看來不用等 Chatbot UI 了! 有個包山包海的殺手級 LLM 整合平台開源專案 - <a href="https://github.com/Mintplex-Labs/anything-llm">Anything LLM</a>，一口氣通吃所有 LLM API (ChatGPT、Azure OpenAI、Gemini、Hugging Face、Anthropic、Groq、Ollama... )、整進各大<a href="/blog/vector-db-survey/">向量資料庫</a> (Chroma、Qdrant、Pinecone、Weaviate、Milvus...)，甚至內建上傳 PDF 解析、爬網頁、掃 YouTube 影片... 等文字擷取及向量化功能，直接包辦 <a href="/blog/rag/">RAG</a> 的活兒。把這些全部整進一個聊天介面，還支援多使用者管理，能設定誰可以用哪些 LLM 功能... 一口氣把大部分想得到的 LLM 整合功能都包進去了，大家還玩什麼？<br> (讀者提醒：目前有一大塊還沒被包進去 - 整合外部資料或控制外部裝罝的 <a href="https://openai.com/blog/chatgpt-plugins">Plugin</a> 或 <a href="https://learn.microsoft.com/en-us/semantic-kernel/agents/?WT.mc_id=DOP-MVP-37580">Agent</a>。但該不會 Anything LLM 己在研發中？)</p> <p>Anything LLM 採 MIT 授權，下幾行指令跑個 Docker 容器，幾分鐘便能架好一台多人共用的 LLM 聊天網站，背後可以接 ChatGPT 也可以接地端 LLM，還能上傳 PDF 抓網頁玩 RAG，完全免費。基本上要做簡單 LLM 整合應用，不必求人，不用寫程式，稍具 Docker 與 LLM 知識即可輕鬆搞定，傻瓜到極點。<a href="https://mintplexlabs.com/">Mintplex Labs</a>這間公司真是佛心來著，但說來也算心狠手辣，Anything LLM 一口氣讓 LLM 基本技能徹底貶值，這下子你得研究到更深才能有點價值，內捲又內捲，捲到最高點。</p> <p>以下是我的安裝測試體驗筆記。(參考來源：國網中心莊朝鈞研究員線上課程 - <a href="https://www.youtube.com/watch?v=dsCYB1z64uo">大型語言模型-中階/基於RAG方案的專屬私有知識庫服務網站建置</a>)</p> <p>我選擇用以下 Docker Compose 檔案執行 Anything LLM。</p> <p>docker-compose.yml</p> <pre><code>version: '3.8'
+services:
+anythingllm:
+image: mintplexlabs/anythingllm
+container_name: anythingllm
+ports:
+- "3001:3001"
+volumes:
+- ./storage:/app/server/storage
+- ./env.txt:/app/server/.env
+environment:
+- STORAGE_DIR=/app/server/storage
+cap_add:
+- SYS_ADMIN
+extra_hosts:
+- "host.docker.internal:host-gateway"
+restart: unless-stopped
+</code></pre> <p>執行前先 <code>touch ./env.txt</code> 及 <code>.\mkdir storage</code> 建好檔案及資料夾，接著用 <code>sudo docker-compose up -d</code> 啟動容器，開瀏覽器連上 <code>http://localhost:3001</code> 即可開始使用。</p> <p>首次使用要先做初始設定：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638488769173929615.png"></p> <p>先選預設 LLM 模型，清單把當今的主流 LLM 一網打盡，填一下 URL、API Key 就能用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig17_638488826557503171.png"></p> <p>選擇 Embedding 服務，AnythingLLM 有內建自己的版本：(延伸閱讀：<a href="/blog/text-embedding-ada-002-lab/">動手玩 AI - 使用 OpenAI Embedding 模型比對文字相似性</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig6_638488769179859904.png"></p> <p>接著選向量資料庫，預設可用免安裝的 <a href="https://lancedb.com/">LanceDB</a>：(延伸閱讀：<a href="/blog/vector-db-concept/">YT 筆記：向量資料庫概念科普</a>)</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638488769182140817.png"></p> <p>再來選擇單人使用還是多人共用，多人使用時要建立管理者帳號：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638488769183872101.png"></p> <p>接著系統提醒你 LLM、Embedding、向量資料庫的資料流向，告知哪些會上雲哪些在本地：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig5_638488769185688225.png"></p> <p>再來建立第一個 Workspace：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig7_638488769187518580.png"></p> <p>進入 Workspace，就是個標準 LLM 聊天介面，大家應能無痛上手：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig8_638488769189593196.png"></p> <p>上圖 [1] 按下去是系統設定，其中 Users 功能可新增及管理使用者：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig9_638488769191392527.png"></p> <p>Workspace 聊天畫面的 [2] 為 Workspace 設定，Members 頁籤可指定哪些使用者可使用：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig10_638488769193111343.png"></p> <p>Workspace 聊天畫面的 [3] 按下去會帶出文件管理功能，你可以上傳 PDF、提供網址，甚至 YouTube 影片位址，讓 Anything LLM 擷取文字內容轉成向量供後續查詢：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig11_638488769194852547.png"></p> <p>按 Move to Workspace 轉入後，按 Save and Embbed 向量化：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig12_638488769196607010.png"></p> <p>處理好記得按圖釘啟用文件：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig13_638488769198277079.png"></p> <p>用上回<a href="/blog/rag/">小試 RAG - 整合 ChatGPT 與自有資料 (駕駛人手冊實測)</a> 的 PDF 測試，成功查到答案，並有附上出處 (Citation)：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig14_638488769200075900.png"></p> <p>原始來源應來自 PDF 這段，回答內容有被大幅改寫：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig15_638488769207588091.png"></p> <p>引用來源 (Citation) 顯示的內容也不算精準：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig16_638488769209402189.png"></p> <p>但可算是成功由自訂文件查到內容，達成 RAG 的基本要求。</p> <p>【結論】</p> <p>靠著 Anything LLM，我們可以無腦架出好一個整合 ChatGPT 或地端 LLM 模型的聊天伺服器，不但內建上傳 PDF、爬網功能，還支援多使用者管理，可滿足基本 RAG 應用需求。對於想玩 LLM 整合的一般使用者來說，門檻一下變低了；而對於想投身 LLM 整合應用的開發者來說，門檻一下變高了。功能與效果不如 Anything LLM，你還玩屁？</p> <p>好捲啊~~~ 我還是躺平好了。</p> <p data-slug="anything-llm" data-fbimg="https://i.imgur.com/azddPE2.png#1280#720"> </p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638488769173929615.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638488769173929615.png" medium="image"/>
+    <pubDate>Tue, 16 Apr 2024 14:56:25 GMT</pubDate>
+  </item><item>
     <title><![CDATA[.NET 呼叫 Ollama 範例與 CPU 使用率問題]]></title>
     <link>https://blog.darkthread.net/blog/ollama-cpu-usage-issue/</link>
     <itunes:title><![CDATA[.NET 呼叫 Ollama 範例與 CPU 使用率問題]]></itunes:title>
@@ -827,146 +893,5 @@ capabilities: [gpu]
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg" medium="image"/>
     <pubDate>Sat, 06 Apr 2024 02:50:07 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[PDFSharp 中文字體問題研究]]></title>
-    <link>https://blog.darkthread.net/blog/pdfsharp-chinese-font-support/</link>
-    <itunes:title><![CDATA[PDFSharp 中文字體問題研究]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>讀者 GregYu 問到 <a href="https://blog.darkthread.net/blog/pdfsharp/#e6a11b11-7377-4f5e-9bc4-f9a51628484d">PdfSharp 的中文支援問題</a>。</p> <p>直覺認為 PdfSharp 身為資深元件，使用者眾，字型支援應該很成熟，不會遇到阻礙才對。但實際一試，馬上學到一些魔鬼細節。</p> <p>用以下範例重現問題：</p> <pre><code>using System.Diagnostics;
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.Rendering;
-using PdfSharp.Pdf;
-var document = new Document();
-var normalStyle = document.Styles.Normal;
-normalStyle.Font.Size = 14;
-normalStyle.Font.Bold = false;
-var kaiStyle = document.Styles.AddStyle("Kai", "Normal");
-kaiStyle.Font.Name = "標楷體";
-var mingStyle = document.Styles.AddStyle("Ming", "Normal");
-mingStyle.Font.Name = "新細明體";
-var section = document.AddSection();
-var p = section.AddParagraph();
-p.Add(new Text("Normal: 中文測試 Hello, World!"));
-p.AddLineBreak();
-p = section.AddParagraph();
-p.Style = "Kai";
-p.Add(new Text("標楷: 中文測試 Hello, World!"));
-p.AddLineBreak();
-/*
-p = section.AddParagraph();
-p.Style = "Ming";
-p.Add(new Text("新細明: 中文測試 Hello, World!"));
-p.AddLineBreak();
-*/
-var pdfRenderer = new PdfDocumentRenderer
-{
-Document = document,
-PdfDocument = new PdfDocument()
-};
-pdfRenderer.RenderDocument();
-var filename = Path.GetTempFileName() + ".pdf";
-pdfRenderer.PdfDocument.Save(filename);
-Process.Start(new ProcessStartInfo(filename) { UseShellExecute = true });
-</code></pre> <p>我準備用三種樣式顯示含中文的字串，字體分別為預設字體、標楷體、新細明體(新細明體部分先註解掉)。結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png"></p> <p>預設字型中文變方格無法顯示，標楷體倒是正常。接著取消註解，加入新細明體段落，程式便會出現 <code>Font has no usable platform or encoding ID. It cannot be used with PDFsharp. at PdfSharp.Fonts.OpenType.CMapTable.Read()</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638479015160226746.png"></p> <p>查了一下，這是個已知問題。微軟 Windows 字型檔會分成 TTF 跟 TTC 兩種格式(參考：<a href="https://www.mindscmyk.com/2021/02/26/project-knowledge-27-ttf-otf-ttc/">【三個常見字型】TTF. / OTF. / TTC. 副檔名的差異</a>)，TTC 為 True Type Collection，可將同一套字型的 Light/Regular/Bold 字體集合成一個文件，從而共同字型輪廓節省大量空間。當代字體諸如：新細明體(mingliu.ttc)、微軟正黑體(msjh.ttc)、微軟雅黑體(msyh.ttc)... 幾乎都是採用 TTC 格式，上古字型標楷體 (Kai.ttf)及新宋體-ExtB(simsunb.ttf) 是碩果僅存的 TTF 格式。而 PdfSharp 只支援 TTF 格式，登楞!</p> <p>一個無腦解法是設法找 TTF 格式的中文字型檔，這裡以 <a href="https://sites.google.com/view/jtfoundry/zh-tw">翰字鑄造 JT Foundry 台北黑體</a>為例，安裝字型後，用 <code>var fontName = System.Drawing.FontFamily.Families.FirstOrDefault(f =&gt; f.Name.Contains("Taipei"))?.Name;</code> 查得台北黑體對應的系統名稱為 "Taipei Sans TC Beta"，指定正確字體名稱即可成功顯示：</p> <pre><code>var tpeStyle = document.Styles.AddStyle("TPE", "Normal");
-tpeStyle.Font.Name = "Taipei Sans TC Beta";
-//...
-p = section.AddParagraph();
-p.Style = "TPE";
-p.Add(new Text("台北黑體: 中文測試 Hello, World!"));
-p.AddLineBreak();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638479015161821127.png"></p> <p>小測了一下，PdfSharp 產生包含自訂中文字型的 PDF，在 Linux 上檢視也是 OK 的。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638479015163534914.png"></p> <p>除了找 TTF 將就 PdfSharp，另個思路是修改 PdfSharp 使其支援 TTC，網路上可找到<a href="https://forum.pdfsharp.net/viewtopic.php?p=9039">網友分享的修改方式</a>，但工程較大，這篇先留個筆記，待日後有實際需求再研究。</p> <p data-slug="pdfsharp-chinese-font-support" data-title-en="Chinese font support of PdfSharp" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Research and Workaround for Chinese Font Support Issue in PdfSharp.</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>讀者 GregYu 問到 <a href="https://blog.darkthread.net/blog/pdfsharp/#e6a11b11-7377-4f5e-9bc4-f9a51628484d">PdfSharp 的中文支援問題</a>。</p> <p>直覺認為 PdfSharp 身為資深元件，使用者眾，字型支援應該很成熟，不會遇到阻礙才對。但實際一試，馬上學到一些魔鬼細節。</p> <p>用以下範例重現問題：</p> <pre><code>using System.Diagnostics;
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.Rendering;
-using PdfSharp.Pdf;
-var document = new Document();
-var normalStyle = document.Styles.Normal;
-normalStyle.Font.Size = 14;
-normalStyle.Font.Bold = false;
-var kaiStyle = document.Styles.AddStyle("Kai", "Normal");
-kaiStyle.Font.Name = "標楷體";
-var mingStyle = document.Styles.AddStyle("Ming", "Normal");
-mingStyle.Font.Name = "新細明體";
-var section = document.AddSection();
-var p = section.AddParagraph();
-p.Add(new Text("Normal: 中文測試 Hello, World!"));
-p.AddLineBreak();
-p = section.AddParagraph();
-p.Style = "Kai";
-p.Add(new Text("標楷: 中文測試 Hello, World!"));
-p.AddLineBreak();
-/*
-p = section.AddParagraph();
-p.Style = "Ming";
-p.Add(new Text("新細明: 中文測試 Hello, World!"));
-p.AddLineBreak();
-*/
-var pdfRenderer = new PdfDocumentRenderer
-{
-Document = document,
-PdfDocument = new PdfDocument()
-};
-pdfRenderer.RenderDocument();
-var filename = Path.GetTempFileName() + ".pdf";
-pdfRenderer.PdfDocument.Save(filename);
-Process.Start(new ProcessStartInfo(filename) { UseShellExecute = true });
-</code></pre> <p>我準備用三種樣式顯示含中文的字串，字體分別為預設字體、標楷體、新細明體(新細明體部分先註解掉)。結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png"></p> <p>預設字型中文變方格無法顯示，標楷體倒是正常。接著取消註解，加入新細明體段落，程式便會出現 <code>Font has no usable platform or encoding ID. It cannot be used with PDFsharp. at PdfSharp.Fonts.OpenType.CMapTable.Read()</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638479015160226746.png"></p> <p>查了一下，這是個已知問題。微軟 Windows 字型檔會分成 TTF 跟 TTC 兩種格式(參考：<a href="https://www.mindscmyk.com/2021/02/26/project-knowledge-27-ttf-otf-ttc/">【三個常見字型】TTF. / OTF. / TTC. 副檔名的差異</a>)，TTC 為 True Type Collection，可將同一套字型的 Light/Regular/Bold 字體集合成一個文件，從而共同字型輪廓節省大量空間。當代字體諸如：新細明體(mingliu.ttc)、微軟正黑體(msjh.ttc)、微軟雅黑體(msyh.ttc)... 幾乎都是採用 TTC 格式，上古字型標楷體 (Kai.ttf)及新宋體-ExtB(simsunb.ttf) 是碩果僅存的 TTF 格式。而 PdfSharp 只支援 TTF 格式，登楞!</p> <p>一個無腦解法是設法找 TTF 格式的中文字型檔，這裡以 <a href="https://sites.google.com/view/jtfoundry/zh-tw">翰字鑄造 JT Foundry 台北黑體</a>為例，安裝字型後，用 <code>var fontName = System.Drawing.FontFamily.Families.FirstOrDefault(f =&gt; f.Name.Contains("Taipei"))?.Name;</code> 查得台北黑體對應的系統名稱為 "Taipei Sans TC Beta"，指定正確字體名稱即可成功顯示：</p> <pre><code>var tpeStyle = document.Styles.AddStyle("TPE", "Normal");
-tpeStyle.Font.Name = "Taipei Sans TC Beta";
-//...
-p = section.AddParagraph();
-p.Style = "TPE";
-p.Add(new Text("台北黑體: 中文測試 Hello, World!"));
-p.AddLineBreak();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638479015161821127.png"></p> <p>小測了一下，PdfSharp 產生包含自訂中文字型的 PDF，在 Linux 上檢視也是 OK 的。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638479015163534914.png"></p> <p>除了找 TTF 將就 PdfSharp，另個思路是修改 PdfSharp 使其支援 TTC，網路上可找到<a href="https://forum.pdfsharp.net/viewtopic.php?p=9039">網友分享的修改方式</a>，但工程較大，這篇先留個筆記，待日後有實際需求再研究。</p> <p data-slug="pdfsharp-chinese-font-support" data-title-en="Chinese font support of PdfSharp" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Research and Workaround for Chinese Font Support Issue in PdfSharp.</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>讀者 GregYu 問到 <a href="https://blog.darkthread.net/blog/pdfsharp/#e6a11b11-7377-4f5e-9bc4-f9a51628484d">PdfSharp 的中文支援問題</a>。</p> <p>直覺認為 PdfSharp 身為資深元件，使用者眾，字型支援應該很成熟，不會遇到阻礙才對。但實際一試，馬上學到一些魔鬼細節。</p> <p>用以下範例重現問題：</p> <pre><code>using System.Diagnostics;
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.Rendering;
-using PdfSharp.Pdf;
-var document = new Document();
-var normalStyle = document.Styles.Normal;
-normalStyle.Font.Size = 14;
-normalStyle.Font.Bold = false;
-var kaiStyle = document.Styles.AddStyle("Kai", "Normal");
-kaiStyle.Font.Name = "標楷體";
-var mingStyle = document.Styles.AddStyle("Ming", "Normal");
-mingStyle.Font.Name = "新細明體";
-var section = document.AddSection();
-var p = section.AddParagraph();
-p.Add(new Text("Normal: 中文測試 Hello, World!"));
-p.AddLineBreak();
-p = section.AddParagraph();
-p.Style = "Kai";
-p.Add(new Text("標楷: 中文測試 Hello, World!"));
-p.AddLineBreak();
-/*
-p = section.AddParagraph();
-p.Style = "Ming";
-p.Add(new Text("新細明: 中文測試 Hello, World!"));
-p.AddLineBreak();
-*/
-var pdfRenderer = new PdfDocumentRenderer
-{
-Document = document,
-PdfDocument = new PdfDocument()
-};
-pdfRenderer.RenderDocument();
-var filename = Path.GetTempFileName() + ".pdf";
-pdfRenderer.PdfDocument.Save(filename);
-Process.Start(new ProcessStartInfo(filename) { UseShellExecute = true });
-</code></pre> <p>我準備用三種樣式顯示含中文的字串，字體分別為預設字體、標楷體、新細明體(新細明體部分先註解掉)。結果如下：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png"></p> <p>預設字型中文變方格無法顯示，標楷體倒是正常。接著取消註解，加入新細明體段落，程式便會出現 <code>Font has no usable platform or encoding ID. It cannot be used with PDFsharp. at PdfSharp.Fonts.OpenType.CMapTable.Read()</code> 錯誤：</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638479015160226746.png"></p> <p>查了一下，這是個已知問題。微軟 Windows 字型檔會分成 TTF 跟 TTC 兩種格式(參考：<a href="https://www.mindscmyk.com/2021/02/26/project-knowledge-27-ttf-otf-ttc/">【三個常見字型】TTF. / OTF. / TTC. 副檔名的差異</a>)，TTC 為 True Type Collection，可將同一套字型的 Light/Regular/Bold 字體集合成一個文件，從而共同字型輪廓節省大量空間。當代字體諸如：新細明體(mingliu.ttc)、微軟正黑體(msjh.ttc)、微軟雅黑體(msyh.ttc)... 幾乎都是採用 TTC 格式，上古字型標楷體 (Kai.ttf)及新宋體-ExtB(simsunb.ttf) 是碩果僅存的 TTF 格式。而 PdfSharp 只支援 TTF 格式，登楞!</p> <p>一個無腦解法是設法找 TTF 格式的中文字型檔，這裡以 <a href="https://sites.google.com/view/jtfoundry/zh-tw">翰字鑄造 JT Foundry 台北黑體</a>為例，安裝字型後，用 <code>var fontName = System.Drawing.FontFamily.Families.FirstOrDefault(f =&gt; f.Name.Contains("Taipei"))?.Name;</code> 查得台北黑體對應的系統名稱為 "Taipei Sans TC Beta"，指定正確字體名稱即可成功顯示：</p> <pre><code>var tpeStyle = document.Styles.AddStyle("TPE", "Normal");
-tpeStyle.Font.Name = "Taipei Sans TC Beta";
-//...
-p = section.AddParagraph();
-p.Style = "TPE";
-p.Add(new Text("台北黑體: 中文測試 Hello, World!"));
-p.AddLineBreak();
-</code></pre> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638479015161821127.png"></p> <p>小測了一下，PdfSharp 產生包含自訂中文字型的 PDF，在 Linux 上檢視也是 OK 的。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig4_638479015163534914.png"></p> <p>除了找 TTF 將就 PdfSharp，另個思路是修改 PdfSharp 使其支援 TTC，網路上可找到<a href="https://forum.pdfsharp.net/viewtopic.php?p=9039">網友分享的修改方式</a>，但工程較大，這篇先留個筆記，待日後有實際需求再研究。</p> <p data-slug="pdfsharp-chinese-font-support" data-title-en="Chinese font support of PdfSharp" data-catg=".NET" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">Research and Workaround for Chinese Font Support Issue in PdfSharp.</p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638479015155390240.png" medium="image"/>
-    <pubDate>Fri, 05 Apr 2024 08:11:08 GMT</pubDate>
   </item></channel>
 </rss>
