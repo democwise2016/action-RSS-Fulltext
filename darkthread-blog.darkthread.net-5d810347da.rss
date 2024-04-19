@@ -30,6 +30,93 @@
     </itunes:owner>
     <itunes:image href="https://blog.darkthread.net/img/icon512x512.png"/>
 <item>
+    <title><![CDATA[在 React.js 網頁模擬文字輸入及滑鼠點擊]]></title>
+    <link>https://blog.darkthread.net/blog/simu-input-on-reactjs-page/</link>
+    <itunes:title><![CDATA[在 React.js 網頁模擬文字輸入及滑鼠點擊]]></itunes:title>
+    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>如果有人問你，要怎麼寫 JavaScript 在以下網頁的 textarea 欄位塞值並按下送出鈕，你可能會像我噗哧一笑，想說這是什麼白痴問題？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638491384379100034.png"></p> <p>然後用肌肉記憶生出兩行程式碼：</p> <pre><code>document.querySelector('textarea.ant-input').value = 'summary';
+document.querySelector('button.ant-btn').click();
+</code></pre> <p>漫不在乎按下 Enter，正要帥氣轉身，高歌離席... 不料，網頁沒送出，登楞!</p> <p>試了五分鐘換了幾種寫法，textarea 有出現文字，但滑鼠點了欄位文字會消失；程式無法觸發按鈕，趁 textarea 有內容，手動按鈕也無法送出。我這才意識到，代誌不像憨人想得那麼簡單...</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638491384383790712.gif"></p> <p>經過一番調查，大概有了頭緒。網頁是用 React.js 寫的，靠 Virtual DOM 驅動，直接修改表象的 HTML 元素是沒意義的，背後對映的值沒改改，下一輪 Render 時，HTML 元素的值便會被覆寫。這就是為什麼去點 textarea，JavaScript 寫入的值會消失；手動按鈕無效則是因為從 React.js 角度 textarea 是空的不能送出。</p> <p>江湖一點訣，講破不值錢。查到要在 React.js 網頁模擬輸入及 Click 的寫法。<a href="https://stackoverflow.com/a/46012210/288936">參考 1</a> <a href="https://stackoverflow.com/a/54316368/288936">參考 2</a></p> <pre><code>const textAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+function simulateTextareaInput(input, newValue) {
+textAreaValueSetter.call(input, newValue);
+const event = new Event('input', { bubbles: true });
+event.simulated = true;
+input.dispatchEvent(event);
+}
+const mouseClickEvents = ['mousedown', 'click', 'mouseup'];
+function simulateMouseClick(element){
+mouseClickEvents.forEach(mouseEventType =&gt;
+element.dispatchEvent(
+new MouseEvent(mouseEventType, {
+view: window,
+bubbles: true,
+cancelable: true,
+buttons: 1
+})
+)
+);
+}
+simulateTextareaInput(document.querySelector('textarea.ant-input'), 'summary');
+simulateMouseClick(document.querySelector('button.ant-btn'));
+</code></pre> <p>背後原理是因為 React 覆寫了 value 屬性 setter，故我們要改用 prototype.value 原生的 setter 更新 value，再觸發 input 事件。模擬點擊則要連續觸發 mousedown、click、mouseup 事件。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638491384389840720.gif"></p> <p data-slug="simu-input-on-reactjs-page" dadta-title-en="Simulating text input and click on React.js pages" data-catg="Web Deployment" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">The web page developed with React.js cannot be modified using the regular DOM API due to the Virtual DOM. This article introduces how to simulate input and button clicks.</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>如果有人問你，要怎麼寫 JavaScript 在以下網頁的 textarea 欄位塞值並按下送出鈕，你可能會像我噗哧一笑，想說這是什麼白痴問題？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638491384379100034.png"></p> <p>然後用肌肉記憶生出兩行程式碼：</p> <pre><code>document.querySelector('textarea.ant-input').value = 'summary';
+document.querySelector('button.ant-btn').click();
+</code></pre> <p>漫不在乎按下 Enter，正要帥氣轉身，高歌離席... 不料，網頁沒送出，登楞!</p> <p>試了五分鐘換了幾種寫法，textarea 有出現文字，但滑鼠點了欄位文字會消失；程式無法觸發按鈕，趁 textarea 有內容，手動按鈕也無法送出。我這才意識到，代誌不像憨人想得那麼簡單...</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638491384383790712.gif"></p> <p>經過一番調查，大概有了頭緒。網頁是用 React.js 寫的，靠 Virtual DOM 驅動，直接修改表象的 HTML 元素是沒意義的，背後對映的值沒改改，下一輪 Render 時，HTML 元素的值便會被覆寫。這就是為什麼去點 textarea，JavaScript 寫入的值會消失；手動按鈕無效則是因為從 React.js 角度 textarea 是空的不能送出。</p> <p>江湖一點訣，講破不值錢。查到要在 React.js 網頁模擬輸入及 Click 的寫法。<a href="https://stackoverflow.com/a/46012210/288936">參考 1</a> <a href="https://stackoverflow.com/a/54316368/288936">參考 2</a></p> <pre><code>const textAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+function simulateTextareaInput(input, newValue) {
+textAreaValueSetter.call(input, newValue);
+const event = new Event('input', { bubbles: true });
+event.simulated = true;
+input.dispatchEvent(event);
+}
+const mouseClickEvents = ['mousedown', 'click', 'mouseup'];
+function simulateMouseClick(element){
+mouseClickEvents.forEach(mouseEventType =&gt;
+element.dispatchEvent(
+new MouseEvent(mouseEventType, {
+view: window,
+bubbles: true,
+cancelable: true,
+buttons: 1
+})
+)
+);
+}
+simulateTextareaInput(document.querySelector('textarea.ant-input'), 'summary');
+simulateMouseClick(document.querySelector('button.ant-btn'));
+</code></pre> <p>背後原理是因為 React 覆寫了 value 屬性 setter，故我們要改用 prototype.value 原生的 setter 更新 value，再觸發 input 事件。模擬點擊則要連續觸發 mousedown、click、mouseup 事件。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638491384389840720.gif"></p> <p data-slug="simu-input-on-reactjs-page" dadta-title-en="Simulating text input and click on React.js pages" data-catg="Web Deployment" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">The web page developed with React.js cannot be modified using the regular DOM API due to the Virtual DOM. This article introduces how to simulate input and button clicks.</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>如果有人問你，要怎麼寫 JavaScript 在以下網頁的 textarea 欄位塞值並按下送出鈕，你可能會像我噗哧一笑，想說這是什麼白痴問題？</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638491384379100034.png"></p> <p>然後用肌肉記憶生出兩行程式碼：</p> <pre><code>document.querySelector('textarea.ant-input').value = 'summary';
+document.querySelector('button.ant-btn').click();
+</code></pre> <p>漫不在乎按下 Enter，正要帥氣轉身，高歌離席... 不料，網頁沒送出，登楞!</p> <p>試了五分鐘換了幾種寫法，textarea 有出現文字，但滑鼠點了欄位文字會消失；程式無法觸發按鈕，趁 textarea 有內容，手動按鈕也無法送出。我這才意識到，代誌不像憨人想得那麼簡單...</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig2_638491384383790712.gif"></p> <p>經過一番調查，大概有了頭緒。網頁是用 React.js 寫的，靠 Virtual DOM 驅動，直接修改表象的 HTML 元素是沒意義的，背後對映的值沒改改，下一輪 Render 時，HTML 元素的值便會被覆寫。這就是為什麼去點 textarea，JavaScript 寫入的值會消失；手動按鈕無效則是因為從 React.js 角度 textarea 是空的不能送出。</p> <p>江湖一點訣，講破不值錢。查到要在 React.js 網頁模擬輸入及 Click 的寫法。<a href="https://stackoverflow.com/a/46012210/288936">參考 1</a> <a href="https://stackoverflow.com/a/54316368/288936">參考 2</a></p> <pre><code>const textAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+function simulateTextareaInput(input, newValue) {
+textAreaValueSetter.call(input, newValue);
+const event = new Event('input', { bubbles: true });
+event.simulated = true;
+input.dispatchEvent(event);
+}
+const mouseClickEvents = ['mousedown', 'click', 'mouseup'];
+function simulateMouseClick(element){
+mouseClickEvents.forEach(mouseEventType =&gt;
+element.dispatchEvent(
+new MouseEvent(mouseEventType, {
+view: window,
+bubbles: true,
+cancelable: true,
+buttons: 1
+})
+)
+);
+}
+simulateTextareaInput(document.querySelector('textarea.ant-input'), 'summary');
+simulateMouseClick(document.querySelector('button.ant-btn'));
+</code></pre> <p>背後原理是因為 React 覆寫了 value 屬性 setter，故我們要改用 prototype.value 原生的 setter 更新 value，再觸發 input 事件。模擬點擊則要連續觸發 mousedown、click、mouseup 事件。</p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig3_638491384389840720.gif"></p> <p data-slug="simu-input-on-reactjs-page" dadta-title-en="Simulating text input and click on React.js pages" data-catg="Web Deployment" data-fbimg="https://cdn.pixabay.com/photo/2016/12/05/11/39/fox-1883658_960_720.jpg#960#641">The web page developed with React.js cannot be modified using the regular DOM API due to the Virtual DOM. This article introduces how to simulate input and button clicks.</p>]]></content:encoded>
+    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638491384379100034.png"/>
+          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638491384379100034.png" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 15:43:47 GMT</pubDate>
+  </item><item>
     <title><![CDATA[包山包海的殺手級 LLM 整合平台 - Anything LLM]]></title>
     <link>https://blog.darkthread.net/blog/anything-llm/</link>
     <itunes:title><![CDATA[包山包海的殺手級 LLM 整合平台 - Anything LLM]]></itunes:title>
@@ -878,20 +965,5 @@ capabilities: [gpu]
     <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638480515630865247.png"/>
           <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638480515630865247.png" medium="image"/>
     <pubDate>Sun, 07 Apr 2024 01:50:54 GMT</pubDate>
-  </item><item>
-    <title><![CDATA[閒聊 - 開源程式庫 XZ Utils 臥底下毒事件]]></title>
-    <link>https://blog.darkthread.net/blog/xz-utils-attack-event/</link>
-    <itunes:title><![CDATA[閒聊 - 開源程式庫 XZ Utils 臥底下毒事件]]></itunes:title>
-    <itunes:author><![CDATA[service@darkthread.net (Jeffrey Lee)]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>本週開源界與資安界有則大新聞：<a href="https://www.ithome.com.tw/news/162054">程式庫 XZ Utils近期被植入後門 by iThome</a></p> <p>特別讓人震驚是因為 XZ Utils 是 Linux 很基本很常用的壓縮程式庫，若真的被成功植入擴散到現存的 Linux 系統，後果不堪設想。而攻擊手法也很罕見，攻擊者假扮自願程式維護人員多年，於今年二月底才發動攻擊在 5.6 及 5.6.1 版植入後門，若 Linux 安裝了這些版本又有對外開放 SSH 連線，攻擊者可繞過身分驗證操作主機為作欲為。所幸及早被發現，影響範圍只限於一些更新較積極的預覽性質 Linux 發行版本，如 Fedora Rawhide/41、Kali Linux、openSUSE Tumbleweed/MicroOS 及部分 Debian。 註：檢查及因應策略請參考<a href="https://www.facebook.com/darkthread.net/posts/pfbid0LuuQFuWDiWikwNkiZuJ9nc24FmS7uTtPy8XGFyKRjJsdW1hQHpURiLZEtq1fpsN6l">專頁貼文</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg" alt="thumbnail"></p> <p>今天看到有 YouTuber 整理了 XZ Utils 開源程式庫下毒事件的<a href="https://www.youtube.com/watch?v=8QI_4GGYZp0">來龍去脈</a>，我再查了一些資料，補齊影片沒解釋清楚的細節，整理摘要如下：</p> <p>整起事件是有個名叫 Jia Tan 的卑鄙奸賊花了二年半所佈的一個局。Jia Tan 鎖定 Linux 上應用廣泛的基礎開源程式庫 - XZ Utils (相當於 Windows 的 7z/Winrar 壓縮)，原作者 Lasse Collin 面對一堆 Issue 回報及許願，無償維護程式還得面對網友敲碗催更已經 15 年，早已身心俱疲(另外 Lasse 心理健康方面也有些狀況)。Jia Tan 疑似一方面找同夥趁機不斷催更施壓，自己再以熱心貢獻者角色跳出來，從而獲得 Lasse 信任，開始負責一些程式碼修改。</p> <p>之後一年，Jia Tan 認真投入專案維護工作，接手大部分程式修改工作，也確實完成任務，表現稱職。但 Jia Tan 表面上就像個典型的熱心開源貢獻者，心中卻別有所圖。</p> <p>臥底二年後，Jia Tan 選擇在 2024 年 2 月正式發動攻擊。</p> <p>Jia Tan 在一個放置測試資料的目錄混入一個包含惡意程式的偽裝測試資料檔，由於該目錄原本就用來放測試資料，不會有人檢視其內容。接著，他在編譯巨集文件(build-to-host.m4，未加入源碼庫不會出現在版控異動比對，但會包進 Package)加入一段邏輯，將偽裝測試檔的惡意程式內容合併到最後產出的程式庫，同時還修改編譯腳本 CMakeLists.txt 多加了一個點符號讓 C 程式壞掉以停用沙箱保護，方便惡意程式可以為作欲為。由於惡意程式以二進位格式偽裝成測試資料檔，而一般人 Code Review 多只會聚焦程式增修部分，很少人會檢查資料檔內容及細看編譯腳本(更何況是多了一個句點)，坦白說這個手法十分高明，極難被發現。</p> <p>成功將惡意程式植入 5.6.0 後，Jia Tan 的下一步是不斷催促 Debian、Ubuntu 等發行版管理人員儘快更新 XZ Utils 版本，現在想想，若以 Ubuntu 的市佔率，若這個木馬版本被大量推送更新到線上主機，受害主機數量難以計數，幸好有及早發現，避免了一場災難。</p> <p>這個精心設計看似天衣無縫的攻擊手法，又是怎麼被發現的呢？</p> <p>說來也妙，一切歸功於一位微軟員工 Andres Freund，他發現每次 ssh 登入時 CPU 會異常偏高且變慢 0.5 秒；一般人可能覺得怪怪但影響不大就算了，但 Andres 抱持打破砂鍋問到底的精神，一路追查，才揭發了這整起駭人的攻擊事件。(對慢 0.5 秒一事追根究底，沒有合理解釋絕不罷休，這是茶包射手精神的極致啊)</p> <p>總之，因為 Andres 過人的執著與毅力，加上惡意程式的 Bug 造成 CPU 飆升拖慢速度，陰錯陽差地讓整個攻擊計劃曝光，木馬在大量擴散前被攔阻，未造成重大損失或破壞，實屬萬幸，Andres 堪稱英雄!! (我想起另一則相似故事：<a href="/blog/reg-domainname-stop-wannacrypt/">花 8.29 英鎊拯救世界，WannaCrypt 勒索病毒中場休息</a>)</p> <p>之後大家追查發現 Jia Tan 的個人資料都是假的，Github 帳號兩年多來也只參與這個專案，應可斷定這是一起有預謀犯案，而非熱心貢獻者黑化誤入歧途。</p> <p>開源(Open Source)原本是這世上為數不多的人性光明面展現，不計報酬付出只為了讓世界更美好。但被 Jia Tan 這種爛人一搞，開源軟體的可靠及安全性自此會更受質疑，應用上將受到更多限制甚至被禁用；而未來當你熱血上身，單純地想參與開源專案維護時，也可能被懷疑是不是別有用心，在下一盤大棋。</p> <p>就像 911 事件後，飛航運輸加上重重檢查與限制，不僅增加管理成本也影響旅遊體驗；在無數的詐騙手法興起後，現在當你想熱心助人或通知別人中獎，面對的常是懷疑動機或被掛電話。過去純樸信任方便為先的日子，再也回不去了。Jia Tan 這種利用人性善良本質作惡的恐怖份子，應列成全球公敵，人人得而誅之，氣氣氣氣氣!</p> <p>如果你對更多技術細節有興趣，推薦這篇：<a href="https://research.swtch.com/xz-timeline">XZ Utils 攻擊事件完整時間線及細節</a></p> <p data-slug="xz-utils-attack-event" data-fbimg="https://i.imgur.com/f2RjFL7.jpeg#971#546"> </p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>本週開源界與資安界有則大新聞：<a href="https://www.ithome.com.tw/news/162054">程式庫 XZ Utils近期被植入後門 by iThome</a></p> <p>特別讓人震驚是因為 XZ Utils 是 Linux 很基本很常用的壓縮程式庫，若真的被成功植入擴散到現存的 Linux 系統，後果不堪設想。而攻擊手法也很罕見，攻擊者假扮自願程式維護人員多年，於今年二月底才發動攻擊在 5.6 及 5.6.1 版植入後門，若 Linux 安裝了這些版本又有對外開放 SSH 連線，攻擊者可繞過身分驗證操作主機為作欲為。所幸及早被發現，影響範圍只限於一些更新較積極的預覽性質 Linux 發行版本，如 Fedora Rawhide/41、Kali Linux、openSUSE Tumbleweed/MicroOS 及部分 Debian。 註：檢查及因應策略請參考<a href="https://www.facebook.com/darkthread.net/posts/pfbid0LuuQFuWDiWikwNkiZuJ9nc24FmS7uTtPy8XGFyKRjJsdW1hQHpURiLZEtq1fpsN6l">專頁貼文</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg" alt="thumbnail"></p> <p>今天看到有 YouTuber 整理了 XZ Utils 開源程式庫下毒事件的<a href="https://www.youtube.com/watch?v=8QI_4GGYZp0">來龍去脈</a>，我再查了一些資料，補齊影片沒解釋清楚的細節，整理摘要如下：</p> <p>整起事件是有個名叫 Jia Tan 的卑鄙奸賊花了二年半所佈的一個局。Jia Tan 鎖定 Linux 上應用廣泛的基礎開源程式庫 - XZ Utils (相當於 Windows 的 7z/Winrar 壓縮)，原作者 Lasse Collin 面對一堆 Issue 回報及許願，無償維護程式還得面對網友敲碗催更已經 15 年，早已身心俱疲(另外 Lasse 心理健康方面也有些狀況)。Jia Tan 疑似一方面找同夥趁機不斷催更施壓，自己再以熱心貢獻者角色跳出來，從而獲得 Lasse 信任，開始負責一些程式碼修改。</p> <p>之後一年，Jia Tan 認真投入專案維護工作，接手大部分程式修改工作，也確實完成任務，表現稱職。但 Jia Tan 表面上就像個典型的熱心開源貢獻者，心中卻別有所圖。</p> <p>臥底二年後，Jia Tan 選擇在 2024 年 2 月正式發動攻擊。</p> <p>Jia Tan 在一個放置測試資料的目錄混入一個包含惡意程式的偽裝測試資料檔，由於該目錄原本就用來放測試資料，不會有人檢視其內容。接著，他在編譯巨集文件(build-to-host.m4，未加入源碼庫不會出現在版控異動比對，但會包進 Package)加入一段邏輯，將偽裝測試檔的惡意程式內容合併到最後產出的程式庫，同時還修改編譯腳本 CMakeLists.txt 多加了一個點符號讓 C 程式壞掉以停用沙箱保護，方便惡意程式可以為作欲為。由於惡意程式以二進位格式偽裝成測試資料檔，而一般人 Code Review 多只會聚焦程式增修部分，很少人會檢查資料檔內容及細看編譯腳本(更何況是多了一個句點)，坦白說這個手法十分高明，極難被發現。</p> <p>成功將惡意程式植入 5.6.0 後，Jia Tan 的下一步是不斷催促 Debian、Ubuntu 等發行版管理人員儘快更新 XZ Utils 版本，現在想想，若以 Ubuntu 的市佔率，若這個木馬版本被大量推送更新到線上主機，受害主機數量難以計數，幸好有及早發現，避免了一場災難。</p> <p>這個精心設計看似天衣無縫的攻擊手法，又是怎麼被發現的呢？</p> <p>說來也妙，一切歸功於一位微軟員工 Andres Freund，他發現每次 ssh 登入時 CPU 會異常偏高且變慢 0.5 秒；一般人可能覺得怪怪但影響不大就算了，但 Andres 抱持打破砂鍋問到底的精神，一路追查，才揭發了這整起駭人的攻擊事件。(對慢 0.5 秒一事追根究底，沒有合理解釋絕不罷休，這是茶包射手精神的極致啊)</p> <p>總之，因為 Andres 過人的執著與毅力，加上惡意程式的 Bug 造成 CPU 飆升拖慢速度，陰錯陽差地讓整個攻擊計劃曝光，木馬在大量擴散前被攔阻，未造成重大損失或破壞，實屬萬幸，Andres 堪稱英雄!! (我想起另一則相似故事：<a href="/blog/reg-domainname-stop-wannacrypt/">花 8.29 英鎊拯救世界，WannaCrypt 勒索病毒中場休息</a>)</p> <p>之後大家追查發現 Jia Tan 的個人資料都是假的，Github 帳號兩年多來也只參與這個專案，應可斷定這是一起有預謀犯案，而非熱心貢獻者黑化誤入歧途。</p> <p>開源(Open Source)原本是這世上為數不多的人性光明面展現，不計報酬付出只為了讓世界更美好。但被 Jia Tan 這種爛人一搞，開源軟體的可靠及安全性自此會更受質疑，應用上將受到更多限制甚至被禁用；而未來當你熱血上身，單純地想參與開源專案維護時，也可能被懷疑是不是別有用心，在下一盤大棋。</p> <p>就像 911 事件後，飛航運輸加上重重檢查與限制，不僅增加管理成本也影響旅遊體驗；在無數的詐騙手法興起後，現在當你想熱心助人或通知別人中獎，面對的常是懷疑動機或被掛電話。過去純樸信任方便為先的日子，再也回不去了。Jia Tan 這種利用人性善良本質作惡的恐怖份子，應列成全球公敵，人人得而誅之，氣氣氣氣氣!</p> <p>如果你對更多技術細節有興趣，推薦這篇：<a href="https://research.swtch.com/xz-timeline">XZ Utils 攻擊事件完整時間線及細節</a></p> <p data-slug="xz-utils-attack-event" data-fbimg="https://i.imgur.com/f2RjFL7.jpeg#971#546"> </p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>本週開源界與資安界有則大新聞：<a href="https://www.ithome.com.tw/news/162054">程式庫 XZ Utils近期被植入後門 by iThome</a></p> <p>特別讓人震驚是因為 XZ Utils 是 Linux 很基本很常用的壓縮程式庫，若真的被成功植入擴散到現存的 Linux 系統，後果不堪設想。而攻擊手法也很罕見，攻擊者假扮自願程式維護人員多年，於今年二月底才發動攻擊在 5.6 及 5.6.1 版植入後門，若 Linux 安裝了這些版本又有對外開放 SSH 連線，攻擊者可繞過身分驗證操作主機為作欲為。所幸及早被發現，影響範圍只限於一些更新較積極的預覽性質 Linux 發行版本，如 Fedora Rawhide/41、Kali Linux、openSUSE Tumbleweed/MicroOS 及部分 Debian。 註：檢查及因應策略請參考<a href="https://www.facebook.com/darkthread.net/posts/pfbid0LuuQFuWDiWikwNkiZuJ9nc24FmS7uTtPy8XGFyKRjJsdW1hQHpURiLZEtq1fpsN6l">專頁貼文</a></p> <p><img src="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg" alt="thumbnail"></p> <p>今天看到有 YouTuber 整理了 XZ Utils 開源程式庫下毒事件的<a href="https://www.youtube.com/watch?v=8QI_4GGYZp0">來龍去脈</a>，我再查了一些資料，補齊影片沒解釋清楚的細節，整理摘要如下：</p> <p>整起事件是有個名叫 Jia Tan 的卑鄙奸賊花了二年半所佈的一個局。Jia Tan 鎖定 Linux 上應用廣泛的基礎開源程式庫 - XZ Utils (相當於 Windows 的 7z/Winrar 壓縮)，原作者 Lasse Collin 面對一堆 Issue 回報及許願，無償維護程式還得面對網友敲碗催更已經 15 年，早已身心俱疲(另外 Lasse 心理健康方面也有些狀況)。Jia Tan 疑似一方面找同夥趁機不斷催更施壓，自己再以熱心貢獻者角色跳出來，從而獲得 Lasse 信任，開始負責一些程式碼修改。</p> <p>之後一年，Jia Tan 認真投入專案維護工作，接手大部分程式修改工作，也確實完成任務，表現稱職。但 Jia Tan 表面上就像個典型的熱心開源貢獻者，心中卻別有所圖。</p> <p>臥底二年後，Jia Tan 選擇在 2024 年 2 月正式發動攻擊。</p> <p>Jia Tan 在一個放置測試資料的目錄混入一個包含惡意程式的偽裝測試資料檔，由於該目錄原本就用來放測試資料，不會有人檢視其內容。接著，他在編譯巨集文件(build-to-host.m4，未加入源碼庫不會出現在版控異動比對，但會包進 Package)加入一段邏輯，將偽裝測試檔的惡意程式內容合併到最後產出的程式庫，同時還修改編譯腳本 CMakeLists.txt 多加了一個點符號讓 C 程式壞掉以停用沙箱保護，方便惡意程式可以為作欲為。由於惡意程式以二進位格式偽裝成測試資料檔，而一般人 Code Review 多只會聚焦程式增修部分，很少人會檢查資料檔內容及細看編譯腳本(更何況是多了一個句點)，坦白說這個手法十分高明，極難被發現。</p> <p>成功將惡意程式植入 5.6.0 後，Jia Tan 的下一步是不斷催促 Debian、Ubuntu 等發行版管理人員儘快更新 XZ Utils 版本，現在想想，若以 Ubuntu 的市佔率，若這個木馬版本被大量推送更新到線上主機，受害主機數量難以計數，幸好有及早發現，避免了一場災難。</p> <p>這個精心設計看似天衣無縫的攻擊手法，又是怎麼被發現的呢？</p> <p>說來也妙，一切歸功於一位微軟員工 Andres Freund，他發現每次 ssh 登入時 CPU 會異常偏高且變慢 0.5 秒；一般人可能覺得怪怪但影響不大就算了，但 Andres 抱持打破砂鍋問到底的精神，一路追查，才揭發了這整起駭人的攻擊事件。(對慢 0.5 秒一事追根究底，沒有合理解釋絕不罷休，這是茶包射手精神的極致啊)</p> <p>總之，因為 Andres 過人的執著與毅力，加上惡意程式的 Bug 造成 CPU 飆升拖慢速度，陰錯陽差地讓整個攻擊計劃曝光，木馬在大量擴散前被攔阻，未造成重大損失或破壞，實屬萬幸，Andres 堪稱英雄!! (我想起另一則相似故事：<a href="/blog/reg-domainname-stop-wannacrypt/">花 8.29 英鎊拯救世界，WannaCrypt 勒索病毒中場休息</a>)</p> <p>之後大家追查發現 Jia Tan 的個人資料都是假的，Github 帳號兩年多來也只參與這個專案，應可斷定這是一起有預謀犯案，而非熱心貢獻者黑化誤入歧途。</p> <p>開源(Open Source)原本是這世上為數不多的人性光明面展現，不計報酬付出只為了讓世界更美好。但被 Jia Tan 這種爛人一搞，開源軟體的可靠及安全性自此會更受質疑，應用上將受到更多限制甚至被禁用；而未來當你熱血上身，單純地想參與開源專案維護時，也可能被懷疑是不是別有用心，在下一盤大棋。</p> <p>就像 911 事件後，飛航運輸加上重重檢查與限制，不僅增加管理成本也影響旅遊體驗；在無數的詐騙手法興起後，現在當你想熱心助人或通知別人中獎，面對的常是懷疑動機或被掛電話。過去純樸信任方便為先的日子，再也回不去了。Jia Tan 這種利用人性善良本質作惡的恐怖份子，應列成全球公敵，人人得而誅之，氣氣氣氣氣!</p> <p>如果你對更多技術細節有興趣，推薦這篇：<a href="https://research.swtch.com/xz-timeline">XZ Utils 攻擊事件完整時間線及細節</a></p> <p data-slug="xz-utils-attack-event" data-fbimg="https://i.imgur.com/f2RjFL7.jpeg#971#546"> </p>]]></content:encoded>
-    <itunes:image href="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg"/>
-          <media:content url="https://blog.darkthread.net/Posts/files/2024/Fig1_638479686447094161.jpg" medium="image"/>
-    <pubDate>Sat, 06 Apr 2024 02:50:07 GMT</pubDate>
   </item></channel>
 </rss>
