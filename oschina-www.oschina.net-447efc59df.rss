@@ -30,6 +30,1466 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[基于 LLM 大模型 Agent 的适用范围和困境]]></title>
+    <link>https://my.oschina.net/u/4662964/blog/11053556</link>
+    <itunes:title><![CDATA[基于 LLM 大模型 Agent 的适用范围和困境]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503049755" data-ratio="0.16666666666666666" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fa6e4cedca.gif" data-w="636">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<section>
+<span><span>本文提到大模型通常的工作方式，即通过提示词进行问答，并指出了两个主要问题：历史对话信息的管理和令牌数量的限制。文章讨论了知识库问答和个人助手两个应用场景，并分析了各自面临的困境，如知识库无法有效处理多模态信息和大型文档，个人助手则受限于工具参数的复杂性和令牌长度。文章还提到了微调（FINE-TUNING）作为改善模型性能的方法，以及在不同领域的应用潜力。最后，分享了对微调成为标准操作流程的预期，以及对现有平台和基础设施的改进意见。</span></span>
+</section>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049751" data-ratio="0.3161764705882353" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1b97c451f1.png" data-w="408"></span>
+</section>
+<section>
+<span>背景</span>
+</section>
+<p><br></p>
+<p><span>当下LLM大模型如火如荼的进行着，各大互联网厂商基本都有在训练&amp;推出自研的大模型，chatgpt，千问、moonshot的kimi。基于这些大模型也涌现了出了很多的应用。但是当前还未出现现象级的应用，妙鸭相机算一个，但是也很快昙花一现。笔者由于业务场景的诉求，也探索了一下基于大模型的Agent 的方案，尝试在实际业务场景的使用一下。但是发现现实还是有一定的差距。</span></p>
+<p><span><br>在基于Agent 的方案，目前有很多的开源框架，如:</span></p>
+<ol>
+<li><p><span>langchain：</span><span>一个基于大模型应用开发框架，能够让应用的开发者基于大模型的推理结合存储、工具、索引、提示词等模块完成个人助理、任务、问答类的应用开发。主打的是单个Agent 的服务能力整合。基本上现在很多的AI 应用当前的思路都有参考这个。</span></p></li>
+<li><p><span>autogen：</span><span>微软开源的agent 框架。如果我们把langchain 看做是和人交互的agent, 那autogen就是agent 和agent 交互协作共同完成一个目标的多agent 的任务框架。人类只需要提供一个目标给到autogen, 他就能够在agent 通过多轮对话、执行完成目标。</span><br></p></li>
+<li><p><span>metagpt：</span><span>官方介绍是 “MetaGPT是一款强大的开源软件，它利用多智能体框架（产品设计、技术设计和程序员）来处理你的需求。只需输入需求，MetaGPT就能规划、设计并生成产品文档、测试代码和主运行代码，让你立即开始运行你的软件。多智能体比单一智能体更高效、更灵活。这是AI技术的一大突破，让软件开发变得更便捷、更高效。” &nbsp;</span></p></li>
+</ol>
+<p><span><br></span></p>
+<p><span>好了，说的再天花乱坠，还是得看实际行不行，我们就拿langchain 的最拿手的两个应用场景来说，一个是知识库问答，一个是个人助手来看看。</span></p>
+<p><span><br></span></p>
+<p><span>在讲这两个场景，之前我们要先熟悉大模型的工作姿势：<br>通用的大模型的工作姿势，是</span><span><em>提示词 &nbsp;=&gt; 大模型 =&gt; 大模型基于提示词给出问答</em></span><span>。</span></p>
+<p><span><br>提示词Prompt 的一般格式：</span></p>
+<section>
+<pre data-lang="ini"><code><span>PREFIX = """Answer the following questions as best you can. You have access to the following tools:"""</span></code><code><span>FORMAT_INSTRUCTIONS = """Use the following format:</span></code><code><span><br></span></code><code><span>Question: the input question you must answer</span></code><code><span>Thought: you should always think about what to do</span></code><code><span>Action: the action to take, should be one of [{tool_names}]</span></code><code><span>Action Input: the input to the action</span></code><code><span>Observation: the result of the action</span></code><code><span>... (this Thought/Action/Action Input/Observation can repeat N times)</span></code><code><span>Thought: I now know the final answer</span></code><code><span>Final Answer: the final answer to the original input question"""</span></code><code><span>SUFFIX = """Begin!</span></code><code><span><br></span></code><code><span>Question: {input}</span></code><code><span>Thought:{agent_scratchpad}"""</span></code></pre>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb">
+<br>
+</ne-clipboard>
+</section>
+<section>
+<span>简单来说，就是告诉大模型按照特定格式回答我的问题，可以使用的工具，参数格式等等吧。。。重点是要求大模型按照特定的范式工作，输出结果。上文是chat 场景下MRKL 模型的Promopt ，有兴趣的可以看看背后的论文MRKL。</span>
+</section>
+<blockquote data-author-name="" data-content-utf8-length="43" data-source-title="">
+<section>
+<section>
+MRKL地址：https://arxiv.org/pdf/2205.00445.pdf
+</section>
+</section>
+</blockquote>
+<p><br></p>
+<p><span>在实际的运行过程中，我们的参数会被填充到对应的数据，例如tool 会被替换成工具的信息，input 的信息，包括历史的会话信息等，如下图所示：</span></p>
+<p><span><img data-backh="233" data-backw="578" data-imgfileid="503049753" data-ratio="0.4027777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-78ff9f49d0.png" data-w="1080"></span></p>
+<p><br></p>
+<p><span>这地方有两个问题：</span></p>
+<ol>
+<li><p><span>第一个问题，历史对话信息，LLM 没有，所以agent 等框架一般都有memory 的能力，每次调用大模型都需要把历史的对话信息拿出来，放到prompt 中；</span></p></li>
+<li><p><span>第二个问题一次调用的tokens 有限，这个问题其实很致命。如果遇到知识库相关的tokens 非常的多场景，怎么解决尼？总不能每次把知识库的信息都全量带过去吧，解决方案一般有两种，第一种就是每次只把相关的信息带过去，也就是下面通用的知识库方案。还有一个种是提前微调，fine-tuning 的模式来做，利用先验知识解决专家问题。</span></p></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503049752" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bb6bf4499d.png" data-w="422"></span>
+</section>
+<section>
+<span>知识库的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><img data-backh="372" data-backw="578" data-imgfileid="503049754" data-ratio="0.6435185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0783a0a005.png" data-w="1080"></p>
+<section>
+<br>
+</section>
+<section>
+<span>上面这个图，估计很多同学都看过，大家把PDF、语雀文档、WORD 之类的文档，进行分割、embedding、存到向量数据库中，在问答环节，拉取相关的块，再构建prompt 给到大模型，再让他输出对应的问答。<br></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>本质解决两个问题，tokens 数量限制的问题；提炼精准问题的能力。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>Text Splitter ：文本分割器是一种将大段文本拆分成较小块或片段的算法或方法。其目标是创建可单独处理的可管理的片段，这在处理大型文档或数据集时通常是必要的。</span>
+</section></li>
+<li>
+<section>
+<span>Embedding: 简单来说就是向量化，不同维度的数据，最终都需要通过归一化、自关联。当然，这个做的最好的就是chatgpt 的 text-embedding-ada-002 了，其实chatgpt 的能做的比别的大模型好，很大程度下受他的Embedding结果的影响, 在Transform 模型下，多头注意力非常依赖Embedding 的好坏。</span>
+</section></li>
+<li>
+<section>
+<span>vectorstore: 向量数据库，就是存储刚刚嵌入后的向量了，一般的向量数据库都可以了，如holo, redis 等，支持计算欧式距离、向量内积等。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<p><span>原理很简单，集团内部现在知识库的机器人接入没有几千，估计也有几百了，在一些基础问题上，它还能回答的差不多，但是在复杂问题上，还没有看到一个非常厉害的知识库机器人出现。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-imgfileid="503049758" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f6e5aac608.png" data-w="422">
+</section>
+<section>
+<span>知识库的困境</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<br>
+</section>
+<p><span>第一个问题是大家进行向量化的知识库文档里面其实很多时候是包含很多图片，在表达语义能力方面，图片往往包含的语义更多，图片处理的时候可能就变成一个链接了，更有甚者，包含视频，又该如何处理，所以文档处理不能简单的做NLP处理，还得支持多模态，目前好像还没有看到这样的能力出现。下图中，其实就是一个示例。</span></p>
+<p><span><img data-backh="498" data-backw="578" data-croporisrc="https://oscimg.oschina.net/oscnet/feb040ac-75c0-43ac-abdf-c0b74a15d648.png" data-cropx1="0" data-cropx2="1178.8235294117646" data-cropy1="0" data-cropy2="1171.764705882353" data-imgfileid="503049757" data-ratio="0.9944444444444445" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87c8d43e20.jpg" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<span>第二个影响结果的就是文档的大小，如果知识库过于庞大，在分割完成后，召回的数据也会过多，必然存在舍弃导致的信息不全。不过这种情况可以通过尝试多路调用，再整合的思路解决。</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>另外使用的姿势也有相关性，如果问题没有区分度，返回的结果也存在泛化的问题。知识库能力有个特点，就是你提供给我的知识一定是要准确有用的，因为作为使用方，如果你一会给我的有用，一会给我的是错误的，作为用户我就不会用了，我不是专家，我没有办法判断结果的正确性。这个和专家助手是不一样的心智。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503049756" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-71d3a567e3.png" data-w="256">
+</section>
+<section>
+<span>个人助手的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><span>个人助手的基本逻辑就是，输入后，组装参数，告诉大模型目标以及工具描述，让大模型告诉我们是否应该使用工具，以及使用哪个工具，这个过程中，大模型还会帮我们构建工具参数（前提是工具要描述清楚参数的类型），langchain 根据工具和参数调用，拿到结果后，再次调用大模型。这个一个基本的ReAct 的思路。具体可以参考论文: ReAct</span></p>
+<section>
+<span>&nbsp;ReAct地址：<span>https://arxiv.org/pdf/2210.03629.pdf</span></span>
+</section>
+<p><span><img data-backh="368" data-backw="578" data-imgfileid="503049759" data-ratio="0.6373056994818653" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-13a83df084.png" data-w="965"></span></p>
+<p><br></p>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u2980705f%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u48ed5ff5%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E5%85%B6%E5%AE%9E%E6%8C%89%E7%85%A7%E8%BF%99%E4%B8%AA%E6%80%9D%E8%B7%AF%EF%BC%8C%E5%A6%82%E6%9E%9C%E5%86%99%E5%A5%BDPrompt%2C%20%E5%86%8D%E6%8A%8A%E5%B7%A5%E5%85%B7%E7%9A%84%E6%8F%8F%E8%BF%B0%E5%86%99%E6%B8%85%E6%A5%9A%EF%BC%8C%E4%BD%A0%E4%BC%9A%E5%8F%91%E7%8E%B0%E8%BF%99%E4%B8%AA%E8%BF%98%E6%98%AF%E7%9A%84%E7%A1%AE%E8%83%BD%E5%A4%9F%E4%BA%A7%E7%94%9F%E4%B8%80%E4%BA%9B%E4%BB%B7%E5%80%BC%E7%9A%84%EF%BC%8C%E8%87%B3%E5%B0%91%E5%9C%A8%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7%E5%8A%A9%E6%89%8B%E4%B8%8A%EF%BC%8C%E4%BB%96%E8%BF%98%E6%98%AF%E5%8F%AF%E4%BB%A5%E5%81%9A%E5%88%B0%E4%B8%8D%E9%94%99%E7%9A%84%E6%95%88%E6%9E%9C%E7%9A%84%E3%80%82%E4%BE%8B%E5%A6%82%E6%9F%A5%E4%B8%AA%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%AE%A2%E5%8D%95%E4%BF%A1%E6%81%AF%E3%80%81%E7%AD%89%E7%AD%89%E5%90%A7%E3%80%82%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<p><span>其实按照这个思路，如果写好Prompt, 再把工具的描述写清楚，你会发现这个还是的确能够产生一些价值的，至少在辅助工具助手上，他还是可以做到不错的效果的。例如查个白名单、订单信息、等等吧。</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="514" data-backw="578" data-imgfileid="503049760" data-ratio="0.8898148148148148" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cb7bce3d1.png" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<img data-imgfileid="503049763" data-ratio="0.328125" data-s="300,640" data-w="256" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2eacf3c52.png">
+</section>
+<section>
+<span>个人助手困境</span>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>他的一个明显的困境就是工具的参数不能太复杂，由于是大模型推荐的结果得出的参数，即使是最新的gpt 在参数映射这一块，都容易出现问题，哪怕是个String 类型的数组，都容易出现格式不一致的问题。所以工具的入参要足够简单，不然那个转化和校验就痛苦死了。</span></p></li>
+<li><p><span>由于每次调用都是带着全量的History, 所以如果背景知识过多，一样会存在tokens 过长的问题。就像你想让一个让帮你做客服的事情，首先他得了解足够多的先验知识，由于没有做微调，所以每次都是带着全量的信息过去，模型处理的也慢。</span></p></li>
+</ol>
+<p><br></p>
+<p><span>所以最终的最终，想要好的效果，还是需要准备好足够清晰的业务领域知识(多模态的)，做Fine-Tuning。</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503049762" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-027b9287ef.png" data-w="256"></p>
+<p><span>Fine-Tuning 的困境</span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<section>
+<span>在说NLP 领域的的fine-tuning 之前，我们可以先说说文生图领域的fine-tuning。目前文生图领域有个非常火的网站叫C站. 他上面全是基于LORA的思路(可参考论文LORA)做微调模型。基本拿SD 的基础模型，再加上微调模型和Promot 很容易就能生成对应风格的图片。</span>
+</section>
+<section>
+<span>可参考论文LORA地址：https://arxiv.org/pdf/2106.09685.pdf</span>
+</section>
+<section>
+<img data-imgfileid="503049764" data-ratio="0.32592592592592595" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ec89b77cd7.png" data-w="1080">
+</section>
+<section>
+<span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard></span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>等到开源的基础大模型的推理能力达到chatgpt4 的水平，为了解决各个专业领域问题(你也可以叫风格、领域知识、上下文背景)，微调会成为一个标准操作流程。但是能不能形成一个类似C站的氛围还不好说，毕竟图片的风格是通用的，大家可以相互借鉴，而专业背景各个产品各有不同。</span>
+</section></li>
+<li>
+<section>
+<span>基于大模型的能力，在精确计算领域还是很难落到很好的效果，典型的如复杂工具的调用。但是在专家助手的领域能够获得很好的效果，典型的如代码生成的Copilot。虽然生成的代码不能保证一行都不需要修改，但是它能实现80%的有效代码，基于自己的专家知识修改有问题的20%, 那也是巨大的省力呀。</span>
+</section></li>
+<li>
+<section>
+<span>最后再说一下钉钉，目前的钉钉已经支持流式stream ，可以很方便的实现大模型打字效果了，大家可以试用一下。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049761" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1664f87113.png" data-w="256"></span>
+</section>
+<section>
+<span>团队介绍</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>淘宝物流基础技术团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。基础技术团队打造了一个技术先进，产品矩阵完整的PaaS平台，以及AI驱动的基础研发框架，帮助业务系统实现架构升级，助力提升业务开发研发效率和技术实战能力。最终支撑和驱动庞大、复杂、多变的商业体系发展。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="715" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503049755" data-ratio="0.16666666666666666" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fa6e4cedca.gif" data-w="636">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<section>
+<span><span>本文提到大模型通常的工作方式，即通过提示词进行问答，并指出了两个主要问题：历史对话信息的管理和令牌数量的限制。文章讨论了知识库问答和个人助手两个应用场景，并分析了各自面临的困境，如知识库无法有效处理多模态信息和大型文档，个人助手则受限于工具参数的复杂性和令牌长度。文章还提到了微调（FINE-TUNING）作为改善模型性能的方法，以及在不同领域的应用潜力。最后，分享了对微调成为标准操作流程的预期，以及对现有平台和基础设施的改进意见。</span></span>
+</section>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049751" data-ratio="0.3161764705882353" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1b97c451f1.png" data-w="408"></span>
+</section>
+<section>
+<span>背景</span>
+</section>
+<p><br></p>
+<p><span>当下LLM大模型如火如荼的进行着，各大互联网厂商基本都有在训练&amp;推出自研的大模型，chatgpt，千问、moonshot的kimi。基于这些大模型也涌现了出了很多的应用。但是当前还未出现现象级的应用，妙鸭相机算一个，但是也很快昙花一现。笔者由于业务场景的诉求，也探索了一下基于大模型的Agent 的方案，尝试在实际业务场景的使用一下。但是发现现实还是有一定的差距。</span></p>
+<p><span><br>在基于Agent 的方案，目前有很多的开源框架，如:</span></p>
+<ol>
+<li><p><span>langchain：</span><span>一个基于大模型应用开发框架，能够让应用的开发者基于大模型的推理结合存储、工具、索引、提示词等模块完成个人助理、任务、问答类的应用开发。主打的是单个Agent 的服务能力整合。基本上现在很多的AI 应用当前的思路都有参考这个。</span></p></li>
+<li><p><span>autogen：</span><span>微软开源的agent 框架。如果我们把langchain 看做是和人交互的agent, 那autogen就是agent 和agent 交互协作共同完成一个目标的多agent 的任务框架。人类只需要提供一个目标给到autogen, 他就能够在agent 通过多轮对话、执行完成目标。</span><br></p></li>
+<li><p><span>metagpt：</span><span>官方介绍是 “MetaGPT是一款强大的开源软件，它利用多智能体框架（产品设计、技术设计和程序员）来处理你的需求。只需输入需求，MetaGPT就能规划、设计并生成产品文档、测试代码和主运行代码，让你立即开始运行你的软件。多智能体比单一智能体更高效、更灵活。这是AI技术的一大突破，让软件开发变得更便捷、更高效。” &nbsp;</span></p></li>
+</ol>
+<p><span><br></span></p>
+<p><span>好了，说的再天花乱坠，还是得看实际行不行，我们就拿langchain 的最拿手的两个应用场景来说，一个是知识库问答，一个是个人助手来看看。</span></p>
+<p><span><br></span></p>
+<p><span>在讲这两个场景，之前我们要先熟悉大模型的工作姿势：<br>通用的大模型的工作姿势，是</span><span><em>提示词 &nbsp;=&gt; 大模型 =&gt; 大模型基于提示词给出问答</em></span><span>。</span></p>
+<p><span><br>提示词Prompt 的一般格式：</span></p>
+<section>
+<pre data-lang="ini"><code><span>PREFIX = """Answer the following questions as best you can. You have access to the following tools:"""</span></code><code><span>FORMAT_INSTRUCTIONS = """Use the following format:</span></code><code><span><br></span></code><code><span>Question: the input question you must answer</span></code><code><span>Thought: you should always think about what to do</span></code><code><span>Action: the action to take, should be one of [{tool_names}]</span></code><code><span>Action Input: the input to the action</span></code><code><span>Observation: the result of the action</span></code><code><span>... (this Thought/Action/Action Input/Observation can repeat N times)</span></code><code><span>Thought: I now know the final answer</span></code><code><span>Final Answer: the final answer to the original input question"""</span></code><code><span>SUFFIX = """Begin!</span></code><code><span><br></span></code><code><span>Question: {input}</span></code><code><span>Thought:{agent_scratchpad}"""</span></code></pre>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb">
+<br>
+</ne-clipboard>
+</section>
+<section>
+<span>简单来说，就是告诉大模型按照特定格式回答我的问题，可以使用的工具，参数格式等等吧。。。重点是要求大模型按照特定的范式工作，输出结果。上文是chat 场景下MRKL 模型的Promopt ，有兴趣的可以看看背后的论文MRKL。</span>
+</section>
+<blockquote data-author-name="" data-content-utf8-length="43" data-source-title="">
+<section>
+<section>
+MRKL地址：https://arxiv.org/pdf/2205.00445.pdf
+</section>
+</section>
+</blockquote>
+<p><br></p>
+<p><span>在实际的运行过程中，我们的参数会被填充到对应的数据，例如tool 会被替换成工具的信息，input 的信息，包括历史的会话信息等，如下图所示：</span></p>
+<p><span><img data-backh="233" data-backw="578" data-imgfileid="503049753" data-ratio="0.4027777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-78ff9f49d0.png" data-w="1080"></span></p>
+<p><br></p>
+<p><span>这地方有两个问题：</span></p>
+<ol>
+<li><p><span>第一个问题，历史对话信息，LLM 没有，所以agent 等框架一般都有memory 的能力，每次调用大模型都需要把历史的对话信息拿出来，放到prompt 中；</span></p></li>
+<li><p><span>第二个问题一次调用的tokens 有限，这个问题其实很致命。如果遇到知识库相关的tokens 非常的多场景，怎么解决尼？总不能每次把知识库的信息都全量带过去吧，解决方案一般有两种，第一种就是每次只把相关的信息带过去，也就是下面通用的知识库方案。还有一个种是提前微调，fine-tuning 的模式来做，利用先验知识解决专家问题。</span></p></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503049752" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bb6bf4499d.png" data-w="422"></span>
+</section>
+<section>
+<span>知识库的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><img data-backh="372" data-backw="578" data-imgfileid="503049754" data-ratio="0.6435185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0783a0a005.png" data-w="1080"></p>
+<section>
+<br>
+</section>
+<section>
+<span>上面这个图，估计很多同学都看过，大家把PDF、语雀文档、WORD 之类的文档，进行分割、embedding、存到向量数据库中，在问答环节，拉取相关的块，再构建prompt 给到大模型，再让他输出对应的问答。<br></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>本质解决两个问题，tokens 数量限制的问题；提炼精准问题的能力。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>Text Splitter ：文本分割器是一种将大段文本拆分成较小块或片段的算法或方法。其目标是创建可单独处理的可管理的片段，这在处理大型文档或数据集时通常是必要的。</span>
+</section></li>
+<li>
+<section>
+<span>Embedding: 简单来说就是向量化，不同维度的数据，最终都需要通过归一化、自关联。当然，这个做的最好的就是chatgpt 的 text-embedding-ada-002 了，其实chatgpt 的能做的比别的大模型好，很大程度下受他的Embedding结果的影响, 在Transform 模型下，多头注意力非常依赖Embedding 的好坏。</span>
+</section></li>
+<li>
+<section>
+<span>vectorstore: 向量数据库，就是存储刚刚嵌入后的向量了，一般的向量数据库都可以了，如holo, redis 等，支持计算欧式距离、向量内积等。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<p><span>原理很简单，集团内部现在知识库的机器人接入没有几千，估计也有几百了，在一些基础问题上，它还能回答的差不多，但是在复杂问题上，还没有看到一个非常厉害的知识库机器人出现。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-imgfileid="503049758" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f6e5aac608.png" data-w="422">
+</section>
+<section>
+<span>知识库的困境</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<br>
+</section>
+<p><span>第一个问题是大家进行向量化的知识库文档里面其实很多时候是包含很多图片，在表达语义能力方面，图片往往包含的语义更多，图片处理的时候可能就变成一个链接了，更有甚者，包含视频，又该如何处理，所以文档处理不能简单的做NLP处理，还得支持多模态，目前好像还没有看到这样的能力出现。下图中，其实就是一个示例。</span></p>
+<p><span><img data-backh="498" data-backw="578" data-croporisrc="https://oscimg.oschina.net/oscnet/feb040ac-75c0-43ac-abdf-c0b74a15d648.png" data-cropx1="0" data-cropx2="1178.8235294117646" data-cropy1="0" data-cropy2="1171.764705882353" data-imgfileid="503049757" data-ratio="0.9944444444444445" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87c8d43e20.jpg" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<span>第二个影响结果的就是文档的大小，如果知识库过于庞大，在分割完成后，召回的数据也会过多，必然存在舍弃导致的信息不全。不过这种情况可以通过尝试多路调用，再整合的思路解决。</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>另外使用的姿势也有相关性，如果问题没有区分度，返回的结果也存在泛化的问题。知识库能力有个特点，就是你提供给我的知识一定是要准确有用的，因为作为使用方，如果你一会给我的有用，一会给我的是错误的，作为用户我就不会用了，我不是专家，我没有办法判断结果的正确性。这个和专家助手是不一样的心智。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503049756" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-71d3a567e3.png" data-w="256">
+</section>
+<section>
+<span>个人助手的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><span>个人助手的基本逻辑就是，输入后，组装参数，告诉大模型目标以及工具描述，让大模型告诉我们是否应该使用工具，以及使用哪个工具，这个过程中，大模型还会帮我们构建工具参数（前提是工具要描述清楚参数的类型），langchain 根据工具和参数调用，拿到结果后，再次调用大模型。这个一个基本的ReAct 的思路。具体可以参考论文: ReAct</span></p>
+<section>
+<span>&nbsp;ReAct地址：<span>https://arxiv.org/pdf/2210.03629.pdf</span></span>
+</section>
+<p><span><img data-backh="368" data-backw="578" data-imgfileid="503049759" data-ratio="0.6373056994818653" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-13a83df084.png" data-w="965"></span></p>
+<p><br></p>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u2980705f%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u48ed5ff5%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E5%85%B6%E5%AE%9E%E6%8C%89%E7%85%A7%E8%BF%99%E4%B8%AA%E6%80%9D%E8%B7%AF%EF%BC%8C%E5%A6%82%E6%9E%9C%E5%86%99%E5%A5%BDPrompt%2C%20%E5%86%8D%E6%8A%8A%E5%B7%A5%E5%85%B7%E7%9A%84%E6%8F%8F%E8%BF%B0%E5%86%99%E6%B8%85%E6%A5%9A%EF%BC%8C%E4%BD%A0%E4%BC%9A%E5%8F%91%E7%8E%B0%E8%BF%99%E4%B8%AA%E8%BF%98%E6%98%AF%E7%9A%84%E7%A1%AE%E8%83%BD%E5%A4%9F%E4%BA%A7%E7%94%9F%E4%B8%80%E4%BA%9B%E4%BB%B7%E5%80%BC%E7%9A%84%EF%BC%8C%E8%87%B3%E5%B0%91%E5%9C%A8%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7%E5%8A%A9%E6%89%8B%E4%B8%8A%EF%BC%8C%E4%BB%96%E8%BF%98%E6%98%AF%E5%8F%AF%E4%BB%A5%E5%81%9A%E5%88%B0%E4%B8%8D%E9%94%99%E7%9A%84%E6%95%88%E6%9E%9C%E7%9A%84%E3%80%82%E4%BE%8B%E5%A6%82%E6%9F%A5%E4%B8%AA%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%AE%A2%E5%8D%95%E4%BF%A1%E6%81%AF%E3%80%81%E7%AD%89%E7%AD%89%E5%90%A7%E3%80%82%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<p><span>其实按照这个思路，如果写好Prompt, 再把工具的描述写清楚，你会发现这个还是的确能够产生一些价值的，至少在辅助工具助手上，他还是可以做到不错的效果的。例如查个白名单、订单信息、等等吧。</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="514" data-backw="578" data-imgfileid="503049760" data-ratio="0.8898148148148148" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cb7bce3d1.png" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<img data-imgfileid="503049763" data-ratio="0.328125" data-s="300,640" data-w="256" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2eacf3c52.png">
+</section>
+<section>
+<span>个人助手困境</span>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>他的一个明显的困境就是工具的参数不能太复杂，由于是大模型推荐的结果得出的参数，即使是最新的gpt 在参数映射这一块，都容易出现问题，哪怕是个String 类型的数组，都容易出现格式不一致的问题。所以工具的入参要足够简单，不然那个转化和校验就痛苦死了。</span></p></li>
+<li><p><span>由于每次调用都是带着全量的History, 所以如果背景知识过多，一样会存在tokens 过长的问题。就像你想让一个让帮你做客服的事情，首先他得了解足够多的先验知识，由于没有做微调，所以每次都是带着全量的信息过去，模型处理的也慢。</span></p></li>
+</ol>
+<p><br></p>
+<p><span>所以最终的最终，想要好的效果，还是需要准备好足够清晰的业务领域知识(多模态的)，做Fine-Tuning。</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503049762" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-027b9287ef.png" data-w="256"></p>
+<p><span>Fine-Tuning 的困境</span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<section>
+<span>在说NLP 领域的的fine-tuning 之前，我们可以先说说文生图领域的fine-tuning。目前文生图领域有个非常火的网站叫C站. 他上面全是基于LORA的思路(可参考论文LORA)做微调模型。基本拿SD 的基础模型，再加上微调模型和Promot 很容易就能生成对应风格的图片。</span>
+</section>
+<section>
+<span>可参考论文LORA地址：https://arxiv.org/pdf/2106.09685.pdf</span>
+</section>
+<section>
+<img data-imgfileid="503049764" data-ratio="0.32592592592592595" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ec89b77cd7.png" data-w="1080">
+</section>
+<section>
+<span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard></span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>等到开源的基础大模型的推理能力达到chatgpt4 的水平，为了解决各个专业领域问题(你也可以叫风格、领域知识、上下文背景)，微调会成为一个标准操作流程。但是能不能形成一个类似C站的氛围还不好说，毕竟图片的风格是通用的，大家可以相互借鉴，而专业背景各个产品各有不同。</span>
+</section></li>
+<li>
+<section>
+<span>基于大模型的能力，在精确计算领域还是很难落到很好的效果，典型的如复杂工具的调用。但是在专家助手的领域能够获得很好的效果，典型的如代码生成的Copilot。虽然生成的代码不能保证一行都不需要修改，但是它能实现80%的有效代码，基于自己的专家知识修改有问题的20%, 那也是巨大的省力呀。</span>
+</section></li>
+<li>
+<section>
+<span>最后再说一下钉钉，目前的钉钉已经支持流式stream ，可以很方便的实现大模型打字效果了，大家可以试用一下。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049761" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1664f87113.png" data-w="256"></span>
+</section>
+<section>
+<span>团队介绍</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>淘宝物流基础技术团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。基础技术团队打造了一个技术先进，产品矩阵完整的PaaS平台，以及AI驱动的基础研发框架，帮助业务系统实现架构升级，助力提升业务开发研发效率和技术实战能力。最终支撑和驱动庞大、复杂、多变的商业体系发展。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="715" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<section data-mpa-powered-by="yiban.io">
+<img data-backh="96" data-backw="578" data-cropselx1="0" data-cropselx2="578" data-cropsely1="0" data-cropsely2="96" data-imgfileid="503049755" data-ratio="0.16666666666666666" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fa6e4cedca.gif" data-w="636">
+<br>
+</section>
+<section data-mpa-template="t" data-mpa-template-id="502" data-mpa-category="模板">
+<section data-mpa-category="模板" data-mid="">
+<section data-mid="">
+<section data-mid="">
+<br>
+</section>
+<section data-mid="">
+<section data-mid="">
+<p data-mid=""><br></p>
+</section>
+<section data-mid="">
+<br>
+</section>
+</section>
+</section>
+<section data-mid="">
+<section>
+<span><span>本文提到大模型通常的工作方式，即通过提示词进行问答，并指出了两个主要问题：历史对话信息的管理和令牌数量的限制。文章讨论了知识库问答和个人助手两个应用场景，并分析了各自面临的困境，如知识库无法有效处理多模态信息和大型文档，个人助手则受限于工具参数的复杂性和令牌长度。文章还提到了微调（FINE-TUNING）作为改善模型性能的方法，以及在不同领域的应用潜力。最后，分享了对微调成为标准操作流程的预期，以及对现有平台和基础设施的改进意见。</span></span>
+</section>
+</section>
+</section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049751" data-ratio="0.3161764705882353" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1b97c451f1.png" data-w="408"></span>
+</section>
+<section>
+<span>背景</span>
+</section>
+<p><br></p>
+<p><span>当下LLM大模型如火如荼的进行着，各大互联网厂商基本都有在训练&amp;推出自研的大模型，chatgpt，千问、moonshot的kimi。基于这些大模型也涌现了出了很多的应用。但是当前还未出现现象级的应用，妙鸭相机算一个，但是也很快昙花一现。笔者由于业务场景的诉求，也探索了一下基于大模型的Agent 的方案，尝试在实际业务场景的使用一下。但是发现现实还是有一定的差距。</span></p>
+<p><span><br>在基于Agent 的方案，目前有很多的开源框架，如:</span></p>
+<ol>
+<li><p><span>langchain：</span><span>一个基于大模型应用开发框架，能够让应用的开发者基于大模型的推理结合存储、工具、索引、提示词等模块完成个人助理、任务、问答类的应用开发。主打的是单个Agent 的服务能力整合。基本上现在很多的AI 应用当前的思路都有参考这个。</span></p></li>
+<li><p><span>autogen：</span><span>微软开源的agent 框架。如果我们把langchain 看做是和人交互的agent, 那autogen就是agent 和agent 交互协作共同完成一个目标的多agent 的任务框架。人类只需要提供一个目标给到autogen, 他就能够在agent 通过多轮对话、执行完成目标。</span><br></p></li>
+<li><p><span>metagpt：</span><span>官方介绍是 “MetaGPT是一款强大的开源软件，它利用多智能体框架（产品设计、技术设计和程序员）来处理你的需求。只需输入需求，MetaGPT就能规划、设计并生成产品文档、测试代码和主运行代码，让你立即开始运行你的软件。多智能体比单一智能体更高效、更灵活。这是AI技术的一大突破，让软件开发变得更便捷、更高效。” &nbsp;</span></p></li>
+</ol>
+<p><span><br></span></p>
+<p><span>好了，说的再天花乱坠，还是得看实际行不行，我们就拿langchain 的最拿手的两个应用场景来说，一个是知识库问答，一个是个人助手来看看。</span></p>
+<p><span><br></span></p>
+<p><span>在讲这两个场景，之前我们要先熟悉大模型的工作姿势：<br>通用的大模型的工作姿势，是</span><span><em>提示词 &nbsp;=&gt; 大模型 =&gt; 大模型基于提示词给出问答</em></span><span>。</span></p>
+<p><span><br>提示词Prompt 的一般格式：</span></p>
+<section>
+<pre data-lang="ini"><code><span>PREFIX = """Answer the following questions as best you can. You have access to the following tools:"""</span></code><code><span>FORMAT_INSTRUCTIONS = """Use the following format:</span></code><code><span><br></span></code><code><span>Question: the input question you must answer</span></code><code><span>Thought: you should always think about what to do</span></code><code><span>Action: the action to take, should be one of [{tool_names}]</span></code><code><span>Action Input: the input to the action</span></code><code><span>Observation: the result of the action</span></code><code><span>... (this Thought/Action/Action Input/Observation can repeat N times)</span></code><code><span>Thought: I now know the final answer</span></code><code><span>Final Answer: the final answer to the original input question"""</span></code><code><span>SUFFIX = """Begin!</span></code><code><span><br></span></code><code><span>Question: {input}</span></code><code><span>Thought:{agent_scratchpad}"""</span></code></pre>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb">
+<br>
+</ne-clipboard>
+</section>
+<section>
+<span>简单来说，就是告诉大模型按照特定格式回答我的问题，可以使用的工具，参数格式等等吧。。。重点是要求大模型按照特定的范式工作，输出结果。上文是chat 场景下MRKL 模型的Promopt ，有兴趣的可以看看背后的论文MRKL。</span>
+</section>
+<blockquote data-author-name="" data-content-utf8-length="43" data-source-title="">
+<section>
+<section>
+MRKL地址：https://arxiv.org/pdf/2205.00445.pdf
+</section>
+</section>
+</blockquote>
+<p><br></p>
+<p><span>在实际的运行过程中，我们的参数会被填充到对应的数据，例如tool 会被替换成工具的信息，input 的信息，包括历史的会话信息等，如下图所示：</span></p>
+<p><span><img data-backh="233" data-backw="578" data-imgfileid="503049753" data-ratio="0.4027777777777778" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-78ff9f49d0.png" data-w="1080"></span></p>
+<p><br></p>
+<p><span>这地方有两个问题：</span></p>
+<ol>
+<li><p><span>第一个问题，历史对话信息，LLM 没有，所以agent 等框架一般都有memory 的能力，每次调用大模型都需要把历史的对话信息拿出来，放到prompt 中；</span></p></li>
+<li><p><span>第二个问题一次调用的tokens 有限，这个问题其实很致命。如果遇到知识库相关的tokens 非常的多场景，怎么解决尼？总不能每次把知识库的信息都全量带过去吧，解决方案一般有两种，第一种就是每次只把相关的信息带过去，也就是下面通用的知识库方案。还有一个种是提前微调，fine-tuning 的模式来做，利用先验知识解决专家问题。</span></p></li>
+</ol>
+<p><br></p>
+<section>
+<span><img data-imgfileid="503049752" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bb6bf4499d.png" data-w="422"></span>
+</section>
+<section>
+<span>知识库的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><img data-backh="372" data-backw="578" data-imgfileid="503049754" data-ratio="0.6435185185185185" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0783a0a005.png" data-w="1080"></p>
+<section>
+<br>
+</section>
+<section>
+<span>上面这个图，估计很多同学都看过，大家把PDF、语雀文档、WORD 之类的文档，进行分割、embedding、存到向量数据库中，在问答环节，拉取相关的块，再构建prompt 给到大模型，再让他输出对应的问答。<br></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>本质解决两个问题，tokens 数量限制的问题；提炼精准问题的能力。</span>
+</section>
+<ol>
+<li>
+<section>
+<span>Text Splitter ：文本分割器是一种将大段文本拆分成较小块或片段的算法或方法。其目标是创建可单独处理的可管理的片段，这在处理大型文档或数据集时通常是必要的。</span>
+</section></li>
+<li>
+<section>
+<span>Embedding: 简单来说就是向量化，不同维度的数据，最终都需要通过归一化、自关联。当然，这个做的最好的就是chatgpt 的 text-embedding-ada-002 了，其实chatgpt 的能做的比别的大模型好，很大程度下受他的Embedding结果的影响, 在Transform 模型下，多头注意力非常依赖Embedding 的好坏。</span>
+</section></li>
+<li>
+<section>
+<span>vectorstore: 向量数据库，就是存储刚刚嵌入后的向量了，一般的向量数据库都可以了，如holo, redis 等，支持计算欧式距离、向量内积等。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<p><span>原理很简单，集团内部现在知识库的机器人接入没有几千，估计也有几百了，在一些基础问题上，它还能回答的差不多，但是在复杂问题上，还没有看到一个非常厉害的知识库机器人出现。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-imgfileid="503049758" data-ratio="0.3056872037914692" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f6e5aac608.png" data-w="422">
+</section>
+<section>
+<span>知识库的困境</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<br>
+</section>
+<p><span>第一个问题是大家进行向量化的知识库文档里面其实很多时候是包含很多图片，在表达语义能力方面，图片往往包含的语义更多，图片处理的时候可能就变成一个链接了，更有甚者，包含视频，又该如何处理，所以文档处理不能简单的做NLP处理，还得支持多模态，目前好像还没有看到这样的能力出现。下图中，其实就是一个示例。</span></p>
+<p><span><img data-backh="498" data-backw="578" data-croporisrc="https://oscimg.oschina.net/oscnet/feb040ac-75c0-43ac-abdf-c0b74a15d648.png" data-cropx1="0" data-cropx2="1178.8235294117646" data-cropy1="0" data-cropy2="1171.764705882353" data-imgfileid="503049757" data-ratio="0.9944444444444445" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-87c8d43e20.jpg" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<span>第二个影响结果的就是文档的大小，如果知识库过于庞大，在分割完成后，召回的数据也会过多，必然存在舍弃导致的信息不全。不过这种情况可以通过尝试多路调用，再整合的思路解决。</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>另外使用的姿势也有相关性，如果问题没有区分度，返回的结果也存在泛化的问题。知识库能力有个特点，就是你提供给我的知识一定是要准确有用的，因为作为使用方，如果你一会给我的有用，一会给我的是错误的，作为用户我就不会用了，我不是专家，我没有办法判断结果的正确性。这个和专家助手是不一样的心智。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-imgfileid="503049756" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-71d3a567e3.png" data-w="256">
+</section>
+<section>
+<span>个人助手的效果</span>
+</section>
+<section>
+<br>
+</section>
+<p><br></p>
+<p><span>个人助手的基本逻辑就是，输入后，组装参数，告诉大模型目标以及工具描述，让大模型告诉我们是否应该使用工具，以及使用哪个工具，这个过程中，大模型还会帮我们构建工具参数（前提是工具要描述清楚参数的类型），langchain 根据工具和参数调用，拿到结果后，再次调用大模型。这个一个基本的ReAct 的思路。具体可以参考论文: ReAct</span></p>
+<section>
+<span>&nbsp;ReAct地址：<span>https://arxiv.org/pdf/2210.03629.pdf</span></span>
+</section>
+<p><span><img data-backh="368" data-backw="578" data-imgfileid="503049759" data-ratio="0.6373056994818653" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-13a83df084.png" data-w="965"></span></p>
+<p><br></p>
+<section>
+<ne-clipboard data="%7B%22type%22%3A%22fragment%22%2C%22name%22%3A%22%23fragment%22%2C%22children%22%3A%5B%7B%22type%22%3A%22element%22%2C%22id%22%3A%22u2980705f%22%2C%22name%22%3A%22p%22%2C%22attrs%22%3A%7B%7D%2C%22children%22%3A%5B%7B%22type%22%3A%22text%22%2C%22id%22%3A%22u48ed5ff5%22%2C%22name%22%3A%22%23text%22%2C%22attrs%22%3A%7B%7D%2C%22data%22%3A%22%E5%85%B6%E5%AE%9E%E6%8C%89%E7%85%A7%E8%BF%99%E4%B8%AA%E6%80%9D%E8%B7%AF%EF%BC%8C%E5%A6%82%E6%9E%9C%E5%86%99%E5%A5%BDPrompt%2C%20%E5%86%8D%E6%8A%8A%E5%B7%A5%E5%85%B7%E7%9A%84%E6%8F%8F%E8%BF%B0%E5%86%99%E6%B8%85%E6%A5%9A%EF%BC%8C%E4%BD%A0%E4%BC%9A%E5%8F%91%E7%8E%B0%E8%BF%99%E4%B8%AA%E8%BF%98%E6%98%AF%E7%9A%84%E7%A1%AE%E8%83%BD%E5%A4%9F%E4%BA%A7%E7%94%9F%E4%B8%80%E4%BA%9B%E4%BB%B7%E5%80%BC%E7%9A%84%EF%BC%8C%E8%87%B3%E5%B0%91%E5%9C%A8%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7%E5%8A%A9%E6%89%8B%E4%B8%8A%EF%BC%8C%E4%BB%96%E8%BF%98%E6%98%AF%E5%8F%AF%E4%BB%A5%E5%81%9A%E5%88%B0%E4%B8%8D%E9%94%99%E7%9A%84%E6%95%88%E6%9E%9C%E7%9A%84%E3%80%82%E4%BE%8B%E5%A6%82%E6%9F%A5%E4%B8%AA%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%AE%A2%E5%8D%95%E4%BF%A1%E6%81%AF%E3%80%81%E7%AD%89%E7%AD%89%E5%90%A7%E3%80%82%22%7D%5D%7D%5D%2C%22attrs%22%3A%7B%7D%7D" source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<p><span>其实按照这个思路，如果写好Prompt, 再把工具的描述写清楚，你会发现这个还是的确能够产生一些价值的，至少在辅助工具助手上，他还是可以做到不错的效果的。例如查个白名单、订单信息、等等吧。</span></p>
+<p><span><br></span></p>
+<p><span><img data-backh="514" data-backw="578" data-imgfileid="503049760" data-ratio="0.8898148148148148" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cb7bce3d1.png" data-w="1080"></span></p>
+<section>
+<br>
+</section>
+<section>
+<img data-imgfileid="503049763" data-ratio="0.328125" data-s="300,640" data-w="256" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2eacf3c52.png">
+</section>
+<section>
+<span>个人助手困境</span>
+</section>
+<p><br></p>
+<ol>
+<li><p><span>他的一个明显的困境就是工具的参数不能太复杂，由于是大模型推荐的结果得出的参数，即使是最新的gpt 在参数映射这一块，都容易出现问题，哪怕是个String 类型的数组，都容易出现格式不一致的问题。所以工具的入参要足够简单，不然那个转化和校验就痛苦死了。</span></p></li>
+<li><p><span>由于每次调用都是带着全量的History, 所以如果背景知识过多，一样会存在tokens 过长的问题。就像你想让一个让帮你做客服的事情，首先他得了解足够多的先验知识，由于没有做微调，所以每次都是带着全量的信息过去，模型处理的也慢。</span></p></li>
+</ol>
+<p><br></p>
+<p><span>所以最终的最终，想要好的效果，还是需要准备好足够清晰的业务领域知识(多模态的)，做Fine-Tuning。</span></p>
+<p><span><br></span></p>
+<p><img data-imgfileid="503049762" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-027b9287ef.png" data-w="256"></p>
+<p><span>Fine-Tuning 的困境</span></p>
+<section>
+<br>
+</section>
+<section>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard>
+</section>
+<section>
+<span>在说NLP 领域的的fine-tuning 之前，我们可以先说说文生图领域的fine-tuning。目前文生图领域有个非常火的网站叫C站. 他上面全是基于LORA的思路(可参考论文LORA)做微调模型。基本拿SD 的基础模型，再加上微调模型和Promot 很容易就能生成对应风格的图片。</span>
+</section>
+<section>
+<span>可参考论文LORA地址：https://arxiv.org/pdf/2106.09685.pdf</span>
+</section>
+<section>
+<img data-imgfileid="503049764" data-ratio="0.32592592592592595" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ec89b77cd7.png" data-w="1080">
+</section>
+<section>
+<span>
+<ne-clipboard source="https%3A%2F%2Faliyuque.antfin.com%2Fxiaorui.fxr%2Fteri48%2Faew1h8py7i1g3unb%235e9da617"></ne-clipboard></span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ol>
+<li>
+<section>
+<span>等到开源的基础大模型的推理能力达到chatgpt4 的水平，为了解决各个专业领域问题(你也可以叫风格、领域知识、上下文背景)，微调会成为一个标准操作流程。但是能不能形成一个类似C站的氛围还不好说，毕竟图片的风格是通用的，大家可以相互借鉴，而专业背景各个产品各有不同。</span>
+</section></li>
+<li>
+<section>
+<span>基于大模型的能力，在精确计算领域还是很难落到很好的效果，典型的如复杂工具的调用。但是在专家助手的领域能够获得很好的效果，典型的如代码生成的Copilot。虽然生成的代码不能保证一行都不需要修改，但是它能实现80%的有效代码，基于自己的专家知识修改有问题的20%, 那也是巨大的省力呀。</span>
+</section></li>
+<li>
+<section>
+<span>最后再说一下钉钉，目前的钉钉已经支持流式stream ，可以很方便的实现大模型打字效果了，大家可以试用一下。</span>
+</section></li>
+</ol>
+<section>
+<br>
+</section>
+<section>
+<span><img data-imgfileid="503049761" data-ratio="0.328125" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1664f87113.png" data-w="256"></span>
+</section>
+<section>
+<span>团队介绍</span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>淘宝物流基础技术团队，一直深耕在物流及供应链的数字化协同与运营领域：为零售业务提供灵活多样的经营模式管理方案及可以快速适配市场变化的经营策略数宇化管理工具；为商家提供高效低成本的物流及供应链解决方案，加快资金效率，提升协同效率；为消费者提供即时便捷的购物体验。基础技术团队打造了一个技术先进，产品矩阵完整的PaaS平台，以及AI驱动的基础研发框架，帮助业务系统实现架构升级，助力提升业务开发研发效率和技术实战能力。最终支撑和驱动庞大、复杂、多变的商业体系发展。</span>
+</section>
+<p><br></p>
+<section data-role="outer" label="Powered by 135editor.com">
+<section>
+<span><strong>¤</strong></span>
+<span><strong>&nbsp;拓展阅读&nbsp;</strong></span>
+<span><strong>¤</strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565944923443904512%23wechat_redirect" textvalue="3DXR技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">3DXR技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1533906991218294785%23wechat_redirect" textvalue="终端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">终端技术</a>&nbsp;|&nbsp;
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1592015847500414978%23wechat_redirect" textvalue="音视频技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">音视频技术</a>
+</section>
+<p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1539610690070642689%23wechat_redirect" textvalue="服务端技术" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">服务端技术</a><span>&nbsp;|&nbsp;</span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D2565883875634397185%23wechat_redirect" textvalue="技术质量" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">技术质量</a>&nbsp;|&nbsp;<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fmp%2Fappmsgalbum%3F__biz%3DMzAxNDEwNjk5OQ%3D%3D%26action%3Dgetalbum%26album_id%3D1522425612282494977%23wechat_redirect" textvalue="数据算法" linktype="text" imgurl="" imgdata="null" tab="innerlink" data-linktype="2">数据算法</a></p>
+<p><br></p>
+<section>
+<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/33P2FdAnju8t5nZGhAatCrc4e2iaDfAaoInribRKxc7MOqdTGygfcLqSDxhj0trCHVEh94Sjl7zuWYzwouYtJ0VQ/300?wx_fmt=png&amp;wxfrom=19" data-nickname="大淘宝技术" data-alias="AlibabaMTT" data-signature="大淘宝技术官方账号" data-from="2" data-index="0" data-origin_num="715" data-isban="0" data-biz_account_status="0" data-weui-theme="light" data-is_biz_ban="0"></mp-common-profile>
+</section>
+</section>
+<p>
+<mp-style-type data-value="3"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - 大淘宝技术（AlibabaMTT）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fa6e4cedca.gif"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fa6e4cedca.gif" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 14:07:49 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[开源大模型 Llama3 发布，百度智能云支持其全系列训练推理]]></title>
+    <link>https://www.oschina.net/news/288475</link>
+    <itunes:title><![CDATA[开源大模型 Llama3 发布，百度智能云支持其全系列训练推理]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>北京时间4月19日凌晨，Meta 正式发布多模态开源大模型<a href="https://www.oschina.net/news/288428/meta-llama-3">Llama 3</a>，包括8B 和 70B 参数的大模型，官方号称有史以来最强大的开源大模型。</p>
+<p>4月19日中午，在Meta推出Llama 3后，百度智能云千帆大模型平台宣布在国内首家推出针对Llama3全系列版本的训练推理方案，便于开发者进行再训练，搭建专属大模型，现已开放邀约测试。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca7373fc89.png"></p>
+<p>据称百度智能云千帆大模型平台中各种尺寸模型定制工具ModelBuilder已预置了最全面最丰富的大模型，支持国内外第三方主流模型，总数量达到79个，是国内拥有大模型数量最多的开发平台。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcloud.baidu.com%2Fdoc%2FWENXINWORKSHOP%2Fs%2Filv62om62" target="_blank">https://cloud.baidu.com/doc/WENXINWORKSHOP/s/ilv62om62</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>北京时间4月19日凌晨，Meta 正式发布多模态开源大模型<a href="https://www.oschina.net/news/288428/meta-llama-3">Llama 3</a>，包括8B 和 70B 参数的大模型，官方号称有史以来最强大的开源大模型。</p>
+<p>4月19日中午，在Meta推出Llama 3后，百度智能云千帆大模型平台宣布在国内首家推出针对Llama3全系列版本的训练推理方案，便于开发者进行再训练，搭建专属大模型，现已开放邀约测试。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca7373fc89.png"></p>
+<p>据称百度智能云千帆大模型平台中各种尺寸模型定制工具ModelBuilder已预置了最全面最丰富的大模型，支持国内外第三方主流模型，总数量达到79个，是国内拥有大模型数量最多的开发平台。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcloud.baidu.com%2Fdoc%2FWENXINWORKSHOP%2Fs%2Filv62om62" target="_blank">https://cloud.baidu.com/doc/WENXINWORKSHOP/s/ilv62om62</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>北京时间4月19日凌晨，Meta 正式发布多模态开源大模型<a href="https://www.oschina.net/news/288428/meta-llama-3">Llama 3</a>，包括8B 和 70B 参数的大模型，官方号称有史以来最强大的开源大模型。</p>
+<p>4月19日中午，在Meta推出Llama 3后，百度智能云千帆大模型平台宣布在国内首家推出针对Llama3全系列版本的训练推理方案，便于开发者进行再训练，搭建专属大模型，现已开放邀约测试。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca7373fc89.png"></p>
+<p>据称百度智能云千帆大模型平台中各种尺寸模型定制工具ModelBuilder已预置了最全面最丰富的大模型，支持国内外第三方主流模型，总数量达到79个，是国内拥有大模型数量最多的开发平台。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcloud.baidu.com%2Fdoc%2FWENXINWORKSHOP%2Fs%2Filv62om62" target="_blank">https://cloud.baidu.com/doc/WENXINWORKSHOP/s/ilv62om62</a></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca7373fc89.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca7373fc89.png" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 14:03:19 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[北京：提前谋划、组织攻关 RISC-V 芯片的操作系统内核、编译器等底层软件]]></title>
+    <link>https://www.oschina.net/news/288472</link>
+    <itunes:title><![CDATA[北京：提前谋划、组织攻关 RISC-V 芯片的操作系统内核、编译器等底层软件]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>北京市经济和信息化局印发《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fjxj.beijing.gov.cn%2Fzwgk%2Fzcwj%2Fbjszc%2F202404%2Ft20240419_3623590.html" target="_blank">北京市加快建设信息软件产业创新发展高地行动方案</a>》。</span></p>
+<p><span>其中明确，到2027年，北京市信息软件产业营业收入达到4.8万亿元。千亿级信息软件企业不少于4家，百亿级信息软件企业不少于35家。培育世界一流的信息软件企业，打造具有国际竞争力的信息软件产业集群。</span></p>
+<ul>
+<li><span>关键软件全面重构。基础软件、工业软件、网络安全软件利用大模型进行技术升级，关键产品性能达到国际先进水平，用户体验感明显提升。占比30%的规模以上关键软件企业推出融合大模型能力的软件产品，关键软件企业引入大模型辅助编程开发范式。</span></li>
+<li><span>新软件业态涌现。布局适配具身智能、XR头显、车载终端、智能计算机（AIPC）等新硬件产品及终端的关键软件。培育10家以上数字人、数字空间、数字物品等元宇宙领域营收超10亿元企业，打造10家左右元宇宙商圈、街区、文化景点、体育场所等信息消费体验点。</span></li>
+<li><span>数据治理能力提升。探索数件新业态，培育1000款以上数件，100家左右数件服务商，推动数件融入生产制造流程，在京津冀区域建设数件生产基地。</span></li>
+<li><span>产业全球竞争力显著提高。在跨境电商、短视频、游戏等领域培育50款以上海外软件爆品，推动北京企业参与全球信息化项目建设。推动北京企业加入国际开源组织，贡献10款左右全球知名开源软件，培育20家以上开源项目商业化研发标杆企业。</span></li>
+</ul>
+<p><span>还提到要布局软硬件协同的新软件。面向具身智能、XR设备、智能计算机、车载终端、物联网设备等新终端，引导软硬件协同创新。前瞻布局具身智能，加强人工智能企业与机器人、重大装备制造企业对接。</span></p>
+<p><span>采用设备厂商出题，企业揭榜方式，组织攻关空间计算、内容渲染等关键技术。以头部PC厂商为链主，推动芯片指令集创新，推进新型芯片、主板等硬件适配调优工作，支持研发智能体操作系统、PC端智能应用等新型软件。</span></p>
+<p><span>组织车企与信息软件企业结对攻关，加强车规级芯片、车载软件、大模型技术融合创新，推动自动驾驶中间件落地，加速智能界面软件上车，研发汽车软件大模型开发工具。</span></p>
+<p><span>建立物联网设备互联互通技术标准，支持底层物联网操作系统开源，结合高端传感器、物联网芯片、新型短距离通信、高精度定位等设备开发软件中间件。提前谋划、组织攻关RISC-V芯片的操作系统内核、编译器等底层软件，实现芯片研发与软件迭代同步。&nbsp;</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>北京市经济和信息化局印发《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fjxj.beijing.gov.cn%2Fzwgk%2Fzcwj%2Fbjszc%2F202404%2Ft20240419_3623590.html" target="_blank">北京市加快建设信息软件产业创新发展高地行动方案</a>》。</span></p>
+<p><span>其中明确，到2027年，北京市信息软件产业营业收入达到4.8万亿元。千亿级信息软件企业不少于4家，百亿级信息软件企业不少于35家。培育世界一流的信息软件企业，打造具有国际竞争力的信息软件产业集群。</span></p>
+<ul>
+<li><span>关键软件全面重构。基础软件、工业软件、网络安全软件利用大模型进行技术升级，关键产品性能达到国际先进水平，用户体验感明显提升。占比30%的规模以上关键软件企业推出融合大模型能力的软件产品，关键软件企业引入大模型辅助编程开发范式。</span></li>
+<li><span>新软件业态涌现。布局适配具身智能、XR头显、车载终端、智能计算机（AIPC）等新硬件产品及终端的关键软件。培育10家以上数字人、数字空间、数字物品等元宇宙领域营收超10亿元企业，打造10家左右元宇宙商圈、街区、文化景点、体育场所等信息消费体验点。</span></li>
+<li><span>数据治理能力提升。探索数件新业态，培育1000款以上数件，100家左右数件服务商，推动数件融入生产制造流程，在京津冀区域建设数件生产基地。</span></li>
+<li><span>产业全球竞争力显著提高。在跨境电商、短视频、游戏等领域培育50款以上海外软件爆品，推动北京企业参与全球信息化项目建设。推动北京企业加入国际开源组织，贡献10款左右全球知名开源软件，培育20家以上开源项目商业化研发标杆企业。</span></li>
+</ul>
+<p><span>还提到要布局软硬件协同的新软件。面向具身智能、XR设备、智能计算机、车载终端、物联网设备等新终端，引导软硬件协同创新。前瞻布局具身智能，加强人工智能企业与机器人、重大装备制造企业对接。</span></p>
+<p><span>采用设备厂商出题，企业揭榜方式，组织攻关空间计算、内容渲染等关键技术。以头部PC厂商为链主，推动芯片指令集创新，推进新型芯片、主板等硬件适配调优工作，支持研发智能体操作系统、PC端智能应用等新型软件。</span></p>
+<p><span>组织车企与信息软件企业结对攻关，加强车规级芯片、车载软件、大模型技术融合创新，推动自动驾驶中间件落地，加速智能界面软件上车，研发汽车软件大模型开发工具。</span></p>
+<p><span>建立物联网设备互联互通技术标准，支持底层物联网操作系统开源，结合高端传感器、物联网芯片、新型短距离通信、高精度定位等设备开发软件中间件。提前谋划、组织攻关RISC-V芯片的操作系统内核、编译器等底层软件，实现芯片研发与软件迭代同步。&nbsp;</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>北京市经济和信息化局印发《<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fjxj.beijing.gov.cn%2Fzwgk%2Fzcwj%2Fbjszc%2F202404%2Ft20240419_3623590.html" target="_blank">北京市加快建设信息软件产业创新发展高地行动方案</a>》。</span></p>
+<p><span>其中明确，到2027年，北京市信息软件产业营业收入达到4.8万亿元。千亿级信息软件企业不少于4家，百亿级信息软件企业不少于35家。培育世界一流的信息软件企业，打造具有国际竞争力的信息软件产业集群。</span></p>
+<ul>
+<li><span>关键软件全面重构。基础软件、工业软件、网络安全软件利用大模型进行技术升级，关键产品性能达到国际先进水平，用户体验感明显提升。占比30%的规模以上关键软件企业推出融合大模型能力的软件产品，关键软件企业引入大模型辅助编程开发范式。</span></li>
+<li><span>新软件业态涌现。布局适配具身智能、XR头显、车载终端、智能计算机（AIPC）等新硬件产品及终端的关键软件。培育10家以上数字人、数字空间、数字物品等元宇宙领域营收超10亿元企业，打造10家左右元宇宙商圈、街区、文化景点、体育场所等信息消费体验点。</span></li>
+<li><span>数据治理能力提升。探索数件新业态，培育1000款以上数件，100家左右数件服务商，推动数件融入生产制造流程，在京津冀区域建设数件生产基地。</span></li>
+<li><span>产业全球竞争力显著提高。在跨境电商、短视频、游戏等领域培育50款以上海外软件爆品，推动北京企业参与全球信息化项目建设。推动北京企业加入国际开源组织，贡献10款左右全球知名开源软件，培育20家以上开源项目商业化研发标杆企业。</span></li>
+</ul>
+<p><span>还提到要布局软硬件协同的新软件。面向具身智能、XR设备、智能计算机、车载终端、物联网设备等新终端，引导软硬件协同创新。前瞻布局具身智能，加强人工智能企业与机器人、重大装备制造企业对接。</span></p>
+<p><span>采用设备厂商出题，企业揭榜方式，组织攻关空间计算、内容渲染等关键技术。以头部PC厂商为链主，推动芯片指令集创新，推进新型芯片、主板等硬件适配调优工作，支持研发智能体操作系统、PC端智能应用等新型软件。</span></p>
+<p><span>组织车企与信息软件企业结对攻关，加强车规级芯片、车载软件、大模型技术融合创新，推动自动驾驶中间件落地，加速智能界面软件上车，研发汽车软件大模型开发工具。</span></p>
+<p><span>建立物联网设备互联互通技术标准，支持底层物联网操作系统开源，结合高端传感器、物联网芯片、新型短距离通信、高精度定位等设备开发软件中间件。提前谋划、组织攻关RISC-V芯片的操作系统内核、编译器等底层软件，实现芯片研发与软件迭代同步。&nbsp;</span></p>]]></content:encoded>
+    
+    <pubDate>Fri, 19 Apr 2024 13:57:30 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[OneDiff 1.0 发布！生产环境稳定加速 SD/SVD 模型]]></title>
+    <link>https://my.oschina.net/oneflow/blog/11053536</link>
+    <itunes:title><![CDATA[OneDiff 1.0 发布！生产环境稳定加速 SD/SVD 模型]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<section>
+<span><img data-backh="267" data-backw="562" data-galleryid="" data-imgfileid="100010439" data-ratio="0.475" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6432e3e43.png"></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>自Stable Diffusion模型发布以来，</span>
+<span>硅基流动开发的</span>
+<span>OneDiff图片/视频推理加速引擎以其</span>
+<span>卓越的性能、“一键”加速的易用性、以及</span>
+<span>对最新算法和应用框架的快速支持，深受开发者和用户的喜爱。</span>
+<br>
+</section>
+<section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>今天，OneDiff v1.0.0<span>正式发布。</span></span>
+<span>本次版本更新解决了此前版本v0.13中的问题，主要包括以下新特性、改进以及若干Bug修复：</span>
+</section>
+<section>
+<br>
+</section>
+<ul>
+<li>
+<section>
+<span>OneDiff质量评估</span>
+</section></li>
+<li>
+<section>
+<span>重复利用编译图</span>
+</section></li>
+<li>
+<section>
+<span>改进对Playground v2.5的支持</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI-AnimateDiff-Evolved</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI_IPAdapter_plus</span>
+</section></li>
+<li>
+<section>
+<span>支持S<span>table Cascade</span></span>
+</section></li>
+<li>
+<section>
+<span>提高了VAE的性能</span>
+</section></li>
+<li>
+<section>
+<span>为OneDiff企业版提供了量化工具</span>
+</section></li>
+</ul>
+<p><br></p>
+<section>
+<span>欢迎体验新版本，期待你的反馈。完整更新列表请查看：</span>
+<strong>https://github.com/siliconflow/onediff/releases/tag/1.0.0</strong>
+</section>
+<p><br></p>
+<p><span>OneDiff的后续版本<strong>将专注于DiT/Sora类模型。</strong></span></p>
+<p><br></p>
+<section>
+<span><strong><span>SOTA性能</span></strong></span>
+</section>
+<p><br></p>
+<p><span>性能方面，无论是Stable Diffusion还是Stable Video Diffusion模型，OneDiff依然保持2～3倍的端到端推理加速。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-backh="316" data-backw="562" data-galleryid="" data-imgfileid="100010437" data-ratio="0.562037037037037" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74fb33f8bf.png">
+</section>
+<p><br></p>
+<section>
+<img data-backh="317" data-backw="578" data-galleryid="" data-imgfileid="100010436" data-ratio="0.5481481481481482" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b886ea0667.png">
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>在OneDiff的加持下，RTX3090甚至可以超越A100的性能，帮助企业和用户大幅节省使用A100的成本。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-backh="380" data-backw="562" data-imgfileid="100010429" data-ratio="0.6759259259259259" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69fe6e4111.png">
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>OneDiff Demo</span></strong></span>
+</section>
+<p><span><br></span></p>
+<section>
+<mp-common-videosnap data-headimgurl="http://wx.qlogo.cn/finderhead/d2fJZTzRTumd6luZUaQnibs31V9NSjTsnPY6qMUmZIYpCicum2G06TLUtDSxvL1ibjh5LYo6GibPJmg/0" data-nickname="硅基流动" data-username="v2_060000231003b20faec8cae28c19c5d0ca03e831b077192550897beeb57bb453833bf06c4505@finder" data-desc="从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，不管是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词更换，#OneDiff 加速库实现图片即时生成（推理时间与E2E时间均小于300毫秒）。层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速），欢迎试用：github.com/siliconflow/onediff  #文生图 #AIGC" data-mediatype="undefined" data-width="1208" data-height="600" data-nonceid="17622531040787433945" data-parentwidth="350" data-isdisabled="0" data-errortips=""></mp-common-videosnap>
+</section>
+<p><br></p>
+<p><span>从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，无论是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词即时更换，OneDiff 加速库实现图片即时生成（推理时间与端到端时间均小于300ms）。在经过层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速）。</span></p>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>应用案例</span></strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>OneDiff已在多家海内外知名GenAI企业的生产环境中得到应用。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ul>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"></a><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247494063%26idx%3D1%26sn%3D8473d3bf89579607264e13b726d3dc67%26chksm%3Dfe426799c935ee8f8b0110d4d08c0bed3d08cf58dde17fae18dfd3e3c991d691b6944a04a8a6%26scene%3D21%23wechat_redirect" textvalue="Stable Diffusion XL优化终极指南" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">Stable Diffusion XL优化终极指南</a>（评测报告）</span>
+</section></li>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频</a></span>
+</section></li>
+<li>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493715%26idx%3D1%26sn%3D788ada7d4d026900efa292c2ef542942%26chksm%3Dfe426665c935ef73a7f6928be2cd69fce3fe801e4d9a86df8aa3682fbcc81abbf2e5718b6522%26scene%3D21%23wechat_redirect" textvalue="OneDiff加速“图生生”，解锁电商AI图像处理新范式" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"><span>OneDiff加速“图生生”，解锁电商AI图像处理新范式</span></a>
+</section></li>
+<li>
+<section>
+<span>更多案例持续更新中：github.com/siliconflow/onediff/wiki</span>
+</section></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<img data-backh="232" data-backw="562" data-galleryid="" data-imgfileid="100010441" data-ratio="0.41203703703703703" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a423cc8e39.png">
+</section>
+<p>
+<mp-style-type data-value="10000"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - OneFlow（OneFlowTechnology）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<section>
+<span><img data-backh="267" data-backw="562" data-galleryid="" data-imgfileid="100010439" data-ratio="0.475" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6432e3e43.png"></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>自Stable Diffusion模型发布以来，</span>
+<span>硅基流动开发的</span>
+<span>OneDiff图片/视频推理加速引擎以其</span>
+<span>卓越的性能、“一键”加速的易用性、以及</span>
+<span>对最新算法和应用框架的快速支持，深受开发者和用户的喜爱。</span>
+<br>
+</section>
+<section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>今天，OneDiff v1.0.0<span>正式发布。</span></span>
+<span>本次版本更新解决了此前版本v0.13中的问题，主要包括以下新特性、改进以及若干Bug修复：</span>
+</section>
+<section>
+<br>
+</section>
+<ul>
+<li>
+<section>
+<span>OneDiff质量评估</span>
+</section></li>
+<li>
+<section>
+<span>重复利用编译图</span>
+</section></li>
+<li>
+<section>
+<span>改进对Playground v2.5的支持</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI-AnimateDiff-Evolved</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI_IPAdapter_plus</span>
+</section></li>
+<li>
+<section>
+<span>支持S<span>table Cascade</span></span>
+</section></li>
+<li>
+<section>
+<span>提高了VAE的性能</span>
+</section></li>
+<li>
+<section>
+<span>为OneDiff企业版提供了量化工具</span>
+</section></li>
+</ul>
+<p><br></p>
+<section>
+<span>欢迎体验新版本，期待你的反馈。完整更新列表请查看：</span>
+<strong>https://github.com/siliconflow/onediff/releases/tag/1.0.0</strong>
+</section>
+<p><br></p>
+<p><span>OneDiff的后续版本<strong>将专注于DiT/Sora类模型。</strong></span></p>
+<p><br></p>
+<section>
+<span><strong><span>SOTA性能</span></strong></span>
+</section>
+<p><br></p>
+<p><span>性能方面，无论是Stable Diffusion还是Stable Video Diffusion模型，OneDiff依然保持2～3倍的端到端推理加速。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-backh="316" data-backw="562" data-galleryid="" data-imgfileid="100010437" data-ratio="0.562037037037037" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74fb33f8bf.png">
+</section>
+<p><br></p>
+<section>
+<img data-backh="317" data-backw="578" data-galleryid="" data-imgfileid="100010436" data-ratio="0.5481481481481482" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b886ea0667.png">
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>在OneDiff的加持下，RTX3090甚至可以超越A100的性能，帮助企业和用户大幅节省使用A100的成本。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-backh="380" data-backw="562" data-imgfileid="100010429" data-ratio="0.6759259259259259" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69fe6e4111.png">
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>OneDiff Demo</span></strong></span>
+</section>
+<p><span><br></span></p>
+<section>
+<mp-common-videosnap data-headimgurl="http://wx.qlogo.cn/finderhead/d2fJZTzRTumd6luZUaQnibs31V9NSjTsnPY6qMUmZIYpCicum2G06TLUtDSxvL1ibjh5LYo6GibPJmg/0" data-nickname="硅基流动" data-username="v2_060000231003b20faec8cae28c19c5d0ca03e831b077192550897beeb57bb453833bf06c4505@finder" data-desc="从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，不管是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词更换，#OneDiff 加速库实现图片即时生成（推理时间与E2E时间均小于300毫秒）。层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速），欢迎试用：github.com/siliconflow/onediff  #文生图 #AIGC" data-mediatype="undefined" data-width="1208" data-height="600" data-nonceid="17622531040787433945" data-parentwidth="350" data-isdisabled="0" data-errortips=""></mp-common-videosnap>
+</section>
+<p><br></p>
+<p><span>从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，无论是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词即时更换，OneDiff 加速库实现图片即时生成（推理时间与端到端时间均小于300ms）。在经过层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速）。</span></p>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>应用案例</span></strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>OneDiff已在多家海内外知名GenAI企业的生产环境中得到应用。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ul>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"></a><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247494063%26idx%3D1%26sn%3D8473d3bf89579607264e13b726d3dc67%26chksm%3Dfe426799c935ee8f8b0110d4d08c0bed3d08cf58dde17fae18dfd3e3c991d691b6944a04a8a6%26scene%3D21%23wechat_redirect" textvalue="Stable Diffusion XL优化终极指南" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">Stable Diffusion XL优化终极指南</a>（评测报告）</span>
+</section></li>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频</a></span>
+</section></li>
+<li>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493715%26idx%3D1%26sn%3D788ada7d4d026900efa292c2ef542942%26chksm%3Dfe426665c935ef73a7f6928be2cd69fce3fe801e4d9a86df8aa3682fbcc81abbf2e5718b6522%26scene%3D21%23wechat_redirect" textvalue="OneDiff加速“图生生”，解锁电商AI图像处理新范式" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"><span>OneDiff加速“图生生”，解锁电商AI图像处理新范式</span></a>
+</section></li>
+<li>
+<section>
+<span>更多案例持续更新中：github.com/siliconflow/onediff/wiki</span>
+</section></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<img data-backh="232" data-backw="562" data-galleryid="" data-imgfileid="100010441" data-ratio="0.41203703703703703" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a423cc8e39.png">
+</section>
+<p>
+<mp-style-type data-value="10000"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - OneFlow（OneFlowTechnology）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<section>
+<span><img data-backh="267" data-backw="562" data-galleryid="" data-imgfileid="100010439" data-ratio="0.475" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6432e3e43.png"></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>自Stable Diffusion模型发布以来，</span>
+<span>硅基流动开发的</span>
+<span>OneDiff图片/视频推理加速引擎以其</span>
+<span>卓越的性能、“一键”加速的易用性、以及</span>
+<span>对最新算法和应用框架的快速支持，深受开发者和用户的喜爱。</span>
+<br>
+</section>
+<section>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>今天，OneDiff v1.0.0<span>正式发布。</span></span>
+<span>本次版本更新解决了此前版本v0.13中的问题，主要包括以下新特性、改进以及若干Bug修复：</span>
+</section>
+<section>
+<br>
+</section>
+<ul>
+<li>
+<section>
+<span>OneDiff质量评估</span>
+</section></li>
+<li>
+<section>
+<span>重复利用编译图</span>
+</section></li>
+<li>
+<section>
+<span>改进对Playground v2.5的支持</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI-AnimateDiff-Evolved</span>
+</section></li>
+<li>
+<section>
+<span>支持ComfyUI_IPAdapter_plus</span>
+</section></li>
+<li>
+<section>
+<span>支持S<span>table Cascade</span></span>
+</section></li>
+<li>
+<section>
+<span>提高了VAE的性能</span>
+</section></li>
+<li>
+<section>
+<span>为OneDiff企业版提供了量化工具</span>
+</section></li>
+</ul>
+<p><br></p>
+<section>
+<span>欢迎体验新版本，期待你的反馈。完整更新列表请查看：</span>
+<strong>https://github.com/siliconflow/onediff/releases/tag/1.0.0</strong>
+</section>
+<p><br></p>
+<p><span>OneDiff的后续版本<strong>将专注于DiT/Sora类模型。</strong></span></p>
+<p><br></p>
+<section>
+<span><strong><span>SOTA性能</span></strong></span>
+</section>
+<p><br></p>
+<p><span>性能方面，无论是Stable Diffusion还是Stable Video Diffusion模型，OneDiff依然保持2～3倍的端到端推理加速。</span></p>
+<p><span><br></span></p>
+<section>
+<img data-backh="316" data-backw="562" data-galleryid="" data-imgfileid="100010437" data-ratio="0.562037037037037" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74fb33f8bf.png">
+</section>
+<p><br></p>
+<section>
+<img data-backh="317" data-backw="578" data-galleryid="" data-imgfileid="100010436" data-ratio="0.5481481481481482" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b886ea0667.png">
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>在OneDiff的加持下，RTX3090甚至可以超越A100的性能，帮助企业和用户大幅节省使用A100的成本。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<img data-backh="380" data-backw="562" data-imgfileid="100010429" data-ratio="0.6759259259259259" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69fe6e4111.png">
+</section>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>OneDiff Demo</span></strong></span>
+</section>
+<p><span><br></span></p>
+<section>
+<mp-common-videosnap data-headimgurl="http://wx.qlogo.cn/finderhead/d2fJZTzRTumd6luZUaQnibs31V9NSjTsnPY6qMUmZIYpCicum2G06TLUtDSxvL1ibjh5LYo6GibPJmg/0" data-nickname="硅基流动" data-username="v2_060000231003b20faec8cae28c19c5d0ca03e831b077192550897beeb57bb453833bf06c4505@finder" data-desc="从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，不管是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词更换，#OneDiff 加速库实现图片即时生成（推理时间与E2E时间均小于300毫秒）。层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速），欢迎试用：github.com/siliconflow/onediff  #文生图 #AIGC" data-mediatype="undefined" data-width="1208" data-height="600" data-nonceid="17622531040787433945" data-parentwidth="350" data-isdisabled="0" data-errortips=""></mp-common-videosnap>
+</section>
+<p><br></p>
+<p><span>从默认皮肤灰袍甘道夫到近战法师白袍甘道夫，无论是细节层面“加入法杖”、“骑马”、“加入霍比特人”，还是宏观的场景切换（从Shire到Mordor），随着提示词即时更换，OneDiff 加速库实现图片即时生成（推理时间与端到端时间均小于300ms）。在经过层层嵌套、修改提示词，OneDiff的输出依然稳定（录屏展示无加速）。</span></p>
+<section>
+<span><br></span>
+</section>
+<section>
+<span><strong><span>应用案例</span></strong></span>
+</section>
+<section>
+<br>
+</section>
+<section>
+<span>OneDiff已在多家海内外知名GenAI企业的生产环境中得到应用。</span>
+</section>
+<section>
+<span><br></span>
+</section>
+<ul>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"></a><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247494063%26idx%3D1%26sn%3D8473d3bf89579607264e13b726d3dc67%26chksm%3Dfe426799c935ee8f8b0110d4d08c0bed3d08cf58dde17fae18dfd3e3c991d691b6944a04a8a6%26scene%3D21%23wechat_redirect" textvalue="Stable Diffusion XL优化终极指南" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">Stable Diffusion XL优化终极指南</a>（评测报告）</span>
+</section></li>
+<li>
+<section>
+<span><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493759%26idx%3D1%26sn%3D8c7940d3986245b56867de7c59023f28%26chksm%3Dfe426649c935ef5fdfbf92610a0cc949fcf5218c7549015b59bb9eefe4d6ccfe087854927e37%26scene%3D21%23wechat_redirect" textvalue="百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">百万用户通话新风潮：仅需50秒，无界AI让彩铃变身短视频</a></span>
+</section></li>
+<li>
+<section>
+<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5ODY2MTk3Nw%3D%3D%26mid%3D2247493715%26idx%3D1%26sn%3D788ada7d4d026900efa292c2ef542942%26chksm%3Dfe426665c935ef73a7f6928be2cd69fce3fe801e4d9a86df8aa3682fbcc81abbf2e5718b6522%26scene%3D21%23wechat_redirect" textvalue="OneDiff加速“图生生”，解锁电商AI图像处理新范式" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2"><span>OneDiff加速“图生生”，解锁电商AI图像处理新范式</span></a>
+</section></li>
+<li>
+<section>
+<span>更多案例持续更新中：github.com/siliconflow/onediff/wiki</span>
+</section></li>
+</ul>
+<section>
+<br>
+</section>
+<section>
+<img data-backh="232" data-backw="562" data-galleryid="" data-imgfileid="100010441" data-ratio="0.41203703703703703" data-s="300,640" data-w="1080" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a423cc8e39.png">
+</section>
+<p>
+<mp-style-type data-value="10000"></mp-style-type></p>
+</div>
+<p>本文分享自微信公众号 - OneFlow（OneFlowTechnology）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6432e3e43.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6432e3e43.png" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 13:35:36 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[特斯拉裁员事件记录]]></title>
+    <link>https://www.oschina.net/news/288440</link>
+    <itunes:title><![CDATA[特斯拉裁员事件记录]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>4/15 周一</p>
+<p>4:30am:<br> 一早打开笔记本，发现账号被封了。原以为是IT部门的常规问题，没太放在心上。</p>
+<p>5:00am:<br> 我通常会在自动驾驶的路上查看邮件（通勤总时长1小时30分钟）。<br> 邮件里写道：“遗憾的通知您，因本次公司重组，您的职位已经取消。”</p>
+<p>5:05am:<br> 给经理发了个短信，经理回复说：“大家都收到这消息了，稍后会有进一步的说明。”</p>
+<p>5:50am:<br> 试图刷卡进门时，保安却收走了我的工牌，并告知我已被解雇。</p>
+<p>6:00am:<br> 坐回车里，完全不敢相信这是真的。</p>
+<p>Tesla 任职时间线：<br> 2019年7月22日至2024年4月15日</p>
+<p>我在Tesla工作了将近五年，整整半个十年！</p>
+<p>2023年时，我曾多次选择在工作日住在车里，只是为了避免长时间通勤。在工厂里解决洗漱，在停车场过夜，在休息室用微波炉热饭。</p>
+<p>为了公司，我付出了许多。尽管如此，这只是人生篇章中即将翻页的一小部分，新的篇章正等着我去书写。我今年29岁，职场路上还有很长的旅程要走。</p>
+<p>我的职场生涯是从一名普通的生产助理做起，逐步晋升至生产领班，最终成为生产主管。一路上，我学会了如何在不断变化的环境中调整自己，如何用有限的资源达成更多的目标。</p>
+<p>职业中期，我有幸遇到了Louie Afusia，一个既风趣又谦逊的主管。Louie教会我如何有效地委派任务、跟进并完成工作。他经常告诉我：“要倾听下属的声音，而非对抗。”我还和他一起参加过半职业橄榄球赛。他的领导力让我受益匪浅，能在Tesla遇到他，我感到非常幸运。Louie是一个有着一颗大心脏的强壮萨摩亚人。</p>
+<p>Louie于2023年2月去世，他已经离开了我们，但他的精神永存。</p>
+<p>正如电影《复仇者联盟：终局之战》中托尼·斯塔克（钢铁侠）所说：</p>
+<p>“每段旅程的终点，也是新起点的一部分。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-83603669e8.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1727858283%2FOanZZ27n1" target="_blank">https://weibo.com/1727858283/OanZZ27n1</a></u></em></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>4/15 周一</p>
+<p>4:30am:<br> 一早打开笔记本，发现账号被封了。原以为是IT部门的常规问题，没太放在心上。</p>
+<p>5:00am:<br> 我通常会在自动驾驶的路上查看邮件（通勤总时长1小时30分钟）。<br> 邮件里写道：“遗憾的通知您，因本次公司重组，您的职位已经取消。”</p>
+<p>5:05am:<br> 给经理发了个短信，经理回复说：“大家都收到这消息了，稍后会有进一步的说明。”</p>
+<p>5:50am:<br> 试图刷卡进门时，保安却收走了我的工牌，并告知我已被解雇。</p>
+<p>6:00am:<br> 坐回车里，完全不敢相信这是真的。</p>
+<p>Tesla 任职时间线：<br> 2019年7月22日至2024年4月15日</p>
+<p>我在Tesla工作了将近五年，整整半个十年！</p>
+<p>2023年时，我曾多次选择在工作日住在车里，只是为了避免长时间通勤。在工厂里解决洗漱，在停车场过夜，在休息室用微波炉热饭。</p>
+<p>为了公司，我付出了许多。尽管如此，这只是人生篇章中即将翻页的一小部分，新的篇章正等着我去书写。我今年29岁，职场路上还有很长的旅程要走。</p>
+<p>我的职场生涯是从一名普通的生产助理做起，逐步晋升至生产领班，最终成为生产主管。一路上，我学会了如何在不断变化的环境中调整自己，如何用有限的资源达成更多的目标。</p>
+<p>职业中期，我有幸遇到了Louie Afusia，一个既风趣又谦逊的主管。Louie教会我如何有效地委派任务、跟进并完成工作。他经常告诉我：“要倾听下属的声音，而非对抗。”我还和他一起参加过半职业橄榄球赛。他的领导力让我受益匪浅，能在Tesla遇到他，我感到非常幸运。Louie是一个有着一颗大心脏的强壮萨摩亚人。</p>
+<p>Louie于2023年2月去世，他已经离开了我们，但他的精神永存。</p>
+<p>正如电影《复仇者联盟：终局之战》中托尼·斯塔克（钢铁侠）所说：</p>
+<p>“每段旅程的终点，也是新起点的一部分。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-83603669e8.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1727858283%2FOanZZ27n1" target="_blank">https://weibo.com/1727858283/OanZZ27n1</a></u></em></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>4/15 周一</p>
+<p>4:30am:<br> 一早打开笔记本，发现账号被封了。原以为是IT部门的常规问题，没太放在心上。</p>
+<p>5:00am:<br> 我通常会在自动驾驶的路上查看邮件（通勤总时长1小时30分钟）。<br> 邮件里写道：“遗憾的通知您，因本次公司重组，您的职位已经取消。”</p>
+<p>5:05am:<br> 给经理发了个短信，经理回复说：“大家都收到这消息了，稍后会有进一步的说明。”</p>
+<p>5:50am:<br> 试图刷卡进门时，保安却收走了我的工牌，并告知我已被解雇。</p>
+<p>6:00am:<br> 坐回车里，完全不敢相信这是真的。</p>
+<p>Tesla 任职时间线：<br> 2019年7月22日至2024年4月15日</p>
+<p>我在Tesla工作了将近五年，整整半个十年！</p>
+<p>2023年时，我曾多次选择在工作日住在车里，只是为了避免长时间通勤。在工厂里解决洗漱，在停车场过夜，在休息室用微波炉热饭。</p>
+<p>为了公司，我付出了许多。尽管如此，这只是人生篇章中即将翻页的一小部分，新的篇章正等着我去书写。我今年29岁，职场路上还有很长的旅程要走。</p>
+<p>我的职场生涯是从一名普通的生产助理做起，逐步晋升至生产领班，最终成为生产主管。一路上，我学会了如何在不断变化的环境中调整自己，如何用有限的资源达成更多的目标。</p>
+<p>职业中期，我有幸遇到了Louie Afusia，一个既风趣又谦逊的主管。Louie教会我如何有效地委派任务、跟进并完成工作。他经常告诉我：“要倾听下属的声音，而非对抗。”我还和他一起参加过半职业橄榄球赛。他的领导力让我受益匪浅，能在Tesla遇到他，我感到非常幸运。Louie是一个有着一颗大心脏的强壮萨摩亚人。</p>
+<p>Louie于2023年2月去世，他已经离开了我们，但他的精神永存。</p>
+<p>正如电影《复仇者联盟：终局之战》中托尼·斯塔克（钢铁侠）所说：</p>
+<p>“每段旅程的终点，也是新起点的一部分。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-83603669e8.png"></p>
+<p>来源：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1727858283%2FOanZZ27n1" target="_blank">https://weibo.com/1727858283/OanZZ27n1</a></u></em></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-83603669e8.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-83603669e8.png" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 11:11:45 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Meta Llama 3 正式发布]]></title>
+    <link>https://www.oschina.net/news/288428/meta-llama-3</link>
+    <itunes:title><![CDATA[Meta Llama 3 正式发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>Meta 宣布正式推出下一代开源大语言模型<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fllama.meta.com%2Fllama3%2F" target="_blank"> Llama 3</a>；共包括 80 亿和 700 亿参数两种版本，号称“是 Llama 2 的重大飞跃”，并为这些规模的&nbsp;LLM 确立了新的标准。</span></p>
+<p><span>目前，Llama 3 已集成到智能助手 Meta AI 中。预计 Meta Llama 3 将很快在 AWS、Databricks、Google Cloud、Hugging Face、Kaggle、IBM WatsonX、Microsoft Azure、NVIDIA NIM 和 Snowflake 上提供，并得到 AMD、AWS、戴尔、英特尔、NVIDIA 和高通提供的硬件平台的支持。</span></p>
+<blockquote>
+<p><span>“由于预训练和训练后的改进，我们的预训练和指令微调模型是当今 8B 和 70B 参数规模的最佳模型。我们训练后程序的改进大大降低了错误拒绝率，改善了一致性，并增加了模型响应的多样性。我们还看到了推理、代码生成和指令跟踪等功能的极大改进，使 Llama 3 更加易于操控。”</span></p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ae4bf50f7.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0743bb806d.png"><br> 此外，<span>Meta 还开发了自己的测试集。</span><span>包含 1,800 个 prompts，涵盖 12 个关键用例：寻求建议、头脑风暴、分类、封闭式问答、编码、创意写作、提取、塑造角色/角色、开放式问答、推理、重写和总结。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2053b15596.png"></p>
+<p>在模型架构方面，<span>Llama 3 选择了一个相对标准的纯解码器 Transformer 架构。</span><span>与 Llama 2 相比，做了几个关键的改进。</span><span>Llama 3 使用一个包含 128K tokens的分词器，可以更有效地编码语言，从而显著提高模型性能。</span></p>
+<p><span>为了提高 Llama 3 模型的推理效率，</span><span>在 8B 和 70B 两种规模上都采用了分组查询注意力(GQA)机制；同时在 8192 个tokens的序列上训练模型，使用掩码确保自注意力不会跨越文档边界。</span></p>
+<p><span>为了训练出最好的语言模型，</span><span>Meta </span>在<span>预训练数据上投入了大量资金。Llama 3 使用超过 15 </span><span>万亿个公开可用来源的 token 进行了预训练，训练数据集相较 Llama 2 大了有七倍，代码量是 Llama 2 的 4 倍。它支持 8K 上下文长度，是 Llama 2 容量的两倍。</span></p>
+<p><span>其中超过 5% 的 Llama 3 预训练数据集由涵盖 30 多种语言的高质量非英语数据组成，以为即将到来的多语言使用用例做好准备。不过“预计这些语言的性能水平不会与英语相同。”</span></p>
+<p><span>值得一提的是，Meta 公司还在训练更大的模型，拥有超过 4000 亿参数。</span><span>在接下来的几个月中，他们预计将发布多个具有新功能的模型，包括多模态、以多种语言交谈的能力、更长的上下文窗口和更强的整体功能。一旦完成 Llama 3 的训练，还将发布一份详细的研究论文。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-eb2204413d.png"></p>
+<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fai.meta.com%2Fblog%2Fmeta-llama-3%2F" target="_blank">查看官方公告</a>。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>Meta 宣布正式推出下一代开源大语言模型<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fllama.meta.com%2Fllama3%2F" target="_blank"> Llama 3</a>；共包括 80 亿和 700 亿参数两种版本，号称“是 Llama 2 的重大飞跃”，并为这些规模的&nbsp;LLM 确立了新的标准。</span></p>
+<p><span>目前，Llama 3 已集成到智能助手 Meta AI 中。预计 Meta Llama 3 将很快在 AWS、Databricks、Google Cloud、Hugging Face、Kaggle、IBM WatsonX、Microsoft Azure、NVIDIA NIM 和 Snowflake 上提供，并得到 AMD、AWS、戴尔、英特尔、NVIDIA 和高通提供的硬件平台的支持。</span></p>
+<blockquote>
+<p><span>“由于预训练和训练后的改进，我们的预训练和指令微调模型是当今 8B 和 70B 参数规模的最佳模型。我们训练后程序的改进大大降低了错误拒绝率，改善了一致性，并增加了模型响应的多样性。我们还看到了推理、代码生成和指令跟踪等功能的极大改进，使 Llama 3 更加易于操控。”</span></p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ae4bf50f7.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0743bb806d.png"><br> 此外，<span>Meta 还开发了自己的测试集。</span><span>包含 1,800 个 prompts，涵盖 12 个关键用例：寻求建议、头脑风暴、分类、封闭式问答、编码、创意写作、提取、塑造角色/角色、开放式问答、推理、重写和总结。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2053b15596.png"></p>
+<p>在模型架构方面，<span>Llama 3 选择了一个相对标准的纯解码器 Transformer 架构。</span><span>与 Llama 2 相比，做了几个关键的改进。</span><span>Llama 3 使用一个包含 128K tokens的分词器，可以更有效地编码语言，从而显著提高模型性能。</span></p>
+<p><span>为了提高 Llama 3 模型的推理效率，</span><span>在 8B 和 70B 两种规模上都采用了分组查询注意力(GQA)机制；同时在 8192 个tokens的序列上训练模型，使用掩码确保自注意力不会跨越文档边界。</span></p>
+<p><span>为了训练出最好的语言模型，</span><span>Meta </span>在<span>预训练数据上投入了大量资金。Llama 3 使用超过 15 </span><span>万亿个公开可用来源的 token 进行了预训练，训练数据集相较 Llama 2 大了有七倍，代码量是 Llama 2 的 4 倍。它支持 8K 上下文长度，是 Llama 2 容量的两倍。</span></p>
+<p><span>其中超过 5% 的 Llama 3 预训练数据集由涵盖 30 多种语言的高质量非英语数据组成，以为即将到来的多语言使用用例做好准备。不过“预计这些语言的性能水平不会与英语相同。”</span></p>
+<p><span>值得一提的是，Meta 公司还在训练更大的模型，拥有超过 4000 亿参数。</span><span>在接下来的几个月中，他们预计将发布多个具有新功能的模型，包括多模态、以多种语言交谈的能力、更长的上下文窗口和更强的整体功能。一旦完成 Llama 3 的训练，还将发布一份详细的研究论文。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-eb2204413d.png"></p>
+<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fai.meta.com%2Fblog%2Fmeta-llama-3%2F" target="_blank">查看官方公告</a>。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>Meta 宣布正式推出下一代开源大语言模型<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fllama.meta.com%2Fllama3%2F" target="_blank"> Llama 3</a>；共包括 80 亿和 700 亿参数两种版本，号称“是 Llama 2 的重大飞跃”，并为这些规模的&nbsp;LLM 确立了新的标准。</span></p>
+<p><span>目前，Llama 3 已集成到智能助手 Meta AI 中。预计 Meta Llama 3 将很快在 AWS、Databricks、Google Cloud、Hugging Face、Kaggle、IBM WatsonX、Microsoft Azure、NVIDIA NIM 和 Snowflake 上提供，并得到 AMD、AWS、戴尔、英特尔、NVIDIA 和高通提供的硬件平台的支持。</span></p>
+<blockquote>
+<p><span>“由于预训练和训练后的改进，我们的预训练和指令微调模型是当今 8B 和 70B 参数规模的最佳模型。我们训练后程序的改进大大降低了错误拒绝率，改善了一致性，并增加了模型响应的多样性。我们还看到了推理、代码生成和指令跟踪等功能的极大改进，使 Llama 3 更加易于操控。”</span></p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ae4bf50f7.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0743bb806d.png"><br> 此外，<span>Meta 还开发了自己的测试集。</span><span>包含 1,800 个 prompts，涵盖 12 个关键用例：寻求建议、头脑风暴、分类、封闭式问答、编码、创意写作、提取、塑造角色/角色、开放式问答、推理、重写和总结。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2053b15596.png"></p>
+<p>在模型架构方面，<span>Llama 3 选择了一个相对标准的纯解码器 Transformer 架构。</span><span>与 Llama 2 相比，做了几个关键的改进。</span><span>Llama 3 使用一个包含 128K tokens的分词器，可以更有效地编码语言，从而显著提高模型性能。</span></p>
+<p><span>为了提高 Llama 3 模型的推理效率，</span><span>在 8B 和 70B 两种规模上都采用了分组查询注意力(GQA)机制；同时在 8192 个tokens的序列上训练模型，使用掩码确保自注意力不会跨越文档边界。</span></p>
+<p><span>为了训练出最好的语言模型，</span><span>Meta </span>在<span>预训练数据上投入了大量资金。Llama 3 使用超过 15 </span><span>万亿个公开可用来源的 token 进行了预训练，训练数据集相较 Llama 2 大了有七倍，代码量是 Llama 2 的 4 倍。它支持 8K 上下文长度，是 Llama 2 容量的两倍。</span></p>
+<p><span>其中超过 5% 的 Llama 3 预训练数据集由涵盖 30 多种语言的高质量非英语数据组成，以为即将到来的多语言使用用例做好准备。不过“预计这些语言的性能水平不会与英语相同。”</span></p>
+<p><span>值得一提的是，Meta 公司还在训练更大的模型，拥有超过 4000 亿参数。</span><span>在接下来的几个月中，他们预计将发布多个具有新功能的模型，包括多模态、以多种语言交谈的能力、更长的上下文窗口和更强的整体功能。一旦完成 Llama 3 的训练，还将发布一份详细的研究论文。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-eb2204413d.png"></p>
+<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fai.meta.com%2Fblog%2Fmeta-llama-3%2F" target="_blank">查看官方公告</a>。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ae4bf50f7.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ae4bf50f7.png" medium="image"/>
+    <pubDate>Fri, 19 Apr 2024 10:14:59 +0800</pubDate>
+  </item><item>
     <title><![CDATA[开源日报 | Linus亲自动手；Elastic公司重磅开源新项目；Meta无限长文本大模型已开源；华为今年最关键是鸿蒙]]></title>
     <link>https://www.oschina.net/news/288347</link>
     <itunes:title><![CDATA[开源日报 | Linus亲自动手；Elastic公司重磅开源新项目；Meta无限长文本大模型已开源；华为今年最关键是鸿蒙]]></itunes:title>
@@ -7109,833 +8569,5 @@ async-mode: platform         # 异步模式（默认为 platform）</code></pre>
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-13e1d9d821.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-13e1d9d821.png" medium="image"/>
     <pubDate>Tue, 16 Apr 2024 11:38:59 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[苹果 App Store 下架抄袭开源项目的 Game Boy 模拟器 iGBA]]></title>
-    <link>https://www.oschina.net/news/287897/apple-removes-igba-from-app-store</link>
-    <itunes:title><![CDATA[苹果 App Store 下架抄袭开源项目的 Game Boy 模拟器 iGBA]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>苹果昨天从 App Store 下架了近期刚刚上架的 GameBoy 模拟器 iGBA，原因是该应用违反了 App 审核指南的垃圾内容（第 4.3 节）和版权（第 5.2 节）相关规定。</p>
-<p>iGBA 是一款 Game Boy 模拟器，用户可使用它免费下载 ROM 来玩 Game Boy 游戏。iGBA 在苹果 App Store 上架后迅速获得了用户的关注，并跻身热门应用行列。然而，这款应用很快就被苹果公司下架，原因是它违反了苹果的应用审核指南中的垃圾信息和版权相关规定。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-269244809b.png"></p>
-<p>iGBA 被指抄袭了开发者 Riley Testut 的开源作品 GBA4iOS。GBA4iOS 一直以来都只能在苹果 App Store 之外获取，而 iGBA 在上架后，用户发现它与 GBA4iOS 存在高度相似性，并且加入了额外的广告。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca4cac99b9.png"></p>
-<p>苹果公司表示，他们在得知 iGBA 抄袭他人作品并试图冒名顶替后将其下架。</p>
-<p>开发者 Riley Testut 也在社交媒体上表达了对苹果审核机制的讽刺，认为它未能保护用户免受此类骗局和山寨品的侵害。</p>
-<p>苹果公司在本月初更新了 App 审核指南，允许复古游戏机模拟器上架。但是，苹果也强调，模拟器开发者对应用内提供的所有软件“负全部责任”，其中也包括遵守“所有适用的法律”。尽管苹果明确表示，应用商店允许加载从网络下载的 ROM 游戏，前提是该应用仅用于模拟复古游戏机。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>苹果昨天从 App Store 下架了近期刚刚上架的 GameBoy 模拟器 iGBA，原因是该应用违反了 App 审核指南的垃圾内容（第 4.3 节）和版权（第 5.2 节）相关规定。</p>
-<p>iGBA 是一款 Game Boy 模拟器，用户可使用它免费下载 ROM 来玩 Game Boy 游戏。iGBA 在苹果 App Store 上架后迅速获得了用户的关注，并跻身热门应用行列。然而，这款应用很快就被苹果公司下架，原因是它违反了苹果的应用审核指南中的垃圾信息和版权相关规定。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-269244809b.png"></p>
-<p>iGBA 被指抄袭了开发者 Riley Testut 的开源作品 GBA4iOS。GBA4iOS 一直以来都只能在苹果 App Store 之外获取，而 iGBA 在上架后，用户发现它与 GBA4iOS 存在高度相似性，并且加入了额外的广告。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca4cac99b9.png"></p>
-<p>苹果公司表示，他们在得知 iGBA 抄袭他人作品并试图冒名顶替后将其下架。</p>
-<p>开发者 Riley Testut 也在社交媒体上表达了对苹果审核机制的讽刺，认为它未能保护用户免受此类骗局和山寨品的侵害。</p>
-<p>苹果公司在本月初更新了 App 审核指南，允许复古游戏机模拟器上架。但是，苹果也强调，模拟器开发者对应用内提供的所有软件“负全部责任”，其中也包括遵守“所有适用的法律”。尽管苹果明确表示，应用商店允许加载从网络下载的 ROM 游戏，前提是该应用仅用于模拟复古游戏机。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>苹果昨天从 App Store 下架了近期刚刚上架的 GameBoy 模拟器 iGBA，原因是该应用违反了 App 审核指南的垃圾内容（第 4.3 节）和版权（第 5.2 节）相关规定。</p>
-<p>iGBA 是一款 Game Boy 模拟器，用户可使用它免费下载 ROM 来玩 Game Boy 游戏。iGBA 在苹果 App Store 上架后迅速获得了用户的关注，并跻身热门应用行列。然而，这款应用很快就被苹果公司下架，原因是它违反了苹果的应用审核指南中的垃圾信息和版权相关规定。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-269244809b.png"></p>
-<p>iGBA 被指抄袭了开发者 Riley Testut 的开源作品 GBA4iOS。GBA4iOS 一直以来都只能在苹果 App Store 之外获取，而 iGBA 在上架后，用户发现它与 GBA4iOS 存在高度相似性，并且加入了额外的广告。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ca4cac99b9.png"></p>
-<p>苹果公司表示，他们在得知 iGBA 抄袭他人作品并试图冒名顶替后将其下架。</p>
-<p>开发者 Riley Testut 也在社交媒体上表达了对苹果审核机制的讽刺，认为它未能保护用户免受此类骗局和山寨品的侵害。</p>
-<p>苹果公司在本月初更新了 App 审核指南，允许复古游戏机模拟器上架。但是，苹果也强调，模拟器开发者对应用内提供的所有软件“负全部责任”，其中也包括遵守“所有适用的法律”。尽管苹果明确表示，应用商店允许加载从网络下载的 ROM 游戏，前提是该应用仅用于模拟复古游戏机。</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-269244809b.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-269244809b.png" medium="image"/>
-    <pubDate>Tue, 16 Apr 2024 10:25:48 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[1-2 月全国晶硅组件产量 76GW，同比增长 39.4%]]></title>
-    <link>https://www.oschina.net/news/287890</link>
-    <itunes:title><![CDATA[1-2 月全国晶硅组件产量 76GW，同比增长 39.4%]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>工信部发布 2024年1－2月全国光伏制造行业运行情况指出，1－2月，我国光伏产业继续保持高位运行。</span></p>
-<p><span>根据光伏行业规范公告企业信息和行业协会测算，全国晶硅组件产量同比增长近40%，光伏产品出口总额超过62亿美元。</span></p>
-<ul>
-<li><span>多晶硅环节，1－2月全国产量约33万吨。</span></li>
-<li><span>硅片环节，1－2月全国产量130GW；出口量达9.3GW，同比增长7.4%。</span></li>
-<li><span>电池环节，1－2月全国晶硅电池产量100GW，出口量达9.5GW。</span></li>
-<li><span>组件环节，1－2月全国晶硅组件产量76GW,同比增长39.4%；出口量达40.1GW，同比增长41%</span></li>
-</ul>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ce1c29ed9.png">&nbsp;</span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>工信部发布 2024年1－2月全国光伏制造行业运行情况指出，1－2月，我国光伏产业继续保持高位运行。</span></p>
-<p><span>根据光伏行业规范公告企业信息和行业协会测算，全国晶硅组件产量同比增长近40%，光伏产品出口总额超过62亿美元。</span></p>
-<ul>
-<li><span>多晶硅环节，1－2月全国产量约33万吨。</span></li>
-<li><span>硅片环节，1－2月全国产量130GW；出口量达9.3GW，同比增长7.4%。</span></li>
-<li><span>电池环节，1－2月全国晶硅电池产量100GW，出口量达9.5GW。</span></li>
-<li><span>组件环节，1－2月全国晶硅组件产量76GW,同比增长39.4%；出口量达40.1GW，同比增长41%</span></li>
-</ul>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ce1c29ed9.png">&nbsp;</span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>工信部发布 2024年1－2月全国光伏制造行业运行情况指出，1－2月，我国光伏产业继续保持高位运行。</span></p>
-<p><span>根据光伏行业规范公告企业信息和行业协会测算，全国晶硅组件产量同比增长近40%，光伏产品出口总额超过62亿美元。</span></p>
-<ul>
-<li><span>多晶硅环节，1－2月全国产量约33万吨。</span></li>
-<li><span>硅片环节，1－2月全国产量130GW；出口量达9.3GW，同比增长7.4%。</span></li>
-<li><span>电池环节，1－2月全国晶硅电池产量100GW，出口量达9.5GW。</span></li>
-<li><span>组件环节，1－2月全国晶硅组件产量76GW,同比增长39.4%；出口量达40.1GW，同比增长41%</span></li>
-</ul>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ce1c29ed9.png">&nbsp;</span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ce1c29ed9.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9ce1c29ed9.png" medium="image"/>
-    <pubDate>Tue, 16 Apr 2024 10:14:40 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[openKylin 助力开源之夏 2024 年校园行华南理工大学站举行]]></title>
-    <link>https://www.oschina.net/news/287880</link>
-    <itunes:title><![CDATA[openKylin 助力开源之夏 2024 年校园行华南理工大学站举行]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span><span>4月13日，开源之夏2024年校园行首站在华南理工大学举行。本次校园行由开源之夏、华工</span><span>微软俱乐部</span><span>共同组织。由openKylin社区、开放原子校源行、Apache EventMesh、PikiwiDB（Pika）开源社区、DragonOS的多位开发者、开源社区代表共同参与，从不同角度、结合个人经验与现场同学一起展开了别开生面的分享。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a3b979429.jpg"></p>
-<p><span><span><strong>其中，openKylin社区</strong><strong>I18N SIG Owner段凯文</strong><strong>代表openKylin社区</strong></span><span>出席活动，带来</span><span><strong>《</strong><strong>openKylin主题框架轻松构建百变样式</strong><strong>》</strong></span><span>主题分享，介绍了在openKylin中主题框架各类系统主题模块加载机制以及主题制作工坊的工作原理，并结合实例与现场同学具体生动地分享了如何在openKylin上构建一套心仪的系统主题。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-279e7024b5.jpg"></p>
-<p><span>主题分享后，华南理工大学软件学院汤峰老师同与会嘉宾们展开了以《校企合作，助力开源项目成长》为主题的圆桌讨论，诸位嘉宾从高校老师、学生、开源基金会、开源项目维护者以及企业的不同角度发表了精彩观点，就鼓励学生参与开源，多方联手推动校企合作，搭建校企合作桥梁，为高校学生参与开源实践提供更多机遇，促进开源项目持续发展等展开了深入交流。&nbsp;</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6012c24ef.jpg"></p>
-<p><span><span>开源之夏是由中国科学院软件研究所“开源软件供应链点亮计划”发起并长期支持的一项暑期开源活动，旨在鼓励在校学生积极参与</span><span>开源软件</span><span>的开发维护，培养和发掘更多优秀的开发者，促进优秀开源软件社区的蓬勃发展，助力开源软件供应链建设。</span></span></p>
-<p><span>openKylin社区作为中国领先的开源操作系统根社区，积极支持开源之夏，以自身力量助力国内开源人才培养。后续，openKylin社区项目任务将陆续发布上线，欢迎同学们报名参与~同openKylin一起开始一段令人难忘的技术探索之旅。</span></p>
-<ul>
-<li> <p><span>openKylin开源之夏主页：</span></p> <p><span>https://summer-ospp.ac.cn/org/</span></p> </li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span><span>4月13日，开源之夏2024年校园行首站在华南理工大学举行。本次校园行由开源之夏、华工</span><span>微软俱乐部</span><span>共同组织。由openKylin社区、开放原子校源行、Apache EventMesh、PikiwiDB（Pika）开源社区、DragonOS的多位开发者、开源社区代表共同参与，从不同角度、结合个人经验与现场同学一起展开了别开生面的分享。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a3b979429.jpg"></p>
-<p><span><span><strong>其中，openKylin社区</strong><strong>I18N SIG Owner段凯文</strong><strong>代表openKylin社区</strong></span><span>出席活动，带来</span><span><strong>《</strong><strong>openKylin主题框架轻松构建百变样式</strong><strong>》</strong></span><span>主题分享，介绍了在openKylin中主题框架各类系统主题模块加载机制以及主题制作工坊的工作原理，并结合实例与现场同学具体生动地分享了如何在openKylin上构建一套心仪的系统主题。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-279e7024b5.jpg"></p>
-<p><span>主题分享后，华南理工大学软件学院汤峰老师同与会嘉宾们展开了以《校企合作，助力开源项目成长》为主题的圆桌讨论，诸位嘉宾从高校老师、学生、开源基金会、开源项目维护者以及企业的不同角度发表了精彩观点，就鼓励学生参与开源，多方联手推动校企合作，搭建校企合作桥梁，为高校学生参与开源实践提供更多机遇，促进开源项目持续发展等展开了深入交流。&nbsp;</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6012c24ef.jpg"></p>
-<p><span><span>开源之夏是由中国科学院软件研究所“开源软件供应链点亮计划”发起并长期支持的一项暑期开源活动，旨在鼓励在校学生积极参与</span><span>开源软件</span><span>的开发维护，培养和发掘更多优秀的开发者，促进优秀开源软件社区的蓬勃发展，助力开源软件供应链建设。</span></span></p>
-<p><span>openKylin社区作为中国领先的开源操作系统根社区，积极支持开源之夏，以自身力量助力国内开源人才培养。后续，openKylin社区项目任务将陆续发布上线，欢迎同学们报名参与~同openKylin一起开始一段令人难忘的技术探索之旅。</span></p>
-<ul>
-<li> <p><span>openKylin开源之夏主页：</span></p> <p><span>https://summer-ospp.ac.cn/org/</span></p> </li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span><span>4月13日，开源之夏2024年校园行首站在华南理工大学举行。本次校园行由开源之夏、华工</span><span>微软俱乐部</span><span>共同组织。由openKylin社区、开放原子校源行、Apache EventMesh、PikiwiDB（Pika）开源社区、DragonOS的多位开发者、开源社区代表共同参与，从不同角度、结合个人经验与现场同学一起展开了别开生面的分享。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a3b979429.jpg"></p>
-<p><span><span><strong>其中，openKylin社区</strong><strong>I18N SIG Owner段凯文</strong><strong>代表openKylin社区</strong></span><span>出席活动，带来</span><span><strong>《</strong><strong>openKylin主题框架轻松构建百变样式</strong><strong>》</strong></span><span>主题分享，介绍了在openKylin中主题框架各类系统主题模块加载机制以及主题制作工坊的工作原理，并结合实例与现场同学具体生动地分享了如何在openKylin上构建一套心仪的系统主题。</span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-279e7024b5.jpg"></p>
-<p><span>主题分享后，华南理工大学软件学院汤峰老师同与会嘉宾们展开了以《校企合作，助力开源项目成长》为主题的圆桌讨论，诸位嘉宾从高校老师、学生、开源基金会、开源项目维护者以及企业的不同角度发表了精彩观点，就鼓励学生参与开源，多方联手推动校企合作，搭建校企合作桥梁，为高校学生参与开源实践提供更多机遇，促进开源项目持续发展等展开了深入交流。&nbsp;</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d6012c24ef.jpg"></p>
-<p><span><span>开源之夏是由中国科学院软件研究所“开源软件供应链点亮计划”发起并长期支持的一项暑期开源活动，旨在鼓励在校学生积极参与</span><span>开源软件</span><span>的开发维护，培养和发掘更多优秀的开发者，促进优秀开源软件社区的蓬勃发展，助力开源软件供应链建设。</span></span></p>
-<p><span>openKylin社区作为中国领先的开源操作系统根社区，积极支持开源之夏，以自身力量助力国内开源人才培养。后续，openKylin社区项目任务将陆续发布上线，欢迎同学们报名参与~同openKylin一起开始一段令人难忘的技术探索之旅。</span></p>
-<ul>
-<li> <p><span>openKylin开源之夏主页：</span></p> <p><span>https://summer-ospp.ac.cn/org/</span></p> </li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a3b979429.jpg"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0a3b979429.jpg" medium="image"/>
-    <pubDate>Tue, 16 Apr 2024 09:54:16 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[浪潮 KaiwuDB CTO 魏可伟：AIoT，用行业定义数据库]]></title>
-    <link>https://www.oschina.net/news/287878</link>
-    <itunes:title><![CDATA[浪潮 KaiwuDB CTO 魏可伟：AIoT，用行业定义数据库]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>4月12日，由中国 DBA 联盟（ACDU）与墨天轮社区联合主办的第十三届数据技术嘉年华（DTC 2024）于北京盛大召开。</span><strong><span>KaiwuDB CTO 魏可伟受邀发表《智创当下，KaiwuDB 从多模到 AI 的探索实践》主题演讲</span></strong><span>，向与会者分享 KaiwuDB 面向 AIoT 产业领域的现代数据库探索。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5303cbc43e.jpg"></p>
-<p><span>近年来，我国物联网（IoT）规模持续增长，带动各领域技术创新向行业应用侧纵深化推进。我国传统工业、能源、交通业的数字化体系相较于金融业启动时间晚、基础能力薄弱，而恰恰这些行业的智能硬件、终端产品渗透最为广泛：单个传感器日增 80000 余条、年增 5000 万余条的庞大数据量需要高性能、可扩展、强安全、低成本的数据管理系统为底座，向上承托大数据分析、数据资产化、资产服务化等增值应用，以数据驱动生产管理效率提升，赋能行业数智化发展。</span></p>
-<p><span>魏可伟表示，当今中国乃至全球数据库市场上，从业者习惯于以技术定义数据库产品，例如关系型数据库、OLAP 数据库、时序数据库、图数据库、向量数据库等等，用以分门别类地应对不同类型的数据管理诉求；然而现实是，</span><strong><span>用户最为关心的往往不是某一项技术是否前沿、足够颠覆，而是产品可否提供高效、低成本的数据管理服务与资源</span></strong><span>。回归用户本位我们发现，单纯以技术定义的数据库产品与&nbsp; IoT 领域的数据管理需求并不适配；传统工业制造、能源电力等核心系统的数字化转型呼唤一款行业定义的数据库产品，一套专为 AIoT 场景设计的数据管理方案。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-909182437a.jpg"></p>
-<p><span>KaiwuDB 是一款分布式、多模、支持云边端协同的数据库产品，以 AIoT 为一大核心场景，提供高性能、高可用、高兼容、高扩展的数据管理服务及能力，旨在以现代数据库架构，与前沿智能化技术的融合创新赋能工业物联网、数字能源、车联网、智慧产业等新兴数字领域，助力我国传统产业从容步入 IoT 时代。</span></p>
-<p><span>作为一款由行业定义的数据库，KaiwuDB “快人一步”的 Slogan 有了全新的释义：</span></p>
-<ul>
-<li> <p><strong><span>“就地计算”技术</span></strong><span>赋能时序数据处理性能大幅提升，轻松应对 PB 级、甚至 ZB 级时序数据</span><span><strong><span>高速写入</span></strong><span>、</span><strong><span>复杂查询</span></strong></span><span>；</span></p> </li>
-<li> <p><span>主打“</span><strong><span>面向行业的多模</span></strong><span>”，将多个不同类型数据库的功能充分融合，实现“</span><strong><span>一库多用</span></strong><span>”，大幅简化传统复杂化的运维管理流程；</span></p> </li>
-<li> <p><span>提供</span><strong><span>原生 AI</span></strong><span><span>&nbsp;</span>的能力，不止着眼于 AI4DB、DB4AI 技术路线的探索，也关注</span><strong><span>用户消费 AI 的能力和体验</span></strong><span>：“让用户的 AI 投入有回报”是更为关键的，魏可伟表示。</span></p> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26da72bfe5.jpg"></p>
-<p><span>伴随千行百业数智化转型的不断深化，我国产业市场规模、业务复杂度、异构数据量级不断催生新的技术领域和产品形态。工业、能源等我国支柱型产业在数字化市场中只是“后入市”，而并非“后进”。KaiwuDB 自诞生之日起即站在用户本位规划产品架构，未来希望以“AIoT 数据库 — 一款行业定义的数据库”为数据库产业<span>发展贡献新思路</span>，为新兴产业的数据管理提供创新解决方案，切实助力传统产业客户在物联网的浪潮之下平稳快速地实现实现数智化转型升级。</span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>4月12日，由中国 DBA 联盟（ACDU）与墨天轮社区联合主办的第十三届数据技术嘉年华（DTC 2024）于北京盛大召开。</span><strong><span>KaiwuDB CTO 魏可伟受邀发表《智创当下，KaiwuDB 从多模到 AI 的探索实践》主题演讲</span></strong><span>，向与会者分享 KaiwuDB 面向 AIoT 产业领域的现代数据库探索。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5303cbc43e.jpg"></p>
-<p><span>近年来，我国物联网（IoT）规模持续增长，带动各领域技术创新向行业应用侧纵深化推进。我国传统工业、能源、交通业的数字化体系相较于金融业启动时间晚、基础能力薄弱，而恰恰这些行业的智能硬件、终端产品渗透最为广泛：单个传感器日增 80000 余条、年增 5000 万余条的庞大数据量需要高性能、可扩展、强安全、低成本的数据管理系统为底座，向上承托大数据分析、数据资产化、资产服务化等增值应用，以数据驱动生产管理效率提升，赋能行业数智化发展。</span></p>
-<p><span>魏可伟表示，当今中国乃至全球数据库市场上，从业者习惯于以技术定义数据库产品，例如关系型数据库、OLAP 数据库、时序数据库、图数据库、向量数据库等等，用以分门别类地应对不同类型的数据管理诉求；然而现实是，</span><strong><span>用户最为关心的往往不是某一项技术是否前沿、足够颠覆，而是产品可否提供高效、低成本的数据管理服务与资源</span></strong><span>。回归用户本位我们发现，单纯以技术定义的数据库产品与&nbsp; IoT 领域的数据管理需求并不适配；传统工业制造、能源电力等核心系统的数字化转型呼唤一款行业定义的数据库产品，一套专为 AIoT 场景设计的数据管理方案。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-909182437a.jpg"></p>
-<p><span>KaiwuDB 是一款分布式、多模、支持云边端协同的数据库产品，以 AIoT 为一大核心场景，提供高性能、高可用、高兼容、高扩展的数据管理服务及能力，旨在以现代数据库架构，与前沿智能化技术的融合创新赋能工业物联网、数字能源、车联网、智慧产业等新兴数字领域，助力我国传统产业从容步入 IoT 时代。</span></p>
-<p><span>作为一款由行业定义的数据库，KaiwuDB “快人一步”的 Slogan 有了全新的释义：</span></p>
-<ul>
-<li> <p><strong><span>“就地计算”技术</span></strong><span>赋能时序数据处理性能大幅提升，轻松应对 PB 级、甚至 ZB 级时序数据</span><span><strong><span>高速写入</span></strong><span>、</span><strong><span>复杂查询</span></strong></span><span>；</span></p> </li>
-<li> <p><span>主打“</span><strong><span>面向行业的多模</span></strong><span>”，将多个不同类型数据库的功能充分融合，实现“</span><strong><span>一库多用</span></strong><span>”，大幅简化传统复杂化的运维管理流程；</span></p> </li>
-<li> <p><span>提供</span><strong><span>原生 AI</span></strong><span><span>&nbsp;</span>的能力，不止着眼于 AI4DB、DB4AI 技术路线的探索，也关注</span><strong><span>用户消费 AI 的能力和体验</span></strong><span>：“让用户的 AI 投入有回报”是更为关键的，魏可伟表示。</span></p> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26da72bfe5.jpg"></p>
-<p><span>伴随千行百业数智化转型的不断深化，我国产业市场规模、业务复杂度、异构数据量级不断催生新的技术领域和产品形态。工业、能源等我国支柱型产业在数字化市场中只是“后入市”，而并非“后进”。KaiwuDB 自诞生之日起即站在用户本位规划产品架构，未来希望以“AIoT 数据库 — 一款行业定义的数据库”为数据库产业<span>发展贡献新思路</span>，为新兴产业的数据管理提供创新解决方案，切实助力传统产业客户在物联网的浪潮之下平稳快速地实现实现数智化转型升级。</span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>4月12日，由中国 DBA 联盟（ACDU）与墨天轮社区联合主办的第十三届数据技术嘉年华（DTC 2024）于北京盛大召开。</span><strong><span>KaiwuDB CTO 魏可伟受邀发表《智创当下，KaiwuDB 从多模到 AI 的探索实践》主题演讲</span></strong><span>，向与会者分享 KaiwuDB 面向 AIoT 产业领域的现代数据库探索。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5303cbc43e.jpg"></p>
-<p><span>近年来，我国物联网（IoT）规模持续增长，带动各领域技术创新向行业应用侧纵深化推进。我国传统工业、能源、交通业的数字化体系相较于金融业启动时间晚、基础能力薄弱，而恰恰这些行业的智能硬件、终端产品渗透最为广泛：单个传感器日增 80000 余条、年增 5000 万余条的庞大数据量需要高性能、可扩展、强安全、低成本的数据管理系统为底座，向上承托大数据分析、数据资产化、资产服务化等增值应用，以数据驱动生产管理效率提升，赋能行业数智化发展。</span></p>
-<p><span>魏可伟表示，当今中国乃至全球数据库市场上，从业者习惯于以技术定义数据库产品，例如关系型数据库、OLAP 数据库、时序数据库、图数据库、向量数据库等等，用以分门别类地应对不同类型的数据管理诉求；然而现实是，</span><strong><span>用户最为关心的往往不是某一项技术是否前沿、足够颠覆，而是产品可否提供高效、低成本的数据管理服务与资源</span></strong><span>。回归用户本位我们发现，单纯以技术定义的数据库产品与&nbsp; IoT 领域的数据管理需求并不适配；传统工业制造、能源电力等核心系统的数字化转型呼唤一款行业定义的数据库产品，一套专为 AIoT 场景设计的数据管理方案。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-909182437a.jpg"></p>
-<p><span>KaiwuDB 是一款分布式、多模、支持云边端协同的数据库产品，以 AIoT 为一大核心场景，提供高性能、高可用、高兼容、高扩展的数据管理服务及能力，旨在以现代数据库架构，与前沿智能化技术的融合创新赋能工业物联网、数字能源、车联网、智慧产业等新兴数字领域，助力我国传统产业从容步入 IoT 时代。</span></p>
-<p><span>作为一款由行业定义的数据库，KaiwuDB “快人一步”的 Slogan 有了全新的释义：</span></p>
-<ul>
-<li> <p><strong><span>“就地计算”技术</span></strong><span>赋能时序数据处理性能大幅提升，轻松应对 PB 级、甚至 ZB 级时序数据</span><span><strong><span>高速写入</span></strong><span>、</span><strong><span>复杂查询</span></strong></span><span>；</span></p> </li>
-<li> <p><span>主打“</span><strong><span>面向行业的多模</span></strong><span>”，将多个不同类型数据库的功能充分融合，实现“</span><strong><span>一库多用</span></strong><span>”，大幅简化传统复杂化的运维管理流程；</span></p> </li>
-<li> <p><span>提供</span><strong><span>原生 AI</span></strong><span><span>&nbsp;</span>的能力，不止着眼于 AI4DB、DB4AI 技术路线的探索，也关注</span><strong><span>用户消费 AI 的能力和体验</span></strong><span>：“让用户的 AI 投入有回报”是更为关键的，魏可伟表示。</span></p> </li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26da72bfe5.jpg"></p>
-<p><span>伴随千行百业数智化转型的不断深化，我国产业市场规模、业务复杂度、异构数据量级不断催生新的技术领域和产品形态。工业、能源等我国支柱型产业在数字化市场中只是“后入市”，而并非“后进”。KaiwuDB 自诞生之日起即站在用户本位规划产品架构，未来希望以“AIoT 数据库 — 一款行业定义的数据库”为数据库产业<span>发展贡献新思路</span>，为新兴产业的数据管理提供创新解决方案，切实助力传统产业客户在物联网的浪潮之下平稳快速地实现实现数智化转型升级。</span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5303cbc43e.jpg"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5303cbc43e.jpg" medium="image"/>
-    <pubDate>Tue, 16 Apr 2024 09:49:00 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[华为自用的时序数据库开源啦，来看看水平怎么样？]]></title>
-    <link>https://my.oschina.net/u/6852546/blog/11052794</link>
-    <itunes:title><![CDATA[华为自用的时序数据库开源啦，来看看水平怎么样？]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>数十年来，时间序列数据库（TSDB）的使用在各个行业中都很普遍，特别是在金融和工业控制系统中。然而，物联网 (IoT)的出现导致时间序列数据（简称时序数据）量激增，对数据库的性能和存储成本提出了更高的要求，从而促进了对专用时序数据库的需求。</p>
-<p>面对遗留时序解决方案的架构过时、扩展性有限等问题，新一代时序数据库应运而生，它们采用了现代架构，可实现分布式处理和水平扩展，以及云或本地的灵活部署。</p>
-<p>2022年底，又一重磅产品加入了开源时序数据库这一赛道，并在短短一年内在60余家企业测试和生产落地，吸引了70+来自国内外重点高校和企业的贡献者——openGemini，华为开源的分布式时序数据库，主要聚焦于海量时序数据的存储和分析，通过技术创新，简化业务系统架构，降低海量时序数据的存储成本，提升时序数据的存储和分析效率。</p>
-<p>今天，我们邀请到了 openGemini 社区负责人向宇，一起来聊聊，他们的开源故事~</p>
-<h1>01 源自内部需求，逐步走向自研</h1>
-<p>openGemini 的研发，最开始也是源于华为自身的需求。</p>
-<p>2019年，随着华为云的成立，广州、上海、北京、贵州和香港等地的数据中心纷纷拔地而起，并陆续上线了260+云服务，平均每天采集的监控指标数据达数 TB，原有大数据解决方案逐渐不堪重负。数据量越大，查询效率越低，数据存储成本持续上升，急需一款高性能、高扩展性的专用时序数据库。</p>
-<p>在当时，并没有什么好用的、能跟得上需求发展的时序数据库产品。InfluxDB 还是单机版，国内 Apache IoTDB 和 TDengine 还远不能达到生产要求。因此，华为决心做自己的数据库，优化数据处理工作，解决眼下十分要紧的业务问题。在这样的背景下，openGemini 应运而生。</p>
-<p>据向宇介绍，在技术选型上，他们一开始在开源 InfluxDB 的基础上进行集群化改造。但随着指标数量的增加和采集频率的提高，日增数据量已达数十 TB。这时，InfluxDB 自身架构的缺陷开始凸显，影响到系统的性能和稳定性。于是，他们选择了对架构进行重构，开始了 openGemini 内核的自研之路。</p>
-<h1>02 个性独特，性能抢跑</h1>
-<p>openGemini 自诞生起就跟华为自家业务的需求联系紧密，所以每一个设计都充满了实用的考量。具体来说，openGemini 区别于别的时序数据库，主要有9大“个性”：</p>
-<p><strong>性能优势：</strong>在 openGemini 差异化竞争力中，高性能是最重要的一项。在海量数据场景下，openGemini 相比开源 InfluxDB，简单查询场景提升2倍多，中等查询场景提升5倍多，复杂查询场景提升10倍以上。相比其他同类开源产品，openGemini 同样具有明显性能优势。</p>
-<p>官方公布的单机写性能如下（测试工具为 TSBS，相关测试细节请参考 openGemini 官网文档）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4448c02dc6.png"></p>
-<p>官方公布的 DevOps 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cc819930d3.png"></p>
-<p>官方公布的 IoT 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-757afa5836.png"></p>
-<p>除此之外，openGemini 在数据存储和数据分析方面推出一系列实用功能，以此构建更多差异化竞争力：</p>
-<p><strong>独特的</strong><strong>分布式架构</strong><strong>：</strong>openGemini 提供了单机和分布式集群两种版本，其中分布式集群采用的是 MPP 大规模并行处理分层架构，将计算引擎，存储引擎和元数据管理划分为独立的组件，分别是 ts-sql、ts-store、ts-meta 。不同组件支持独立横向扩展，使得面对复杂的应用场景也能灵活应对。</p>
-<p><strong>高基数引擎：</strong>高基数问题（也称之为维度灾难）会带来倒排索引膨胀，从而引起内存资源消耗过高、读写性能降低的问题，长期以来一直困扰着时序数据库的发展。openGemini 高基数引擎通过构建时序专用的稀疏索引，进而彻底解决了这一难题，非常适合在网络监控、金融风控、物联网、交通等领域使用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6aaf895725.png"></p>
-<p><strong>文本</strong><strong>检索：</strong>文本数据是一种常见的数据类型，openGemini 支持在文本数据之上创建索引，采用动态的学习型分词方法，支持精确、短语和模糊匹配，且具有内存资源占用少，检索效率高的优点。</p>
-<p><strong>流式聚合：</strong>流式聚合是一种前置聚合方式，一边写数据、一边对数据进行降采样，其目的是解决传统降采样方法从磁盘读取大量历史数据进行计算，造成 I/O 放大严重的问题。</p>
-<p><strong>多级</strong><strong>降采样</strong><strong>：</strong>对于存量的历史数据，传统降采样方式会保留历史数据明细。在某些场景下，历史数据明细并不重要，只需保留数据特征即可，多级降采样功能可以实现对历史数据明细的特征提取，并原地替换历史数据明细，可进一步降低50%的存储成本。</p>
-<p><strong>异常检测和预测：</strong>异常检测和预测是目前时序数据分析最成熟的应用之一，被广泛应用于量化交易、网络安全检测和数据中心、工业设备和 IT 基础设施的日常维护等场景中。openGemini 提供了一个异常检测库——openGemini-castor，封装了常见的13种异常场景的检测算法，具有检测速度快、准确性高、流批一体的优点，帮助应用提高数据分析效率。</p>
-<p><strong>数据冷热</strong><strong>分层存储：</strong>支持将历史数据转存到对象存储上，可实现低成本方式本永久保留历史数据，还能支持大数据离线分析。【该功能计划 H2 对外发布】</p>
-<p><strong>数据可靠性</strong>：支持多计算副本，进一步提升数据可靠性。【该功能计划 H2 对外发布】</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-64fff87bd3.png"></p>
-<h1>03 注重使用体验，入门更方便</h1>
-<p>openGemini 不仅性能够强，它独特的设计，在实际的应用中，还能带来很多舒适的体验：</p>
-<p><strong>在入门方面</strong>，openGemini 与 InfluxDB v1.x 的生态完全兼容，接口、生态工具等直接通用，InfluxDB 用户可以无障碍迁移。同时，openGemini 采用了跟 InfluxDB 一样的 Line Protocol，数据建模简单，且容易理解，对关系型数据库的开发者也很友好。最后，openGemini 使用类 SQL 查询语言，无需额外学习，上手容易。集群部署上，社区还提供了一键部署工具 Gemix，省去了大量的配置工作。</p>
-<p><strong>在</strong><strong>操作系统</strong><strong>方面</strong>，openGemini 目前已支持主流 Linux 系统（含openEuler）、Windows 和 MacOS，应用开发调试更加方便。处理器支持 X86 和 ARM64 两种架构。</p>
-<p><strong>在云原生方面</strong>，openGemini 提供了 Dockerfile 和 Docker 镜像，支持 Docker、K8s、KubeEdge 等平台的部署。由于容器重新拉起后，IP 地址随之变化，openGemini 新增域名功能，确保集群节点在容器重启后依然可以保持连通。社区还创建了 openGemini-operator 项目，方便用户一键式容器化部署。openGemini 支持普罗米修斯远程读写，可以作为普罗米修斯的一个后端存储，解决它存储能力不足的问题。【btw：openGemini 还将直接支持 PromQL，目前正在开发中】</p>
-<p><strong>在可观测性方面</strong>，社区开发了 ts-monitor 组件，专门采集节点和内核指标，分为19个子类，260余项，可搭配 Grafana 实现对 openGemini 运行状态的全面监控。例如 CPU 和内存利用率、写入带宽、写时延、写并发、QPS 等指标可以通过可视化界面一目了然，方便随时查看运行状况、数据库性能调优和精准定位问题。</p>
-<h1>04 经过内部实战考验，回馈开源</h1>
-<p>openGemini 作为时序数据库，目前最常见的使用场景就是物联网和运维监控，在处理海量数据这方面，有着普通数据库无法比拟的优势。同时，openGemini 作为华为内部的项目，已经经过了“自家人”的考验：</p>
-<p>华为云 SRE 使用 openGemini 作为监控数据存储底座，全网共部署25套集群，最大集群规模70个节点，成功经受住了每秒4千万条数据写入和5万次的并发查询的实战考验。相比原有解决方案，在承载相同业务的情况下，较原系统端到端时延降低50%，CPU 资源上可以节省68%，内存资源可以节省50%，硬盘资源可以节省90%以上。</p>
-<p>华为云的工业物联平台，之前一直用的 InfluxDB 的单机版，自从切换到 openGemini 上来后，再也不用被吞吐量困扰了，端到端和查询性能提升了3倍，设备接入量提升到了百万级。</p>
-<p>向宇介绍，openGemini 源自开源，从 InfluxDB 开源项目中受益良多，因此秉承开源的精神，将 openGemini 的全部代码开源，希望全球更多的企业和开发者从中获益，也希望通过开放的社区平台，和广大开发者一起，共同推动技术创新，共享开源成果。</p>
-<p>目前，openGemini 只有开源版和云服务，并不打算涉足线下商业版本，且有意愿向基金会捐献。当下，社区尚有诸多未完善之处，接下来，社区将会进一步丰富 openGemini 的生态工具（诸如数据迁移工具、SDK、大数据生态集成等）、可视化管理界面、以及文档等等。</p>
-<p>“目前，社区的技术规划总体上会围绕物联网、运维监控和可观测性这三个重要应用场景，加强相关技术生态兼容和内核能力建设，我们正在着手论证 openGemini 下一代的软件架构。”向宇说。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d789a48d47.png"></p>
-<p>“短时间内，openGemini 不会考虑工业相关场景，因为工业领域的业务场景非常复杂，实时性要求极高，工业软件厂商的护城河很深，时序数据库能做的事情有限。此外，社区缺乏行业背景，对这方面的场景还不够了解。之后，我们会考虑寻找一些工业领域的伙伴，比方说工业软件供应商、解决方案提供商等，一起去合作、完善。”向宇说。</p>
-<p>openGemini 官网主页: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.openGemini.org%2F" target="_blank">https://www.openGemini.org/</a></p>
-<p>openGemini 开源地址: <span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FopenGemini">https://github.com/openGemini</a></span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>数十年来，时间序列数据库（TSDB）的使用在各个行业中都很普遍，特别是在金融和工业控制系统中。然而，物联网 (IoT)的出现导致时间序列数据（简称时序数据）量激增，对数据库的性能和存储成本提出了更高的要求，从而促进了对专用时序数据库的需求。</p>
-<p>面对遗留时序解决方案的架构过时、扩展性有限等问题，新一代时序数据库应运而生，它们采用了现代架构，可实现分布式处理和水平扩展，以及云或本地的灵活部署。</p>
-<p>2022年底，又一重磅产品加入了开源时序数据库这一赛道，并在短短一年内在60余家企业测试和生产落地，吸引了70+来自国内外重点高校和企业的贡献者——openGemini，华为开源的分布式时序数据库，主要聚焦于海量时序数据的存储和分析，通过技术创新，简化业务系统架构，降低海量时序数据的存储成本，提升时序数据的存储和分析效率。</p>
-<p>今天，我们邀请到了 openGemini 社区负责人向宇，一起来聊聊，他们的开源故事~</p>
-<h1>01 源自内部需求，逐步走向自研</h1>
-<p>openGemini 的研发，最开始也是源于华为自身的需求。</p>
-<p>2019年，随着华为云的成立，广州、上海、北京、贵州和香港等地的数据中心纷纷拔地而起，并陆续上线了260+云服务，平均每天采集的监控指标数据达数 TB，原有大数据解决方案逐渐不堪重负。数据量越大，查询效率越低，数据存储成本持续上升，急需一款高性能、高扩展性的专用时序数据库。</p>
-<p>在当时，并没有什么好用的、能跟得上需求发展的时序数据库产品。InfluxDB 还是单机版，国内 Apache IoTDB 和 TDengine 还远不能达到生产要求。因此，华为决心做自己的数据库，优化数据处理工作，解决眼下十分要紧的业务问题。在这样的背景下，openGemini 应运而生。</p>
-<p>据向宇介绍，在技术选型上，他们一开始在开源 InfluxDB 的基础上进行集群化改造。但随着指标数量的增加和采集频率的提高，日增数据量已达数十 TB。这时，InfluxDB 自身架构的缺陷开始凸显，影响到系统的性能和稳定性。于是，他们选择了对架构进行重构，开始了 openGemini 内核的自研之路。</p>
-<h1>02 个性独特，性能抢跑</h1>
-<p>openGemini 自诞生起就跟华为自家业务的需求联系紧密，所以每一个设计都充满了实用的考量。具体来说，openGemini 区别于别的时序数据库，主要有9大“个性”：</p>
-<p><strong>性能优势：</strong>在 openGemini 差异化竞争力中，高性能是最重要的一项。在海量数据场景下，openGemini 相比开源 InfluxDB，简单查询场景提升2倍多，中等查询场景提升5倍多，复杂查询场景提升10倍以上。相比其他同类开源产品，openGemini 同样具有明显性能优势。</p>
-<p>官方公布的单机写性能如下（测试工具为 TSBS，相关测试细节请参考 openGemini 官网文档）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4448c02dc6.png"></p>
-<p>官方公布的 DevOps 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cc819930d3.png"></p>
-<p>官方公布的 IoT 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-757afa5836.png"></p>
-<p>除此之外，openGemini 在数据存储和数据分析方面推出一系列实用功能，以此构建更多差异化竞争力：</p>
-<p><strong>独特的</strong><strong>分布式架构</strong><strong>：</strong>openGemini 提供了单机和分布式集群两种版本，其中分布式集群采用的是 MPP 大规模并行处理分层架构，将计算引擎，存储引擎和元数据管理划分为独立的组件，分别是 ts-sql、ts-store、ts-meta 。不同组件支持独立横向扩展，使得面对复杂的应用场景也能灵活应对。</p>
-<p><strong>高基数引擎：</strong>高基数问题（也称之为维度灾难）会带来倒排索引膨胀，从而引起内存资源消耗过高、读写性能降低的问题，长期以来一直困扰着时序数据库的发展。openGemini 高基数引擎通过构建时序专用的稀疏索引，进而彻底解决了这一难题，非常适合在网络监控、金融风控、物联网、交通等领域使用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6aaf895725.png"></p>
-<p><strong>文本</strong><strong>检索：</strong>文本数据是一种常见的数据类型，openGemini 支持在文本数据之上创建索引，采用动态的学习型分词方法，支持精确、短语和模糊匹配，且具有内存资源占用少，检索效率高的优点。</p>
-<p><strong>流式聚合：</strong>流式聚合是一种前置聚合方式，一边写数据、一边对数据进行降采样，其目的是解决传统降采样方法从磁盘读取大量历史数据进行计算，造成 I/O 放大严重的问题。</p>
-<p><strong>多级</strong><strong>降采样</strong><strong>：</strong>对于存量的历史数据，传统降采样方式会保留历史数据明细。在某些场景下，历史数据明细并不重要，只需保留数据特征即可，多级降采样功能可以实现对历史数据明细的特征提取，并原地替换历史数据明细，可进一步降低50%的存储成本。</p>
-<p><strong>异常检测和预测：</strong>异常检测和预测是目前时序数据分析最成熟的应用之一，被广泛应用于量化交易、网络安全检测和数据中心、工业设备和 IT 基础设施的日常维护等场景中。openGemini 提供了一个异常检测库——openGemini-castor，封装了常见的13种异常场景的检测算法，具有检测速度快、准确性高、流批一体的优点，帮助应用提高数据分析效率。</p>
-<p><strong>数据冷热</strong><strong>分层存储：</strong>支持将历史数据转存到对象存储上，可实现低成本方式本永久保留历史数据，还能支持大数据离线分析。【该功能计划 H2 对外发布】</p>
-<p><strong>数据可靠性</strong>：支持多计算副本，进一步提升数据可靠性。【该功能计划 H2 对外发布】</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-64fff87bd3.png"></p>
-<h1>03 注重使用体验，入门更方便</h1>
-<p>openGemini 不仅性能够强，它独特的设计，在实际的应用中，还能带来很多舒适的体验：</p>
-<p><strong>在入门方面</strong>，openGemini 与 InfluxDB v1.x 的生态完全兼容，接口、生态工具等直接通用，InfluxDB 用户可以无障碍迁移。同时，openGemini 采用了跟 InfluxDB 一样的 Line Protocol，数据建模简单，且容易理解，对关系型数据库的开发者也很友好。最后，openGemini 使用类 SQL 查询语言，无需额外学习，上手容易。集群部署上，社区还提供了一键部署工具 Gemix，省去了大量的配置工作。</p>
-<p><strong>在</strong><strong>操作系统</strong><strong>方面</strong>，openGemini 目前已支持主流 Linux 系统（含openEuler）、Windows 和 MacOS，应用开发调试更加方便。处理器支持 X86 和 ARM64 两种架构。</p>
-<p><strong>在云原生方面</strong>，openGemini 提供了 Dockerfile 和 Docker 镜像，支持 Docker、K8s、KubeEdge 等平台的部署。由于容器重新拉起后，IP 地址随之变化，openGemini 新增域名功能，确保集群节点在容器重启后依然可以保持连通。社区还创建了 openGemini-operator 项目，方便用户一键式容器化部署。openGemini 支持普罗米修斯远程读写，可以作为普罗米修斯的一个后端存储，解决它存储能力不足的问题。【btw：openGemini 还将直接支持 PromQL，目前正在开发中】</p>
-<p><strong>在可观测性方面</strong>，社区开发了 ts-monitor 组件，专门采集节点和内核指标，分为19个子类，260余项，可搭配 Grafana 实现对 openGemini 运行状态的全面监控。例如 CPU 和内存利用率、写入带宽、写时延、写并发、QPS 等指标可以通过可视化界面一目了然，方便随时查看运行状况、数据库性能调优和精准定位问题。</p>
-<h1>04 经过内部实战考验，回馈开源</h1>
-<p>openGemini 作为时序数据库，目前最常见的使用场景就是物联网和运维监控，在处理海量数据这方面，有着普通数据库无法比拟的优势。同时，openGemini 作为华为内部的项目，已经经过了“自家人”的考验：</p>
-<p>华为云 SRE 使用 openGemini 作为监控数据存储底座，全网共部署25套集群，最大集群规模70个节点，成功经受住了每秒4千万条数据写入和5万次的并发查询的实战考验。相比原有解决方案，在承载相同业务的情况下，较原系统端到端时延降低50%，CPU 资源上可以节省68%，内存资源可以节省50%，硬盘资源可以节省90%以上。</p>
-<p>华为云的工业物联平台，之前一直用的 InfluxDB 的单机版，自从切换到 openGemini 上来后，再也不用被吞吐量困扰了，端到端和查询性能提升了3倍，设备接入量提升到了百万级。</p>
-<p>向宇介绍，openGemini 源自开源，从 InfluxDB 开源项目中受益良多，因此秉承开源的精神，将 openGemini 的全部代码开源，希望全球更多的企业和开发者从中获益，也希望通过开放的社区平台，和广大开发者一起，共同推动技术创新，共享开源成果。</p>
-<p>目前，openGemini 只有开源版和云服务，并不打算涉足线下商业版本，且有意愿向基金会捐献。当下，社区尚有诸多未完善之处，接下来，社区将会进一步丰富 openGemini 的生态工具（诸如数据迁移工具、SDK、大数据生态集成等）、可视化管理界面、以及文档等等。</p>
-<p>“目前，社区的技术规划总体上会围绕物联网、运维监控和可观测性这三个重要应用场景，加强相关技术生态兼容和内核能力建设，我们正在着手论证 openGemini 下一代的软件架构。”向宇说。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d789a48d47.png"></p>
-<p>“短时间内，openGemini 不会考虑工业相关场景，因为工业领域的业务场景非常复杂，实时性要求极高，工业软件厂商的护城河很深，时序数据库能做的事情有限。此外，社区缺乏行业背景，对这方面的场景还不够了解。之后，我们会考虑寻找一些工业领域的伙伴，比方说工业软件供应商、解决方案提供商等，一起去合作、完善。”向宇说。</p>
-<p>openGemini 官网主页: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.openGemini.org%2F" target="_blank">https://www.openGemini.org/</a></p>
-<p>openGemini 开源地址: <span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FopenGemini">https://github.com/openGemini</a></span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>数十年来，时间序列数据库（TSDB）的使用在各个行业中都很普遍，特别是在金融和工业控制系统中。然而，物联网 (IoT)的出现导致时间序列数据（简称时序数据）量激增，对数据库的性能和存储成本提出了更高的要求，从而促进了对专用时序数据库的需求。</p>
-<p>面对遗留时序解决方案的架构过时、扩展性有限等问题，新一代时序数据库应运而生，它们采用了现代架构，可实现分布式处理和水平扩展，以及云或本地的灵活部署。</p>
-<p>2022年底，又一重磅产品加入了开源时序数据库这一赛道，并在短短一年内在60余家企业测试和生产落地，吸引了70+来自国内外重点高校和企业的贡献者——openGemini，华为开源的分布式时序数据库，主要聚焦于海量时序数据的存储和分析，通过技术创新，简化业务系统架构，降低海量时序数据的存储成本，提升时序数据的存储和分析效率。</p>
-<p>今天，我们邀请到了 openGemini 社区负责人向宇，一起来聊聊，他们的开源故事~</p>
-<h1>01 源自内部需求，逐步走向自研</h1>
-<p>openGemini 的研发，最开始也是源于华为自身的需求。</p>
-<p>2019年，随着华为云的成立，广州、上海、北京、贵州和香港等地的数据中心纷纷拔地而起，并陆续上线了260+云服务，平均每天采集的监控指标数据达数 TB，原有大数据解决方案逐渐不堪重负。数据量越大，查询效率越低，数据存储成本持续上升，急需一款高性能、高扩展性的专用时序数据库。</p>
-<p>在当时，并没有什么好用的、能跟得上需求发展的时序数据库产品。InfluxDB 还是单机版，国内 Apache IoTDB 和 TDengine 还远不能达到生产要求。因此，华为决心做自己的数据库，优化数据处理工作，解决眼下十分要紧的业务问题。在这样的背景下，openGemini 应运而生。</p>
-<p>据向宇介绍，在技术选型上，他们一开始在开源 InfluxDB 的基础上进行集群化改造。但随着指标数量的增加和采集频率的提高，日增数据量已达数十 TB。这时，InfluxDB 自身架构的缺陷开始凸显，影响到系统的性能和稳定性。于是，他们选择了对架构进行重构，开始了 openGemini 内核的自研之路。</p>
-<h1>02 个性独特，性能抢跑</h1>
-<p>openGemini 自诞生起就跟华为自家业务的需求联系紧密，所以每一个设计都充满了实用的考量。具体来说，openGemini 区别于别的时序数据库，主要有9大“个性”：</p>
-<p><strong>性能优势：</strong>在 openGemini 差异化竞争力中，高性能是最重要的一项。在海量数据场景下，openGemini 相比开源 InfluxDB，简单查询场景提升2倍多，中等查询场景提升5倍多，复杂查询场景提升10倍以上。相比其他同类开源产品，openGemini 同样具有明显性能优势。</p>
-<p>官方公布的单机写性能如下（测试工具为 TSBS，相关测试细节请参考 openGemini 官网文档）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4448c02dc6.png"></p>
-<p>官方公布的 DevOps 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cc819930d3.png"></p>
-<p>官方公布的 IoT 场景下单机查询性能对比（平均时延，ms）：</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-757afa5836.png"></p>
-<p>除此之外，openGemini 在数据存储和数据分析方面推出一系列实用功能，以此构建更多差异化竞争力：</p>
-<p><strong>独特的</strong><strong>分布式架构</strong><strong>：</strong>openGemini 提供了单机和分布式集群两种版本，其中分布式集群采用的是 MPP 大规模并行处理分层架构，将计算引擎，存储引擎和元数据管理划分为独立的组件，分别是 ts-sql、ts-store、ts-meta 。不同组件支持独立横向扩展，使得面对复杂的应用场景也能灵活应对。</p>
-<p><strong>高基数引擎：</strong>高基数问题（也称之为维度灾难）会带来倒排索引膨胀，从而引起内存资源消耗过高、读写性能降低的问题，长期以来一直困扰着时序数据库的发展。openGemini 高基数引擎通过构建时序专用的稀疏索引，进而彻底解决了这一难题，非常适合在网络监控、金融风控、物联网、交通等领域使用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6aaf895725.png"></p>
-<p><strong>文本</strong><strong>检索：</strong>文本数据是一种常见的数据类型，openGemini 支持在文本数据之上创建索引，采用动态的学习型分词方法，支持精确、短语和模糊匹配，且具有内存资源占用少，检索效率高的优点。</p>
-<p><strong>流式聚合：</strong>流式聚合是一种前置聚合方式，一边写数据、一边对数据进行降采样，其目的是解决传统降采样方法从磁盘读取大量历史数据进行计算，造成 I/O 放大严重的问题。</p>
-<p><strong>多级</strong><strong>降采样</strong><strong>：</strong>对于存量的历史数据，传统降采样方式会保留历史数据明细。在某些场景下，历史数据明细并不重要，只需保留数据特征即可，多级降采样功能可以实现对历史数据明细的特征提取，并原地替换历史数据明细，可进一步降低50%的存储成本。</p>
-<p><strong>异常检测和预测：</strong>异常检测和预测是目前时序数据分析最成熟的应用之一，被广泛应用于量化交易、网络安全检测和数据中心、工业设备和 IT 基础设施的日常维护等场景中。openGemini 提供了一个异常检测库——openGemini-castor，封装了常见的13种异常场景的检测算法，具有检测速度快、准确性高、流批一体的优点，帮助应用提高数据分析效率。</p>
-<p><strong>数据冷热</strong><strong>分层存储：</strong>支持将历史数据转存到对象存储上，可实现低成本方式本永久保留历史数据，还能支持大数据离线分析。【该功能计划 H2 对外发布】</p>
-<p><strong>数据可靠性</strong>：支持多计算副本，进一步提升数据可靠性。【该功能计划 H2 对外发布】</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-64fff87bd3.png"></p>
-<h1>03 注重使用体验，入门更方便</h1>
-<p>openGemini 不仅性能够强，它独特的设计，在实际的应用中，还能带来很多舒适的体验：</p>
-<p><strong>在入门方面</strong>，openGemini 与 InfluxDB v1.x 的生态完全兼容，接口、生态工具等直接通用，InfluxDB 用户可以无障碍迁移。同时，openGemini 采用了跟 InfluxDB 一样的 Line Protocol，数据建模简单，且容易理解，对关系型数据库的开发者也很友好。最后，openGemini 使用类 SQL 查询语言，无需额外学习，上手容易。集群部署上，社区还提供了一键部署工具 Gemix，省去了大量的配置工作。</p>
-<p><strong>在</strong><strong>操作系统</strong><strong>方面</strong>，openGemini 目前已支持主流 Linux 系统（含openEuler）、Windows 和 MacOS，应用开发调试更加方便。处理器支持 X86 和 ARM64 两种架构。</p>
-<p><strong>在云原生方面</strong>，openGemini 提供了 Dockerfile 和 Docker 镜像，支持 Docker、K8s、KubeEdge 等平台的部署。由于容器重新拉起后，IP 地址随之变化，openGemini 新增域名功能，确保集群节点在容器重启后依然可以保持连通。社区还创建了 openGemini-operator 项目，方便用户一键式容器化部署。openGemini 支持普罗米修斯远程读写，可以作为普罗米修斯的一个后端存储，解决它存储能力不足的问题。【btw：openGemini 还将直接支持 PromQL，目前正在开发中】</p>
-<p><strong>在可观测性方面</strong>，社区开发了 ts-monitor 组件，专门采集节点和内核指标，分为19个子类，260余项，可搭配 Grafana 实现对 openGemini 运行状态的全面监控。例如 CPU 和内存利用率、写入带宽、写时延、写并发、QPS 等指标可以通过可视化界面一目了然，方便随时查看运行状况、数据库性能调优和精准定位问题。</p>
-<h1>04 经过内部实战考验，回馈开源</h1>
-<p>openGemini 作为时序数据库，目前最常见的使用场景就是物联网和运维监控，在处理海量数据这方面，有着普通数据库无法比拟的优势。同时，openGemini 作为华为内部的项目，已经经过了“自家人”的考验：</p>
-<p>华为云 SRE 使用 openGemini 作为监控数据存储底座，全网共部署25套集群，最大集群规模70个节点，成功经受住了每秒4千万条数据写入和5万次的并发查询的实战考验。相比原有解决方案，在承载相同业务的情况下，较原系统端到端时延降低50%，CPU 资源上可以节省68%，内存资源可以节省50%，硬盘资源可以节省90%以上。</p>
-<p>华为云的工业物联平台，之前一直用的 InfluxDB 的单机版，自从切换到 openGemini 上来后，再也不用被吞吐量困扰了，端到端和查询性能提升了3倍，设备接入量提升到了百万级。</p>
-<p>向宇介绍，openGemini 源自开源，从 InfluxDB 开源项目中受益良多，因此秉承开源的精神，将 openGemini 的全部代码开源，希望全球更多的企业和开发者从中获益，也希望通过开放的社区平台，和广大开发者一起，共同推动技术创新，共享开源成果。</p>
-<p>目前，openGemini 只有开源版和云服务，并不打算涉足线下商业版本，且有意愿向基金会捐献。当下，社区尚有诸多未完善之处，接下来，社区将会进一步丰富 openGemini 的生态工具（诸如数据迁移工具、SDK、大数据生态集成等）、可视化管理界面、以及文档等等。</p>
-<p>“目前，社区的技术规划总体上会围绕物联网、运维监控和可观测性这三个重要应用场景，加强相关技术生态兼容和内核能力建设，我们正在着手论证 openGemini 下一代的软件架构。”向宇说。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d789a48d47.png"></p>
-<p>“短时间内，openGemini 不会考虑工业相关场景，因为工业领域的业务场景非常复杂，实时性要求极高，工业软件厂商的护城河很深，时序数据库能做的事情有限。此外，社区缺乏行业背景，对这方面的场景还不够了解。之后，我们会考虑寻找一些工业领域的伙伴，比方说工业软件供应商、解决方案提供商等，一起去合作、完善。”向宇说。</p>
-<p>openGemini 官网主页: <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.openGemini.org%2F" target="_blank">https://www.openGemini.org/</a></p>
-<p>openGemini 开源地址: <span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FopenGemini">https://github.com/openGemini</a></span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4448c02dc6.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4448c02dc6.png" medium="image"/>
-    <pubDate>Mon, 15 Apr 2024 18:58:47 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[开源日报 | AI程序员造假；“纯血”鸿蒙真机界面；谷歌发明“无限注意力”技术；成为顶尖程序员的最佳方式]]></title>
-    <link>https://www.oschina.net/news/287828</link>
-    <itunes:title><![CDATA[开源日报 | AI程序员造假；“纯血”鸿蒙真机界面；谷歌发明“无限注意力”技术；成为顶尖程序员的最佳方式]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.4.15</strong></span></h3>
-<h2><span>今日要点</span></h2>
-<h3><a href="https://www.oschina.net/news/287772" target="_blank">国家天文台人工智能工作组发布大模型 “星语 3.0”</a></h3>
-<p><span>中国科学院国家天文台人工智能工作组发布新一代天文大模型 ——“星语 3.0”。“星语 3.0” 基于阿里云通义千问开源模型打造，目前已成功接入国家天文台兴隆观测站望远镜阵列 --Mini “司天”，可实现自主控制望远镜进行观测、分析观测结果，智能地给出下一步观测建议。</span></p>
-<h3><a href="https://www.oschina.net/news/287730/apples-first-ios-18-ai-features-no-cloud" target="_blank">苹果 iOS 18 的首批 AI 功能将完全运行于设备端</a></h3>
-<p>彭博社记者 Mark Gurman<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Fnewsletters%2F2024-04-14%2Fhumane-ai-pin-review-the-device-isn-t-going-to-kill-apple-s-iphone-luziqlew" target="_blank">报道称</a>，苹果计划为 iOS 18 推出的首批 AI 功能将完全在端侧上运行，不依赖云服务器。iOS 18 预计不会包含苹果自己的类 ChatGPT 的聊天机器人，但目前还不清楚 Gemini 或其他聊天机器人是否会直接集成到 iOS 18 中。</p>
-<p>Gurman 补充，苹果可能未来会提供一些基于云端的 AI 功能，此前有报道称苹果已经和 Google、OpenAI 和百度等公司就 AI 上的合作进行了讨论，不过有知情人士否认了百度和苹果之间关于 AI 的合作。</p>
-<p>科技媒体&nbsp;MacRumors 则<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.macrumors.com%2F2024%2F04%2F14%2Fapples-first-ios-18-ai-features-no-cloud%2F" target="_blank">分析认为</a>苹果仍有可能推出自家基于云的生成式 AI，因为此前也有消息指出，苹果正在积极购买 AI 服务器。</p>
-<h3><a href="https://www.oschina.net/news/285570/grok-1-5" target="_blank">马斯克宣布 Grok-1.5，上下文长度至 128K</a></h3>
-<p>马斯克xAI的多模态模型Grok-1.5V横空出世了！不仅多项基准测试超越GPT-4V，而且看懂梗图写Python代码也都不在话下。并且，为了评估模型对于真实世界的空间理解，xAI此次还推出了新基准RealWorldQA。</p>
-<p><img alt="up-ba48e3a191794875b74ee269bd5216fc05f.png" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2dcbe2dd68.png"></p>
-<hr>
-<h2><span>今日观察</span></h2>
-<div>
-<h3><span><span>社交观察</span></span></h3>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F2214340953%2FO9GVUtbdj" target="_blank">HarmonyOS NEXT 真机上手</a></h4>
-<p>博主&nbsp;@Flanker_017 在微博晒出 HarmonyOS NEXT 真机上手图，展示了新系统的操作界面。博主透露，新版本中原生 Android 应用已经无法使用。“如果本地数据多的，比如微信聊天、笔记软件，还是得给方案的，否则即使能从云端重新拉，用户体验也太差”。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c5d6f713d.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-297bfa0e4b.png"></p>
-<p>- 微博&nbsp;<strong>Flanker_017</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1905352345%2FO9Ils5e6S" target="_blank">中国是人工智能大模型开源最大的受益者</a></h4>
-<p>中国不仅成了人工智能大模型开源最大的受益者，甚至是唯一受益的国家。一旦美国公司公开源Chat GPT和Grok背后的软件，中国几十家公司马上一涌而上，纷纷拷贝后推出自己的模型。其他囯家如日本和德国，不会有公司这么做，因为可以直接使用美国的大模型，即使做了，用户也会特别少，肯定是亏本的买卖。</p>
-<p>- 微博&nbsp;<strong>猴年马月的中国</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5648162302%2FO9DEXiyvy" target="_blank">通过游戏化的方式来学习编码是成为顶尖程序员的最佳方式</a></h4>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69d630c10d.png"></p>
-<div>
-<p>- 微博 <strong>黄建同学</strong></p>
-</div>
-</div>
-<h3><span><span>媒体观察</span></span></h3>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2734113620420865" target="_blank">首个AI程序员造假被抓，Devin再次“震撼”硅谷，扒皮视频文字详解附上</a></h4>
-<p>不久之前震撼硅谷的Devin，再度震撼硅谷——但这次是被打假。事情是这样的：油管程序员博主Internet of Bugs（以下简称光头哥）对Devin的视频进行了逐帧分析，逐一举证说明了Devin并不如演示中那般神奇。</p>
-<p>其它“罪证”，包括但不限于：</p>
-<ul>
-<li>号称能解决任何Upwork任务，但演示中解决的问题并不是prompt要解决的那一个，做无用功；</li>
-<li>看起来在修复bug，实际上修复的bug人类程序员根本就不会犯；</li>
-<li>没有意识到简单两步就能解决问题，花里胡哨一顿操作，其实是自己把任务搞复杂了；</li>
-<li>修改代码的水平一言难尽。</li>
-</ul>
-<p>此外，光头哥花了半个多小时，把Devin演示视频中的upwork任务完成了一遍——而Devin完成任务可能用时6个多小时。</p>
-<p>- <strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Ymo4GO7AA9" target="_blank">2024年生成式人工智能进化成什么样了？</a></h4>
-<p>AIGC交互界面的用户友好性、大模型开源及API（应用程序编程接口）价格的降低、插件服务带来的应用生态繁荣等，都使得AI技术或将成为像水、电、网络一样的基础设施，渗透并改变千行万业。</p>
-<p>根据爱设计等多平台联合发布的《2024年AIGC发展趋势报告》，在医疗领域，AI的应用已能够精准辅助诊断，例如Google Health的深度学习模型，在乳腺癌筛查中的准确率已超越人类专家。利用强大的图像识别和模式分析能力，这些模型可以从成千上万的X光片中识别出极易被人眼忽视的细微变化。</p>
-<p>- <strong>北京青年报</strong></p>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnbzH2bGeU" target="_blank">挑战英伟达，谁最可能成为颠覆者？</a></h4>
-<div>
-<p>在人工智能浪潮里掘金的“铲子”成了硬通货。GPU（图形处理器）是发展人工智能的关键芯片， 科技巨头英伟达凭借其GPU在人工智能芯片市场一家独大，占据约80%的份额。</p>
-<p>AI芯片价格高昂，依然稀缺，Meta、谷歌、超威半导体（AMD）、英特尔、微软等科技巨头纷纷挑战英伟达的市场统治，推出对标产品。芯片大战愈演愈烈，谁是潜在颠覆者？</p>
-<p>-&nbsp; <strong>澎湃新闻</strong></p>
-</div>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294057" target="_blank">还在卷长文本？谷歌最新论文直接把文本干到…无限长了</a></h4>
-<div>
-<p>当人们还在比拼上下文窗口的时候，谷歌发布了这样一篇论文《Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention》。论文中写到，团队发明了一种新的注意力技术，叫做“无限注意力”（Infini-attention），通过这项技术，能使transformer大模型在有限的计算资源条件下，处理无限长度的输入。</p>
-<p>-&nbsp; <strong>品玩</strong></p>
-</div>
-</div>
-</div>
-</div>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<h3><span><strong><span>开源项目</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">lihaoyun6/AirBattery</a></strong></h4>
-<p><img alt="Preview" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c5fbbeeb58.png"></p>
-<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">https://github.com/lihaoyun6/AirBattery</a></u></em></p>
-<p>AirBattery 是一款用来在 Mac 菜单栏或者程序坞（Dock）上显示你的所有苹果设备电量信息的开源工具，只需要这些设备在同一个局域网内即可。</p>
-<p>对于 iPhone 或插卡版 iPad 可以通过蓝牙显示电量，无需局域网。 ​​​</p>
-<h3><span><strong><span>每日一博</span></strong></span></h3>
-<h4><strong><a href="https://my.oschina.net/u/4662964/blog/11050396" target="_blank">C++ 从遗忘到入门</a></strong></h4>
-<p><span>本文主要面向的是曾经学过、了解过 C++ 的同学，旨在帮助这些同学唤醒 C++ 的记忆，提升下自身的技术储备。如果之前完全没接触过 C++，也可以整体了解下这门语言。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5aca4eda39.png"></p>
-<hr>
-<h2><span><strong>事件点评</strong></span></h2>
-<h3><strong><a href="https://www.oschina.net/news/287790/microsoft-openai-dall-e-military-use" target="_blank">微软向美国军方 “推销” DALL-E</a></strong></h3>
-<p><span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftheintercept.com%2F2024%2F04%2F10%2Fmicrosoft-openai-dalle-ai-military-use%2F" target="_blank">The Intercept</a><span>&nbsp;</span>日前公布的文件显示，微软曾于 2023 年 10 月向美国军方推荐，使用&nbsp;OpenAI 开发的图像生成工具 DALL-E&nbsp;来帮助构建执行军事行动的软件。</span></p>
-<p><span>而就在今年 1 月份，OpenAI&nbsp;对其&nbsp;AI 模型使用条款进行一番<a href="https://www.oschina.net/news/275867">大更新</a>：将原本禁止的&nbsp;“军事与战争” 从页面中删除，留下的只有禁止使用 "我们的服务伤害自己或他人"，包括 "开发或使用武器"。</span></p>
-<p><span>微软在 PPT 中重点介绍了 OpenAI 可提供的各种 “常见” 用途，其中就包括了国防。且文件中例举的 “高级计算机视觉训练” 下的一个要点是 “战斗管理系统”：使用 DALL-E 模型创建图像，训练战斗管理系统。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6b36ba882.webp"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p><span>这一事件引发了关于AI技术军事应用的伦理和道德问题的广泛讨论。微软和 OpenAI 的这一举措可能被看作是AI技术向军事领域的扩展，引发了公众对AI技术在军事应用中可能产生的负面影响的担忧。</span></p>
-<p><span>也凸显了大型科技公司与军事机构之间日益紧密的联系。微软和 OpenAI 的这一合作可能成为其他科技公司与军事机构合作的先例，进一步推动军事机构采用高科技手段。还反映了开源社区对于AI技术应用的监管挑战。</span></p>
-<h3><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h3>
-<p><span>彭博社援引知情人士</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a><span>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
-<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>苹果公司的这一决策对 IT 行业和人工智能领域产生了深远的影响。首先，它标志着苹果在 AI 领域的进一步深入，通过推出性能更强大的 M4 芯片，苹果能够提供更先进、更智能的 Mac 产品。这将增强苹果在高端计算市场的竞争力，特别是在需要高性能 AI 计算的场景中。</p>
-<p>其次，这一举措可能对其他 PC 制造商产生压力，迫使他们也加大对 AI 技术的投入，以保持竞争力。随着 AI 在日常计算任务中的重要性日益增加，能够提供强大 AI 支持的产品将更受消费者欢迎。</p>
-<h3><strong><a href="https://www.oschina.net/news/287732/microsoft-testing-app-ads-windows-11s-start-men" target="_blank">微软在 Windows 11 “开始” 菜单中测试应用广告</a></strong></h3>
-<p><span>微软已开始在 Windows 11 开始菜单中测试广告，该公司</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.windows.com%2Fwindows-insider%2F2024%2F04%2F12%2Fannouncing-windows-11-insider-preview-build-22635-3495-beta-channel%2F" target="_blank">表示</a><span>，这项新实验将帮助用户在 Microsoft Store 中找到新的 “出色” 应用程序。目前该试用版已在 Windows 11 Insider Preview Build 22635.3495 的 "一小部分 Insiders" 测试版渠道中推出。</span></p>
-<p><span>这些广告将显示在 “开始” 菜单的 “推荐” 部分、最近添加的应用程序以及经常打开的文件和程序中。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d40db5587f.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>这一事件对 IT 行业和用户体验产生了影响。首先，它代表了微软在 Windows 11 中的新尝试，旨在提升用户体验和增加 Microsoft Store 的可见度。然而，这也可能引起一些用户的不满，因为广告可能会干扰他们的日常使用。</p>
-<p>其次，这一事件反映了微软在盈利模式上的探索。通过在“开始”菜单中展示应用广告，微软可能会增加其收入来源，同时推广 Microsoft Store 中的应用。</p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<h3><span><strong><span>媒体观点</span></strong></span></h3>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.163.com%2Fdy%2Farticle%2FIVQ9E5Q90511CPMT.html" target="_blank">开源GPU，能否弯道超车英伟达？</a></strong></h4>
-</div>
-<p>说到开源，近年来，RISC-V开源指令集架构在CPU领域已经取得了巨大的成功，其开放、灵活、可定制的特点吸引了越来越多的关注和应用。如今，RISC-V也开始在GPU领域崭露头角，一些项目和产品已经取得了初步的成果。RISC-V能否在GPU领域复制CPU领域的成功？</p>
-<p>面对英伟达在GPU领域的垄断地位，开源能否成为破局之道？</p>
-<p><span>- <strong>半导体行业观察</strong></span></p>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294031" target="_blank">面壁不只要做中国Mistral，还要超过它</a></strong></h4>
-</div>
-<p><span>时隔七十多天，面壁在发布了MiniCPM-2B后又带来四个特性鲜明的模型，同时它还官宣了数亿元的新融资。</span></p>
-<p><span>此次融资由春华创投、华为哈勃领投，北京市人工智能产业投资基金等跟投，知乎作为战略股东持续跟投支持。这是其成立后最大的一笔融资。这家常被拿来对标Mistral的公司，并不满足于只做一个“中国Mistral”，弹药充足后，它要把“打精锐”这件事进行到底了。</span></p>
-<p><span>-<span>&nbsp;</span></span><strong>品玩</strong></p>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnqPgyeBQd" target="_blank">北大字节开辟图像生成新范式！超越Sora核心组件DiT，不再预测下一个token</a></strong></h4>
-<p><span>北大和字节联手搞了个大的：</span></p>
-<p><span>提出图像生成新范式，从预测下一个token变成预测下一级分辨率，效果超越Sora核心组件Diffusion Transformer（DiT）。并且代码开源，短短几天已经揽下1.3k标星，登上GitHub趋势榜。</span></p>
-<p><span>实验数据上，这个名为VAR（Visual Autoregressive Modeling）的新方法不仅图像生成质量超过DiT等传统SOTA，推理速度也提高了20+倍。</span></p>
-<p>-<span>&nbsp;</span><strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cet.com.cn%2Fxwsd%2F10038771.shtml" target="_blank">智谱AI张鹏亮相央视《对话》解读AI趋势：AGI仍有很多问题值得探索，尚未看到天花板</a></h4>
-<div>
-<p><span>提及目前人工智能的技术革新，张鹏将其类比做“蒸汽机改良阶段”，他认为，业界已经基本一致地接受大模型是通向AGI(通用人工智能)的一个有效路径，但仍然有很多问题值得去探索。如果将目标定在AGI，其中每一个问题的突破都有可能带来飞跃式的发展，目前尚未看到天花板。</span></p>
-<p><span>张鹏同时认为，有了大模型之后，未来人与机器之间的沟通，会越来越贴近自然语言的方式，这是人类所希望且一定会往这个方向发展的。但未来对程序员的定义会有变化，未来传统程序员会越来越少，而建立在机器和人之间新的沟通方式上的，所谓“新式程序员”可能会需要更多。他表示：大家讨论问题的时候很容易忽略另外一个因素——时间，容易高估技术的短期价值，低估技术的长期价值。</span></p>
-</div>
-<p><span>-<span>&nbsp;</span></span><strong>中国经济新闻网</strong></p>
-<h3><span><strong><span>用户观点</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FIMazIQV1rssXAKAS-IDs2Q" target="_blank">「纯血」鸿蒙真机界面曝光</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：Android Linux kernel 套nodejs</span>
-<ul>
-<li><span>观点 2：不管有没有套壳，如果它能把Windows市场啃下来一大半，我都要给它点赞</span></li>
-</ul> </li>
-<li><span>观点 3：这个“纯血”也太中二了吧，底层不是安卓？不是 linux？重新写了指令集，重新定义了操作系统？</span>
-<ul>
-<li><span>观点 4：重写了 5 进制<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">(西方 2 进制，苏联 3 进制，血统都不纯了)</span></li>
-<li><span>观点 5：底层早就不是安卓了，至于 Linux，大部分系统的底层都是类 linux 或者 unix系统，果按照你这个说法，那安卓和 iOS 都不是纯血的了<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">纯血鸿蒙的定义一直都是剥离安卓底层，而不是 linux 底层</span></li>
-</ul> </li>
-<li><span>观点 6：截图里的图标和小组件的圆角看起来好粗糙</span></li>
-<li><span>观点 7：华为的ICON还是那股味道，浓重的重机械风。next能不能成真的不好说。如果是十年前，应该会凉掉。2024年来说，现在多端开发成熟，华为只要不搞得太复杂，平移成本不大开发者都应该乐于入坑的。（考虑备案的事情，说明你的项目不赚钱）</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287629" target="_blank">腾讯云 4 月 8 日故障复盘及情况说明</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：就是自己做技术研讨分析，自我吸取经验，然后没了？！</span></li>
-<li><span>观点 2：多出现故障，不然很多上面的人以为技术人员都不重要了</span></li>
-<li><span>观点 3：赔偿呢？？？对用户的赔偿？？</span></li>
-<li><span>观点 4：看来，阿里云出问题，其他云也只是围观吃瓜而已，丝毫没当成教训，下次还会有京东云、百度云、华为云故障......</span></li>
-<li><span>观点 5：大公司和小公司的区别就是大草台班子和小草台班子的区别......</span></li>
-<li><span>观点 6：灰度发布这么大的企业不应该有的呢？搞笑吧</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：苹果的价格，确实有点高攀不起</span></li>
-<li><span>观点 2：内存 硬盘卖的太贵了</span></li>
-<li><span>观点 3：磁盘大部分情况512GB够用，但是内存都21世纪的第24个年头了，内存8G？还没手机内存大。😀</span></li>
-</ul>
-</blockquote>
-<h2><span><strong>程序员梗图</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abca418d02.png"></p>
-<p><em><strong>---END---</strong></em></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.4.15</strong></span></h3>
-<h2><span>今日要点</span></h2>
-<h3><a href="https://www.oschina.net/news/287772" target="_blank">国家天文台人工智能工作组发布大模型 “星语 3.0”</a></h3>
-<p><span>中国科学院国家天文台人工智能工作组发布新一代天文大模型 ——“星语 3.0”。“星语 3.0” 基于阿里云通义千问开源模型打造，目前已成功接入国家天文台兴隆观测站望远镜阵列 --Mini “司天”，可实现自主控制望远镜进行观测、分析观测结果，智能地给出下一步观测建议。</span></p>
-<h3><a href="https://www.oschina.net/news/287730/apples-first-ios-18-ai-features-no-cloud" target="_blank">苹果 iOS 18 的首批 AI 功能将完全运行于设备端</a></h3>
-<p>彭博社记者 Mark Gurman<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Fnewsletters%2F2024-04-14%2Fhumane-ai-pin-review-the-device-isn-t-going-to-kill-apple-s-iphone-luziqlew" target="_blank">报道称</a>，苹果计划为 iOS 18 推出的首批 AI 功能将完全在端侧上运行，不依赖云服务器。iOS 18 预计不会包含苹果自己的类 ChatGPT 的聊天机器人，但目前还不清楚 Gemini 或其他聊天机器人是否会直接集成到 iOS 18 中。</p>
-<p>Gurman 补充，苹果可能未来会提供一些基于云端的 AI 功能，此前有报道称苹果已经和 Google、OpenAI 和百度等公司就 AI 上的合作进行了讨论，不过有知情人士否认了百度和苹果之间关于 AI 的合作。</p>
-<p>科技媒体&nbsp;MacRumors 则<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.macrumors.com%2F2024%2F04%2F14%2Fapples-first-ios-18-ai-features-no-cloud%2F" target="_blank">分析认为</a>苹果仍有可能推出自家基于云的生成式 AI，因为此前也有消息指出，苹果正在积极购买 AI 服务器。</p>
-<h3><a href="https://www.oschina.net/news/285570/grok-1-5" target="_blank">马斯克宣布 Grok-1.5，上下文长度至 128K</a></h3>
-<p>马斯克xAI的多模态模型Grok-1.5V横空出世了！不仅多项基准测试超越GPT-4V，而且看懂梗图写Python代码也都不在话下。并且，为了评估模型对于真实世界的空间理解，xAI此次还推出了新基准RealWorldQA。</p>
-<p><img alt="up-ba48e3a191794875b74ee269bd5216fc05f.png" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2dcbe2dd68.png"></p>
-<hr>
-<h2><span>今日观察</span></h2>
-<div>
-<h3><span><span>社交观察</span></span></h3>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F2214340953%2FO9GVUtbdj" target="_blank">HarmonyOS NEXT 真机上手</a></h4>
-<p>博主&nbsp;@Flanker_017 在微博晒出 HarmonyOS NEXT 真机上手图，展示了新系统的操作界面。博主透露，新版本中原生 Android 应用已经无法使用。“如果本地数据多的，比如微信聊天、笔记软件，还是得给方案的，否则即使能从云端重新拉，用户体验也太差”。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c5d6f713d.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-297bfa0e4b.png"></p>
-<p>- 微博&nbsp;<strong>Flanker_017</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1905352345%2FO9Ils5e6S" target="_blank">中国是人工智能大模型开源最大的受益者</a></h4>
-<p>中国不仅成了人工智能大模型开源最大的受益者，甚至是唯一受益的国家。一旦美国公司公开源Chat GPT和Grok背后的软件，中国几十家公司马上一涌而上，纷纷拷贝后推出自己的模型。其他囯家如日本和德国，不会有公司这么做，因为可以直接使用美国的大模型，即使做了，用户也会特别少，肯定是亏本的买卖。</p>
-<p>- 微博&nbsp;<strong>猴年马月的中国</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5648162302%2FO9DEXiyvy" target="_blank">通过游戏化的方式来学习编码是成为顶尖程序员的最佳方式</a></h4>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69d630c10d.png"></p>
-<div>
-<p>- 微博 <strong>黄建同学</strong></p>
-</div>
-</div>
-<h3><span><span>媒体观察</span></span></h3>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2734113620420865" target="_blank">首个AI程序员造假被抓，Devin再次“震撼”硅谷，扒皮视频文字详解附上</a></h4>
-<p>不久之前震撼硅谷的Devin，再度震撼硅谷——但这次是被打假。事情是这样的：油管程序员博主Internet of Bugs（以下简称光头哥）对Devin的视频进行了逐帧分析，逐一举证说明了Devin并不如演示中那般神奇。</p>
-<p>其它“罪证”，包括但不限于：</p>
-<ul>
-<li>号称能解决任何Upwork任务，但演示中解决的问题并不是prompt要解决的那一个，做无用功；</li>
-<li>看起来在修复bug，实际上修复的bug人类程序员根本就不会犯；</li>
-<li>没有意识到简单两步就能解决问题，花里胡哨一顿操作，其实是自己把任务搞复杂了；</li>
-<li>修改代码的水平一言难尽。</li>
-</ul>
-<p>此外，光头哥花了半个多小时，把Devin演示视频中的upwork任务完成了一遍——而Devin完成任务可能用时6个多小时。</p>
-<p>- <strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Ymo4GO7AA9" target="_blank">2024年生成式人工智能进化成什么样了？</a></h4>
-<p>AIGC交互界面的用户友好性、大模型开源及API（应用程序编程接口）价格的降低、插件服务带来的应用生态繁荣等，都使得AI技术或将成为像水、电、网络一样的基础设施，渗透并改变千行万业。</p>
-<p>根据爱设计等多平台联合发布的《2024年AIGC发展趋势报告》，在医疗领域，AI的应用已能够精准辅助诊断，例如Google Health的深度学习模型，在乳腺癌筛查中的准确率已超越人类专家。利用强大的图像识别和模式分析能力，这些模型可以从成千上万的X光片中识别出极易被人眼忽视的细微变化。</p>
-<p>- <strong>北京青年报</strong></p>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnbzH2bGeU" target="_blank">挑战英伟达，谁最可能成为颠覆者？</a></h4>
-<div>
-<p>在人工智能浪潮里掘金的“铲子”成了硬通货。GPU（图形处理器）是发展人工智能的关键芯片， 科技巨头英伟达凭借其GPU在人工智能芯片市场一家独大，占据约80%的份额。</p>
-<p>AI芯片价格高昂，依然稀缺，Meta、谷歌、超威半导体（AMD）、英特尔、微软等科技巨头纷纷挑战英伟达的市场统治，推出对标产品。芯片大战愈演愈烈，谁是潜在颠覆者？</p>
-<p>-&nbsp; <strong>澎湃新闻</strong></p>
-</div>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294057" target="_blank">还在卷长文本？谷歌最新论文直接把文本干到…无限长了</a></h4>
-<div>
-<p>当人们还在比拼上下文窗口的时候，谷歌发布了这样一篇论文《Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention》。论文中写到，团队发明了一种新的注意力技术，叫做“无限注意力”（Infini-attention），通过这项技术，能使transformer大模型在有限的计算资源条件下，处理无限长度的输入。</p>
-<p>-&nbsp; <strong>品玩</strong></p>
-</div>
-</div>
-</div>
-</div>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<h3><span><strong><span>开源项目</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">lihaoyun6/AirBattery</a></strong></h4>
-<p><img alt="Preview" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c5fbbeeb58.png"></p>
-<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">https://github.com/lihaoyun6/AirBattery</a></u></em></p>
-<p>AirBattery 是一款用来在 Mac 菜单栏或者程序坞（Dock）上显示你的所有苹果设备电量信息的开源工具，只需要这些设备在同一个局域网内即可。</p>
-<p>对于 iPhone 或插卡版 iPad 可以通过蓝牙显示电量，无需局域网。 ​​​</p>
-<h3><span><strong><span>每日一博</span></strong></span></h3>
-<h4><strong><a href="https://my.oschina.net/u/4662964/blog/11050396" target="_blank">C++ 从遗忘到入门</a></strong></h4>
-<p><span>本文主要面向的是曾经学过、了解过 C++ 的同学，旨在帮助这些同学唤醒 C++ 的记忆，提升下自身的技术储备。如果之前完全没接触过 C++，也可以整体了解下这门语言。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5aca4eda39.png"></p>
-<hr>
-<h2><span><strong>事件点评</strong></span></h2>
-<h3><strong><a href="https://www.oschina.net/news/287790/microsoft-openai-dall-e-military-use" target="_blank">微软向美国军方 “推销” DALL-E</a></strong></h3>
-<p><span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftheintercept.com%2F2024%2F04%2F10%2Fmicrosoft-openai-dalle-ai-military-use%2F" target="_blank">The Intercept</a><span>&nbsp;</span>日前公布的文件显示，微软曾于 2023 年 10 月向美国军方推荐，使用&nbsp;OpenAI 开发的图像生成工具 DALL-E&nbsp;来帮助构建执行军事行动的软件。</span></p>
-<p><span>而就在今年 1 月份，OpenAI&nbsp;对其&nbsp;AI 模型使用条款进行一番<a href="https://www.oschina.net/news/275867">大更新</a>：将原本禁止的&nbsp;“军事与战争” 从页面中删除，留下的只有禁止使用 "我们的服务伤害自己或他人"，包括 "开发或使用武器"。</span></p>
-<p><span>微软在 PPT 中重点介绍了 OpenAI 可提供的各种 “常见” 用途，其中就包括了国防。且文件中例举的 “高级计算机视觉训练” 下的一个要点是 “战斗管理系统”：使用 DALL-E 模型创建图像，训练战斗管理系统。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6b36ba882.webp"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p><span>这一事件引发了关于AI技术军事应用的伦理和道德问题的广泛讨论。微软和 OpenAI 的这一举措可能被看作是AI技术向军事领域的扩展，引发了公众对AI技术在军事应用中可能产生的负面影响的担忧。</span></p>
-<p><span>也凸显了大型科技公司与军事机构之间日益紧密的联系。微软和 OpenAI 的这一合作可能成为其他科技公司与军事机构合作的先例，进一步推动军事机构采用高科技手段。还反映了开源社区对于AI技术应用的监管挑战。</span></p>
-<h3><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h3>
-<p><span>彭博社援引知情人士</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a><span>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
-<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>苹果公司的这一决策对 IT 行业和人工智能领域产生了深远的影响。首先，它标志着苹果在 AI 领域的进一步深入，通过推出性能更强大的 M4 芯片，苹果能够提供更先进、更智能的 Mac 产品。这将增强苹果在高端计算市场的竞争力，特别是在需要高性能 AI 计算的场景中。</p>
-<p>其次，这一举措可能对其他 PC 制造商产生压力，迫使他们也加大对 AI 技术的投入，以保持竞争力。随着 AI 在日常计算任务中的重要性日益增加，能够提供强大 AI 支持的产品将更受消费者欢迎。</p>
-<h3><strong><a href="https://www.oschina.net/news/287732/microsoft-testing-app-ads-windows-11s-start-men" target="_blank">微软在 Windows 11 “开始” 菜单中测试应用广告</a></strong></h3>
-<p><span>微软已开始在 Windows 11 开始菜单中测试广告，该公司</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.windows.com%2Fwindows-insider%2F2024%2F04%2F12%2Fannouncing-windows-11-insider-preview-build-22635-3495-beta-channel%2F" target="_blank">表示</a><span>，这项新实验将帮助用户在 Microsoft Store 中找到新的 “出色” 应用程序。目前该试用版已在 Windows 11 Insider Preview Build 22635.3495 的 "一小部分 Insiders" 测试版渠道中推出。</span></p>
-<p><span>这些广告将显示在 “开始” 菜单的 “推荐” 部分、最近添加的应用程序以及经常打开的文件和程序中。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d40db5587f.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>这一事件对 IT 行业和用户体验产生了影响。首先，它代表了微软在 Windows 11 中的新尝试，旨在提升用户体验和增加 Microsoft Store 的可见度。然而，这也可能引起一些用户的不满，因为广告可能会干扰他们的日常使用。</p>
-<p>其次，这一事件反映了微软在盈利模式上的探索。通过在“开始”菜单中展示应用广告，微软可能会增加其收入来源，同时推广 Microsoft Store 中的应用。</p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<h3><span><strong><span>媒体观点</span></strong></span></h3>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.163.com%2Fdy%2Farticle%2FIVQ9E5Q90511CPMT.html" target="_blank">开源GPU，能否弯道超车英伟达？</a></strong></h4>
-</div>
-<p>说到开源，近年来，RISC-V开源指令集架构在CPU领域已经取得了巨大的成功，其开放、灵活、可定制的特点吸引了越来越多的关注和应用。如今，RISC-V也开始在GPU领域崭露头角，一些项目和产品已经取得了初步的成果。RISC-V能否在GPU领域复制CPU领域的成功？</p>
-<p>面对英伟达在GPU领域的垄断地位，开源能否成为破局之道？</p>
-<p><span>- <strong>半导体行业观察</strong></span></p>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294031" target="_blank">面壁不只要做中国Mistral，还要超过它</a></strong></h4>
-</div>
-<p><span>时隔七十多天，面壁在发布了MiniCPM-2B后又带来四个特性鲜明的模型，同时它还官宣了数亿元的新融资。</span></p>
-<p><span>此次融资由春华创投、华为哈勃领投，北京市人工智能产业投资基金等跟投，知乎作为战略股东持续跟投支持。这是其成立后最大的一笔融资。这家常被拿来对标Mistral的公司，并不满足于只做一个“中国Mistral”，弹药充足后，它要把“打精锐”这件事进行到底了。</span></p>
-<p><span>-<span>&nbsp;</span></span><strong>品玩</strong></p>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnqPgyeBQd" target="_blank">北大字节开辟图像生成新范式！超越Sora核心组件DiT，不再预测下一个token</a></strong></h4>
-<p><span>北大和字节联手搞了个大的：</span></p>
-<p><span>提出图像生成新范式，从预测下一个token变成预测下一级分辨率，效果超越Sora核心组件Diffusion Transformer（DiT）。并且代码开源，短短几天已经揽下1.3k标星，登上GitHub趋势榜。</span></p>
-<p><span>实验数据上，这个名为VAR（Visual Autoregressive Modeling）的新方法不仅图像生成质量超过DiT等传统SOTA，推理速度也提高了20+倍。</span></p>
-<p>-<span>&nbsp;</span><strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cet.com.cn%2Fxwsd%2F10038771.shtml" target="_blank">智谱AI张鹏亮相央视《对话》解读AI趋势：AGI仍有很多问题值得探索，尚未看到天花板</a></h4>
-<div>
-<p><span>提及目前人工智能的技术革新，张鹏将其类比做“蒸汽机改良阶段”，他认为，业界已经基本一致地接受大模型是通向AGI(通用人工智能)的一个有效路径，但仍然有很多问题值得去探索。如果将目标定在AGI，其中每一个问题的突破都有可能带来飞跃式的发展，目前尚未看到天花板。</span></p>
-<p><span>张鹏同时认为，有了大模型之后，未来人与机器之间的沟通，会越来越贴近自然语言的方式，这是人类所希望且一定会往这个方向发展的。但未来对程序员的定义会有变化，未来传统程序员会越来越少，而建立在机器和人之间新的沟通方式上的，所谓“新式程序员”可能会需要更多。他表示：大家讨论问题的时候很容易忽略另外一个因素——时间，容易高估技术的短期价值，低估技术的长期价值。</span></p>
-</div>
-<p><span>-<span>&nbsp;</span></span><strong>中国经济新闻网</strong></p>
-<h3><span><strong><span>用户观点</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FIMazIQV1rssXAKAS-IDs2Q" target="_blank">「纯血」鸿蒙真机界面曝光</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：Android Linux kernel 套nodejs</span>
-<ul>
-<li><span>观点 2：不管有没有套壳，如果它能把Windows市场啃下来一大半，我都要给它点赞</span></li>
-</ul> </li>
-<li><span>观点 3：这个“纯血”也太中二了吧，底层不是安卓？不是 linux？重新写了指令集，重新定义了操作系统？</span>
-<ul>
-<li><span>观点 4：重写了 5 进制<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">(西方 2 进制，苏联 3 进制，血统都不纯了)</span></li>
-<li><span>观点 5：底层早就不是安卓了，至于 Linux，大部分系统的底层都是类 linux 或者 unix系统，果按照你这个说法，那安卓和 iOS 都不是纯血的了<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">纯血鸿蒙的定义一直都是剥离安卓底层，而不是 linux 底层</span></li>
-</ul> </li>
-<li><span>观点 6：截图里的图标和小组件的圆角看起来好粗糙</span></li>
-<li><span>观点 7：华为的ICON还是那股味道，浓重的重机械风。next能不能成真的不好说。如果是十年前，应该会凉掉。2024年来说，现在多端开发成熟，华为只要不搞得太复杂，平移成本不大开发者都应该乐于入坑的。（考虑备案的事情，说明你的项目不赚钱）</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287629" target="_blank">腾讯云 4 月 8 日故障复盘及情况说明</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：就是自己做技术研讨分析，自我吸取经验，然后没了？！</span></li>
-<li><span>观点 2：多出现故障，不然很多上面的人以为技术人员都不重要了</span></li>
-<li><span>观点 3：赔偿呢？？？对用户的赔偿？？</span></li>
-<li><span>观点 4：看来，阿里云出问题，其他云也只是围观吃瓜而已，丝毫没当成教训，下次还会有京东云、百度云、华为云故障......</span></li>
-<li><span>观点 5：大公司和小公司的区别就是大草台班子和小草台班子的区别......</span></li>
-<li><span>观点 6：灰度发布这么大的企业不应该有的呢？搞笑吧</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：苹果的价格，确实有点高攀不起</span></li>
-<li><span>观点 2：内存 硬盘卖的太贵了</span></li>
-<li><span>观点 3：磁盘大部分情况512GB够用，但是内存都21世纪的第24个年头了，内存8G？还没手机内存大。😀</span></li>
-</ul>
-</blockquote>
-<h2><span><strong>程序员梗图</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abca418d02.png"></p>
-<p><em><strong>---END---</strong></em></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
-<h3><span><strong># 2024.4.15</strong></span></h3>
-<h2><span>今日要点</span></h2>
-<h3><a href="https://www.oschina.net/news/287772" target="_blank">国家天文台人工智能工作组发布大模型 “星语 3.0”</a></h3>
-<p><span>中国科学院国家天文台人工智能工作组发布新一代天文大模型 ——“星语 3.0”。“星语 3.0” 基于阿里云通义千问开源模型打造，目前已成功接入国家天文台兴隆观测站望远镜阵列 --Mini “司天”，可实现自主控制望远镜进行观测、分析观测结果，智能地给出下一步观测建议。</span></p>
-<h3><a href="https://www.oschina.net/news/287730/apples-first-ios-18-ai-features-no-cloud" target="_blank">苹果 iOS 18 的首批 AI 功能将完全运行于设备端</a></h3>
-<p>彭博社记者 Mark Gurman<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Fnewsletters%2F2024-04-14%2Fhumane-ai-pin-review-the-device-isn-t-going-to-kill-apple-s-iphone-luziqlew" target="_blank">报道称</a>，苹果计划为 iOS 18 推出的首批 AI 功能将完全在端侧上运行，不依赖云服务器。iOS 18 预计不会包含苹果自己的类 ChatGPT 的聊天机器人，但目前还不清楚 Gemini 或其他聊天机器人是否会直接集成到 iOS 18 中。</p>
-<p>Gurman 补充，苹果可能未来会提供一些基于云端的 AI 功能，此前有报道称苹果已经和 Google、OpenAI 和百度等公司就 AI 上的合作进行了讨论，不过有知情人士否认了百度和苹果之间关于 AI 的合作。</p>
-<p>科技媒体&nbsp;MacRumors 则<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.macrumors.com%2F2024%2F04%2F14%2Fapples-first-ios-18-ai-features-no-cloud%2F" target="_blank">分析认为</a>苹果仍有可能推出自家基于云的生成式 AI，因为此前也有消息指出，苹果正在积极购买 AI 服务器。</p>
-<h3><a href="https://www.oschina.net/news/285570/grok-1-5" target="_blank">马斯克宣布 Grok-1.5，上下文长度至 128K</a></h3>
-<p>马斯克xAI的多模态模型Grok-1.5V横空出世了！不仅多项基准测试超越GPT-4V，而且看懂梗图写Python代码也都不在话下。并且，为了评估模型对于真实世界的空间理解，xAI此次还推出了新基准RealWorldQA。</p>
-<p><img alt="up-ba48e3a191794875b74ee269bd5216fc05f.png" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2dcbe2dd68.png"></p>
-<hr>
-<h2><span>今日观察</span></h2>
-<div>
-<h3><span><span>社交观察</span></span></h3>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F2214340953%2FO9GVUtbdj" target="_blank">HarmonyOS NEXT 真机上手</a></h4>
-<p>博主&nbsp;@Flanker_017 在微博晒出 HarmonyOS NEXT 真机上手图，展示了新系统的操作界面。博主透露，新版本中原生 Android 应用已经无法使用。“如果本地数据多的，比如微信聊天、笔记软件，还是得给方案的，否则即使能从云端重新拉，用户体验也太差”。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c5d6f713d.png"></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-297bfa0e4b.png"></p>
-<p>- 微博&nbsp;<strong>Flanker_017</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1905352345%2FO9Ils5e6S" target="_blank">中国是人工智能大模型开源最大的受益者</a></h4>
-<p>中国不仅成了人工智能大模型开源最大的受益者，甚至是唯一受益的国家。一旦美国公司公开源Chat GPT和Grok背后的软件，中国几十家公司马上一涌而上，纷纷拷贝后推出自己的模型。其他囯家如日本和德国，不会有公司这么做，因为可以直接使用美国的大模型，即使做了，用户也会特别少，肯定是亏本的买卖。</p>
-<p>- 微博&nbsp;<strong>猴年马月的中国</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5648162302%2FO9DEXiyvy" target="_blank">通过游戏化的方式来学习编码是成为顶尖程序员的最佳方式</a></h4>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-69d630c10d.png"></p>
-<div>
-<p>- 微博 <strong>黄建同学</strong></p>
-</div>
-</div>
-<h3><span><span>媒体观察</span></span></h3>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2734113620420865" target="_blank">首个AI程序员造假被抓，Devin再次“震撼”硅谷，扒皮视频文字详解附上</a></h4>
-<p>不久之前震撼硅谷的Devin，再度震撼硅谷——但这次是被打假。事情是这样的：油管程序员博主Internet of Bugs（以下简称光头哥）对Devin的视频进行了逐帧分析，逐一举证说明了Devin并不如演示中那般神奇。</p>
-<p>其它“罪证”，包括但不限于：</p>
-<ul>
-<li>号称能解决任何Upwork任务，但演示中解决的问题并不是prompt要解决的那一个，做无用功；</li>
-<li>看起来在修复bug，实际上修复的bug人类程序员根本就不会犯；</li>
-<li>没有意识到简单两步就能解决问题，花里胡哨一顿操作，其实是自己把任务搞复杂了；</li>
-<li>修改代码的水平一言难尽。</li>
-</ul>
-<p>此外，光头哥花了半个多小时，把Devin演示视频中的upwork任务完成了一遍——而Devin完成任务可能用时6个多小时。</p>
-<p>- <strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Ymo4GO7AA9" target="_blank">2024年生成式人工智能进化成什么样了？</a></h4>
-<p>AIGC交互界面的用户友好性、大模型开源及API（应用程序编程接口）价格的降低、插件服务带来的应用生态繁荣等，都使得AI技术或将成为像水、电、网络一样的基础设施，渗透并改变千行万业。</p>
-<p>根据爱设计等多平台联合发布的《2024年AIGC发展趋势报告》，在医疗领域，AI的应用已能够精准辅助诊断，例如Google Health的深度学习模型，在乳腺癌筛查中的准确率已超越人类专家。利用强大的图像识别和模式分析能力，这些模型可以从成千上万的X光片中识别出极易被人眼忽视的细微变化。</p>
-<p>- <strong>北京青年报</strong></p>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnbzH2bGeU" target="_blank">挑战英伟达，谁最可能成为颠覆者？</a></h4>
-<div>
-<p>在人工智能浪潮里掘金的“铲子”成了硬通货。GPU（图形处理器）是发展人工智能的关键芯片， 科技巨头英伟达凭借其GPU在人工智能芯片市场一家独大，占据约80%的份额。</p>
-<p>AI芯片价格高昂，依然稀缺，Meta、谷歌、超威半导体（AMD）、英特尔、微软等科技巨头纷纷挑战英伟达的市场统治，推出对标产品。芯片大战愈演愈烈，谁是潜在颠覆者？</p>
-<p>-&nbsp; <strong>澎湃新闻</strong></p>
-</div>
-<div>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294057" target="_blank">还在卷长文本？谷歌最新论文直接把文本干到…无限长了</a></h4>
-<div>
-<p>当人们还在比拼上下文窗口的时候，谷歌发布了这样一篇论文《Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention》。论文中写到，团队发明了一种新的注意力技术，叫做“无限注意力”（Infini-attention），通过这项技术，能使transformer大模型在有限的计算资源条件下，处理无限长度的输入。</p>
-<p>-&nbsp; <strong>品玩</strong></p>
-</div>
-</div>
-</div>
-</div>
-<hr>
-<h2><span><strong>今日推荐</strong></span></h2>
-<h3><span><strong><span>开源项目</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">lihaoyun6/AirBattery</a></strong></h4>
-<p><img alt="Preview" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c5fbbeeb58.png"></p>
-<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flihaoyun6%2FAirBattery" target="_blank">https://github.com/lihaoyun6/AirBattery</a></u></em></p>
-<p>AirBattery 是一款用来在 Mac 菜单栏或者程序坞（Dock）上显示你的所有苹果设备电量信息的开源工具，只需要这些设备在同一个局域网内即可。</p>
-<p>对于 iPhone 或插卡版 iPad 可以通过蓝牙显示电量，无需局域网。 ​​​</p>
-<h3><span><strong><span>每日一博</span></strong></span></h3>
-<h4><strong><a href="https://my.oschina.net/u/4662964/blog/11050396" target="_blank">C++ 从遗忘到入门</a></strong></h4>
-<p><span>本文主要面向的是曾经学过、了解过 C++ 的同学，旨在帮助这些同学唤醒 C++ 的记忆，提升下自身的技术储备。如果之前完全没接触过 C++，也可以整体了解下这门语言。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5aca4eda39.png"></p>
-<hr>
-<h2><span><strong>事件点评</strong></span></h2>
-<h3><strong><a href="https://www.oschina.net/news/287790/microsoft-openai-dall-e-military-use" target="_blank">微软向美国军方 “推销” DALL-E</a></strong></h3>
-<p><span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftheintercept.com%2F2024%2F04%2F10%2Fmicrosoft-openai-dalle-ai-military-use%2F" target="_blank">The Intercept</a><span>&nbsp;</span>日前公布的文件显示，微软曾于 2023 年 10 月向美国军方推荐，使用&nbsp;OpenAI 开发的图像生成工具 DALL-E&nbsp;来帮助构建执行军事行动的软件。</span></p>
-<p><span>而就在今年 1 月份，OpenAI&nbsp;对其&nbsp;AI 模型使用条款进行一番<a href="https://www.oschina.net/news/275867">大更新</a>：将原本禁止的&nbsp;“军事与战争” 从页面中删除，留下的只有禁止使用 "我们的服务伤害自己或他人"，包括 "开发或使用武器"。</span></p>
-<p><span>微软在 PPT 中重点介绍了 OpenAI 可提供的各种 “常见” 用途，其中就包括了国防。且文件中例举的 “高级计算机视觉训练” 下的一个要点是 “战斗管理系统”：使用 DALL-E 模型创建图像，训练战斗管理系统。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a6b36ba882.webp"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p><span>这一事件引发了关于AI技术军事应用的伦理和道德问题的广泛讨论。微软和 OpenAI 的这一举措可能被看作是AI技术向军事领域的扩展，引发了公众对AI技术在军事应用中可能产生的负面影响的担忧。</span></p>
-<p><span>也凸显了大型科技公司与军事机构之间日益紧密的联系。微软和 OpenAI 的这一合作可能成为其他科技公司与军事机构合作的先例，进一步推动军事机构采用高科技手段。还反映了开源社区对于AI技术应用的监管挑战。</span></p>
-<h3><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h3>
-<p><span>彭博社援引知情人士</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.bloomberg.com%2Fnews%2Farticles%2F2024-04-11%2Fapple-aapl-readies-m4-chip-mac-line-including-new-macbook-air-and-mac-pro" target="_blank">消息称</a><span>，为了刺激低迷的电脑销售，苹果公司计划生产新的 M4 处理器以全面改造其整个 Mac 产品线，从而突出 AI 功能。</span></p>
-<p><span>报道指出，M4 芯片将至少分为三个不同的级别，包括代号为 Donan 的入门级 M4 芯片、中端的 Brava 芯片和性能最高的 Hidra 芯片。这三个版本的芯片都将拥有高于 M3 的 AI 处理能力。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bc2b716213.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>苹果公司的这一决策对 IT 行业和人工智能领域产生了深远的影响。首先，它标志着苹果在 AI 领域的进一步深入，通过推出性能更强大的 M4 芯片，苹果能够提供更先进、更智能的 Mac 产品。这将增强苹果在高端计算市场的竞争力，特别是在需要高性能 AI 计算的场景中。</p>
-<p>其次，这一举措可能对其他 PC 制造商产生压力，迫使他们也加大对 AI 技术的投入，以保持竞争力。随着 AI 在日常计算任务中的重要性日益增加，能够提供强大 AI 支持的产品将更受消费者欢迎。</p>
-<h3><strong><a href="https://www.oschina.net/news/287732/microsoft-testing-app-ads-windows-11s-start-men" target="_blank">微软在 Windows 11 “开始” 菜单中测试应用广告</a></strong></h3>
-<p><span>微软已开始在 Windows 11 开始菜单中测试广告，该公司</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.windows.com%2Fwindows-insider%2F2024%2F04%2F12%2Fannouncing-windows-11-insider-preview-build-22635-3495-beta-channel%2F" target="_blank">表示</a><span>，这项新实验将帮助用户在 Microsoft Store 中找到新的 “出色” 应用程序。目前该试用版已在 Windows 11 Insider Preview Build 22635.3495 的 "一小部分 Insiders" 测试版渠道中推出。</span></p>
-<p><span>这些广告将显示在 “开始” 菜单的 “推荐” 部分、最近添加的应用程序以及经常打开的文件和程序中。</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d40db5587f.png"></p>
-<p><span><strong><span>点评</span></strong></span></p>
-<p>这一事件对 IT 行业和用户体验产生了影响。首先，它代表了微软在 Windows 11 中的新尝试，旨在提升用户体验和增加 Microsoft Store 的可见度。然而，这也可能引起一些用户的不满，因为广告可能会干扰他们的日常使用。</p>
-<p>其次，这一事件反映了微软在盈利模式上的探索。通过在“开始”菜单中展示应用广告，微软可能会增加其收入来源，同时推广 Microsoft Store 中的应用。</p>
-<hr>
-<h2><span><strong>开源之声</strong></span></h2>
-<h3><span><strong><span>媒体观点</span></strong></span></h3>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.163.com%2Fdy%2Farticle%2FIVQ9E5Q90511CPMT.html" target="_blank">开源GPU，能否弯道超车英伟达？</a></strong></h4>
-</div>
-<p>说到开源，近年来，RISC-V开源指令集架构在CPU领域已经取得了巨大的成功，其开放、灵活、可定制的特点吸引了越来越多的关注和应用。如今，RISC-V也开始在GPU领域崭露头角，一些项目和产品已经取得了初步的成果。RISC-V能否在GPU领域复制CPU领域的成功？</p>
-<p>面对英伟达在GPU领域的垄断地位，开源能否成为破局之道？</p>
-<p><span>- <strong>半导体行业观察</strong></span></p>
-<div>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294031" target="_blank">面壁不只要做中国Mistral，还要超过它</a></strong></h4>
-</div>
-<p><span>时隔七十多天，面壁在发布了MiniCPM-2B后又带来四个特性鲜明的模型，同时它还官宣了数亿元的新融资。</span></p>
-<p><span>此次融资由春华创投、华为哈勃领投，北京市人工智能产业投资基金等跟投，知乎作为战略股东持续跟投支持。这是其成立后最大的一笔融资。这家常被拿来对标Mistral的公司，并不满足于只做一个“中国Mistral”，弹药充足后，它要把“打精锐”这件事进行到底了。</span></p>
-<p><span>-<span>&nbsp;</span></span><strong>品玩</strong></p>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8YnqPgyeBQd" target="_blank">北大字节开辟图像生成新范式！超越Sora核心组件DiT，不再预测下一个token</a></strong></h4>
-<p><span>北大和字节联手搞了个大的：</span></p>
-<p><span>提出图像生成新范式，从预测下一个token变成预测下一级分辨率，效果超越Sora核心组件Diffusion Transformer（DiT）。并且代码开源，短短几天已经揽下1.3k标星，登上GitHub趋势榜。</span></p>
-<p><span>实验数据上，这个名为VAR（Visual Autoregressive Modeling）的新方法不仅图像生成质量超过DiT等传统SOTA，推理速度也提高了20+倍。</span></p>
-<p>-<span>&nbsp;</span><strong>量子位</strong></p>
-<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cet.com.cn%2Fxwsd%2F10038771.shtml" target="_blank">智谱AI张鹏亮相央视《对话》解读AI趋势：AGI仍有很多问题值得探索，尚未看到天花板</a></h4>
-<div>
-<p><span>提及目前人工智能的技术革新，张鹏将其类比做“蒸汽机改良阶段”，他认为，业界已经基本一致地接受大模型是通向AGI(通用人工智能)的一个有效路径，但仍然有很多问题值得去探索。如果将目标定在AGI，其中每一个问题的突破都有可能带来飞跃式的发展，目前尚未看到天花板。</span></p>
-<p><span>张鹏同时认为，有了大模型之后，未来人与机器之间的沟通，会越来越贴近自然语言的方式，这是人类所希望且一定会往这个方向发展的。但未来对程序员的定义会有变化，未来传统程序员会越来越少，而建立在机器和人之间新的沟通方式上的，所谓“新式程序员”可能会需要更多。他表示：大家讨论问题的时候很容易忽略另外一个因素——时间，容易高估技术的短期价值，低估技术的长期价值。</span></p>
-</div>
-<p><span>-<span>&nbsp;</span></span><strong>中国经济新闻网</strong></p>
-<h3><span><strong><span>用户观点</span></strong></span></h3>
-<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FIMazIQV1rssXAKAS-IDs2Q" target="_blank">「纯血」鸿蒙真机界面曝光</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：Android Linux kernel 套nodejs</span>
-<ul>
-<li><span>观点 2：不管有没有套壳，如果它能把Windows市场啃下来一大半，我都要给它点赞</span></li>
-</ul> </li>
-<li><span>观点 3：这个“纯血”也太中二了吧，底层不是安卓？不是 linux？重新写了指令集，重新定义了操作系统？</span>
-<ul>
-<li><span>观点 4：重写了 5 进制<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">(西方 2 进制，苏联 3 进制，血统都不纯了)</span></li>
-<li><span>观点 5：底层早就不是安卓了，至于 Linux，大部分系统的底层都是类 linux 或者 unix系统，果按照你这个说法，那安卓和 iOS 都不是纯血的了<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">纯血鸿蒙的定义一直都是剥离安卓底层，而不是 linux 底层</span></li>
-</ul> </li>
-<li><span>观点 6：截图里的图标和小组件的圆角看起来好粗糙</span></li>
-<li><span>观点 7：华为的ICON还是那股味道，浓重的重机械风。next能不能成真的不好说。如果是十年前，应该会凉掉。2024年来说，现在多端开发成熟，华为只要不搞得太复杂，平移成本不大开发者都应该乐于入坑的。（考虑备案的事情，说明你的项目不赚钱）</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287629" target="_blank">腾讯云 4 月 8 日故障复盘及情况说明</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：就是自己做技术研讨分析，自我吸取经验，然后没了？！</span></li>
-<li><span>观点 2：多出现故障，不然很多上面的人以为技术人员都不重要了</span></li>
-<li><span>观点 3：赔偿呢？？？对用户的赔偿？？</span></li>
-<li><span>观点 4：看来，阿里云出问题，其他云也只是围观吃瓜而已，丝毫没当成教训，下次还会有京东云、百度云、华为云故障......</span></li>
-<li><span>观点 5：大公司和小公司的区别就是大草台班子和小草台班子的区别......</span></li>
-<li><span>观点 6：灰度发布这么大的企业不应该有的呢？搞笑吧</span></li>
-</ul>
-</blockquote>
-<h4><strong><a href="https://www.oschina.net/news/287615/apple-ai-m4-chips-macs-line" target="_blank">彭博社：苹果计划以 AI 为重点的 M4 芯片改造 Mac 产品线</a></strong></h4>
-<blockquote>
-<ul>
-<li><span>观点 1：苹果的价格，确实有点高攀不起</span></li>
-<li><span>观点 2：内存 硬盘卖的太贵了</span></li>
-<li><span>观点 3：磁盘大部分情况512GB够用，但是内存都21世纪的第24个年头了，内存8G？还没手机内存大。😀</span></li>
-</ul>
-</blockquote>
-<h2><span><strong>程序员梗图</strong></span></h2>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-abca418d02.png"></p>
-<p><em><strong>---END---</strong></em></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2dcbe2dd68.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2dcbe2dd68.png" medium="image"/>
-    <pubDate>Mon, 15 Apr 2024 18:26:10 +0800</pubDate>
   </item></channel>
 </rss>
