@@ -29,5 +29,2075 @@
       <itunes:name><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:name>
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
-</channel>
+<item>
+    <title><![CDATA[What's new in PikiwiDB(Pika) v3.5.4]]></title>
+    <link>https://my.oschina.net/dubbogo/blog/11142279</link>
+    <itunes:title><![CDATA[What's new in PikiwiDB(Pika) v3.5.4]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>PikiwiDB(Pika) 社区非常荣幸地宣布，我们的最新 v3.5.4 正式生产可用版本现已发布。</p>
+<p>v3.5.4 解决了历史遗留的 bug，对 PikiwiDB(Pika) 的一些遗留 bug 进行修复和优化，旨在打造出一个高稳定性的版本。本次的重点优化主要包括，PikiwiDB(Pika)支持动态调整限速参数、增强 PikiwiDB(Pika) 的客观测性指标、 磁盘 IO 限速支持读限速及写限速等。</p>
+<h1>1 新特性</h1>
+<h2>Pika 支持动态调整全量同步限速参数 rsync-timeout-ms 和 throttle-bytes-per-second</h2>
+<p>自 v3.5.0 版本开始，PikiwiDB(Pika) 服务摒弃了通过子进程内使用原来 rsync 工具进行主从全量同步的逻辑，在 PikiwiDB(Pika) 内部以线程方式【称作 rsync 线程】自行实现了新的全量同步逻辑，避免因为外部进程不可控引起的主从同步问题，根据 360 内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 主从进行全量同步的过程中，如果遇到某些不利的外部因素，如网络波动，硬件故障（如网卡降速导致的主从网卡速率不匹配）等，可能引起 rsync 线程请求持续超时（PikiwiDB(Pika) 内置 rsync 模块用于全量同步阶段的文件传输），且超时重试所发出的包可能引发更大的网络信道负担。此时对于运维人员来说，如果能动态调整 rsync 请求的超时时间和 rsync 传输的速率上限，不仅意味着对全量同步阶段控制粒度的进一步细化，更大大降低了在该场景下的运维处置难度。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<h2>将 info key space 1 的结果输出至 info all 并展示到监控界面中</h2>
+<p>PikiwiDB(Pika) 是通过 Info 命令采集数据至 Pika-Exporter，展示到 Grafana 界面上的，目前界面上部分数据是没有展示的，如 keys 的数量，本次将执行 info keyspace 的结果展示到监控界面，用户可以通过这个指标来查看存储的量级等。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2603" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2603</a></p>
+<h2>Pika 磁盘IO 限速参数支持 OnlyRead、OnlyWrite、ReadAndWrite，默认支持OnlyWrite</h2>
+<p>自 3.5.0 版本开始，PikiwiDB(Pika) 服务可以通过调整 rate-limit 参数实现写限速，防止在网卡质量不高的情况下磁盘 IO 过重导致服务不可用，或者 binlog 阻塞的情况发生。360内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 实例的网卡较差情况下，也需要对读实例进行限速，本次修改支持读、写限速，默认是写限速，调整 config 配置中的 rate-limiter-mode 可以设置为读限速，或者同时读写限速。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2599" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2599</a></p>
+<h1>2 改进列表</h1>
+<p>slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>INFO 命令耗时优化，降低查磁盘频率，避免因为数据采集调用 info 命令时查磁盘太过频繁导致服务性能下降。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2554" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2554</a></p>
+<p>对五种基本数据类型命令增加 Redis tcl 测试。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2527" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2527</a></p>
+<h1>3 Bug 修复</h1>
+<p>修复使用 Pika Exporter 时可能会出现 slots 分配不均衡的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2651" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2651</a></p>
+<p>修复 Codis dashboard 不能正确更新 master 实例状态的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2650" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2650</a></p>
+<p>修复 Redis 事务 binlog 解析失败导致的主从同步异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2642" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2642</a></p>
+<p>修复 Pika Expoter 启动时不带参数导致启动失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2640" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2640</a></p>
+<p>修复使用 Pika Operater 拉起集群 Codis-proxy panic 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<p>修复 CI 编译出的二进制进行自动化测试时 cp 命令失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2614" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2614</a></p>
+<p>修复变量未初始化导致 cache 启动失败的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2613" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2613</a></p>
+<p>修复 userpass 和 userblacklist 动态修改参数功能异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2600" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2600</a></p>
+<p>修复 scard sscan 结果不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2596" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2596</a></p>
+<p>修复当 max-rsync-parallel-num 大于4，slave 会在主从复制时 coredump 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2595" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2595</a></p>
+<p>调整不常用的线程池线程数，避免因为空跑导致性能损耗。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2590" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2590</a></p>
+<p>修复 Pika 事务边缘测试 case 不通过的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2586" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2586</a></p>
+<p>将 cache-model 修改成 cache-mode。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2585" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2585</a></p>
+<p>修复使用 info keyspace 后，info all 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2584" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2584</a></p>
+<p>修复因修改 zsetscorekey comparator impl 字典序比较熟顺序，导致 353 352极端场景不兼容的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2583" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2583</a></p>
+<p>修复 compact 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2581" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2581</a></p>
+<p>Slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>更新 Pika Operater 使用的 pika 版本。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2572" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2572</a></p>
+<p>修复 config rewrite 后 blockcache 数值异常的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2561" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2561</a></p>
+<p>修复 slotmigrate 动态修复后值错误的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2548" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2548</a></p>
+<p>修复 spop 可能会出现主从数据不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2541" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2541</a></p>
+<p>修复 CloseFd(it-&gt;second[i]) 出现越界的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2539" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2539</a></p>
+<p>修复 Flushall 和 FlushDB 死锁的隐患，并删除 FlushSubDB 接口。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2533" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2533</a></p>
+<p>增加参数控制是否清理 tcl 测试后产生的数据文件，防止废弃数据占据磁盘。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2507" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2507</a></p>
+<h1>4 社区</h1>
+<p>PikiwiDB (Pika) 开源社区热烈欢迎您的参与和支持。如果您有任何问题、意见或建议，可通过以下渠道联系我们： <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c94d29c96.png"> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c8ce37a7f9.jpg"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>PikiwiDB(Pika) 社区非常荣幸地宣布，我们的最新 v3.5.4 正式生产可用版本现已发布。</p>
+<p>v3.5.4 解决了历史遗留的 bug，对 PikiwiDB(Pika) 的一些遗留 bug 进行修复和优化，旨在打造出一个高稳定性的版本。本次的重点优化主要包括，PikiwiDB(Pika)支持动态调整限速参数、增强 PikiwiDB(Pika) 的客观测性指标、 磁盘 IO 限速支持读限速及写限速等。</p>
+<h1>1 新特性</h1>
+<h2>Pika 支持动态调整全量同步限速参数 rsync-timeout-ms 和 throttle-bytes-per-second</h2>
+<p>自 v3.5.0 版本开始，PikiwiDB(Pika) 服务摒弃了通过子进程内使用原来 rsync 工具进行主从全量同步的逻辑，在 PikiwiDB(Pika) 内部以线程方式【称作 rsync 线程】自行实现了新的全量同步逻辑，避免因为外部进程不可控引起的主从同步问题，根据 360 内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 主从进行全量同步的过程中，如果遇到某些不利的外部因素，如网络波动，硬件故障（如网卡降速导致的主从网卡速率不匹配）等，可能引起 rsync 线程请求持续超时（PikiwiDB(Pika) 内置 rsync 模块用于全量同步阶段的文件传输），且超时重试所发出的包可能引发更大的网络信道负担。此时对于运维人员来说，如果能动态调整 rsync 请求的超时时间和 rsync 传输的速率上限，不仅意味着对全量同步阶段控制粒度的进一步细化，更大大降低了在该场景下的运维处置难度。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<h2>将 info key space 1 的结果输出至 info all 并展示到监控界面中</h2>
+<p>PikiwiDB(Pika) 是通过 Info 命令采集数据至 Pika-Exporter，展示到 Grafana 界面上的，目前界面上部分数据是没有展示的，如 keys 的数量，本次将执行 info keyspace 的结果展示到监控界面，用户可以通过这个指标来查看存储的量级等。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2603" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2603</a></p>
+<h2>Pika 磁盘IO 限速参数支持 OnlyRead、OnlyWrite、ReadAndWrite，默认支持OnlyWrite</h2>
+<p>自 3.5.0 版本开始，PikiwiDB(Pika) 服务可以通过调整 rate-limit 参数实现写限速，防止在网卡质量不高的情况下磁盘 IO 过重导致服务不可用，或者 binlog 阻塞的情况发生。360内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 实例的网卡较差情况下，也需要对读实例进行限速，本次修改支持读、写限速，默认是写限速，调整 config 配置中的 rate-limiter-mode 可以设置为读限速，或者同时读写限速。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2599" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2599</a></p>
+<h1>2 改进列表</h1>
+<p>slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>INFO 命令耗时优化，降低查磁盘频率，避免因为数据采集调用 info 命令时查磁盘太过频繁导致服务性能下降。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2554" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2554</a></p>
+<p>对五种基本数据类型命令增加 Redis tcl 测试。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2527" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2527</a></p>
+<h1>3 Bug 修复</h1>
+<p>修复使用 Pika Exporter 时可能会出现 slots 分配不均衡的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2651" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2651</a></p>
+<p>修复 Codis dashboard 不能正确更新 master 实例状态的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2650" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2650</a></p>
+<p>修复 Redis 事务 binlog 解析失败导致的主从同步异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2642" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2642</a></p>
+<p>修复 Pika Expoter 启动时不带参数导致启动失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2640" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2640</a></p>
+<p>修复使用 Pika Operater 拉起集群 Codis-proxy panic 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<p>修复 CI 编译出的二进制进行自动化测试时 cp 命令失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2614" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2614</a></p>
+<p>修复变量未初始化导致 cache 启动失败的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2613" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2613</a></p>
+<p>修复 userpass 和 userblacklist 动态修改参数功能异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2600" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2600</a></p>
+<p>修复 scard sscan 结果不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2596" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2596</a></p>
+<p>修复当 max-rsync-parallel-num 大于4，slave 会在主从复制时 coredump 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2595" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2595</a></p>
+<p>调整不常用的线程池线程数，避免因为空跑导致性能损耗。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2590" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2590</a></p>
+<p>修复 Pika 事务边缘测试 case 不通过的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2586" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2586</a></p>
+<p>将 cache-model 修改成 cache-mode。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2585" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2585</a></p>
+<p>修复使用 info keyspace 后，info all 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2584" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2584</a></p>
+<p>修复因修改 zsetscorekey comparator impl 字典序比较熟顺序，导致 353 352极端场景不兼容的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2583" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2583</a></p>
+<p>修复 compact 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2581" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2581</a></p>
+<p>Slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>更新 Pika Operater 使用的 pika 版本。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2572" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2572</a></p>
+<p>修复 config rewrite 后 blockcache 数值异常的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2561" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2561</a></p>
+<p>修复 slotmigrate 动态修复后值错误的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2548" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2548</a></p>
+<p>修复 spop 可能会出现主从数据不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2541" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2541</a></p>
+<p>修复 CloseFd(it-&gt;second[i]) 出现越界的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2539" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2539</a></p>
+<p>修复 Flushall 和 FlushDB 死锁的隐患，并删除 FlushSubDB 接口。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2533" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2533</a></p>
+<p>增加参数控制是否清理 tcl 测试后产生的数据文件，防止废弃数据占据磁盘。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2507" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2507</a></p>
+<h1>4 社区</h1>
+<p>PikiwiDB (Pika) 开源社区热烈欢迎您的参与和支持。如果您有任何问题、意见或建议，可通过以下渠道联系我们： <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c94d29c96.png"> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c8ce37a7f9.jpg"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>PikiwiDB(Pika) 社区非常荣幸地宣布，我们的最新 v3.5.4 正式生产可用版本现已发布。</p>
+<p>v3.5.4 解决了历史遗留的 bug，对 PikiwiDB(Pika) 的一些遗留 bug 进行修复和优化，旨在打造出一个高稳定性的版本。本次的重点优化主要包括，PikiwiDB(Pika)支持动态调整限速参数、增强 PikiwiDB(Pika) 的客观测性指标、 磁盘 IO 限速支持读限速及写限速等。</p>
+<h1>1 新特性</h1>
+<h2>Pika 支持动态调整全量同步限速参数 rsync-timeout-ms 和 throttle-bytes-per-second</h2>
+<p>自 v3.5.0 版本开始，PikiwiDB(Pika) 服务摒弃了通过子进程内使用原来 rsync 工具进行主从全量同步的逻辑，在 PikiwiDB(Pika) 内部以线程方式【称作 rsync 线程】自行实现了新的全量同步逻辑，避免因为外部进程不可控引起的主从同步问题，根据 360 内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 主从进行全量同步的过程中，如果遇到某些不利的外部因素，如网络波动，硬件故障（如网卡降速导致的主从网卡速率不匹配）等，可能引起 rsync 线程请求持续超时（PikiwiDB(Pika) 内置 rsync 模块用于全量同步阶段的文件传输），且超时重试所发出的包可能引发更大的网络信道负担。此时对于运维人员来说，如果能动态调整 rsync 请求的超时时间和 rsync 传输的速率上限，不仅意味着对全量同步阶段控制粒度的进一步细化，更大大降低了在该场景下的运维处置难度。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<h2>将 info key space 1 的结果输出至 info all 并展示到监控界面中</h2>
+<p>PikiwiDB(Pika) 是通过 Info 命令采集数据至 Pika-Exporter，展示到 Grafana 界面上的，目前界面上部分数据是没有展示的，如 keys 的数量，本次将执行 info keyspace 的结果展示到监控界面，用户可以通过这个指标来查看存储的量级等。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2603" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2603</a></p>
+<h2>Pika 磁盘IO 限速参数支持 OnlyRead、OnlyWrite、ReadAndWrite，默认支持OnlyWrite</h2>
+<p>自 3.5.0 版本开始，PikiwiDB(Pika) 服务可以通过调整 rate-limit 参数实现写限速，防止在网卡质量不高的情况下磁盘 IO 过重导致服务不可用，或者 binlog 阻塞的情况发生。360内部 Pika 线上大规模集群运维的经验，在 PikiwiDB(Pika) 实例的网卡较差情况下，也需要对读实例进行限速，本次修改支持读、写限速，默认是写限速，调整 config 配置中的 rate-limiter-mode 可以设置为读限速，或者同时读写限速。</p>
+<p>关键PR：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2599" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2599</a></p>
+<h1>2 改进列表</h1>
+<p>slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>INFO 命令耗时优化，降低查磁盘频率，避免因为数据采集调用 info 命令时查磁盘太过频繁导致服务性能下降。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2554" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2554</a></p>
+<p>对五种基本数据类型命令增加 Redis tcl 测试。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2527" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2527</a></p>
+<h1>3 Bug 修复</h1>
+<p>修复使用 Pika Exporter 时可能会出现 slots 分配不均衡的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2651" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2651</a></p>
+<p>修复 Codis dashboard 不能正确更新 master 实例状态的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2650" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2650</a></p>
+<p>修复 Redis 事务 binlog 解析失败导致的主从同步异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2642" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2642</a></p>
+<p>修复 Pika Expoter 启动时不带参数导致启动失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2640" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2640</a></p>
+<p>修复使用 Pika Operater 拉起集群 Codis-proxy panic 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2633" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2633</a></p>
+<p>修复 CI 编译出的二进制进行自动化测试时 cp 命令失败问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2614" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2614</a></p>
+<p>修复变量未初始化导致 cache 启动失败的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2613" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2613</a></p>
+<p>修复 userpass 和 userblacklist 动态修改参数功能异常问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2600" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2600</a></p>
+<p>修复 scard sscan 结果不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2596" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2596</a></p>
+<p>修复当 max-rsync-parallel-num 大于4，slave 会在主从复制时 coredump 的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2595" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2595</a></p>
+<p>调整不常用的线程池线程数，避免因为空跑导致性能损耗。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2590" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2590</a></p>
+<p>修复 Pika 事务边缘测试 case 不通过的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2586" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2586</a></p>
+<p>将 cache-model 修改成 cache-mode。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2585" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2585</a></p>
+<p>修复使用 info keyspace 后，info all 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2584" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2584</a></p>
+<p>修复因修改 zsetscorekey comparator impl 字典序比较熟顺序，导致 353 352极端场景不兼容的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2583" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2583</a></p>
+<p>修复 compact 死锁的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2581" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2581</a></p>
+<p>Slotmigrate 添加 go test。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2576" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2576</a></p>
+<p>更新 Pika Operater 使用的 pika 版本。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2572" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2572</a></p>
+<p>修复 config rewrite 后 blockcache 数值异常的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2561" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2561</a></p>
+<p>修复 slotmigrate 动态修复后值错误的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2548" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2548</a></p>
+<p>修复 spop 可能会出现主从数据不一致的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2541" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2541</a></p>
+<p>修复 CloseFd(it-&gt;second[i]) 出现越界的问题。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2539" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2539</a></p>
+<p>修复 Flushall 和 FlushDB 死锁的隐患，并删除 FlushSubDB 接口。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2533" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2533</a></p>
+<p>增加参数控制是否清理 tcl 测试后产生的数据文件，防止废弃数据占据磁盘。</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FOpenAtomFoundation%2Fpika%2Fpull%2F2507" target="_blank">https://github.com/OpenAtomFoundation/pika/pull/2507</a></p>
+<h1>4 社区</h1>
+<p>PikiwiDB (Pika) 开源社区热烈欢迎您的参与和支持。如果您有任何问题、意见或建议，可通过以下渠道联系我们： <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c94d29c96.png"> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c8ce37a7f9.jpg"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c94d29c96.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3c94d29c96.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 18:33:48 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报 | 树莓派冲刺IPO；OSI即将给出开源AI的定义；GPT-4o让OpenAI掌门人爱不释手；腾讯AI靠开源追进度？]]></title>
+    <link>https://www.oschina.net/news/292774</link>
+    <itunes:title><![CDATA[开源日报 | 树莓派冲刺IPO；OSI即将给出开源AI的定义；GPT-4o让OpenAI掌门人爱不释手；腾讯AI靠开源追进度？]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.5.16</strong></span></h3>
+<h2><span>今日要点</span></h2>
+<h3><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="news">OSI 即将给出开源 AI 的定义</a></h3>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<h3><a href="https://www.oschina.net/news/292675/java-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a></h3>
+<p><span>Oracle 发布了<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.oracle.com%2Fjava%2Fpost%2Fjava-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a>，再次确认将对 Java/JDK 11 的支持延长至 2032 年 1 月，并免除 Java 11 支持的延期支持费用。此延期为依赖 Oracle Java 11 的 Oracle 客户提供了至少八年的支持和更新。</span></p>
+<p><span>同时，在 Solaris 操作系统上的 Java SE 8 和 Java SE 11 支持分别延期至 2030 年 12 月和 2032 年 1 月。意味着 Solaris 上的 Java 支持相较 2019 年宣布的日期又延长了六年。此外，Oracle 计划将来在 Oracle Solaris / SPARC 服务器上支持 WebLogic 14.1.2。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3bd772fdbc.png"></p>
+<h3><a href="https://www.oschina.net/news/292682/flutter-3-22-dart-3-4" target="_blank">Flutter 3.22 和 Dart 3.4 发布</a></h3>
+<p><span>Flutter 3.22 和 Dart 3.4 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2Fflutter%2Fio24-5e211f708a37" target="_blank">发布</a>，提供了一些性能改进和特定于平台的改进。</span></p>
+<p><span>包括改进的 Impeller 渲染引擎、更流畅的视觉效果和更低的 iOS CPU 占用率、通过 Android 的预测性 back 手势增强的平台导航功能、通过 Google Mobile Ads SDK 扩展的盈利能力，以及 DevTools 中新的强大的 deep link validator。</span></p>
+<h3><a href="https://www.oschina.net/news/292611/deepin-v23-rc" target="_blank">deepin V23 RC</a></h3>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a2fed0add1.jpg"></p>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5493934570%2FOewnY0XOH" target="_blank">在北京微软工作的，应该是不想去美国的</a></h4>
+<p>1. 昨传言微软让北京AI团队的人选，是不是去美国，去可以带家属，帮搞定签证。后来微软又说传闻夸大了，是轮岗，不影响国内运营。<br> 2. 这事应该不是瞎传，很多人收到邮件了，不然也不会有新闻出来。细节有些模糊，所以微软说夸大。但可以肯定，一些核心的AI研究小组肯定要动了，去美国、去爱尔兰，不会留在中国了。美国那边大气氛就这样，核心的AI研发不会放在中国了，微软会有压力。<br> 3. 微软在中国公关搞得不错，主观上应该不想和中国脱购。但是美国现在气氛是，抓住人工智能当“救命稻草”，指望有大突破领先中国，甚至是唯一希望了。一头是自己研发，另外一头就要防范中国跟随性研发，想了很多坏主意，GPU芯片不让卖。甚至都说不搞开源了，怕中国用开源的大模型搞研发。<br> 4. 在北京微软工作的中国员工，应该是不想去美国。在中国拿很好的工资，生活成本低得多，是不错的工作。跑美国去，即使收入上升，现在大家也知道了，很不方便，花费高得多，一堆生活要安排。跑爱尔兰之类的地方，生活成本都暴涨。可以肯定实际收入会大幅下降，能存的钱少多了。但是不去吧，又可能要找工作，一些人肯定在烦。<br> 5. 和以前显著的不同是，现在大家觉得在中国，要是有收入不错又稳定的工作，生活是非常好的。感觉糟糕的，主要是没找到好工作的、工作不稳定的。<br> 6. 微软要把一些好工作，从中国搬去美国、欧洲。这是大形势，美国政客闹腾的。中国的发展任务之一，就是要创造更多的研发好工作，让人才可以留下来，顺心地生活、研发。现在生活条件真的不错了，房价都降了好多。企业、政府、社会，增加研发投入，让搞研究的人安心生活、努力突破。趋势是不错的，美国人下狠手，中国不少行业明显增加了研发投入。</p>
+<p>- 微博 <strong>风云学会陈经</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></h4>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+<p>- 微博&nbsp;<strong>周鸿祎</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5714719345%2FOewcdy7Li" target="_blank">不懂就问，你们觉得哪款AI大模型更好用？</a></h4>
+<p>但要我说，你降价还不如把大模型做得更好，消费者用AI大模型看重的是好用、响应速度快、分发渠道更广，价格其实是次要的。我个人觉得目前最好用的肯定是百度的文心一言，毕竟在应用和智能体的分发上确实做的要比豆包好N倍，而且本身也是最大的AI应用场景之一，B端企业正向反馈更多，分发量已达日均数百万次。</p>
+<p>况且文心大模型日处理Tokens文本已经达到2490亿，两者相差1290亿，在一至四月里，百度大模型中标数量和金额也是高居首位，中标项目数量多、覆盖行业多、中标金额高，这足以看到B端用户确实更倾向前者；虽说豆包和文心都是用的公有云+闭源技术路线，但百度李彦宏之前也说过，在大模型场景下，开源反而是最贵的，所以开源模型也必定会越来越落后。</p>
+</div>
+<p>- 微博 <strong>Oneline科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5722964389%2FOewNznNwZ" target="_blank">开源免费的网页资源嗅探插件 cat-catch(猫抓)</a></h4>
+<p>它能够帮你筛选列出当前页面的资源，同时提供嗅探、缓存捕捉、视频录制等各种工具帮助抓取资源。并且可以在设置内添加想要抓取的资源类型，包括视频、图片等资源。支持 Chrome、Edge 以及 Firefox 浏览器安装使用。</p>
+<p>GitHub：github.com/xifangczy/cat-catch</p>
+<p>- 微博 <strong>GitHubDaily</strong></p>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294933" target="_blank">腾讯研发了快一年的混元文生图模型，说开源就开源了？</a></h4>
+<p>腾讯AI靠开源追进度？</p>
+<p>文生图模型成熟之后，有多少人苦练Midjourney咒语，还是调不出可用的图像？</p>
+<p>设计界的专业名词、不太准确的英文翻译、理解不了的中国古代建筑充斥在目前文生图工具中。</p>
+<p>本质上是源于国内很多团队基于翻译+英文开源Stable Diffusion模型，或者基于少量的中文数据在一些特殊的场景做了finetune，而这两种方式都存在对中文理解不足和不通用的问题。</p>
+<p>针对这些痛点，腾讯带着中文原生的文生图大模型来了。5月14日，腾讯宣布开源混元文生图大模型，是国内首个中文原生的DiT架构模型，具备中英文双语理解及生成能力，在古诗词、俚语、传统建筑、中华美食等中国元素的生成上表现出色。</p>
+<p><span>- <strong>品玩</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778108489745537" target="_blank">树莓派冲刺IPO，估值35亿但年营收19亿，CEO：做一家有趣又赚钱的公司</a></h4>
+<p>消息人士透露，6月初树莓派可能于伦敦完成上市，预计估值超过5亿美元（折合人民币约36亿）。</p>
+<p>目前树莓派官网已经公开一系列IPO相关文件。从去年年底开始，就有树莓派要IPO的消息传出，加之Arm牵头完成了对树莓派的最新一轮融资。其估值快速从3.76亿美元飙升至如今的5.6亿美元。</p>
+<p>《金融时报》最新分析认为，在IPO后其估值可能接近6.3亿英镑（折合美元7.99亿）。</p>
+<p><strong>- 量子位</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778248283866249" target="_blank">OpenAI掌门人最新专访：GPT-4o让我爱不释手，下代大模型可能不叫GPT-5</a></h4>
+<p>OpenAI近日发布了其最新的大语言模型GPT-4o，再次引领了人工智能领域的又一创新浪潮。在此重要时刻，该公司首席执行官山姆·奥特曼（Sam Altman）接受了知名播客节目主持人罗根·巴特莱（Logan Bartlett）的专访，向全球观众揭开了发布会背后的精彩故事，并提供了他对人工智能未来的预测。</p>
+<p>在这次专访中，奥特曼不仅详尽地阐述了OpenAI的宏大蓝图，还探讨了实现AGI（通用人工智能）的时间表，以及人形机器人可能带来的深远社会影响。与此同时，奥特曼也对人工智能个人助理的前景表达了自己的兴奋与忧虑，并强调了当今人工智能领域最大的机遇和风险等。</p>
+<p><strong>- 腾讯科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799125283789373832%26wfr%3Dspider%26for%3Dpc" target="_blank">国外资深科技记者：Google I/O大会不接地气 根本听不懂</a></h4>
+<p>谷歌和所有科技公司一样，需要我们这些消费者来理解这些东西。如果他们希望我们对它们的产品感到兴奋，就需要让我们知道，这些AI工具是什么，它们具有多大的变革性。如果我们对它们感到兴奋，可能就会购买它们。例如，也许我们会购买下一代Pixel手机，就是因为Gemini，及其引人注目的视频提问服务。</p>
+<p>但是，一场持续两个小时的演讲，让经验丰富的科技记者也摸不着头脑，难以理解，这不是解决问题的方法。谷歌花了很长时间谈论它的AI在总结事物方面有多么优秀，也许是时候让谷歌自己来使用这些工具了。</p>
+<p><strong>- 新浪科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799161616824331971%26wfr%3Dspider%26for%3Dpc" target="_blank">美国立法者寻求320亿美元拨款：让美国人工智能领先于中国</a></h4>
+<p>据路透社报道，包括美国多数党领袖查克·舒默在内的两党参议员周三呼吁国会批准为人工智能研究提供320亿美元资金，以保持美国在这一强大技术方面领先于中国。</p>
+<p>包括共和党人迈克·朗兹（Mike Rounds）、托德·杨（Todd Young）和民主党人马丁·海因里希（Martin Heinrich）在内的参议员宣布了这一目标，作为解决人工智能的前景和危险的立法路线图的一部分。</p>
+<p>舒默周三表示，如果中国要投资 500 亿美元，而我们什么都不投资，他们将不可避免地领先于我们。这就是为什么这些投资如此重要。</p>
+<p>该路线图可以帮助美国解决对中国人工智能进步日益增长的担忧。</p>
+<p><strong>- &nbsp;鞭牛士</strong></p>
+</div>
+</div>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">dwisiswant0/apkleaks</a></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-443448d39e.jpg"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">https://github.com/dwisiswant0/apkleaks</a></u></em></p>
+<p><span>PKLeaks 是一个开源的 apk 文件敏感信息扫描工具，扫描 APK 文件来获取 URI、端点和 secret 信息。</span></p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/6852546/blog/11129786" target="_blank">大模型真要取代程序员了？最危险的岗位是......</a></strong></h4>
+<p><span>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</span></p>
+<p><span>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在 “程序员” 这种职业了，因为只要会说话，人人都会具备程序员的能力。</span></p>
+<p><span>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</span></p>
+<p><span>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</span></p>
+<hr>
+<div>
+<h2><span><strong>事件点评</strong></span></h2>
+</div>
+<h3><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h3>
+<p>反诈任重道远，远控只是他们利用的一个工具而已，即使没有远控，他们也会有其他的方式，然而远控却在某种程度上提高了他们诈骗的效率。</p>
+<p>我们不期望所有厂商像我们一样屏蔽手机被控，因为这种方式太极端，也损害了正常用户的利益，但我希望看到其他厂商能提出自己的解决方案，甚至组织安全联盟，制定出规范的反诈技术标准。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9542dcf4d7.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>这一事件对远程桌面软件行业和网络安全产生了重要影响，突显了远程桌面软件可能被滥用的风险。同时，对远程桌面软件厂商提出了更高的安全要求。为了防止其产品被用于非法活动，厂商需要采取更加严格的安全措施，比如加强用户验证、增加安全警告提示等，以保护用户免受诈骗侵害。</span></p>
+<p><span>这也提醒了用户在使用远程桌面软件时要提高警惕。用户需要了解如何安全使用这类软件，避免在不安全的网络环境下使用，不轻信远程请求，尤其是涉及财务操作的情况。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="_blank">OSI 即将给出开源 AI 的定义</a></strong></h3>
+<p><span>考虑到目前有许多组织都在声称他们的 AI 为 “开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义 “Open Source AI”。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>首先，这一定义的制定将有助于规范和促进开源AI的发展。开源社区在软件领域有着明确的过程和原则来处理错误，但在AI领域，类似的框架和指导原则尚不完善。通过制定开源AI的定义，OSI可以为开发者提供指导和框架，帮助他们在开源AI的开发和使用中做出更好的决策。</span></p>
+<p><span>其次，这一定义的制定也反映了AI技术的复杂性和多维性。AI系统与传统的软件系统相比，具有更多的不透明性和复杂性。如何将开源原则应用于这些“黑箱”式的自动化决策系统，是一个挑战。定义开源AI将有助于解决这些问题，促进AI系统的透明度和可理解性。</span></p>
+<p><span>最后，这一定义的制定还将影响AI的全球治理。目前，AI的全球治理框架和标准尚不完善，开源AI的定义将为这一领域提供重要的参考和指导。这对于保护用户权益、促进AI技术的健康发展具有重要意义。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292724" target="_blank">周鸿祎：GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></strong></h3>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o 又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着 OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-742bc60f76.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<div>
+<p><span>周鸿祎这一观点反映了当前开源与闭源技术竞争的复杂性，以及中国在全球技术竞争中的战略思考。周鸿祎的观点表明，虽然闭源技术在某些方面取得了进展，但开源仍然具有其独特的价值和优势。同时，他也强调了在技术发展中保持开放和多元化的必要性，特别是在大型模型这一快速发展的领域。</span></p>
+<p><span>这一观点对开源社区、技术开发者以及政策制定者都具有启示意义。它提醒我们在追求技术进步的同时，不应忽视开源社区的价值和潜力，以及在技术发展和创新中保持开放和多元化的必要性。</span></p>
+</div>
+<hr>
+<h2><span><strong>开源之声</strong></span></h2>
+<h3><span><strong><span>媒体观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_7096020371_1a6f4ad9301901e4pk.html" target="_blank">微信开始扛起腾讯跑了</a></strong></h4>
+<p><span>毫无疑问，游戏、社交是腾讯商业泵血的两棵大树；原本只有一棵（游戏）是“摇钱树”，如今另一棵（微信）也成了“摇钱树”。</span></p>
+<p>-<span>&nbsp;</span><strong>AC冲锋号</strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_5617041192_14ecd3f2802001ftru.html" target="_blank">比行业价格便宜99.3%，字节跳动打响AI大模型价格战最响一枪</a></strong></h4>
+<p>根据火山引擎现场公布的价格计算和对比，一元钱就能买到豆包主力模型的125万Tokens，大约是200万个汉字，相当于三本《三国演义》。</p>
+<p>这一极具竞争力的定价的公布意味着，国内其他大模型厂商现在或许需要重新制定自己产品的定价策略。但需要指出的是，豆包在强调极致低价的同时，没有在发布会现场给出测评和跑分方面的信息。</p>
+<p><span>-&nbsp;<strong>蓝鲸财经</strong></span></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Zbsop5I7FL" target="_blank">大模型“聚会”：国内卷价格，国外卷能力</a></strong></h4>
+<p><span>或许国内大模型厂商是想借助价格战，尽快让大模型帮助企业带动营收增长，进而对冲大模型前期高昂的研发成本投入，以及相关硬件方面的投入。</span></p>
+<p><span>但随着国内大模型厂商在价格上持续内卷，或将影响到不少技术能力优越但资金实力不足的初创企业，这又是否会让中美在大模型方面的技术能力差距被拉开得更高呢？</span></p>
+</div>
+<p><span>-&nbsp;<strong>DoNews</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8ZbmD8X4KKQ" target="_blank">从技术走向落地，行业大模型正从“小”场景倒推</a></strong></h4>
+<p><span>我们到底需要怎样的生成式AI？一边是各大科技巨头纷纷推出自身的大模型产品，开启疯狂卷参数模式，另一边，随着对大模型能力认知逐渐深入，开始有越来越多的企业关注大模型相关应用在B端的落地。</span></p>
+<p><span>今年以来，垂直于细微场景的轻量化、小参数模型开始涌现，可以说，各大厂商纷纷推出大模型产品形成“百模大战”的局势仅是序章，现在才真正进入“战役”——如何更好地在行业侧落地大模型产品。</span></p>
+<p>-<span>&nbsp;</span><strong>钛媒体</strong></p>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fk9GT1yeHhfX2viiLOBb7XA" target="_blank">华为现场演示AI文生图时出现sleep代码，请问time.sleep(6)起到了什么作用？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：扯淡的6秒，那是6毫秒才对，编程的sleep都是毫秒，6秒是6000</span>
+<ul>
+<li><span>观点 2：你说得对，但python是秒</span></li>
+</ul> </li>
+<li><span>观点 3：每次高考后大家都讨论高考作文。因为这是大部分人唯一能看懂的了</span></li>
+<li><span>观点 4：在如今多线程阻塞和通信机制这么成熟的环境下，没有使用sleep常量时间的任何理由。</span></li>
+<li><span>观点 5：最搞笑的是，一群人看到ret.write说是读取图片，给我整无语了</span></li>
+<li><span>观点 6：后续优化的伏笔</span></li>
+<li><span>观点 7：我认为没有什么不合理的，等待6秒是给AI生成图片留足够时间，以防展示图片的时候图片还没有渲染生成完成。为什么是6秒可能是测试后一个比较保险的等待时间。毕竟这只是一个发布会的展示demo，这么处理很合情合理。个人感觉这个拿出来说事儿的要么是初学代码一知半解感觉自己很nb，要么就是他是懂流量的</span>
+<ul>
+<li><span>观点 8：为什么要等ai 6秒。 这个调用不能用异步吗？调用api 万一7秒呢 写程序怎么可能会写死6秒 这简直不可思议 别说等ai了，万一网断了怎么办，异常判断和延迟处理绝对不会用固定时间来这样糊弄吧</span></li>
+</ul> </li>
+<li><span>观点 9：理性吃瓜 防止打脸</span></li>
+<li><span>观点 10：之前鸿蒙还没完善，代码放出来好多都没实现，直接返回的比比皆是</span></li>
+<li><span>观点 11：没那么复杂，回复说graceful shutdown的应该才是正经码农。。Ctrl+C产生中断，一般都会设计一个优雅退出时间，比如6秒，6秒还自己不能清场，就直接杀进程。这才是比较符合常识的可能性。其实说那么多都没用，真想较真的话，自己装一套mindx，看看源代码里是啥就知道了。</span>
+<ul>
+<li><span>观点 12：但是从图中 Traceback 来看是先 sleep 之后才收到中断信号，并不是中断后才执行 sleep。 正经的 graceful shutdown 不会拦截中断信号进行 sleep，最后再给自己发中断信号吧？</span></li>
+</ul> </li>
+<li><span>观点 13：确定性时延 哈哈哈哈哈哈哈哈哈</span></li>
+<li><span>观点 14：有时候会为了能看清某些流程会 sleep 一下，具体情况还是得看场景</span></li>
+<li><span>观点 15：善用sleep 让你的身价翻倍<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">，只要sleep写的好你就可以摸鱼很久假装在优化 不开玩笑的话我个人认为跟文中说的一样是为了方便展示设置的临时sleep，如果是等调用反馈的时间这个太死板太弱智了...</span></li>
+<li><span>观点 16：勇于现场演示代码已经不错了。不考虑上下文，空想sleep没用吧，拉下代码仔细看看再评论。</span></li>
+<li><span>观点 17：可能是调用部分写得随意了点而已，就这点代码不能说明是假的</span></li>
+<li><span>观点 18：我日常工作都是python，不懂sleep(6)秒咋了，有啥问题！</span></li>
+<li><span>观点 19：避免答案过快输出，承让友商 6秒钟。</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：我给自己的账户转几万块钱都被风控了，这个398万是怎么办到的，银行应该对此负责😂</span></li>
+<li><span>观点 2：银行不做啥，怪到远程桌面上了，柿子还真就捡软的捏~？</span></li>
+<li><span>观点 3：国内的金融类APP都是禁止截屏的啊，远程操作都是黑屏的。他们怎么做到远程操作APP的？</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292691/vue3-cabloy-front" target="_blank">Vue3 开发新范式，不用 `ref/reactive`，不用 `ref.value`</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：直接用 react 挺好，何苦来糟践 vue。</span></li>
+<li><span>观点 2：看起来更麻烦了</span></li>
+<li><span>观点 3：还是ref直观</span></li>
+<li><span>观点 4：这是要把script给去掉么</span></li>
+<li><span>观点 5：搞个新语言吧，别搞vue了</span></li>
+</ul>
+</blockquote>
+<p><em><strong>---END---</strong></em></p>
+<p>最后，欢迎扫码下载「开源中国 APP」，阅读海量技术报告、程序员极客分享！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fb500be7c3.png"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.5.16</strong></span></h3>
+<h2><span>今日要点</span></h2>
+<h3><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="news">OSI 即将给出开源 AI 的定义</a></h3>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<h3><a href="https://www.oschina.net/news/292675/java-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a></h3>
+<p><span>Oracle 发布了<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.oracle.com%2Fjava%2Fpost%2Fjava-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a>，再次确认将对 Java/JDK 11 的支持延长至 2032 年 1 月，并免除 Java 11 支持的延期支持费用。此延期为依赖 Oracle Java 11 的 Oracle 客户提供了至少八年的支持和更新。</span></p>
+<p><span>同时，在 Solaris 操作系统上的 Java SE 8 和 Java SE 11 支持分别延期至 2030 年 12 月和 2032 年 1 月。意味着 Solaris 上的 Java 支持相较 2019 年宣布的日期又延长了六年。此外，Oracle 计划将来在 Oracle Solaris / SPARC 服务器上支持 WebLogic 14.1.2。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3bd772fdbc.png"></p>
+<h3><a href="https://www.oschina.net/news/292682/flutter-3-22-dart-3-4" target="_blank">Flutter 3.22 和 Dart 3.4 发布</a></h3>
+<p><span>Flutter 3.22 和 Dart 3.4 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2Fflutter%2Fio24-5e211f708a37" target="_blank">发布</a>，提供了一些性能改进和特定于平台的改进。</span></p>
+<p><span>包括改进的 Impeller 渲染引擎、更流畅的视觉效果和更低的 iOS CPU 占用率、通过 Android 的预测性 back 手势增强的平台导航功能、通过 Google Mobile Ads SDK 扩展的盈利能力，以及 DevTools 中新的强大的 deep link validator。</span></p>
+<h3><a href="https://www.oschina.net/news/292611/deepin-v23-rc" target="_blank">deepin V23 RC</a></h3>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a2fed0add1.jpg"></p>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5493934570%2FOewnY0XOH" target="_blank">在北京微软工作的，应该是不想去美国的</a></h4>
+<p>1. 昨传言微软让北京AI团队的人选，是不是去美国，去可以带家属，帮搞定签证。后来微软又说传闻夸大了，是轮岗，不影响国内运营。<br> 2. 这事应该不是瞎传，很多人收到邮件了，不然也不会有新闻出来。细节有些模糊，所以微软说夸大。但可以肯定，一些核心的AI研究小组肯定要动了，去美国、去爱尔兰，不会留在中国了。美国那边大气氛就这样，核心的AI研发不会放在中国了，微软会有压力。<br> 3. 微软在中国公关搞得不错，主观上应该不想和中国脱购。但是美国现在气氛是，抓住人工智能当“救命稻草”，指望有大突破领先中国，甚至是唯一希望了。一头是自己研发，另外一头就要防范中国跟随性研发，想了很多坏主意，GPU芯片不让卖。甚至都说不搞开源了，怕中国用开源的大模型搞研发。<br> 4. 在北京微软工作的中国员工，应该是不想去美国。在中国拿很好的工资，生活成本低得多，是不错的工作。跑美国去，即使收入上升，现在大家也知道了，很不方便，花费高得多，一堆生活要安排。跑爱尔兰之类的地方，生活成本都暴涨。可以肯定实际收入会大幅下降，能存的钱少多了。但是不去吧，又可能要找工作，一些人肯定在烦。<br> 5. 和以前显著的不同是，现在大家觉得在中国，要是有收入不错又稳定的工作，生活是非常好的。感觉糟糕的，主要是没找到好工作的、工作不稳定的。<br> 6. 微软要把一些好工作，从中国搬去美国、欧洲。这是大形势，美国政客闹腾的。中国的发展任务之一，就是要创造更多的研发好工作，让人才可以留下来，顺心地生活、研发。现在生活条件真的不错了，房价都降了好多。企业、政府、社会，增加研发投入，让搞研究的人安心生活、努力突破。趋势是不错的，美国人下狠手，中国不少行业明显增加了研发投入。</p>
+<p>- 微博 <strong>风云学会陈经</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></h4>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+<p>- 微博&nbsp;<strong>周鸿祎</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5714719345%2FOewcdy7Li" target="_blank">不懂就问，你们觉得哪款AI大模型更好用？</a></h4>
+<p>但要我说，你降价还不如把大模型做得更好，消费者用AI大模型看重的是好用、响应速度快、分发渠道更广，价格其实是次要的。我个人觉得目前最好用的肯定是百度的文心一言，毕竟在应用和智能体的分发上确实做的要比豆包好N倍，而且本身也是最大的AI应用场景之一，B端企业正向反馈更多，分发量已达日均数百万次。</p>
+<p>况且文心大模型日处理Tokens文本已经达到2490亿，两者相差1290亿，在一至四月里，百度大模型中标数量和金额也是高居首位，中标项目数量多、覆盖行业多、中标金额高，这足以看到B端用户确实更倾向前者；虽说豆包和文心都是用的公有云+闭源技术路线，但百度李彦宏之前也说过，在大模型场景下，开源反而是最贵的，所以开源模型也必定会越来越落后。</p>
+</div>
+<p>- 微博 <strong>Oneline科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5722964389%2FOewNznNwZ" target="_blank">开源免费的网页资源嗅探插件 cat-catch(猫抓)</a></h4>
+<p>它能够帮你筛选列出当前页面的资源，同时提供嗅探、缓存捕捉、视频录制等各种工具帮助抓取资源。并且可以在设置内添加想要抓取的资源类型，包括视频、图片等资源。支持 Chrome、Edge 以及 Firefox 浏览器安装使用。</p>
+<p>GitHub：github.com/xifangczy/cat-catch</p>
+<p>- 微博 <strong>GitHubDaily</strong></p>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294933" target="_blank">腾讯研发了快一年的混元文生图模型，说开源就开源了？</a></h4>
+<p>腾讯AI靠开源追进度？</p>
+<p>文生图模型成熟之后，有多少人苦练Midjourney咒语，还是调不出可用的图像？</p>
+<p>设计界的专业名词、不太准确的英文翻译、理解不了的中国古代建筑充斥在目前文生图工具中。</p>
+<p>本质上是源于国内很多团队基于翻译+英文开源Stable Diffusion模型，或者基于少量的中文数据在一些特殊的场景做了finetune，而这两种方式都存在对中文理解不足和不通用的问题。</p>
+<p>针对这些痛点，腾讯带着中文原生的文生图大模型来了。5月14日，腾讯宣布开源混元文生图大模型，是国内首个中文原生的DiT架构模型，具备中英文双语理解及生成能力，在古诗词、俚语、传统建筑、中华美食等中国元素的生成上表现出色。</p>
+<p><span>- <strong>品玩</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778108489745537" target="_blank">树莓派冲刺IPO，估值35亿但年营收19亿，CEO：做一家有趣又赚钱的公司</a></h4>
+<p>消息人士透露，6月初树莓派可能于伦敦完成上市，预计估值超过5亿美元（折合人民币约36亿）。</p>
+<p>目前树莓派官网已经公开一系列IPO相关文件。从去年年底开始，就有树莓派要IPO的消息传出，加之Arm牵头完成了对树莓派的最新一轮融资。其估值快速从3.76亿美元飙升至如今的5.6亿美元。</p>
+<p>《金融时报》最新分析认为，在IPO后其估值可能接近6.3亿英镑（折合美元7.99亿）。</p>
+<p><strong>- 量子位</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778248283866249" target="_blank">OpenAI掌门人最新专访：GPT-4o让我爱不释手，下代大模型可能不叫GPT-5</a></h4>
+<p>OpenAI近日发布了其最新的大语言模型GPT-4o，再次引领了人工智能领域的又一创新浪潮。在此重要时刻，该公司首席执行官山姆·奥特曼（Sam Altman）接受了知名播客节目主持人罗根·巴特莱（Logan Bartlett）的专访，向全球观众揭开了发布会背后的精彩故事，并提供了他对人工智能未来的预测。</p>
+<p>在这次专访中，奥特曼不仅详尽地阐述了OpenAI的宏大蓝图，还探讨了实现AGI（通用人工智能）的时间表，以及人形机器人可能带来的深远社会影响。与此同时，奥特曼也对人工智能个人助理的前景表达了自己的兴奋与忧虑，并强调了当今人工智能领域最大的机遇和风险等。</p>
+<p><strong>- 腾讯科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799125283789373832%26wfr%3Dspider%26for%3Dpc" target="_blank">国外资深科技记者：Google I/O大会不接地气 根本听不懂</a></h4>
+<p>谷歌和所有科技公司一样，需要我们这些消费者来理解这些东西。如果他们希望我们对它们的产品感到兴奋，就需要让我们知道，这些AI工具是什么，它们具有多大的变革性。如果我们对它们感到兴奋，可能就会购买它们。例如，也许我们会购买下一代Pixel手机，就是因为Gemini，及其引人注目的视频提问服务。</p>
+<p>但是，一场持续两个小时的演讲，让经验丰富的科技记者也摸不着头脑，难以理解，这不是解决问题的方法。谷歌花了很长时间谈论它的AI在总结事物方面有多么优秀，也许是时候让谷歌自己来使用这些工具了。</p>
+<p><strong>- 新浪科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799161616824331971%26wfr%3Dspider%26for%3Dpc" target="_blank">美国立法者寻求320亿美元拨款：让美国人工智能领先于中国</a></h4>
+<p>据路透社报道，包括美国多数党领袖查克·舒默在内的两党参议员周三呼吁国会批准为人工智能研究提供320亿美元资金，以保持美国在这一强大技术方面领先于中国。</p>
+<p>包括共和党人迈克·朗兹（Mike Rounds）、托德·杨（Todd Young）和民主党人马丁·海因里希（Martin Heinrich）在内的参议员宣布了这一目标，作为解决人工智能的前景和危险的立法路线图的一部分。</p>
+<p>舒默周三表示，如果中国要投资 500 亿美元，而我们什么都不投资，他们将不可避免地领先于我们。这就是为什么这些投资如此重要。</p>
+<p>该路线图可以帮助美国解决对中国人工智能进步日益增长的担忧。</p>
+<p><strong>- &nbsp;鞭牛士</strong></p>
+</div>
+</div>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">dwisiswant0/apkleaks</a></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-443448d39e.jpg"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">https://github.com/dwisiswant0/apkleaks</a></u></em></p>
+<p><span>PKLeaks 是一个开源的 apk 文件敏感信息扫描工具，扫描 APK 文件来获取 URI、端点和 secret 信息。</span></p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/6852546/blog/11129786" target="_blank">大模型真要取代程序员了？最危险的岗位是......</a></strong></h4>
+<p><span>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</span></p>
+<p><span>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在 “程序员” 这种职业了，因为只要会说话，人人都会具备程序员的能力。</span></p>
+<p><span>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</span></p>
+<p><span>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</span></p>
+<hr>
+<div>
+<h2><span><strong>事件点评</strong></span></h2>
+</div>
+<h3><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h3>
+<p>反诈任重道远，远控只是他们利用的一个工具而已，即使没有远控，他们也会有其他的方式，然而远控却在某种程度上提高了他们诈骗的效率。</p>
+<p>我们不期望所有厂商像我们一样屏蔽手机被控，因为这种方式太极端，也损害了正常用户的利益，但我希望看到其他厂商能提出自己的解决方案，甚至组织安全联盟，制定出规范的反诈技术标准。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9542dcf4d7.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>这一事件对远程桌面软件行业和网络安全产生了重要影响，突显了远程桌面软件可能被滥用的风险。同时，对远程桌面软件厂商提出了更高的安全要求。为了防止其产品被用于非法活动，厂商需要采取更加严格的安全措施，比如加强用户验证、增加安全警告提示等，以保护用户免受诈骗侵害。</span></p>
+<p><span>这也提醒了用户在使用远程桌面软件时要提高警惕。用户需要了解如何安全使用这类软件，避免在不安全的网络环境下使用，不轻信远程请求，尤其是涉及财务操作的情况。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="_blank">OSI 即将给出开源 AI 的定义</a></strong></h3>
+<p><span>考虑到目前有许多组织都在声称他们的 AI 为 “开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义 “Open Source AI”。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>首先，这一定义的制定将有助于规范和促进开源AI的发展。开源社区在软件领域有着明确的过程和原则来处理错误，但在AI领域，类似的框架和指导原则尚不完善。通过制定开源AI的定义，OSI可以为开发者提供指导和框架，帮助他们在开源AI的开发和使用中做出更好的决策。</span></p>
+<p><span>其次，这一定义的制定也反映了AI技术的复杂性和多维性。AI系统与传统的软件系统相比，具有更多的不透明性和复杂性。如何将开源原则应用于这些“黑箱”式的自动化决策系统，是一个挑战。定义开源AI将有助于解决这些问题，促进AI系统的透明度和可理解性。</span></p>
+<p><span>最后，这一定义的制定还将影响AI的全球治理。目前，AI的全球治理框架和标准尚不完善，开源AI的定义将为这一领域提供重要的参考和指导。这对于保护用户权益、促进AI技术的健康发展具有重要意义。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292724" target="_blank">周鸿祎：GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></strong></h3>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o 又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着 OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-742bc60f76.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<div>
+<p><span>周鸿祎这一观点反映了当前开源与闭源技术竞争的复杂性，以及中国在全球技术竞争中的战略思考。周鸿祎的观点表明，虽然闭源技术在某些方面取得了进展，但开源仍然具有其独特的价值和优势。同时，他也强调了在技术发展中保持开放和多元化的必要性，特别是在大型模型这一快速发展的领域。</span></p>
+<p><span>这一观点对开源社区、技术开发者以及政策制定者都具有启示意义。它提醒我们在追求技术进步的同时，不应忽视开源社区的价值和潜力，以及在技术发展和创新中保持开放和多元化的必要性。</span></p>
+</div>
+<hr>
+<h2><span><strong>开源之声</strong></span></h2>
+<h3><span><strong><span>媒体观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_7096020371_1a6f4ad9301901e4pk.html" target="_blank">微信开始扛起腾讯跑了</a></strong></h4>
+<p><span>毫无疑问，游戏、社交是腾讯商业泵血的两棵大树；原本只有一棵（游戏）是“摇钱树”，如今另一棵（微信）也成了“摇钱树”。</span></p>
+<p>-<span>&nbsp;</span><strong>AC冲锋号</strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_5617041192_14ecd3f2802001ftru.html" target="_blank">比行业价格便宜99.3%，字节跳动打响AI大模型价格战最响一枪</a></strong></h4>
+<p>根据火山引擎现场公布的价格计算和对比，一元钱就能买到豆包主力模型的125万Tokens，大约是200万个汉字，相当于三本《三国演义》。</p>
+<p>这一极具竞争力的定价的公布意味着，国内其他大模型厂商现在或许需要重新制定自己产品的定价策略。但需要指出的是，豆包在强调极致低价的同时，没有在发布会现场给出测评和跑分方面的信息。</p>
+<p><span>-&nbsp;<strong>蓝鲸财经</strong></span></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Zbsop5I7FL" target="_blank">大模型“聚会”：国内卷价格，国外卷能力</a></strong></h4>
+<p><span>或许国内大模型厂商是想借助价格战，尽快让大模型帮助企业带动营收增长，进而对冲大模型前期高昂的研发成本投入，以及相关硬件方面的投入。</span></p>
+<p><span>但随着国内大模型厂商在价格上持续内卷，或将影响到不少技术能力优越但资金实力不足的初创企业，这又是否会让中美在大模型方面的技术能力差距被拉开得更高呢？</span></p>
+</div>
+<p><span>-&nbsp;<strong>DoNews</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8ZbmD8X4KKQ" target="_blank">从技术走向落地，行业大模型正从“小”场景倒推</a></strong></h4>
+<p><span>我们到底需要怎样的生成式AI？一边是各大科技巨头纷纷推出自身的大模型产品，开启疯狂卷参数模式，另一边，随着对大模型能力认知逐渐深入，开始有越来越多的企业关注大模型相关应用在B端的落地。</span></p>
+<p><span>今年以来，垂直于细微场景的轻量化、小参数模型开始涌现，可以说，各大厂商纷纷推出大模型产品形成“百模大战”的局势仅是序章，现在才真正进入“战役”——如何更好地在行业侧落地大模型产品。</span></p>
+<p>-<span>&nbsp;</span><strong>钛媒体</strong></p>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fk9GT1yeHhfX2viiLOBb7XA" target="_blank">华为现场演示AI文生图时出现sleep代码，请问time.sleep(6)起到了什么作用？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：扯淡的6秒，那是6毫秒才对，编程的sleep都是毫秒，6秒是6000</span>
+<ul>
+<li><span>观点 2：你说得对，但python是秒</span></li>
+</ul> </li>
+<li><span>观点 3：每次高考后大家都讨论高考作文。因为这是大部分人唯一能看懂的了</span></li>
+<li><span>观点 4：在如今多线程阻塞和通信机制这么成熟的环境下，没有使用sleep常量时间的任何理由。</span></li>
+<li><span>观点 5：最搞笑的是，一群人看到ret.write说是读取图片，给我整无语了</span></li>
+<li><span>观点 6：后续优化的伏笔</span></li>
+<li><span>观点 7：我认为没有什么不合理的，等待6秒是给AI生成图片留足够时间，以防展示图片的时候图片还没有渲染生成完成。为什么是6秒可能是测试后一个比较保险的等待时间。毕竟这只是一个发布会的展示demo，这么处理很合情合理。个人感觉这个拿出来说事儿的要么是初学代码一知半解感觉自己很nb，要么就是他是懂流量的</span>
+<ul>
+<li><span>观点 8：为什么要等ai 6秒。 这个调用不能用异步吗？调用api 万一7秒呢 写程序怎么可能会写死6秒 这简直不可思议 别说等ai了，万一网断了怎么办，异常判断和延迟处理绝对不会用固定时间来这样糊弄吧</span></li>
+</ul> </li>
+<li><span>观点 9：理性吃瓜 防止打脸</span></li>
+<li><span>观点 10：之前鸿蒙还没完善，代码放出来好多都没实现，直接返回的比比皆是</span></li>
+<li><span>观点 11：没那么复杂，回复说graceful shutdown的应该才是正经码农。。Ctrl+C产生中断，一般都会设计一个优雅退出时间，比如6秒，6秒还自己不能清场，就直接杀进程。这才是比较符合常识的可能性。其实说那么多都没用，真想较真的话，自己装一套mindx，看看源代码里是啥就知道了。</span>
+<ul>
+<li><span>观点 12：但是从图中 Traceback 来看是先 sleep 之后才收到中断信号，并不是中断后才执行 sleep。 正经的 graceful shutdown 不会拦截中断信号进行 sleep，最后再给自己发中断信号吧？</span></li>
+</ul> </li>
+<li><span>观点 13：确定性时延 哈哈哈哈哈哈哈哈哈</span></li>
+<li><span>观点 14：有时候会为了能看清某些流程会 sleep 一下，具体情况还是得看场景</span></li>
+<li><span>观点 15：善用sleep 让你的身价翻倍<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">，只要sleep写的好你就可以摸鱼很久假装在优化 不开玩笑的话我个人认为跟文中说的一样是为了方便展示设置的临时sleep，如果是等调用反馈的时间这个太死板太弱智了...</span></li>
+<li><span>观点 16：勇于现场演示代码已经不错了。不考虑上下文，空想sleep没用吧，拉下代码仔细看看再评论。</span></li>
+<li><span>观点 17：可能是调用部分写得随意了点而已，就这点代码不能说明是假的</span></li>
+<li><span>观点 18：我日常工作都是python，不懂sleep(6)秒咋了，有啥问题！</span></li>
+<li><span>观点 19：避免答案过快输出，承让友商 6秒钟。</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：我给自己的账户转几万块钱都被风控了，这个398万是怎么办到的，银行应该对此负责😂</span></li>
+<li><span>观点 2：银行不做啥，怪到远程桌面上了，柿子还真就捡软的捏~？</span></li>
+<li><span>观点 3：国内的金融类APP都是禁止截屏的啊，远程操作都是黑屏的。他们怎么做到远程操作APP的？</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292691/vue3-cabloy-front" target="_blank">Vue3 开发新范式，不用 `ref/reactive`，不用 `ref.value`</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：直接用 react 挺好，何苦来糟践 vue。</span></li>
+<li><span>观点 2：看起来更麻烦了</span></li>
+<li><span>观点 3：还是ref直观</span></li>
+<li><span>观点 4：这是要把script给去掉么</span></li>
+<li><span>观点 5：搞个新语言吧，别搞vue了</span></li>
+</ul>
+</blockquote>
+<p><em><strong>---END---</strong></em></p>
+<p>最后，欢迎扫码下载「开源中国 APP」，阅读海量技术报告、程序员极客分享！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fb500be7c3.png"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.5.16</strong></span></h3>
+<h2><span>今日要点</span></h2>
+<h3><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="news">OSI 即将给出开源 AI 的定义</a></h3>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<h3><a href="https://www.oschina.net/news/292675/java-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a></h3>
+<p><span>Oracle 发布了<span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblogs.oracle.com%2Fjava%2Fpost%2Fjava-se-spring-2024-roadmap-update" target="_blank">Java SE 2024 年春季路线图</a>，再次确认将对 Java/JDK 11 的支持延长至 2032 年 1 月，并免除 Java 11 支持的延期支持费用。此延期为依赖 Oracle Java 11 的 Oracle 客户提供了至少八年的支持和更新。</span></p>
+<p><span>同时，在 Solaris 操作系统上的 Java SE 8 和 Java SE 11 支持分别延期至 2030 年 12 月和 2032 年 1 月。意味着 Solaris 上的 Java 支持相较 2019 年宣布的日期又延长了六年。此外，Oracle 计划将来在 Oracle Solaris / SPARC 服务器上支持 WebLogic 14.1.2。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3bd772fdbc.png"></p>
+<h3><a href="https://www.oschina.net/news/292682/flutter-3-22-dart-3-4" target="_blank">Flutter 3.22 和 Dart 3.4 发布</a></h3>
+<p><span>Flutter 3.22 和 Dart 3.4 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2Fflutter%2Fio24-5e211f708a37" target="_blank">发布</a>，提供了一些性能改进和特定于平台的改进。</span></p>
+<p><span>包括改进的 Impeller 渲染引擎、更流畅的视觉效果和更低的 iOS CPU 占用率、通过 Android 的预测性 back 手势增强的平台导航功能、通过 Google Mobile Ads SDK 扩展的盈利能力，以及 DevTools 中新的强大的 deep link validator。</span></p>
+<h3><a href="https://www.oschina.net/news/292611/deepin-v23-rc" target="_blank">deepin V23 RC</a></h3>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a2fed0add1.jpg"></p>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5493934570%2FOewnY0XOH" target="_blank">在北京微软工作的，应该是不想去美国的</a></h4>
+<p>1. 昨传言微软让北京AI团队的人选，是不是去美国，去可以带家属，帮搞定签证。后来微软又说传闻夸大了，是轮岗，不影响国内运营。<br> 2. 这事应该不是瞎传，很多人收到邮件了，不然也不会有新闻出来。细节有些模糊，所以微软说夸大。但可以肯定，一些核心的AI研究小组肯定要动了，去美国、去爱尔兰，不会留在中国了。美国那边大气氛就这样，核心的AI研发不会放在中国了，微软会有压力。<br> 3. 微软在中国公关搞得不错，主观上应该不想和中国脱购。但是美国现在气氛是，抓住人工智能当“救命稻草”，指望有大突破领先中国，甚至是唯一希望了。一头是自己研发，另外一头就要防范中国跟随性研发，想了很多坏主意，GPU芯片不让卖。甚至都说不搞开源了，怕中国用开源的大模型搞研发。<br> 4. 在北京微软工作的中国员工，应该是不想去美国。在中国拿很好的工资，生活成本低得多，是不错的工作。跑美国去，即使收入上升，现在大家也知道了，很不方便，花费高得多，一堆生活要安排。跑爱尔兰之类的地方，生活成本都暴涨。可以肯定实际收入会大幅下降，能存的钱少多了。但是不去吧，又可能要找工作，一些人肯定在烦。<br> 5. 和以前显著的不同是，现在大家觉得在中国，要是有收入不错又稳定的工作，生活是非常好的。感觉糟糕的，主要是没找到好工作的、工作不稳定的。<br> 6. 微软要把一些好工作，从中国搬去美国、欧洲。这是大形势，美国政客闹腾的。中国的发展任务之一，就是要创造更多的研发好工作，让人才可以留下来，顺心地生活、研发。现在生活条件真的不错了，房价都降了好多。企业、政府、社会，增加研发投入，让搞研究的人安心生活、努力突破。趋势是不错的，美国人下狠手，中国不少行业明显增加了研发投入。</p>
+<p>- 微博 <strong>风云学会陈经</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></h4>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+<p>- 微博&nbsp;<strong>周鸿祎</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5714719345%2FOewcdy7Li" target="_blank">不懂就问，你们觉得哪款AI大模型更好用？</a></h4>
+<p>但要我说，你降价还不如把大模型做得更好，消费者用AI大模型看重的是好用、响应速度快、分发渠道更广，价格其实是次要的。我个人觉得目前最好用的肯定是百度的文心一言，毕竟在应用和智能体的分发上确实做的要比豆包好N倍，而且本身也是最大的AI应用场景之一，B端企业正向反馈更多，分发量已达日均数百万次。</p>
+<p>况且文心大模型日处理Tokens文本已经达到2490亿，两者相差1290亿，在一至四月里，百度大模型中标数量和金额也是高居首位，中标项目数量多、覆盖行业多、中标金额高，这足以看到B端用户确实更倾向前者；虽说豆包和文心都是用的公有云+闭源技术路线，但百度李彦宏之前也说过，在大模型场景下，开源反而是最贵的，所以开源模型也必定会越来越落后。</p>
+</div>
+<p>- 微博 <strong>Oneline科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F5722964389%2FOewNznNwZ" target="_blank">开源免费的网页资源嗅探插件 cat-catch(猫抓)</a></h4>
+<p>它能够帮你筛选列出当前页面的资源，同时提供嗅探、缓存捕捉、视频录制等各种工具帮助抓取资源。并且可以在设置内添加想要抓取的资源类型，包括视频、图片等资源。支持 Chrome、Edge 以及 Firefox 浏览器安装使用。</p>
+<p>GitHub：github.com/xifangczy/cat-catch</p>
+<p>- 微博 <strong>GitHubDaily</strong></p>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fa%2F294933" target="_blank">腾讯研发了快一年的混元文生图模型，说开源就开源了？</a></h4>
+<p>腾讯AI靠开源追进度？</p>
+<p>文生图模型成熟之后，有多少人苦练Midjourney咒语，还是调不出可用的图像？</p>
+<p>设计界的专业名词、不太准确的英文翻译、理解不了的中国古代建筑充斥在目前文生图工具中。</p>
+<p>本质上是源于国内很多团队基于翻译+英文开源Stable Diffusion模型，或者基于少量的中文数据在一些特殊的场景做了finetune，而这两种方式都存在对中文理解不足和不通用的问题。</p>
+<p>针对这些痛点，腾讯带着中文原生的文生图大模型来了。5月14日，腾讯宣布开源混元文生图大模型，是国内首个中文原生的DiT架构模型，具备中英文双语理解及生成能力，在古诗词、俚语、传统建筑、中华美食等中国元素的生成上表现出色。</p>
+<p><span>- <strong>品玩</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778108489745537" target="_blank">树莓派冲刺IPO，估值35亿但年营收19亿，CEO：做一家有趣又赚钱的公司</a></h4>
+<p>消息人士透露，6月初树莓派可能于伦敦完成上市，预计估值超过5亿美元（折合人民币约36亿）。</p>
+<p>目前树莓派官网已经公开一系列IPO相关文件。从去年年底开始，就有树莓派要IPO的消息传出，加之Arm牵头完成了对树莓派的最新一轮融资。其估值快速从3.76亿美元飙升至如今的5.6亿美元。</p>
+<p>《金融时报》最新分析认为，在IPO后其估值可能接近6.3亿英镑（折合美元7.99亿）。</p>
+<p><strong>- 量子位</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F2778248283866249" target="_blank">OpenAI掌门人最新专访：GPT-4o让我爱不释手，下代大模型可能不叫GPT-5</a></h4>
+<p>OpenAI近日发布了其最新的大语言模型GPT-4o，再次引领了人工智能领域的又一创新浪潮。在此重要时刻，该公司首席执行官山姆·奥特曼（Sam Altman）接受了知名播客节目主持人罗根·巴特莱（Logan Bartlett）的专访，向全球观众揭开了发布会背后的精彩故事，并提供了他对人工智能未来的预测。</p>
+<p>在这次专访中，奥特曼不仅详尽地阐述了OpenAI的宏大蓝图，还探讨了实现AGI（通用人工智能）的时间表，以及人形机器人可能带来的深远社会影响。与此同时，奥特曼也对人工智能个人助理的前景表达了自己的兴奋与忧虑，并强调了当今人工智能领域最大的机遇和风险等。</p>
+<p><strong>- 腾讯科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799125283789373832%26wfr%3Dspider%26for%3Dpc" target="_blank">国外资深科技记者：Google I/O大会不接地气 根本听不懂</a></h4>
+<p>谷歌和所有科技公司一样，需要我们这些消费者来理解这些东西。如果他们希望我们对它们的产品感到兴奋，就需要让我们知道，这些AI工具是什么，它们具有多大的变革性。如果我们对它们感到兴奋，可能就会购买它们。例如，也许我们会购买下一代Pixel手机，就是因为Gemini，及其引人注目的视频提问服务。</p>
+<p>但是，一场持续两个小时的演讲，让经验丰富的科技记者也摸不着头脑，难以理解，这不是解决问题的方法。谷歌花了很长时间谈论它的AI在总结事物方面有多么优秀，也许是时候让谷歌自己来使用这些工具了。</p>
+<p><strong>- 新浪科技</strong></p>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1799161616824331971%26wfr%3Dspider%26for%3Dpc" target="_blank">美国立法者寻求320亿美元拨款：让美国人工智能领先于中国</a></h4>
+<p>据路透社报道，包括美国多数党领袖查克·舒默在内的两党参议员周三呼吁国会批准为人工智能研究提供320亿美元资金，以保持美国在这一强大技术方面领先于中国。</p>
+<p>包括共和党人迈克·朗兹（Mike Rounds）、托德·杨（Todd Young）和民主党人马丁·海因里希（Martin Heinrich）在内的参议员宣布了这一目标，作为解决人工智能的前景和危险的立法路线图的一部分。</p>
+<p>舒默周三表示，如果中国要投资 500 亿美元，而我们什么都不投资，他们将不可避免地领先于我们。这就是为什么这些投资如此重要。</p>
+<p>该路线图可以帮助美国解决对中国人工智能进步日益增长的担忧。</p>
+<p><strong>- &nbsp;鞭牛士</strong></p>
+</div>
+</div>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">dwisiswant0/apkleaks</a></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-443448d39e.jpg"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fdwisiswant0%2Fapkleaks" target="_blank">https://github.com/dwisiswant0/apkleaks</a></u></em></p>
+<p><span>PKLeaks 是一个开源的 apk 文件敏感信息扫描工具，扫描 APK 文件来获取 URI、端点和 secret 信息。</span></p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/6852546/blog/11129786" target="_blank">大模型真要取代程序员了？最危险的岗位是......</a></strong></h4>
+<p><span>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</span></p>
+<p><span>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在 “程序员” 这种职业了，因为只要会说话，人人都会具备程序员的能力。</span></p>
+<p><span>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</span></p>
+<p><span>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</span></p>
+<hr>
+<div>
+<h2><span><strong>事件点评</strong></span></h2>
+</div>
+<h3><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h3>
+<p>反诈任重道远，远控只是他们利用的一个工具而已，即使没有远控，他们也会有其他的方式，然而远控却在某种程度上提高了他们诈骗的效率。</p>
+<p>我们不期望所有厂商像我们一样屏蔽手机被控，因为这种方式太极端，也损害了正常用户的利益，但我希望看到其他厂商能提出自己的解决方案，甚至组织安全联盟，制定出规范的反诈技术标准。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9542dcf4d7.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>这一事件对远程桌面软件行业和网络安全产生了重要影响，突显了远程桌面软件可能被滥用的风险。同时，对远程桌面软件厂商提出了更高的安全要求。为了防止其产品被用于非法活动，厂商需要采取更加严格的安全措施，比如加强用户验证、增加安全警告提示等，以保护用户免受诈骗侵害。</span></p>
+<p><span>这也提醒了用户在使用远程桌面软件时要提高警惕。用户需要了解如何安全使用这类软件，避免在不安全的网络环境下使用，不轻信远程请求，尤其是涉及财务操作的情况。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292744/osi-open-source-ai-definition" target="_blank">OSI 即将给出开源 AI 的定义</a></strong></h3>
+<p><span>考虑到目前有许多组织都在声称他们的 AI 为 “开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义 “Open Source AI”。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<p><span>首先，这一定义的制定将有助于规范和促进开源AI的发展。开源社区在软件领域有着明确的过程和原则来处理错误，但在AI领域，类似的框架和指导原则尚不完善。通过制定开源AI的定义，OSI可以为开发者提供指导和框架，帮助他们在开源AI的开发和使用中做出更好的决策。</span></p>
+<p><span>其次，这一定义的制定也反映了AI技术的复杂性和多维性。AI系统与传统的软件系统相比，具有更多的不透明性和复杂性。如何将开源原则应用于这些“黑箱”式的自动化决策系统，是一个挑战。定义开源AI将有助于解决这些问题，促进AI系统的透明度和可理解性。</span></p>
+<p><span>最后，这一定义的制定还将影响AI的全球治理。目前，AI的全球治理框架和标准尚不完善，开源AI的定义将为这一领域提供重要的参考和指导。这对于保护用户权益、促进AI技术的健康发展具有重要意义。</span></p>
+<h3><strong><a href="https://www.oschina.net/news/292724" target="_blank">周鸿祎：GPT-4o 让闭源往前冲了一截，但我依然对开源有信心</a></strong></h3>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o 又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着 OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-742bc60f76.png"></p>
+<p><span><strong><span>点评</span></strong></span></p>
+<div>
+<p><span>周鸿祎这一观点反映了当前开源与闭源技术竞争的复杂性，以及中国在全球技术竞争中的战略思考。周鸿祎的观点表明，虽然闭源技术在某些方面取得了进展，但开源仍然具有其独特的价值和优势。同时，他也强调了在技术发展中保持开放和多元化的必要性，特别是在大型模型这一快速发展的领域。</span></p>
+<p><span>这一观点对开源社区、技术开发者以及政策制定者都具有启示意义。它提醒我们在追求技术进步的同时，不应忽视开源社区的价值和潜力，以及在技术发展和创新中保持开放和多元化的必要性。</span></p>
+</div>
+<hr>
+<h2><span><strong>开源之声</strong></span></h2>
+<h3><span><strong><span>媒体观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_7096020371_1a6f4ad9301901e4pk.html" target="_blank">微信开始扛起腾讯跑了</a></strong></h4>
+<p><span>毫无疑问，游戏、社交是腾讯商业泵血的两棵大树；原本只有一棵（游戏）是“摇钱树”，如今另一棵（微信）也成了“摇钱树”。</span></p>
+<p>-<span>&nbsp;</span><strong>AC冲锋号</strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fk.sina.com.cn%2Farticle_5617041192_14ecd3f2802001ftru.html" target="_blank">比行业价格便宜99.3%，字节跳动打响AI大模型价格战最响一枪</a></strong></h4>
+<p>根据火山引擎现场公布的价格计算和对比，一元钱就能买到豆包主力模型的125万Tokens，大约是200万个汉字，相当于三本《三国演义》。</p>
+<p>这一极具竞争力的定价的公布意味着，国内其他大模型厂商现在或许需要重新制定自己产品的定价策略。但需要指出的是，豆包在强调极致低价的同时，没有在发布会现场给出测评和跑分方面的信息。</p>
+<p><span>-&nbsp;<strong>蓝鲸财经</strong></span></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8Zbsop5I7FL" target="_blank">大模型“聚会”：国内卷价格，国外卷能力</a></strong></h4>
+<p><span>或许国内大模型厂商是想借助价格战，尽快让大模型帮助企业带动营收增长，进而对冲大模型前期高昂的研发成本投入，以及相关硬件方面的投入。</span></p>
+<p><span>但随着国内大模型厂商在价格上持续内卷，或将影响到不少技术能力优越但资金实力不足的初创企业，这又是否会让中美在大模型方面的技术能力差距被拉开得更高呢？</span></p>
+</div>
+<p><span>-&nbsp;<strong>DoNews</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fishare.ifeng.com%2Fc%2Fs%2F8ZbmD8X4KKQ" target="_blank">从技术走向落地，行业大模型正从“小”场景倒推</a></strong></h4>
+<p><span>我们到底需要怎样的生成式AI？一边是各大科技巨头纷纷推出自身的大模型产品，开启疯狂卷参数模式，另一边，随着对大模型能力认知逐渐深入，开始有越来越多的企业关注大模型相关应用在B端的落地。</span></p>
+<p><span>今年以来，垂直于细微场景的轻量化、小参数模型开始涌现，可以说，各大厂商纷纷推出大模型产品形成“百模大战”的局势仅是序章，现在才真正进入“战役”——如何更好地在行业侧落地大模型产品。</span></p>
+<p>-<span>&nbsp;</span><strong>钛媒体</strong></p>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fk9GT1yeHhfX2viiLOBb7XA" target="_blank">华为现场演示AI文生图时出现sleep代码，请问time.sleep(6)起到了什么作用？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：扯淡的6秒，那是6毫秒才对，编程的sleep都是毫秒，6秒是6000</span>
+<ul>
+<li><span>观点 2：你说得对，但python是秒</span></li>
+</ul> </li>
+<li><span>观点 3：每次高考后大家都讨论高考作文。因为这是大部分人唯一能看懂的了</span></li>
+<li><span>观点 4：在如今多线程阻塞和通信机制这么成熟的环境下，没有使用sleep常量时间的任何理由。</span></li>
+<li><span>观点 5：最搞笑的是，一群人看到ret.write说是读取图片，给我整无语了</span></li>
+<li><span>观点 6：后续优化的伏笔</span></li>
+<li><span>观点 7：我认为没有什么不合理的，等待6秒是给AI生成图片留足够时间，以防展示图片的时候图片还没有渲染生成完成。为什么是6秒可能是测试后一个比较保险的等待时间。毕竟这只是一个发布会的展示demo，这么处理很合情合理。个人感觉这个拿出来说事儿的要么是初学代码一知半解感觉自己很nb，要么就是他是懂流量的</span>
+<ul>
+<li><span>观点 8：为什么要等ai 6秒。 这个调用不能用异步吗？调用api 万一7秒呢 写程序怎么可能会写死6秒 这简直不可思议 别说等ai了，万一网断了怎么办，异常判断和延迟处理绝对不会用固定时间来这样糊弄吧</span></li>
+</ul> </li>
+<li><span>观点 9：理性吃瓜 防止打脸</span></li>
+<li><span>观点 10：之前鸿蒙还没完善，代码放出来好多都没实现，直接返回的比比皆是</span></li>
+<li><span>观点 11：没那么复杂，回复说graceful shutdown的应该才是正经码农。。Ctrl+C产生中断，一般都会设计一个优雅退出时间，比如6秒，6秒还自己不能清场，就直接杀进程。这才是比较符合常识的可能性。其实说那么多都没用，真想较真的话，自己装一套mindx，看看源代码里是啥就知道了。</span>
+<ul>
+<li><span>观点 12：但是从图中 Traceback 来看是先 sleep 之后才收到中断信号，并不是中断后才执行 sleep。 正经的 graceful shutdown 不会拦截中断信号进行 sleep，最后再给自己发中断信号吧？</span></li>
+</ul> </li>
+<li><span>观点 13：确定性时延 哈哈哈哈哈哈哈哈哈</span></li>
+<li><span>观点 14：有时候会为了能看清某些流程会 sleep 一下，具体情况还是得看场景</span></li>
+<li><span>观点 15：善用sleep 让你的身价翻倍<img alt="[旺柴]" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/res.wx.qq.com-e56861eac8.gif">，只要sleep写的好你就可以摸鱼很久假装在优化 不开玩笑的话我个人认为跟文中说的一样是为了方便展示设置的临时sleep，如果是等调用反馈的时间这个太死板太弱智了...</span></li>
+<li><span>观点 16：勇于现场演示代码已经不错了。不考虑上下文，空想sleep没用吧，拉下代码仔细看看再评论。</span></li>
+<li><span>观点 17：可能是调用部分写得随意了点而已，就这点代码不能说明是假的</span></li>
+<li><span>观点 18：我日常工作都是python，不懂sleep(6)秒咋了，有啥问题！</span></li>
+<li><span>观点 19：避免答案过快输出，承让友商 6秒钟。</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292589" target="_blank">诈骗分子利用 TeamViewer 转走 398 万！远程桌面厂商该如何作为？</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：我给自己的账户转几万块钱都被风控了，这个398万是怎么办到的，银行应该对此负责😂</span></li>
+<li><span>观点 2：银行不做啥，怪到远程桌面上了，柿子还真就捡软的捏~？</span></li>
+<li><span>观点 3：国内的金融类APP都是禁止截屏的啊，远程操作都是黑屏的。他们怎么做到远程操作APP的？</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/news/292691/vue3-cabloy-front" target="_blank">Vue3 开发新范式，不用 `ref/reactive`，不用 `ref.value`</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：直接用 react 挺好，何苦来糟践 vue。</span></li>
+<li><span>观点 2：看起来更麻烦了</span></li>
+<li><span>观点 3：还是ref直观</span></li>
+<li><span>观点 4：这是要把script给去掉么</span></li>
+<li><span>观点 5：搞个新语言吧，别搞vue了</span></li>
+</ul>
+</blockquote>
+<p><em><strong>---END---</strong></em></p>
+<p>最后，欢迎扫码下载「开源中国 APP」，阅读海量技术报告、程序员极客分享！</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-fb500be7c3.png"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 18:26:44 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[大模型真要取代程序员了？最危险的岗位是......]]></title>
+    <link>https://my.oschina.net/u/6852546/blog/11129786</link>
+    <itunes:title><![CDATA[大模型真要取代程序员了？最危险的岗位是......]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<p>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</p>
+<p>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在“程序员”这种职业了，因为只要会说话，人人都会具备程序员的能力。</p>
+<p>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</p>
+<p>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</p>
+<p>第12期【开源漫谈】，我们邀请到了科大讯飞 AI 工程院智能体研究负责人杨彦波、PingCAP AI Lab 团队数据科学家孙逸神、Infra 工程师马工，一起来探讨一下，大模型的发展，究竟会如何塑造未来的技术职场？</p>
+<blockquote>
+<p><span><strong>分享嘉宾：</strong></span></p>
+<p>杨彦波</p>
+<p>科大讯飞 AI 工程院智能体研究负责人，高级研发工程师，热爱开源，负责大模型模型微调平台(Maas)以及智能体相关技术研究。</p>
+<p>孙逸神</p>
+<p>PingCAP AI Lab Data Scientist.自 ChatGPT 震撼发布至今，聚焦 LLM 应用开发及 Multi-Agents 等应用方向的探索，开发了 TiDB Bot、LinguFlow 等应用，并参与 AutoGen 社区开发。</p>
+<p><span><strong>主持人：</strong></span></p>
+<p><strong>马工</strong></p>
+<p>北欧 Infra 工程师，公众号《瑞典马工》主理人。《开源漫谈》常驻嘉宾。</p>
+</blockquote>
+<h1>01 <strong>现在的</strong><strong>大模型</strong><strong>发展到哪一步了？能替代哪些工作？</strong></h1>
+<p><strong>马工：</strong>目前，大模型发展到什么程度了？对程序员的替代到了哪一步？有哪些产品是已经做得不错的了？各位能讲一讲吗？</p>
+<p><strong>杨彦波：</strong>今天我们讲的话题是大模型会不会取代程序员，那我们首先看下程序员的定义哦。维基百科上说，程序员一开始，指的就是单纯的软件开发者，但很显然，在今天，程序员已经不单单指软件开发者了，所做的工作也不再局限于写代码。像写脚本、软件测试这种工作，在今天就有可能会被逐步取代。现在的话，像翻译、文档整理、数据标注这些，在一些简单的场景，大模型配合一些 agent 的框架已经做得比较好了，这种场景下的职位，相对来说就比较容易被大模型替代掉。</p>
+<p><strong>孙逸神：</strong>ChatGPT 面世的时候，确实很惊艳，对以往的一些 AI 应用确实是降维打击。不过，经过大家的体验，大家会发现，它确实存在亮点，但也还有很多弊端。而对于一个程序员来说，真正需要用在生产上面的话，我肯定不是看它的天花板在哪里，而是要看它的平均水平，或者说它的底线在哪里，因为这才是保障你服务质量的重点。</p>
+<p>那现在看下来的话，它在文字领域也只能做一些比较初级的东西。比如说它比较擅长总结，比较擅长做阅读理解，但是要真的让它去做一个很高级的文本关系，它又没那么擅长，或者说它的准确率没那么高。</p>
+<p>放到程序员这个领域来看，其实也是类似的。一些基础的活，它是能做的。但是高级的活，理论上它是不具备所谓的逻辑推理能力的。为什么它看起来有逻辑推理能力，是因为我们大部分情况下逻辑是蕴含在语言之中的，那它在学习语言的过程当中，只要学习的文本足够好，它就自然会蕴含一些逻辑在里面，但是它本身其实并不理解这个东西。你要是真让它开发一个很复杂的东西，或者一个很新的东西，那它基本上是做不了的。</p>
+<p><strong>马工：</strong>是的，Copilot 给我提供了一些代码，很好用，很方便，但是你还是得自己看一遍，不然放进去就是个灾难。但是如果老板把我开掉，那他就得自己去看 Copilot 代码，我相信他不如请我来看。</p>
+<p>话又说回来，你说它不能做高级的东西，但是一个程序员的日常工作中，有多少是高级的东西？也许我们99%的工作都是不高级的东西。你怎么看？</p>
+<p><strong>杨彦波：</strong>大模型本身它是包含一些原子能力的，比如说基础的对话，还有它本身页面上的一些功能，等等。这些都是比较简单的使用方式，能让你体验大模型的效果。</p>
+<p>更多的复杂任务，我们一般是利用大模型的 API，在客户端或者以编程的方式去做一些更高级的应用。我们现在所说的大模型，不仅仅是它自己的那个原子能力的发展，更多的、也是今年最火热的是编程范式，就是 agent 的一个范式。这一块也属于大模型发展的一部分。以后复杂的任务，可能更多会靠智能体这一块的概念去解决，这是我的观点。</p>
+<p><strong>马工：</strong>这个范式转移究竟是怎么一个转移？是说以后不需要程序员去写代码、测试、应用、然后部署到生产环境，还是......？</p>
+<p><strong>杨彦波：</strong>我举个例子。现实世界里，开发一个项目，往往有一个项目负责人，有项目经理，有开发测试，有运维部署，还有其他的各种角色，共同把这个项目做起来。大模型出来之后，我们可以用大模型去扮演这些角色，去实现它们在这个项目中的不同目标，共同完成一个项目。这就是大家最近在搞的智能体平台。实际上，作为编程这样一个比较特殊的环境，利用多个角色协同去编码，其实是非常有希望的。</p>
+<h1>02 未来还需要人类程序员吗？</h1>
+<p><strong>马工：</strong>所以您的意思是，大模型不仅会取代程序员，还会把整个 IT 团队都给干掉，也就是说以后产品经理直接就跟 agent 打交道，不需要人了，不需要公司了，是这个意思吧？</p>
+<p><strong>杨彦波：</strong>我的观点可能比较激进，可能大概是这样，当然，取代了这些岗位以后，一定会诞生一些新的岗位。</p>
+<p><strong>马工：</strong>很恐怖的场景啊。</p>
+<p><strong>孙逸神：</strong>是这样子的，因为今天这个题目讨论的是最终会不会代替，做到最终这个事情上就很难说了，我们肯定得给它加个时间限制。</p>
+<p>以我的经验来说的话，我做了挺多实验了，像彦波说的那样，让 agent 组成一个团队，这对解决问题流程是一个比较好的抽象。甚至我在这个层面上再加了一层抽象——就是本身任务怎么去做？因为任务会有相应的 SOP 来支撑这个任务怎么做，而不同的 SOP 都会有一整套的工作流程，我可以用这个 group 去组合各个不同的角色去做这个事情。</p>
+<p>但这两层抽象我都做完了以后，它依然很难满足我实际生产上的工作需求。比如说我让它做一些数据分析类的工作，实际操作中因为你本身可能输入 token 数量就很多，然后在这个过程当中，它的上下文交流交互也很频繁，那这样的话，其实整个上下文可能超过 100K 以上。</p>
+<p>在这种情况下，它最终能完成任务的概率其实还是挺小的。因为你每一个环节都存在它出错的可能性，最后就是一个乘法原理乘起来！那乘完了以后，它总的来说，成功率还是相当低的。</p>
+<p>因为人家写论文的时候，他一定是会给你看它最棒的亮点！但是这个亮点如果重复100次，是不是里面有90%都是这个样子的，其实不好说。实际我最后用下来，如果上下文足够长，或者逻辑足够复杂的情况下，光靠一个 PM 去跟它沟通是挺难的。</p>
+<p>PM 要具备审核所有生成代码的能力，那他其实不就已经相当于一个程序员？一个很复杂的项目我认为 PM 基本上没什么能力去审核，甚至他光看输入输出都不一定能对得上号。</p>
+<p><strong>马工：</strong>你提到的这个现象，会不会只是一个临时的现象，过两三年情况就大不一样了？比如说你刚才说的 100K 上下文，也许以后只有十兆上下文？又或者，当它复杂度上升的时候，工作不太顺畅了我再加一个程序员，就能解决问题。但是，相比于以前可能需要100个程序员，现在加1个就行，是不是也就相当于取代了99%的程序员了？</p>
+<p><strong>孙逸神：</strong>根据奥特曼的说法，chatGPT5 之后又是一个飞跃性的进展，所以这个还是挺难预测的。但是基于现在的 Transformer 模型，说白了还是比较倾向于一个马尔可夫决策过程，还是以概率为基础，根据之前的状态去预测下一个状态。如果这一点没有什么本质的改变，或者说人类对自己的认知科学也没有一个很完善的理解的话，至少这几年，取代程序员的情况是不会出现的。</p>
+<p>现在，大家都在关注上下文增加之后，大模型的质量怎么样，关注如何拓展上下文的大小。但是到100K200K以上这个级别，它的准确率目前可能50%都不到。这种情况下，要突破，估计没有那么快。</p>
+<p>今年上半年，我试过让 AutoGen 组成一个 group，让它能够按顺序去和人聊天，它都做不到。现在你说不光要让整个 group 的工作流程能够符合需求，还要让整个业务的 SOP 符合你的操作需求，整个步骤综合下来，至少我认为是很差的。</p>
+<p><strong>马工：</strong>这会不会是因为你们做分布式数据库的要求太高了呢？假如我就写个什么医疗信息管理系统，对程序员的要求很低，再把你那一套放到我这个医疗应用上，会不会效果就是可以接受的了？</p>
+<p><strong>孙逸神：</strong>一样的，我觉得对于不同领域来说，存在的问题是比较类似的。LLM 作为辅助肯定是 ok 的，但你让它真的去自动驾驶，这个肯定是不 ok 的。在程序员以外，还有一个比较重要的点，就是这个商业道德的问题，或者说商业责任的问题到底由谁来承担？</p>
+<p>在医疗行业，大家都知道那个图像识别 CT 在这个领域用了很多，像看片子，其实 AI 都能给出一些结论，但是最终还是要医生来盖章签字。那落到程序员这边来说，也是一样的。PM 可以把这个任务交给一个 AI 去做，但最后还是要有一个人来签字画押。PM 来签这个字不太可能，最终还是要有一个程序员来签这个字，程序员还是要对这个结果做一个检查。不检查的话，那他签了字，老板就要背商业责任了。</p>
+<p><strong>马工：</strong>是个很有趣的点，大模型不能背锅。</p>
+<h1>03 什么样的岗位最危险？</h1>
+<p><strong>杨彦波：</strong>自动驾驶的例子我不太赞同。事实上，现在很多城市已经试点了一些公交线路，像我们合肥就有一些试点无人公交，还有无人送快递，现实的例子已经 OK 了，只不过可能取代真正的人类还需要一段时间。不过，程序员这行也一样，它取代也是逐步的取代，先从一些简单的场景再到更复杂的场景逐步地去取代。</p>
+<p>像我公司现在有一些工作，偏向简单重复的代码开发，我们之前都是招实习生来做，在大模型出来之后，我们已经探索出用一些依赖大模型的 agent 技术来取代这一类工作，极大降低了用人成本。</p>
+<p><strong>马工：</strong>你之前说的智能体是什么东西？跟 chatGPT 有什么区别？</p>
+<p><strong>杨彦波：</strong>智能体这个概念，在大模型没有出来之前就有了，它的英文名字叫 agent。Agent 中文叫代理人，意思就是你完成一件事情，可能不需要你亲自去干，但你需要一个工具，或者是要一个实体人去帮你干。现在，这个代理人就是 agent，它可能干的事情不仅仅是调大模型，它会有一些高阶的能力：它知道在这个事情的领域内，怎么跟大模型交互，怎么调用外部的一些工具。这就是智能体的概念。它本质上也是大模型，但它是在大模型之上，又封装了一些特定领域的任务规划，或者是一些知识，相当于它是更加贴近于我们的真实用户的。</p>
+<p><strong>马工：</strong>我这样理解：以前打电话给携程，需要告诉那个客服，让他帮我订票。现在这个客服可能改成了 LLM，对我来说，他就是智能体。</p>
+<p><strong>孙逸神：</strong>没错，你可以认为它就是一个控制器，或者说就是一个机器人。它主要做的事情，首先是接受一定的输入，能够去感知一个环境，然后通过这些输入的信息，自己做一定的决策，最后输出一些 action 去改变这个 environment。</p>
+<h1>04 被取代了该怎么办？</h1>
+<p><strong>马工：</strong>我问一个问题，如果我们程序员真的被取代了，能有什么出路？彦波刚刚说了会有新的岗位产生，但是新的岗位是什么？我们应该怎么准备应对这一切？</p>
+<p><strong>杨彦波：</strong>我们最初发明 AI 是为了干啥？为了解放我们人类，提高我们的效率。那么，大模型一旦它的能力边界越来越大，能做的事情越来越多，那我们更需要关注的就是大模型给我们做的这些事情的质量，输出的东西是不是安全的，是不是符合伦理的，怎么控制大模型更好地输出？像大模型的内容安全这一块，一些新的岗位已经出来了。</p>
+<p>还有一种岗位就是，怎么更高级地去使用大模型？像开发 agent，就是一种新的岗位：怎么去开发 agent，让大模型可以为小白所用？我觉得这种岗位会越来越多，而且每个领域它的 agent 可能都不一样，大家的开发方式也逐渐变化了。</p>
+<p><strong>马工：</strong>第一，普通程序员哪有能力去开发智能体？那我只能做那种智能体的小助手，审核一下它写的东西。也就是说，现在它是我的助手，但是过了若干年之后，我会变成它的助手。听起来不是很让我兴奋的旅程。</p>
+<p><strong>孙逸神：</strong>彦波刚刚提到了，大模型替代一些基础能力，是 ok 的。它其实还是你的助手，它在帮你干一些杂活，或者说价值不高、附加值很差的活。作为一个程序员来说，你也不可能完全的就干“接收一个 stc 的输入，然后输出一个程序”这么简单的事情。很多工作越往后，越可能往业务方向去走。那你在不同的领域，你可能还是需要在这个领域的知识里面去做很多的事情。</p>
+<p>CS 这一块的话，系统架构也在不断的演进。只要是新的东西，都可以认为大模型是没有很强的能力的。因为它本质上来说，还是在总结既往已有的知识。在已有的知识前提下，它去创造，那它的创造力是很让人捉摸不定的。它也许偶尔灵光乍现能给你一些有用的信息，但是大部分情况下是没有的。</p>
+<p>另外，它对物理定律的理解其实就是没有。如果去做一个极其复杂的 BI 场景，或者说我是一个开发 CAE 软件的人，如果连微积分都搞不定，AI 它也一样算不出来。我觉得，每个领域其实都有很多专业知识可以挖的。</p>
+<p><strong>马工：</strong>明白，如果我是个程序员，我要保证我的职业安全，我就应该让领导尽量用新的语言。每个语言出来了，我就赶紧用。LLM 它还没有读到足够的文本，它就用不了。哈哈。</p>
+<p><span>更多直播内容，扫码看看回放吧↓↓↓</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d360ff9c2d.png"></p>
+<hr>
+<p><span><span><span><strong><strong><span><span><span><span><span><strong><span><span>【开源漫谈】</span></span></strong></span></span></span></span></span></strong></strong></span></span></span></p>
+<p><span><span><span><span><span>OSCHINA 视频号畅聊栏目【开源漫谈】，每期一个技术话题，三五位专家围坐，各抒己见，畅聊开源。给大家带来最新的行业前沿、最热门的技术话题、最有趣的开源项目、最犀利的思想交锋。如果你手上也有新点子、好项目，想要跟同行交流分享，欢迎联系我们，讲坛随时开放～</span></span></span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b6a37c6f5.png"></p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<p>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</p>
+<p>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在“程序员”这种职业了，因为只要会说话，人人都会具备程序员的能力。</p>
+<p>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</p>
+<p>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</p>
+<p>第12期【开源漫谈】，我们邀请到了科大讯飞 AI 工程院智能体研究负责人杨彦波、PingCAP AI Lab 团队数据科学家孙逸神、Infra 工程师马工，一起来探讨一下，大模型的发展，究竟会如何塑造未来的技术职场？</p>
+<blockquote>
+<p><span><strong>分享嘉宾：</strong></span></p>
+<p>杨彦波</p>
+<p>科大讯飞 AI 工程院智能体研究负责人，高级研发工程师，热爱开源，负责大模型模型微调平台(Maas)以及智能体相关技术研究。</p>
+<p>孙逸神</p>
+<p>PingCAP AI Lab Data Scientist.自 ChatGPT 震撼发布至今，聚焦 LLM 应用开发及 Multi-Agents 等应用方向的探索，开发了 TiDB Bot、LinguFlow 等应用，并参与 AutoGen 社区开发。</p>
+<p><span><strong>主持人：</strong></span></p>
+<p><strong>马工</strong></p>
+<p>北欧 Infra 工程师，公众号《瑞典马工》主理人。《开源漫谈》常驻嘉宾。</p>
+</blockquote>
+<h1>01 <strong>现在的</strong><strong>大模型</strong><strong>发展到哪一步了？能替代哪些工作？</strong></h1>
+<p><strong>马工：</strong>目前，大模型发展到什么程度了？对程序员的替代到了哪一步？有哪些产品是已经做得不错的了？各位能讲一讲吗？</p>
+<p><strong>杨彦波：</strong>今天我们讲的话题是大模型会不会取代程序员，那我们首先看下程序员的定义哦。维基百科上说，程序员一开始，指的就是单纯的软件开发者，但很显然，在今天，程序员已经不单单指软件开发者了，所做的工作也不再局限于写代码。像写脚本、软件测试这种工作，在今天就有可能会被逐步取代。现在的话，像翻译、文档整理、数据标注这些，在一些简单的场景，大模型配合一些 agent 的框架已经做得比较好了，这种场景下的职位，相对来说就比较容易被大模型替代掉。</p>
+<p><strong>孙逸神：</strong>ChatGPT 面世的时候，确实很惊艳，对以往的一些 AI 应用确实是降维打击。不过，经过大家的体验，大家会发现，它确实存在亮点，但也还有很多弊端。而对于一个程序员来说，真正需要用在生产上面的话，我肯定不是看它的天花板在哪里，而是要看它的平均水平，或者说它的底线在哪里，因为这才是保障你服务质量的重点。</p>
+<p>那现在看下来的话，它在文字领域也只能做一些比较初级的东西。比如说它比较擅长总结，比较擅长做阅读理解，但是要真的让它去做一个很高级的文本关系，它又没那么擅长，或者说它的准确率没那么高。</p>
+<p>放到程序员这个领域来看，其实也是类似的。一些基础的活，它是能做的。但是高级的活，理论上它是不具备所谓的逻辑推理能力的。为什么它看起来有逻辑推理能力，是因为我们大部分情况下逻辑是蕴含在语言之中的，那它在学习语言的过程当中，只要学习的文本足够好，它就自然会蕴含一些逻辑在里面，但是它本身其实并不理解这个东西。你要是真让它开发一个很复杂的东西，或者一个很新的东西，那它基本上是做不了的。</p>
+<p><strong>马工：</strong>是的，Copilot 给我提供了一些代码，很好用，很方便，但是你还是得自己看一遍，不然放进去就是个灾难。但是如果老板把我开掉，那他就得自己去看 Copilot 代码，我相信他不如请我来看。</p>
+<p>话又说回来，你说它不能做高级的东西，但是一个程序员的日常工作中，有多少是高级的东西？也许我们99%的工作都是不高级的东西。你怎么看？</p>
+<p><strong>杨彦波：</strong>大模型本身它是包含一些原子能力的，比如说基础的对话，还有它本身页面上的一些功能，等等。这些都是比较简单的使用方式，能让你体验大模型的效果。</p>
+<p>更多的复杂任务，我们一般是利用大模型的 API，在客户端或者以编程的方式去做一些更高级的应用。我们现在所说的大模型，不仅仅是它自己的那个原子能力的发展，更多的、也是今年最火热的是编程范式，就是 agent 的一个范式。这一块也属于大模型发展的一部分。以后复杂的任务，可能更多会靠智能体这一块的概念去解决，这是我的观点。</p>
+<p><strong>马工：</strong>这个范式转移究竟是怎么一个转移？是说以后不需要程序员去写代码、测试、应用、然后部署到生产环境，还是......？</p>
+<p><strong>杨彦波：</strong>我举个例子。现实世界里，开发一个项目，往往有一个项目负责人，有项目经理，有开发测试，有运维部署，还有其他的各种角色，共同把这个项目做起来。大模型出来之后，我们可以用大模型去扮演这些角色，去实现它们在这个项目中的不同目标，共同完成一个项目。这就是大家最近在搞的智能体平台。实际上，作为编程这样一个比较特殊的环境，利用多个角色协同去编码，其实是非常有希望的。</p>
+<h1>02 未来还需要人类程序员吗？</h1>
+<p><strong>马工：</strong>所以您的意思是，大模型不仅会取代程序员，还会把整个 IT 团队都给干掉，也就是说以后产品经理直接就跟 agent 打交道，不需要人了，不需要公司了，是这个意思吧？</p>
+<p><strong>杨彦波：</strong>我的观点可能比较激进，可能大概是这样，当然，取代了这些岗位以后，一定会诞生一些新的岗位。</p>
+<p><strong>马工：</strong>很恐怖的场景啊。</p>
+<p><strong>孙逸神：</strong>是这样子的，因为今天这个题目讨论的是最终会不会代替，做到最终这个事情上就很难说了，我们肯定得给它加个时间限制。</p>
+<p>以我的经验来说的话，我做了挺多实验了，像彦波说的那样，让 agent 组成一个团队，这对解决问题流程是一个比较好的抽象。甚至我在这个层面上再加了一层抽象——就是本身任务怎么去做？因为任务会有相应的 SOP 来支撑这个任务怎么做，而不同的 SOP 都会有一整套的工作流程，我可以用这个 group 去组合各个不同的角色去做这个事情。</p>
+<p>但这两层抽象我都做完了以后，它依然很难满足我实际生产上的工作需求。比如说我让它做一些数据分析类的工作，实际操作中因为你本身可能输入 token 数量就很多，然后在这个过程当中，它的上下文交流交互也很频繁，那这样的话，其实整个上下文可能超过 100K 以上。</p>
+<p>在这种情况下，它最终能完成任务的概率其实还是挺小的。因为你每一个环节都存在它出错的可能性，最后就是一个乘法原理乘起来！那乘完了以后，它总的来说，成功率还是相当低的。</p>
+<p>因为人家写论文的时候，他一定是会给你看它最棒的亮点！但是这个亮点如果重复100次，是不是里面有90%都是这个样子的，其实不好说。实际我最后用下来，如果上下文足够长，或者逻辑足够复杂的情况下，光靠一个 PM 去跟它沟通是挺难的。</p>
+<p>PM 要具备审核所有生成代码的能力，那他其实不就已经相当于一个程序员？一个很复杂的项目我认为 PM 基本上没什么能力去审核，甚至他光看输入输出都不一定能对得上号。</p>
+<p><strong>马工：</strong>你提到的这个现象，会不会只是一个临时的现象，过两三年情况就大不一样了？比如说你刚才说的 100K 上下文，也许以后只有十兆上下文？又或者，当它复杂度上升的时候，工作不太顺畅了我再加一个程序员，就能解决问题。但是，相比于以前可能需要100个程序员，现在加1个就行，是不是也就相当于取代了99%的程序员了？</p>
+<p><strong>孙逸神：</strong>根据奥特曼的说法，chatGPT5 之后又是一个飞跃性的进展，所以这个还是挺难预测的。但是基于现在的 Transformer 模型，说白了还是比较倾向于一个马尔可夫决策过程，还是以概率为基础，根据之前的状态去预测下一个状态。如果这一点没有什么本质的改变，或者说人类对自己的认知科学也没有一个很完善的理解的话，至少这几年，取代程序员的情况是不会出现的。</p>
+<p>现在，大家都在关注上下文增加之后，大模型的质量怎么样，关注如何拓展上下文的大小。但是到100K200K以上这个级别，它的准确率目前可能50%都不到。这种情况下，要突破，估计没有那么快。</p>
+<p>今年上半年，我试过让 AutoGen 组成一个 group，让它能够按顺序去和人聊天，它都做不到。现在你说不光要让整个 group 的工作流程能够符合需求，还要让整个业务的 SOP 符合你的操作需求，整个步骤综合下来，至少我认为是很差的。</p>
+<p><strong>马工：</strong>这会不会是因为你们做分布式数据库的要求太高了呢？假如我就写个什么医疗信息管理系统，对程序员的要求很低，再把你那一套放到我这个医疗应用上，会不会效果就是可以接受的了？</p>
+<p><strong>孙逸神：</strong>一样的，我觉得对于不同领域来说，存在的问题是比较类似的。LLM 作为辅助肯定是 ok 的，但你让它真的去自动驾驶，这个肯定是不 ok 的。在程序员以外，还有一个比较重要的点，就是这个商业道德的问题，或者说商业责任的问题到底由谁来承担？</p>
+<p>在医疗行业，大家都知道那个图像识别 CT 在这个领域用了很多，像看片子，其实 AI 都能给出一些结论，但是最终还是要医生来盖章签字。那落到程序员这边来说，也是一样的。PM 可以把这个任务交给一个 AI 去做，但最后还是要有一个人来签字画押。PM 来签这个字不太可能，最终还是要有一个程序员来签这个字，程序员还是要对这个结果做一个检查。不检查的话，那他签了字，老板就要背商业责任了。</p>
+<p><strong>马工：</strong>是个很有趣的点，大模型不能背锅。</p>
+<h1>03 什么样的岗位最危险？</h1>
+<p><strong>杨彦波：</strong>自动驾驶的例子我不太赞同。事实上，现在很多城市已经试点了一些公交线路，像我们合肥就有一些试点无人公交，还有无人送快递，现实的例子已经 OK 了，只不过可能取代真正的人类还需要一段时间。不过，程序员这行也一样，它取代也是逐步的取代，先从一些简单的场景再到更复杂的场景逐步地去取代。</p>
+<p>像我公司现在有一些工作，偏向简单重复的代码开发，我们之前都是招实习生来做，在大模型出来之后，我们已经探索出用一些依赖大模型的 agent 技术来取代这一类工作，极大降低了用人成本。</p>
+<p><strong>马工：</strong>你之前说的智能体是什么东西？跟 chatGPT 有什么区别？</p>
+<p><strong>杨彦波：</strong>智能体这个概念，在大模型没有出来之前就有了，它的英文名字叫 agent。Agent 中文叫代理人，意思就是你完成一件事情，可能不需要你亲自去干，但你需要一个工具，或者是要一个实体人去帮你干。现在，这个代理人就是 agent，它可能干的事情不仅仅是调大模型，它会有一些高阶的能力：它知道在这个事情的领域内，怎么跟大模型交互，怎么调用外部的一些工具。这就是智能体的概念。它本质上也是大模型，但它是在大模型之上，又封装了一些特定领域的任务规划，或者是一些知识，相当于它是更加贴近于我们的真实用户的。</p>
+<p><strong>马工：</strong>我这样理解：以前打电话给携程，需要告诉那个客服，让他帮我订票。现在这个客服可能改成了 LLM，对我来说，他就是智能体。</p>
+<p><strong>孙逸神：</strong>没错，你可以认为它就是一个控制器，或者说就是一个机器人。它主要做的事情，首先是接受一定的输入，能够去感知一个环境，然后通过这些输入的信息，自己做一定的决策，最后输出一些 action 去改变这个 environment。</p>
+<h1>04 被取代了该怎么办？</h1>
+<p><strong>马工：</strong>我问一个问题，如果我们程序员真的被取代了，能有什么出路？彦波刚刚说了会有新的岗位产生，但是新的岗位是什么？我们应该怎么准备应对这一切？</p>
+<p><strong>杨彦波：</strong>我们最初发明 AI 是为了干啥？为了解放我们人类，提高我们的效率。那么，大模型一旦它的能力边界越来越大，能做的事情越来越多，那我们更需要关注的就是大模型给我们做的这些事情的质量，输出的东西是不是安全的，是不是符合伦理的，怎么控制大模型更好地输出？像大模型的内容安全这一块，一些新的岗位已经出来了。</p>
+<p>还有一种岗位就是，怎么更高级地去使用大模型？像开发 agent，就是一种新的岗位：怎么去开发 agent，让大模型可以为小白所用？我觉得这种岗位会越来越多，而且每个领域它的 agent 可能都不一样，大家的开发方式也逐渐变化了。</p>
+<p><strong>马工：</strong>第一，普通程序员哪有能力去开发智能体？那我只能做那种智能体的小助手，审核一下它写的东西。也就是说，现在它是我的助手，但是过了若干年之后，我会变成它的助手。听起来不是很让我兴奋的旅程。</p>
+<p><strong>孙逸神：</strong>彦波刚刚提到了，大模型替代一些基础能力，是 ok 的。它其实还是你的助手，它在帮你干一些杂活，或者说价值不高、附加值很差的活。作为一个程序员来说，你也不可能完全的就干“接收一个 stc 的输入，然后输出一个程序”这么简单的事情。很多工作越往后，越可能往业务方向去走。那你在不同的领域，你可能还是需要在这个领域的知识里面去做很多的事情。</p>
+<p>CS 这一块的话，系统架构也在不断的演进。只要是新的东西，都可以认为大模型是没有很强的能力的。因为它本质上来说，还是在总结既往已有的知识。在已有的知识前提下，它去创造，那它的创造力是很让人捉摸不定的。它也许偶尔灵光乍现能给你一些有用的信息，但是大部分情况下是没有的。</p>
+<p>另外，它对物理定律的理解其实就是没有。如果去做一个极其复杂的 BI 场景，或者说我是一个开发 CAE 软件的人，如果连微积分都搞不定，AI 它也一样算不出来。我觉得，每个领域其实都有很多专业知识可以挖的。</p>
+<p><strong>马工：</strong>明白，如果我是个程序员，我要保证我的职业安全，我就应该让领导尽量用新的语言。每个语言出来了，我就赶紧用。LLM 它还没有读到足够的文本，它就用不了。哈哈。</p>
+<p><span>更多直播内容，扫码看看回放吧↓↓↓</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d360ff9c2d.png"></p>
+<hr>
+<p><span><span><span><strong><strong><span><span><span><span><span><strong><span><span>【开源漫谈】</span></span></strong></span></span></span></span></span></strong></strong></span></span></span></p>
+<p><span><span><span><span><span>OSCHINA 视频号畅聊栏目【开源漫谈】，每期一个技术话题，三五位专家围坐，各抒己见，畅聊开源。给大家带来最新的行业前沿、最热门的技术话题、最有趣的开源项目、最犀利的思想交锋。如果你手上也有新点子、好项目，想要跟同行交流分享，欢迎联系我们，讲坛随时开放～</span></span></span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b6a37c6f5.png"></p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<p>如今，随着大模型在编程、代码生成、自动化测试等领域展现出越来越强大的能力，一个引人深思的问题浮现出来：大模型会不会最终取代程序员的工作？</p>
+<p>有些人认为，世界上本就没有哪项工作是绝对安全的，机器取代人工本就是迟早的事。从 GitHub Copilot、ChatGPT 到国产的通义灵码，各类替代工具纷纷涌现。AI 会做得越来越多，人类做得越来越少。百度 CEO 李彦宏就曾说过，基本上以后不会存在“程序员”这种职业了，因为只要会说话，人人都会具备程序员的能力。</p>
+<p>但另一些人，则持不同的观点。他们认为：“低端程序员会消失，有创造力的程序员会做大”，“编程仍是基础，是必须要学的，程序都看不懂，再有创造力也没用”。360 CEO 周鸿祎就觉得，程序员热十年内不会减弱。尽管未来人人都会用电脑，所谓人人都是程序员，但不同的人用电脑创造的产品完全不一样，AI 时代更需要计算机专家和程序员，他们可能是各行各业最有发言权的。</p>
+<p>那么，真实的情况是怎样的？大模型技术到底能取代哪些工作，又会如何影响程序员的职业生涯？作为普通程序员，应该如何适应变化？</p>
+<p>第12期【开源漫谈】，我们邀请到了科大讯飞 AI 工程院智能体研究负责人杨彦波、PingCAP AI Lab 团队数据科学家孙逸神、Infra 工程师马工，一起来探讨一下，大模型的发展，究竟会如何塑造未来的技术职场？</p>
+<blockquote>
+<p><span><strong>分享嘉宾：</strong></span></p>
+<p>杨彦波</p>
+<p>科大讯飞 AI 工程院智能体研究负责人，高级研发工程师，热爱开源，负责大模型模型微调平台(Maas)以及智能体相关技术研究。</p>
+<p>孙逸神</p>
+<p>PingCAP AI Lab Data Scientist.自 ChatGPT 震撼发布至今，聚焦 LLM 应用开发及 Multi-Agents 等应用方向的探索，开发了 TiDB Bot、LinguFlow 等应用，并参与 AutoGen 社区开发。</p>
+<p><span><strong>主持人：</strong></span></p>
+<p><strong>马工</strong></p>
+<p>北欧 Infra 工程师，公众号《瑞典马工》主理人。《开源漫谈》常驻嘉宾。</p>
+</blockquote>
+<h1>01 <strong>现在的</strong><strong>大模型</strong><strong>发展到哪一步了？能替代哪些工作？</strong></h1>
+<p><strong>马工：</strong>目前，大模型发展到什么程度了？对程序员的替代到了哪一步？有哪些产品是已经做得不错的了？各位能讲一讲吗？</p>
+<p><strong>杨彦波：</strong>今天我们讲的话题是大模型会不会取代程序员，那我们首先看下程序员的定义哦。维基百科上说，程序员一开始，指的就是单纯的软件开发者，但很显然，在今天，程序员已经不单单指软件开发者了，所做的工作也不再局限于写代码。像写脚本、软件测试这种工作，在今天就有可能会被逐步取代。现在的话，像翻译、文档整理、数据标注这些，在一些简单的场景，大模型配合一些 agent 的框架已经做得比较好了，这种场景下的职位，相对来说就比较容易被大模型替代掉。</p>
+<p><strong>孙逸神：</strong>ChatGPT 面世的时候，确实很惊艳，对以往的一些 AI 应用确实是降维打击。不过，经过大家的体验，大家会发现，它确实存在亮点，但也还有很多弊端。而对于一个程序员来说，真正需要用在生产上面的话，我肯定不是看它的天花板在哪里，而是要看它的平均水平，或者说它的底线在哪里，因为这才是保障你服务质量的重点。</p>
+<p>那现在看下来的话，它在文字领域也只能做一些比较初级的东西。比如说它比较擅长总结，比较擅长做阅读理解，但是要真的让它去做一个很高级的文本关系，它又没那么擅长，或者说它的准确率没那么高。</p>
+<p>放到程序员这个领域来看，其实也是类似的。一些基础的活，它是能做的。但是高级的活，理论上它是不具备所谓的逻辑推理能力的。为什么它看起来有逻辑推理能力，是因为我们大部分情况下逻辑是蕴含在语言之中的，那它在学习语言的过程当中，只要学习的文本足够好，它就自然会蕴含一些逻辑在里面，但是它本身其实并不理解这个东西。你要是真让它开发一个很复杂的东西，或者一个很新的东西，那它基本上是做不了的。</p>
+<p><strong>马工：</strong>是的，Copilot 给我提供了一些代码，很好用，很方便，但是你还是得自己看一遍，不然放进去就是个灾难。但是如果老板把我开掉，那他就得自己去看 Copilot 代码，我相信他不如请我来看。</p>
+<p>话又说回来，你说它不能做高级的东西，但是一个程序员的日常工作中，有多少是高级的东西？也许我们99%的工作都是不高级的东西。你怎么看？</p>
+<p><strong>杨彦波：</strong>大模型本身它是包含一些原子能力的，比如说基础的对话，还有它本身页面上的一些功能，等等。这些都是比较简单的使用方式，能让你体验大模型的效果。</p>
+<p>更多的复杂任务，我们一般是利用大模型的 API，在客户端或者以编程的方式去做一些更高级的应用。我们现在所说的大模型，不仅仅是它自己的那个原子能力的发展，更多的、也是今年最火热的是编程范式，就是 agent 的一个范式。这一块也属于大模型发展的一部分。以后复杂的任务，可能更多会靠智能体这一块的概念去解决，这是我的观点。</p>
+<p><strong>马工：</strong>这个范式转移究竟是怎么一个转移？是说以后不需要程序员去写代码、测试、应用、然后部署到生产环境，还是......？</p>
+<p><strong>杨彦波：</strong>我举个例子。现实世界里，开发一个项目，往往有一个项目负责人，有项目经理，有开发测试，有运维部署，还有其他的各种角色，共同把这个项目做起来。大模型出来之后，我们可以用大模型去扮演这些角色，去实现它们在这个项目中的不同目标，共同完成一个项目。这就是大家最近在搞的智能体平台。实际上，作为编程这样一个比较特殊的环境，利用多个角色协同去编码，其实是非常有希望的。</p>
+<h1>02 未来还需要人类程序员吗？</h1>
+<p><strong>马工：</strong>所以您的意思是，大模型不仅会取代程序员，还会把整个 IT 团队都给干掉，也就是说以后产品经理直接就跟 agent 打交道，不需要人了，不需要公司了，是这个意思吧？</p>
+<p><strong>杨彦波：</strong>我的观点可能比较激进，可能大概是这样，当然，取代了这些岗位以后，一定会诞生一些新的岗位。</p>
+<p><strong>马工：</strong>很恐怖的场景啊。</p>
+<p><strong>孙逸神：</strong>是这样子的，因为今天这个题目讨论的是最终会不会代替，做到最终这个事情上就很难说了，我们肯定得给它加个时间限制。</p>
+<p>以我的经验来说的话，我做了挺多实验了，像彦波说的那样，让 agent 组成一个团队，这对解决问题流程是一个比较好的抽象。甚至我在这个层面上再加了一层抽象——就是本身任务怎么去做？因为任务会有相应的 SOP 来支撑这个任务怎么做，而不同的 SOP 都会有一整套的工作流程，我可以用这个 group 去组合各个不同的角色去做这个事情。</p>
+<p>但这两层抽象我都做完了以后，它依然很难满足我实际生产上的工作需求。比如说我让它做一些数据分析类的工作，实际操作中因为你本身可能输入 token 数量就很多，然后在这个过程当中，它的上下文交流交互也很频繁，那这样的话，其实整个上下文可能超过 100K 以上。</p>
+<p>在这种情况下，它最终能完成任务的概率其实还是挺小的。因为你每一个环节都存在它出错的可能性，最后就是一个乘法原理乘起来！那乘完了以后，它总的来说，成功率还是相当低的。</p>
+<p>因为人家写论文的时候，他一定是会给你看它最棒的亮点！但是这个亮点如果重复100次，是不是里面有90%都是这个样子的，其实不好说。实际我最后用下来，如果上下文足够长，或者逻辑足够复杂的情况下，光靠一个 PM 去跟它沟通是挺难的。</p>
+<p>PM 要具备审核所有生成代码的能力，那他其实不就已经相当于一个程序员？一个很复杂的项目我认为 PM 基本上没什么能力去审核，甚至他光看输入输出都不一定能对得上号。</p>
+<p><strong>马工：</strong>你提到的这个现象，会不会只是一个临时的现象，过两三年情况就大不一样了？比如说你刚才说的 100K 上下文，也许以后只有十兆上下文？又或者，当它复杂度上升的时候，工作不太顺畅了我再加一个程序员，就能解决问题。但是，相比于以前可能需要100个程序员，现在加1个就行，是不是也就相当于取代了99%的程序员了？</p>
+<p><strong>孙逸神：</strong>根据奥特曼的说法，chatGPT5 之后又是一个飞跃性的进展，所以这个还是挺难预测的。但是基于现在的 Transformer 模型，说白了还是比较倾向于一个马尔可夫决策过程，还是以概率为基础，根据之前的状态去预测下一个状态。如果这一点没有什么本质的改变，或者说人类对自己的认知科学也没有一个很完善的理解的话，至少这几年，取代程序员的情况是不会出现的。</p>
+<p>现在，大家都在关注上下文增加之后，大模型的质量怎么样，关注如何拓展上下文的大小。但是到100K200K以上这个级别，它的准确率目前可能50%都不到。这种情况下，要突破，估计没有那么快。</p>
+<p>今年上半年，我试过让 AutoGen 组成一个 group，让它能够按顺序去和人聊天，它都做不到。现在你说不光要让整个 group 的工作流程能够符合需求，还要让整个业务的 SOP 符合你的操作需求，整个步骤综合下来，至少我认为是很差的。</p>
+<p><strong>马工：</strong>这会不会是因为你们做分布式数据库的要求太高了呢？假如我就写个什么医疗信息管理系统，对程序员的要求很低，再把你那一套放到我这个医疗应用上，会不会效果就是可以接受的了？</p>
+<p><strong>孙逸神：</strong>一样的，我觉得对于不同领域来说，存在的问题是比较类似的。LLM 作为辅助肯定是 ok 的，但你让它真的去自动驾驶，这个肯定是不 ok 的。在程序员以外，还有一个比较重要的点，就是这个商业道德的问题，或者说商业责任的问题到底由谁来承担？</p>
+<p>在医疗行业，大家都知道那个图像识别 CT 在这个领域用了很多，像看片子，其实 AI 都能给出一些结论，但是最终还是要医生来盖章签字。那落到程序员这边来说，也是一样的。PM 可以把这个任务交给一个 AI 去做，但最后还是要有一个人来签字画押。PM 来签这个字不太可能，最终还是要有一个程序员来签这个字，程序员还是要对这个结果做一个检查。不检查的话，那他签了字，老板就要背商业责任了。</p>
+<p><strong>马工：</strong>是个很有趣的点，大模型不能背锅。</p>
+<h1>03 什么样的岗位最危险？</h1>
+<p><strong>杨彦波：</strong>自动驾驶的例子我不太赞同。事实上，现在很多城市已经试点了一些公交线路，像我们合肥就有一些试点无人公交，还有无人送快递，现实的例子已经 OK 了，只不过可能取代真正的人类还需要一段时间。不过，程序员这行也一样，它取代也是逐步的取代，先从一些简单的场景再到更复杂的场景逐步地去取代。</p>
+<p>像我公司现在有一些工作，偏向简单重复的代码开发，我们之前都是招实习生来做，在大模型出来之后，我们已经探索出用一些依赖大模型的 agent 技术来取代这一类工作，极大降低了用人成本。</p>
+<p><strong>马工：</strong>你之前说的智能体是什么东西？跟 chatGPT 有什么区别？</p>
+<p><strong>杨彦波：</strong>智能体这个概念，在大模型没有出来之前就有了，它的英文名字叫 agent。Agent 中文叫代理人，意思就是你完成一件事情，可能不需要你亲自去干，但你需要一个工具，或者是要一个实体人去帮你干。现在，这个代理人就是 agent，它可能干的事情不仅仅是调大模型，它会有一些高阶的能力：它知道在这个事情的领域内，怎么跟大模型交互，怎么调用外部的一些工具。这就是智能体的概念。它本质上也是大模型，但它是在大模型之上，又封装了一些特定领域的任务规划，或者是一些知识，相当于它是更加贴近于我们的真实用户的。</p>
+<p><strong>马工：</strong>我这样理解：以前打电话给携程，需要告诉那个客服，让他帮我订票。现在这个客服可能改成了 LLM，对我来说，他就是智能体。</p>
+<p><strong>孙逸神：</strong>没错，你可以认为它就是一个控制器，或者说就是一个机器人。它主要做的事情，首先是接受一定的输入，能够去感知一个环境，然后通过这些输入的信息，自己做一定的决策，最后输出一些 action 去改变这个 environment。</p>
+<h1>04 被取代了该怎么办？</h1>
+<p><strong>马工：</strong>我问一个问题，如果我们程序员真的被取代了，能有什么出路？彦波刚刚说了会有新的岗位产生，但是新的岗位是什么？我们应该怎么准备应对这一切？</p>
+<p><strong>杨彦波：</strong>我们最初发明 AI 是为了干啥？为了解放我们人类，提高我们的效率。那么，大模型一旦它的能力边界越来越大，能做的事情越来越多，那我们更需要关注的就是大模型给我们做的这些事情的质量，输出的东西是不是安全的，是不是符合伦理的，怎么控制大模型更好地输出？像大模型的内容安全这一块，一些新的岗位已经出来了。</p>
+<p>还有一种岗位就是，怎么更高级地去使用大模型？像开发 agent，就是一种新的岗位：怎么去开发 agent，让大模型可以为小白所用？我觉得这种岗位会越来越多，而且每个领域它的 agent 可能都不一样，大家的开发方式也逐渐变化了。</p>
+<p><strong>马工：</strong>第一，普通程序员哪有能力去开发智能体？那我只能做那种智能体的小助手，审核一下它写的东西。也就是说，现在它是我的助手，但是过了若干年之后，我会变成它的助手。听起来不是很让我兴奋的旅程。</p>
+<p><strong>孙逸神：</strong>彦波刚刚提到了，大模型替代一些基础能力，是 ok 的。它其实还是你的助手，它在帮你干一些杂活，或者说价值不高、附加值很差的活。作为一个程序员来说，你也不可能完全的就干“接收一个 stc 的输入，然后输出一个程序”这么简单的事情。很多工作越往后，越可能往业务方向去走。那你在不同的领域，你可能还是需要在这个领域的知识里面去做很多的事情。</p>
+<p>CS 这一块的话，系统架构也在不断的演进。只要是新的东西，都可以认为大模型是没有很强的能力的。因为它本质上来说，还是在总结既往已有的知识。在已有的知识前提下，它去创造，那它的创造力是很让人捉摸不定的。它也许偶尔灵光乍现能给你一些有用的信息，但是大部分情况下是没有的。</p>
+<p>另外，它对物理定律的理解其实就是没有。如果去做一个极其复杂的 BI 场景，或者说我是一个开发 CAE 软件的人，如果连微积分都搞不定，AI 它也一样算不出来。我觉得，每个领域其实都有很多专业知识可以挖的。</p>
+<p><strong>马工：</strong>明白，如果我是个程序员，我要保证我的职业安全，我就应该让领导尽量用新的语言。每个语言出来了，我就赶紧用。LLM 它还没有读到足够的文本，它就用不了。哈哈。</p>
+<p><span>更多直播内容，扫码看看回放吧↓↓↓</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d360ff9c2d.png"></p>
+<hr>
+<p><span><span><span><strong><strong><span><span><span><span><span><strong><span><span>【开源漫谈】</span></span></strong></span></span></span></span></span></strong></strong></span></span></span></p>
+<p><span><span><span><span><span>OSCHINA 视频号畅聊栏目【开源漫谈】，每期一个技术话题，三五位专家围坐，各抒己见，畅聊开源。给大家带来最新的行业前沿、最热门的技术话题、最有趣的开源项目、最犀利的思想交锋。如果你手上也有新点子、好项目，想要跟同行交流分享，欢迎联系我们，讲坛随时开放～</span></span></span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5b6a37c6f5.png"></p>
+</div>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d360ff9c2d.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d360ff9c2d.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 17:18:40 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[国内外大模型“人情味”PK，调教最暖大模型]]></title>
+    <link>https://www.oschina.net/news/292751</link>
+    <itunes:title><![CDATA[国内外大模型“人情味”PK，调教最暖大模型]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>人工智能领域迎来了期待已久的“智慧涌现”，受到了全社会的关注和热议，但有相当一部分社会群体，除了关注大模型能否提供实用信息， 也期待大模型的回答能温暖心灵、提供关怀，通俗来讲，他们期待大模型亦能有“人情味”的涌现。</p>
+<p>近日，中国社科院社会学所、腾讯研究院、腾讯 SSV 银发科技实验室、腾讯 SSV 数字生态实验室和中国残联公益组织-腾讯无障碍创新实验室联合发布了调教最暖大模型——通过prompt调试并比较国内外大模型“人情味”的小实验。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-3a299f90f7.png"></p>
+<p>以下是该文件的核心内容概要：</p>
+<ol>
+<li> <p><strong>研究背景与问题</strong>：</p>
+<ul>
+<li>社会群体不仅期待大模型提供实用信息，还希望AI的回答能够温暖人心、提供关怀。</li>
+<li>通过焦点小组讨论，收集了老年人、残疾人和心情低落者对大模型的提问和感受。</li>
+</ul> </li>
+<li> <p><strong>人情味的定义与测量</strong>：</p>
+<ul>
+<li>人情味通常指人与人之间的温暖感情和兴味。</li>
+<li>提出了一个“人情味”的测量表，从拟人、共情和表达三个层面进行评估。</li>
+</ul> </li>
+<li> <p><strong>实验设计与对象</strong>：</p>
+<ul>
+<li>选择了2款国外大模型（GPT-4和Vicuna）和3款国内大模型进行比较。</li>
+<li>实验时间为2023年10月，考虑到大模型更新迭代快，结论仅代表当时的水平。</li>
+</ul> </li>
+<li> <p><strong>实验发现</strong>：</p>
+<ul>
+<li>在原始状态下，国内大模型在老年话题相关问答上更具人情味，而国外大模型在心情低落相关问答上表现更佳。</li>
+<li>经过prompt调试后，GPT-4的人情味得分提升显著，排名快速上升。</li>
+</ul> </li>
+<li> <p><strong>prompt的撰写与效果</strong>：</p>
+<ul>
+<li>提出了两种类型的prompt：原则型和答案对型，并通过实验发现它们都能显著提升大模型的人情味。</li>
+<li>分析了不同大模型对两种prompt的响应情况，发现各有适合的prompt类型。</li>
+</ul> </li>
+<li> <p><strong>实验技巧与最佳组合</strong>：</p>
+<ul>
+<li>分享了如何有效使用prompt来提升大模型的人情味。</li>
+<li>展示了在不同话题下，哪些大模型与prompt的组合效果最佳。</li>
+</ul> </li>
+<li> <p><strong>实战分析</strong>：</p>
+<ul>
+<li>探讨了大模型在学习“人情味”方面的难点，发现拟人和共情能力有所提升，但表达友善度的提升较为有限。</li>
+</ul> </li>
+<li> <p><strong>人类与AI的比较</strong>：</p>
+<ul>
+<li>通过让20位大学生撰写答案并进行人情味测量，发现人类在拟人、共情和表达层面都遥遥领先于AI模型。</li>
+</ul> </li>
+<li> <p><strong>结论与倡议</strong>：</p>
+<ul>
+<li>强调了“公众科技力”的重要性，鼓励普通人参与到科技创新中，包括弱势群体。</li>
+<li>通过实验流程的详细描述，展示了普通人如何通过简单的方法提升大模型的人情味。</li>
+</ul> </li>
+</ol>
+<div>
+<div>
+<div>
+<div>
+<hr>
+<p>目前，该报告已上传至开源中国 APP，详情可至<strong><span><span>「开源中国 APP - 报告模块」</span></span></strong><span>下载</span>查看。</p>
+</div>
+</div>
+</div>
+</div>
+<p>APP 下载地址：<a href="https://www.oschina.net/app">https://www.oschina.net/app</a></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>人工智能领域迎来了期待已久的“智慧涌现”，受到了全社会的关注和热议，但有相当一部分社会群体，除了关注大模型能否提供实用信息， 也期待大模型的回答能温暖心灵、提供关怀，通俗来讲，他们期待大模型亦能有“人情味”的涌现。</p>
+<p>近日，中国社科院社会学所、腾讯研究院、腾讯 SSV 银发科技实验室、腾讯 SSV 数字生态实验室和中国残联公益组织-腾讯无障碍创新实验室联合发布了调教最暖大模型——通过prompt调试并比较国内外大模型“人情味”的小实验。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-3a299f90f7.png"></p>
+<p>以下是该文件的核心内容概要：</p>
+<ol>
+<li> <p><strong>研究背景与问题</strong>：</p>
+<ul>
+<li>社会群体不仅期待大模型提供实用信息，还希望AI的回答能够温暖人心、提供关怀。</li>
+<li>通过焦点小组讨论，收集了老年人、残疾人和心情低落者对大模型的提问和感受。</li>
+</ul> </li>
+<li> <p><strong>人情味的定义与测量</strong>：</p>
+<ul>
+<li>人情味通常指人与人之间的温暖感情和兴味。</li>
+<li>提出了一个“人情味”的测量表，从拟人、共情和表达三个层面进行评估。</li>
+</ul> </li>
+<li> <p><strong>实验设计与对象</strong>：</p>
+<ul>
+<li>选择了2款国外大模型（GPT-4和Vicuna）和3款国内大模型进行比较。</li>
+<li>实验时间为2023年10月，考虑到大模型更新迭代快，结论仅代表当时的水平。</li>
+</ul> </li>
+<li> <p><strong>实验发现</strong>：</p>
+<ul>
+<li>在原始状态下，国内大模型在老年话题相关问答上更具人情味，而国外大模型在心情低落相关问答上表现更佳。</li>
+<li>经过prompt调试后，GPT-4的人情味得分提升显著，排名快速上升。</li>
+</ul> </li>
+<li> <p><strong>prompt的撰写与效果</strong>：</p>
+<ul>
+<li>提出了两种类型的prompt：原则型和答案对型，并通过实验发现它们都能显著提升大模型的人情味。</li>
+<li>分析了不同大模型对两种prompt的响应情况，发现各有适合的prompt类型。</li>
+</ul> </li>
+<li> <p><strong>实验技巧与最佳组合</strong>：</p>
+<ul>
+<li>分享了如何有效使用prompt来提升大模型的人情味。</li>
+<li>展示了在不同话题下，哪些大模型与prompt的组合效果最佳。</li>
+</ul> </li>
+<li> <p><strong>实战分析</strong>：</p>
+<ul>
+<li>探讨了大模型在学习“人情味”方面的难点，发现拟人和共情能力有所提升，但表达友善度的提升较为有限。</li>
+</ul> </li>
+<li> <p><strong>人类与AI的比较</strong>：</p>
+<ul>
+<li>通过让20位大学生撰写答案并进行人情味测量，发现人类在拟人、共情和表达层面都遥遥领先于AI模型。</li>
+</ul> </li>
+<li> <p><strong>结论与倡议</strong>：</p>
+<ul>
+<li>强调了“公众科技力”的重要性，鼓励普通人参与到科技创新中，包括弱势群体。</li>
+<li>通过实验流程的详细描述，展示了普通人如何通过简单的方法提升大模型的人情味。</li>
+</ul> </li>
+</ol>
+<div>
+<div>
+<div>
+<div>
+<hr>
+<p>目前，该报告已上传至开源中国 APP，详情可至<strong><span><span>「开源中国 APP - 报告模块」</span></span></strong><span>下载</span>查看。</p>
+</div>
+</div>
+</div>
+</div>
+<p>APP 下载地址：<a href="https://www.oschina.net/app">https://www.oschina.net/app</a></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>人工智能领域迎来了期待已久的“智慧涌现”，受到了全社会的关注和热议，但有相当一部分社会群体，除了关注大模型能否提供实用信息， 也期待大模型的回答能温暖心灵、提供关怀，通俗来讲，他们期待大模型亦能有“人情味”的涌现。</p>
+<p>近日，中国社科院社会学所、腾讯研究院、腾讯 SSV 银发科技实验室、腾讯 SSV 数字生态实验室和中国残联公益组织-腾讯无障碍创新实验室联合发布了调教最暖大模型——通过prompt调试并比较国内外大模型“人情味”的小实验。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-3a299f90f7.png"></p>
+<p>以下是该文件的核心内容概要：</p>
+<ol>
+<li> <p><strong>研究背景与问题</strong>：</p>
+<ul>
+<li>社会群体不仅期待大模型提供实用信息，还希望AI的回答能够温暖人心、提供关怀。</li>
+<li>通过焦点小组讨论，收集了老年人、残疾人和心情低落者对大模型的提问和感受。</li>
+</ul> </li>
+<li> <p><strong>人情味的定义与测量</strong>：</p>
+<ul>
+<li>人情味通常指人与人之间的温暖感情和兴味。</li>
+<li>提出了一个“人情味”的测量表，从拟人、共情和表达三个层面进行评估。</li>
+</ul> </li>
+<li> <p><strong>实验设计与对象</strong>：</p>
+<ul>
+<li>选择了2款国外大模型（GPT-4和Vicuna）和3款国内大模型进行比较。</li>
+<li>实验时间为2023年10月，考虑到大模型更新迭代快，结论仅代表当时的水平。</li>
+</ul> </li>
+<li> <p><strong>实验发现</strong>：</p>
+<ul>
+<li>在原始状态下，国内大模型在老年话题相关问答上更具人情味，而国外大模型在心情低落相关问答上表现更佳。</li>
+<li>经过prompt调试后，GPT-4的人情味得分提升显著，排名快速上升。</li>
+</ul> </li>
+<li> <p><strong>prompt的撰写与效果</strong>：</p>
+<ul>
+<li>提出了两种类型的prompt：原则型和答案对型，并通过实验发现它们都能显著提升大模型的人情味。</li>
+<li>分析了不同大模型对两种prompt的响应情况，发现各有适合的prompt类型。</li>
+</ul> </li>
+<li> <p><strong>实验技巧与最佳组合</strong>：</p>
+<ul>
+<li>分享了如何有效使用prompt来提升大模型的人情味。</li>
+<li>展示了在不同话题下，哪些大模型与prompt的组合效果最佳。</li>
+</ul> </li>
+<li> <p><strong>实战分析</strong>：</p>
+<ul>
+<li>探讨了大模型在学习“人情味”方面的难点，发现拟人和共情能力有所提升，但表达友善度的提升较为有限。</li>
+</ul> </li>
+<li> <p><strong>人类与AI的比较</strong>：</p>
+<ul>
+<li>通过让20位大学生撰写答案并进行人情味测量，发现人类在拟人、共情和表达层面都遥遥领先于AI模型。</li>
+</ul> </li>
+<li> <p><strong>结论与倡议</strong>：</p>
+<ul>
+<li>强调了“公众科技力”的重要性，鼓励普通人参与到科技创新中，包括弱势群体。</li>
+<li>通过实验流程的详细描述，展示了普通人如何通过简单的方法提升大模型的人情味。</li>
+</ul> </li>
+</ol>
+<div>
+<div>
+<div>
+<div>
+<hr>
+<p>目前，该报告已上传至开源中国 APP，详情可至<strong><span><span>「开源中国 APP - 报告模块」</span></span></strong><span>下载</span>查看。</p>
+</div>
+</div>
+</div>
+</div>
+<p>APP 下载地址：<a href="https://www.oschina.net/app">https://www.oschina.net/app</a></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-56ed094ef0.png"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-3a299f90f7.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-3a299f90f7.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 16:56:08 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[揭露 FileSystem 引起的线上 JVM 内存溢出问题]]></title>
+    <link>https://my.oschina.net/vivotech/blog/11102919</link>
+    <itunes:title><![CDATA[揭露 FileSystem 引起的线上 JVM 内存溢出问题]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<blockquote>
+<p>作者：来自 vivo 互联网大数据团队-Ye Jidong</p>
+</blockquote>
+<p>本文主要介绍了由FileSystem类引起的一次线上内存泄漏导致内存溢出的问题分析解决全过程。</p>
+<blockquote>
+<p><strong>内存泄漏定义（memory leak）</strong>：一个不再被程序使用的对象或变量还在内存中占有存储空间，JVM不能正常回收改对象或者变量。一次内存泄漏似乎不会有大的影响，但内存泄漏堆积后的后果就是内存溢出。</p>
+<p><strong>内存溢出（out of memory）</strong>：是指在程序运行过程中，由于分配的内存空间不足或使用不当等原因，导致程序无法继续执行的一种错误，此时就会报错OOM,即所谓的内存溢出。&nbsp;</p>
+</blockquote>
+<h1>一、背景</h1>
+<p>周末小叶正在王者峡谷乱杀，手机突然收到大量机器CPU告警，CPU使用率超过80%就会告警，同时也收到该服务的Full GC告警。该服务是小叶项目组非常重要的服务，小叶赶紧放下手中的王者荣耀打开电脑查看问题。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-36b778d3c8.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-04087bc767.webp"></p>
+<p>图1.1 CPU告警&nbsp; &nbsp;Full GC告警</p>
+<h1>二、问题发现</h1>
+<h2>2.1 监控查看</h2>
+<p>因为服务CPU和Full GC告警了，打开服务监控查看CPU监控和Full GC监控，可以看到两个监控在同一时间点都有一个异常凸起，可以看到在CPU告警的时候，<strong>Full GC</strong>特别频繁，猜测可能是<strong>Full GC</strong>导致的CPU使用率上升告警。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1c1daa584.webp"></p>
+<p>图2.1 CPU使用率</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-782b8234e9.webp"></p>
+<p>图2.2 Full GC次数&nbsp;&nbsp;</p>
+<h2>2.2 内存泄漏</h2>
+<p>从Full Gc频繁可以知道服务的内存回收肯定存在问题，故查看服务的堆内存、老年代内存、年轻代内存的监控，从老年代的常驻内存图可以看到，老年代的常驻内存越来越多，老年代对象无法回收，最后常驻内存全部被占满，可以看出明显的内存泄漏。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-f8ba811130.webp"></p>
+<p>图2.3 老年代内存</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3b863cf121.webp"></p>
+<p>图2.4 JVM内存</p>
+<h2>2.3 内存溢出</h2>
+<p>从线上的错误日志也可以明确知道服务最后是OOM了，所以问题的根本原因是<strong>内存泄漏</strong>导致<strong>内存溢出OOM，最后导致服务不可用</strong>。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3ddbed5ea3.webp"></p>
+<p>图2.5 OOM日志&nbsp; &nbsp;&nbsp;</p>
+<h1>三、问题排查</h1>
+<h2>3.1 堆内存分析</h2>
+<p>在明确问题原因为内存泄漏之后，我们第一时间就是dump服务内存快照，将dump文件导入至MAT(Eclipse Memory Analyzer)进行分析。Leak Suspects 进入疑似泄露点视图。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-bb4fb6421c.webp"></p>
+<p>图3.1 内存对象分析</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-32b4608494.webp"></p>
+<p>图3.2 对象链路图</p>
+<p>打开的dump文件如图3.1所示，2.3G的堆内存&nbsp; &nbsp;其中&nbsp;<strong>org.apache.hadoop.conf.Configuration对象占了1.8G，占了整个堆内存的78.63%</strong>。</p>
+<p>展开该对象的关联对象和路径，可以看到主要占用的对象为<strong>HashMap</strong>，该HashMap由<strong>FileSystem.Cache</strong>对象持有，再上层就是<strong>FileSystem</strong>。可以猜想内存泄漏大概率跟FileSystem有关。</p>
+<h2>3.2 源码分析</h2>
+<p>找到内存泄漏的对象，那么接下来一步就是找到内存泄漏的代码。</p>
+<p>在图3.3我们的代码里面可以发现这么一段代码，在每次与hdfs交互时，都会与hdfs建立一次连接，并创建一个FileSystem对象。但在使用完FileSystem对象之后并未调用close()方法释放连接。</p>
+<p>但是此处的<strong>Configuration</strong>实例和<strong>FileSystem</strong>实例都是局部变量，在该方法执行完成之后，这两个对象都应该是可以被JVM回收的，怎么会导致内存泄漏呢？</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29bfe3ab67.webp"></p>
+<p>图3.3</p>
+<p><strong>（1）猜想一：FileSystem是不是有常量对象？</strong></p>
+<p>接下里我们就查看FileSystem类的源码，<strong>FileSystem的init和get</strong>方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-e21a740b17.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29ba3c13d5.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-d95b8826f5.webp"></p>
+<p>图3.4</p>
+<p><strong>从图3.4最后一行代码可以看到，FileSystem类存在一个CACHE，通过disableCacheName控制是否从该缓存拿对象</strong>。该参数默认值为false。也就是<strong>默认情况下会通过CACHE</strong>对象返回FileSystem。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c71bc6df47.webp"></p>
+<p>图3.5</p>
+<p><strong>从图3.5可以看到CACHE为FileSystem类的静态对象，也就是说，该CACHE对象会一直存在不会被回收，确实存在常量对象CACHE，猜想一得到验证。</strong></p>
+<p>那接下来看一下CACHE.get方法：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-20c9834f76.webp"></p>
+<p>从这段代码中可以看出：</p>
+<ol>
+<li> <p>在Cache类内部维护了一个Map，该Map用于缓存已经连接好的FileSystem对象，Map的Key为Cache.Key对象。每次都会通过Cache.Key获取FileSystem，如果未获取到，才会继续创建的流程。</p> </li>
+<li> <p>在Cache类内部维护了一个Set（toAutoClose），该Set用于存放需自动关闭的连接。在客户端关闭时会自动关闭该集合中的连接。</p> </li>
+<li> <p>每次创建的FileSystem都会以Cache.Key为key，FileSystem为Value存储在Cache类中的Map中。那至于在缓存时候是否对于相同hdfs URI是否会存在多次缓存，就需要查看一下Cache.Key的hashCode方法了。</p> </li>
+</ol>
+<p>Cache.Key的hashCode方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-5c01b10e1c.webp"></p>
+<p>schema和authority变量为String类型，如果在相同的URI情况下，其hashCode是一致。而unique该参数的值每次都是0。那么Cache.Key的hashCode就由<strong>ugi.hashCode()</strong>决定。</p>
+<p>由以上代码分析可以梳理得到：</p>
+<ol>
+<li> <p>业务代码与hdfs交互过程中，每次交互都会新建一个<strong>FileSystem</strong>连接，结束时并未关闭FileSystem连接。</p> </li>
+<li> <p>FileSystem内置了一个static的<strong>Cache</strong>，该Cache内部有一个Map，用于缓存已经创建连接的FileSystem。</p> </li>
+<li> <p>参数fs.hdfs.impl.disable.cache，用于控制FileSystem是否需要缓存，默认情况下是false，即缓存。</p> </li>
+<li> <p>Cache中的Map，Key为Cache.Key类，该类通过<strong>schem，authority，ugi，unique</strong>&nbsp;4个参数来确定一个Key，如上Cache.Key的hashCode方法。</p> </li>
+</ol>
+<p><strong>（2）猜想二：FileSystem同样hdfs URI是不是多次缓存？</strong></p>
+<p>FileSystem.Cache.Key构造函数如下所示：ugi由UserGroupInformation的getCurrentUser()决定。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c87d72da52.webp"></p>
+<p>继续看UserGroupInformation的getCurrentUser()方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a440573d22.webp"></p>
+<p>其中比较关键的就是是否能通过AccessControlContext获取到Subject对象。在本例中通过get(final URI uri, final Configuration conf,final String user)获取时候，在debug调试时，发现此处每次都能获取到一个新的Subject对象。也就是说相同的hdfs路径每次都会缓存一个<strong>FileSystem对象</strong>。</p>
+<p><strong>猜想二得到验证：同一个hdfs URI会进行多次缓存，导致缓存快速膨胀，并且缓存没有设置过期时间和淘汰策略，最终导致内存溢出。</strong></p>
+<p><strong>（3）FileSystem为什么会重复缓存？</strong></p>
+<p>那为什么会每次都获取到一个新的Subject对象呢，我们接着往下看一下获取AccessControlContext的代码，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-baaada3704.webp"></p>
+<p>其中比较关键的是getStackAccessControlContext方法，该方法调用了Native方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-7a288a359e.webp"></p>
+<p>该方法会返回当前堆栈的保护域权限的AccessControlContext对象。</p>
+<p>我们通过图3.6&nbsp;<strong>get(final URI uri, final Configuration conf,final String user)&nbsp;</strong>方法可以看到，如下：</p>
+<ul>
+<li> <p>先通过<strong>UserGroupInformation.getBestUGI</strong>方法获取了一个<strong>UserGroupInformation</strong>对象。</p> </li>
+<li> <p>然后在通过<strong>UserGroupInformation</strong>的doAs方法去调用了get(URI uri, Configuration conf)方法</p> </li>
+<li> <p>图3.7&nbsp;<strong>UserGroupInformation.getBestUGI</strong>方法的实现，此处关注一下传入的两个参数<strong>ticketCachePath，user</strong>。ticketCachePath是获取配置hadoop.security.kerberos.ticket.cache.path的值，在本例中该参数未配置，因此ticketCachePath为空。user参数是本例中传入的用户名。</p> </li>
+<li> <p>ticketCachePath为空，user不为空，因此最终会执行图3.7的<strong>createRemoteUser</strong>方法</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3c011e7674.webp"></p>
+<p>图3.6</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-dc88ba7c64.webp"></p>
+<p>图3.7</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-ba39a58b4c.webp"></p>
+<p>图3.8</p>
+<p>从图3.8标红的代码可以看到在createRemoteUser方法中，创建了一个新的<strong>Subject对象</strong>，并通过该对象创建了<strong>UserGroupInformation</strong>对象。至此，UserGroupInformation.getBestUGI方法执行完成。</p>
+<p>接下来看一下<strong>UserGroupInformation.doAs</strong>方法（FileSystem.get(final URI uri, final Configuration conf, final String user)执行的最后一个方法），如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-b8a75c19df.webp"></p>
+<p>然后在调用Subject.doAs方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9129cbd9c1.webp"></p>
+<p>最后在调用AccessController.doPrivileged方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1f0be8cfa.webp"></p>
+<p>该方法为Native方法，该方法会使用指定的AccessControlContext来执行PrivilegedExceptionAction，也就是调用该实现的run方法。即FileSystem.get(uri, conf)方法。</p>
+<p>至此，就能够解释在本例中，通过get(final URI uri, final Configuration conf,final String user) 方法创建FileSystem时，每次存入FileSystem的Cache中的Cache.key的hashCode都不一致的情况了。</p>
+<p>小结一下：</p>
+<ol>
+<li> <p>在通过<strong>get(final URI uri, final Configuration conf,final String user)</strong>方法创建<strong>FileSystem</strong>时，由于每次都会创建新的<strong>UserGroupInformation</strong>和<strong>Subject</strong>对象。</p> </li>
+<li> <p>&nbsp;在Cache.Key对象计算<strong>hashCode</strong>时，影响计算结果的是调用了<strong>UserGroupInformation.hashCode</strong>方法。</p> </li>
+<li> <p>UserGroupInformation.hashCode方法，计算为：<strong>System.identityHashCode(subject)</strong>。即如果Subject是同一个对象则返回相同的hashCode，由于在本例中每次都不一样，因此计算的hashCode不一致。</p> </li>
+<li> <p>综上，就导致每次计算Cache.key的hashCode不一致，便会重复写入FileSystem的Cache。</p> </li>
+</ol>
+<p><strong>（4）FileSystem的正确用法</strong></p>
+<p>从上述分析，既然FileSystem.Cache都没有起到应起的作用，那为什么要设计这个Cache呢。其实只是我们的用法没用对而已。</p>
+<p>在FileSystem中，有两个重载的get方法：</p>
+<pre><code>public static FileSystem get(final URI uri, final Configuration conf, final String user)
+public static FileSystem get(URI uri, Configuration conf)</code></pre>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-34dde8596c.webp"></p>
+<p>我们可以看到 FileSystem get(final URI uri, final Configuration conf, final String user)方法最后是调用FileSystem get(URI uri, Configuration conf)方法的，区别在于FileSystem get(URI uri, Configuration conf)方法于缺少也就是缺少每次新建Subject的的操作。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-123c43e458.webp"></p>
+<p>图3.9</p>
+<p>没有新建Subject的的操作，那么图3.9 中Subject为null，会走最后的getLoginUser方法获取loginUser。而loginUser是静态变量，所以一旦该loginUser对象初始化成功，那么后续会一直使用该对象。UserGroupInformation.hashCode方法将会返回一样的hashCode值。也就是能成功的使用到缓存在FileSystem的Cache。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-77effcbc76.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-8a606547fc.webp"></p>
+<p>图3.10</p>
+<h1>四、解决方案</h1>
+<p>经过前面的介绍，如果要解决FileSystem 存在的内存泄露问题，我们有以下两种方式：</p>
+<p>（1）使用<strong>public static FileSystem get(URI uri, Configuration conf)：</strong></p>
+<ul>
+<li> <p>该方法是能够使用到FileSystem的Cache的，也就是说对于同一个hdfs URI是只会有一个FileSystem连接对象的。</p> </li>
+<li> <p>通过System.setProperty("HADOOP_USER_NAME", "hive")方式设置访问用户。</p> </li>
+<li> <p>默认情况下fs.automatic.close=true，即所有的连接都会通过ShutdownHook关闭。</p> </li>
+</ul>
+<p>（2）使用<strong>public static FileSystem get(final URI uri, final Configuration conf, final String user)：</strong></p>
+<ul>
+<li> <p>该方法如上分析，会导致FileSystem的Cache失效，且每次都会添加至Cache的Map中，导致不能被回收。</p> </li>
+<li> <p>在使用时，一种方案是：保证对于同一个hdfs URI只会存在一个FileSystem连接对象。</p> </li>
+<li> <p>另一种方案是：在每次使用完FileSystem之后，调用close方法，该方法会将Cache中的FileSystem删除。</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-76781116bd.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a08b1cca66.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-4d0a29617a.webp"></p>
+<p>基于我们已有的历史代码最小改动的前提下，我们选择了第二种修改方式。在我们每次使用完FileSystem之后都关闭FileSystem对象。</p>
+<h1>五、优化结果</h1>
+<p>对代码进行修复发布上线之后，如下图一所示，可以看到修复之后老年代的内存可以正常回收了，至此问题终于全部解决。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-cfe5fab5cf.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9ba0ac26dd.webp"></p>
+<h1>六、总结</h1>
+<p><strong>内存溢出</strong>是 Java 开发中最常见的问题之一，其原因通常是由于<strong>内存泄漏</strong>导致内存无法正常回收引起的。在我们这篇文章中，详细介绍一次完整的线上内存溢出的处理过程。</p>
+<p>总结一下我们在碰到内存溢出时候的常用解决思路：</p>
+<p>（1）<strong>生成堆内存文件</strong>：</p>
+<p>在服务启动命令添加</p>
+<pre><code> -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/local/base</code></pre>
+<p>让服务在发生oom时自动dump内存文件，或者使用 jamp 命令dump内存文件。</p>
+<p>（2）<strong>堆内存分析</strong>：使用内存分析工具帮助我们更深入地分析内存溢出问题，并找到导致内存溢出的原因。以下是几个常用的内存分析工具：</p>
+<ul>
+<li> <p><strong>Eclipse Memory Analyzer</strong>：一款开源的 Java 内存分析工具，可以帮助我们快速定位内存泄漏问题。</p> </li>
+<li> <p><strong>VisualVM Memory Analyzer</strong>：一个基于图形化界面的工具，可以帮助我们分析java应用程序的内存使用情况。</p> </li>
+</ul>
+<p>（3）根据堆内存分析定位到具体的内存泄漏代码。</p>
+<p>（4）修改内存泄漏代码，重新发布验证。</p>
+<p>内存泄漏是内存溢出的常见原因，但不是唯一原因。常见导致内存溢出问题的原因还是有：<strong>超大对象、堆内存分配太小、死循环调用</strong>等等都会导致内存溢出问题。</p>
+<p>在遇到内存溢出问题时，我们需要多方面思考，从不同角度分析问题。通过我们上述提到的方法和工具以及各种监控帮助我们快速定位和解决问题，提高我们系统的稳定性和可用性。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<blockquote>
+<p>作者：来自 vivo 互联网大数据团队-Ye Jidong</p>
+</blockquote>
+<p>本文主要介绍了由FileSystem类引起的一次线上内存泄漏导致内存溢出的问题分析解决全过程。</p>
+<blockquote>
+<p><strong>内存泄漏定义（memory leak）</strong>：一个不再被程序使用的对象或变量还在内存中占有存储空间，JVM不能正常回收改对象或者变量。一次内存泄漏似乎不会有大的影响，但内存泄漏堆积后的后果就是内存溢出。</p>
+<p><strong>内存溢出（out of memory）</strong>：是指在程序运行过程中，由于分配的内存空间不足或使用不当等原因，导致程序无法继续执行的一种错误，此时就会报错OOM,即所谓的内存溢出。&nbsp;</p>
+</blockquote>
+<h1>一、背景</h1>
+<p>周末小叶正在王者峡谷乱杀，手机突然收到大量机器CPU告警，CPU使用率超过80%就会告警，同时也收到该服务的Full GC告警。该服务是小叶项目组非常重要的服务，小叶赶紧放下手中的王者荣耀打开电脑查看问题。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-36b778d3c8.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-04087bc767.webp"></p>
+<p>图1.1 CPU告警&nbsp; &nbsp;Full GC告警</p>
+<h1>二、问题发现</h1>
+<h2>2.1 监控查看</h2>
+<p>因为服务CPU和Full GC告警了，打开服务监控查看CPU监控和Full GC监控，可以看到两个监控在同一时间点都有一个异常凸起，可以看到在CPU告警的时候，<strong>Full GC</strong>特别频繁，猜测可能是<strong>Full GC</strong>导致的CPU使用率上升告警。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1c1daa584.webp"></p>
+<p>图2.1 CPU使用率</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-782b8234e9.webp"></p>
+<p>图2.2 Full GC次数&nbsp;&nbsp;</p>
+<h2>2.2 内存泄漏</h2>
+<p>从Full Gc频繁可以知道服务的内存回收肯定存在问题，故查看服务的堆内存、老年代内存、年轻代内存的监控，从老年代的常驻内存图可以看到，老年代的常驻内存越来越多，老年代对象无法回收，最后常驻内存全部被占满，可以看出明显的内存泄漏。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-f8ba811130.webp"></p>
+<p>图2.3 老年代内存</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3b863cf121.webp"></p>
+<p>图2.4 JVM内存</p>
+<h2>2.3 内存溢出</h2>
+<p>从线上的错误日志也可以明确知道服务最后是OOM了，所以问题的根本原因是<strong>内存泄漏</strong>导致<strong>内存溢出OOM，最后导致服务不可用</strong>。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3ddbed5ea3.webp"></p>
+<p>图2.5 OOM日志&nbsp; &nbsp;&nbsp;</p>
+<h1>三、问题排查</h1>
+<h2>3.1 堆内存分析</h2>
+<p>在明确问题原因为内存泄漏之后，我们第一时间就是dump服务内存快照，将dump文件导入至MAT(Eclipse Memory Analyzer)进行分析。Leak Suspects 进入疑似泄露点视图。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-bb4fb6421c.webp"></p>
+<p>图3.1 内存对象分析</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-32b4608494.webp"></p>
+<p>图3.2 对象链路图</p>
+<p>打开的dump文件如图3.1所示，2.3G的堆内存&nbsp; &nbsp;其中&nbsp;<strong>org.apache.hadoop.conf.Configuration对象占了1.8G，占了整个堆内存的78.63%</strong>。</p>
+<p>展开该对象的关联对象和路径，可以看到主要占用的对象为<strong>HashMap</strong>，该HashMap由<strong>FileSystem.Cache</strong>对象持有，再上层就是<strong>FileSystem</strong>。可以猜想内存泄漏大概率跟FileSystem有关。</p>
+<h2>3.2 源码分析</h2>
+<p>找到内存泄漏的对象，那么接下来一步就是找到内存泄漏的代码。</p>
+<p>在图3.3我们的代码里面可以发现这么一段代码，在每次与hdfs交互时，都会与hdfs建立一次连接，并创建一个FileSystem对象。但在使用完FileSystem对象之后并未调用close()方法释放连接。</p>
+<p>但是此处的<strong>Configuration</strong>实例和<strong>FileSystem</strong>实例都是局部变量，在该方法执行完成之后，这两个对象都应该是可以被JVM回收的，怎么会导致内存泄漏呢？</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29bfe3ab67.webp"></p>
+<p>图3.3</p>
+<p><strong>（1）猜想一：FileSystem是不是有常量对象？</strong></p>
+<p>接下里我们就查看FileSystem类的源码，<strong>FileSystem的init和get</strong>方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-e21a740b17.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29ba3c13d5.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-d95b8826f5.webp"></p>
+<p>图3.4</p>
+<p><strong>从图3.4最后一行代码可以看到，FileSystem类存在一个CACHE，通过disableCacheName控制是否从该缓存拿对象</strong>。该参数默认值为false。也就是<strong>默认情况下会通过CACHE</strong>对象返回FileSystem。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c71bc6df47.webp"></p>
+<p>图3.5</p>
+<p><strong>从图3.5可以看到CACHE为FileSystem类的静态对象，也就是说，该CACHE对象会一直存在不会被回收，确实存在常量对象CACHE，猜想一得到验证。</strong></p>
+<p>那接下来看一下CACHE.get方法：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-20c9834f76.webp"></p>
+<p>从这段代码中可以看出：</p>
+<ol>
+<li> <p>在Cache类内部维护了一个Map，该Map用于缓存已经连接好的FileSystem对象，Map的Key为Cache.Key对象。每次都会通过Cache.Key获取FileSystem，如果未获取到，才会继续创建的流程。</p> </li>
+<li> <p>在Cache类内部维护了一个Set（toAutoClose），该Set用于存放需自动关闭的连接。在客户端关闭时会自动关闭该集合中的连接。</p> </li>
+<li> <p>每次创建的FileSystem都会以Cache.Key为key，FileSystem为Value存储在Cache类中的Map中。那至于在缓存时候是否对于相同hdfs URI是否会存在多次缓存，就需要查看一下Cache.Key的hashCode方法了。</p> </li>
+</ol>
+<p>Cache.Key的hashCode方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-5c01b10e1c.webp"></p>
+<p>schema和authority变量为String类型，如果在相同的URI情况下，其hashCode是一致。而unique该参数的值每次都是0。那么Cache.Key的hashCode就由<strong>ugi.hashCode()</strong>决定。</p>
+<p>由以上代码分析可以梳理得到：</p>
+<ol>
+<li> <p>业务代码与hdfs交互过程中，每次交互都会新建一个<strong>FileSystem</strong>连接，结束时并未关闭FileSystem连接。</p> </li>
+<li> <p>FileSystem内置了一个static的<strong>Cache</strong>，该Cache内部有一个Map，用于缓存已经创建连接的FileSystem。</p> </li>
+<li> <p>参数fs.hdfs.impl.disable.cache，用于控制FileSystem是否需要缓存，默认情况下是false，即缓存。</p> </li>
+<li> <p>Cache中的Map，Key为Cache.Key类，该类通过<strong>schem，authority，ugi，unique</strong>&nbsp;4个参数来确定一个Key，如上Cache.Key的hashCode方法。</p> </li>
+</ol>
+<p><strong>（2）猜想二：FileSystem同样hdfs URI是不是多次缓存？</strong></p>
+<p>FileSystem.Cache.Key构造函数如下所示：ugi由UserGroupInformation的getCurrentUser()决定。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c87d72da52.webp"></p>
+<p>继续看UserGroupInformation的getCurrentUser()方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a440573d22.webp"></p>
+<p>其中比较关键的就是是否能通过AccessControlContext获取到Subject对象。在本例中通过get(final URI uri, final Configuration conf,final String user)获取时候，在debug调试时，发现此处每次都能获取到一个新的Subject对象。也就是说相同的hdfs路径每次都会缓存一个<strong>FileSystem对象</strong>。</p>
+<p><strong>猜想二得到验证：同一个hdfs URI会进行多次缓存，导致缓存快速膨胀，并且缓存没有设置过期时间和淘汰策略，最终导致内存溢出。</strong></p>
+<p><strong>（3）FileSystem为什么会重复缓存？</strong></p>
+<p>那为什么会每次都获取到一个新的Subject对象呢，我们接着往下看一下获取AccessControlContext的代码，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-baaada3704.webp"></p>
+<p>其中比较关键的是getStackAccessControlContext方法，该方法调用了Native方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-7a288a359e.webp"></p>
+<p>该方法会返回当前堆栈的保护域权限的AccessControlContext对象。</p>
+<p>我们通过图3.6&nbsp;<strong>get(final URI uri, final Configuration conf,final String user)&nbsp;</strong>方法可以看到，如下：</p>
+<ul>
+<li> <p>先通过<strong>UserGroupInformation.getBestUGI</strong>方法获取了一个<strong>UserGroupInformation</strong>对象。</p> </li>
+<li> <p>然后在通过<strong>UserGroupInformation</strong>的doAs方法去调用了get(URI uri, Configuration conf)方法</p> </li>
+<li> <p>图3.7&nbsp;<strong>UserGroupInformation.getBestUGI</strong>方法的实现，此处关注一下传入的两个参数<strong>ticketCachePath，user</strong>。ticketCachePath是获取配置hadoop.security.kerberos.ticket.cache.path的值，在本例中该参数未配置，因此ticketCachePath为空。user参数是本例中传入的用户名。</p> </li>
+<li> <p>ticketCachePath为空，user不为空，因此最终会执行图3.7的<strong>createRemoteUser</strong>方法</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3c011e7674.webp"></p>
+<p>图3.6</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-dc88ba7c64.webp"></p>
+<p>图3.7</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-ba39a58b4c.webp"></p>
+<p>图3.8</p>
+<p>从图3.8标红的代码可以看到在createRemoteUser方法中，创建了一个新的<strong>Subject对象</strong>，并通过该对象创建了<strong>UserGroupInformation</strong>对象。至此，UserGroupInformation.getBestUGI方法执行完成。</p>
+<p>接下来看一下<strong>UserGroupInformation.doAs</strong>方法（FileSystem.get(final URI uri, final Configuration conf, final String user)执行的最后一个方法），如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-b8a75c19df.webp"></p>
+<p>然后在调用Subject.doAs方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9129cbd9c1.webp"></p>
+<p>最后在调用AccessController.doPrivileged方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1f0be8cfa.webp"></p>
+<p>该方法为Native方法，该方法会使用指定的AccessControlContext来执行PrivilegedExceptionAction，也就是调用该实现的run方法。即FileSystem.get(uri, conf)方法。</p>
+<p>至此，就能够解释在本例中，通过get(final URI uri, final Configuration conf,final String user) 方法创建FileSystem时，每次存入FileSystem的Cache中的Cache.key的hashCode都不一致的情况了。</p>
+<p>小结一下：</p>
+<ol>
+<li> <p>在通过<strong>get(final URI uri, final Configuration conf,final String user)</strong>方法创建<strong>FileSystem</strong>时，由于每次都会创建新的<strong>UserGroupInformation</strong>和<strong>Subject</strong>对象。</p> </li>
+<li> <p>&nbsp;在Cache.Key对象计算<strong>hashCode</strong>时，影响计算结果的是调用了<strong>UserGroupInformation.hashCode</strong>方法。</p> </li>
+<li> <p>UserGroupInformation.hashCode方法，计算为：<strong>System.identityHashCode(subject)</strong>。即如果Subject是同一个对象则返回相同的hashCode，由于在本例中每次都不一样，因此计算的hashCode不一致。</p> </li>
+<li> <p>综上，就导致每次计算Cache.key的hashCode不一致，便会重复写入FileSystem的Cache。</p> </li>
+</ol>
+<p><strong>（4）FileSystem的正确用法</strong></p>
+<p>从上述分析，既然FileSystem.Cache都没有起到应起的作用，那为什么要设计这个Cache呢。其实只是我们的用法没用对而已。</p>
+<p>在FileSystem中，有两个重载的get方法：</p>
+<pre><code>public static FileSystem get(final URI uri, final Configuration conf, final String user)
+public static FileSystem get(URI uri, Configuration conf)</code></pre>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-34dde8596c.webp"></p>
+<p>我们可以看到 FileSystem get(final URI uri, final Configuration conf, final String user)方法最后是调用FileSystem get(URI uri, Configuration conf)方法的，区别在于FileSystem get(URI uri, Configuration conf)方法于缺少也就是缺少每次新建Subject的的操作。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-123c43e458.webp"></p>
+<p>图3.9</p>
+<p>没有新建Subject的的操作，那么图3.9 中Subject为null，会走最后的getLoginUser方法获取loginUser。而loginUser是静态变量，所以一旦该loginUser对象初始化成功，那么后续会一直使用该对象。UserGroupInformation.hashCode方法将会返回一样的hashCode值。也就是能成功的使用到缓存在FileSystem的Cache。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-77effcbc76.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-8a606547fc.webp"></p>
+<p>图3.10</p>
+<h1>四、解决方案</h1>
+<p>经过前面的介绍，如果要解决FileSystem 存在的内存泄露问题，我们有以下两种方式：</p>
+<p>（1）使用<strong>public static FileSystem get(URI uri, Configuration conf)：</strong></p>
+<ul>
+<li> <p>该方法是能够使用到FileSystem的Cache的，也就是说对于同一个hdfs URI是只会有一个FileSystem连接对象的。</p> </li>
+<li> <p>通过System.setProperty("HADOOP_USER_NAME", "hive")方式设置访问用户。</p> </li>
+<li> <p>默认情况下fs.automatic.close=true，即所有的连接都会通过ShutdownHook关闭。</p> </li>
+</ul>
+<p>（2）使用<strong>public static FileSystem get(final URI uri, final Configuration conf, final String user)：</strong></p>
+<ul>
+<li> <p>该方法如上分析，会导致FileSystem的Cache失效，且每次都会添加至Cache的Map中，导致不能被回收。</p> </li>
+<li> <p>在使用时，一种方案是：保证对于同一个hdfs URI只会存在一个FileSystem连接对象。</p> </li>
+<li> <p>另一种方案是：在每次使用完FileSystem之后，调用close方法，该方法会将Cache中的FileSystem删除。</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-76781116bd.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a08b1cca66.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-4d0a29617a.webp"></p>
+<p>基于我们已有的历史代码最小改动的前提下，我们选择了第二种修改方式。在我们每次使用完FileSystem之后都关闭FileSystem对象。</p>
+<h1>五、优化结果</h1>
+<p>对代码进行修复发布上线之后，如下图一所示，可以看到修复之后老年代的内存可以正常回收了，至此问题终于全部解决。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-cfe5fab5cf.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9ba0ac26dd.webp"></p>
+<h1>六、总结</h1>
+<p><strong>内存溢出</strong>是 Java 开发中最常见的问题之一，其原因通常是由于<strong>内存泄漏</strong>导致内存无法正常回收引起的。在我们这篇文章中，详细介绍一次完整的线上内存溢出的处理过程。</p>
+<p>总结一下我们在碰到内存溢出时候的常用解决思路：</p>
+<p>（1）<strong>生成堆内存文件</strong>：</p>
+<p>在服务启动命令添加</p>
+<pre><code> -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/local/base</code></pre>
+<p>让服务在发生oom时自动dump内存文件，或者使用 jamp 命令dump内存文件。</p>
+<p>（2）<strong>堆内存分析</strong>：使用内存分析工具帮助我们更深入地分析内存溢出问题，并找到导致内存溢出的原因。以下是几个常用的内存分析工具：</p>
+<ul>
+<li> <p><strong>Eclipse Memory Analyzer</strong>：一款开源的 Java 内存分析工具，可以帮助我们快速定位内存泄漏问题。</p> </li>
+<li> <p><strong>VisualVM Memory Analyzer</strong>：一个基于图形化界面的工具，可以帮助我们分析java应用程序的内存使用情况。</p> </li>
+</ul>
+<p>（3）根据堆内存分析定位到具体的内存泄漏代码。</p>
+<p>（4）修改内存泄漏代码，重新发布验证。</p>
+<p>内存泄漏是内存溢出的常见原因，但不是唯一原因。常见导致内存溢出问题的原因还是有：<strong>超大对象、堆内存分配太小、死循环调用</strong>等等都会导致内存溢出问题。</p>
+<p>在遇到内存溢出问题时，我们需要多方面思考，从不同角度分析问题。通过我们上述提到的方法和工具以及各种监控帮助我们快速定位和解决问题，提高我们系统的稳定性和可用性。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<blockquote>
+<p>作者：来自 vivo 互联网大数据团队-Ye Jidong</p>
+</blockquote>
+<p>本文主要介绍了由FileSystem类引起的一次线上内存泄漏导致内存溢出的问题分析解决全过程。</p>
+<blockquote>
+<p><strong>内存泄漏定义（memory leak）</strong>：一个不再被程序使用的对象或变量还在内存中占有存储空间，JVM不能正常回收改对象或者变量。一次内存泄漏似乎不会有大的影响，但内存泄漏堆积后的后果就是内存溢出。</p>
+<p><strong>内存溢出（out of memory）</strong>：是指在程序运行过程中，由于分配的内存空间不足或使用不当等原因，导致程序无法继续执行的一种错误，此时就会报错OOM,即所谓的内存溢出。&nbsp;</p>
+</blockquote>
+<h1>一、背景</h1>
+<p>周末小叶正在王者峡谷乱杀，手机突然收到大量机器CPU告警，CPU使用率超过80%就会告警，同时也收到该服务的Full GC告警。该服务是小叶项目组非常重要的服务，小叶赶紧放下手中的王者荣耀打开电脑查看问题。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-36b778d3c8.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-04087bc767.webp"></p>
+<p>图1.1 CPU告警&nbsp; &nbsp;Full GC告警</p>
+<h1>二、问题发现</h1>
+<h2>2.1 监控查看</h2>
+<p>因为服务CPU和Full GC告警了，打开服务监控查看CPU监控和Full GC监控，可以看到两个监控在同一时间点都有一个异常凸起，可以看到在CPU告警的时候，<strong>Full GC</strong>特别频繁，猜测可能是<strong>Full GC</strong>导致的CPU使用率上升告警。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1c1daa584.webp"></p>
+<p>图2.1 CPU使用率</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-782b8234e9.webp"></p>
+<p>图2.2 Full GC次数&nbsp;&nbsp;</p>
+<h2>2.2 内存泄漏</h2>
+<p>从Full Gc频繁可以知道服务的内存回收肯定存在问题，故查看服务的堆内存、老年代内存、年轻代内存的监控，从老年代的常驻内存图可以看到，老年代的常驻内存越来越多，老年代对象无法回收，最后常驻内存全部被占满，可以看出明显的内存泄漏。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-f8ba811130.webp"></p>
+<p>图2.3 老年代内存</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3b863cf121.webp"></p>
+<p>图2.4 JVM内存</p>
+<h2>2.3 内存溢出</h2>
+<p>从线上的错误日志也可以明确知道服务最后是OOM了，所以问题的根本原因是<strong>内存泄漏</strong>导致<strong>内存溢出OOM，最后导致服务不可用</strong>。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3ddbed5ea3.webp"></p>
+<p>图2.5 OOM日志&nbsp; &nbsp;&nbsp;</p>
+<h1>三、问题排查</h1>
+<h2>3.1 堆内存分析</h2>
+<p>在明确问题原因为内存泄漏之后，我们第一时间就是dump服务内存快照，将dump文件导入至MAT(Eclipse Memory Analyzer)进行分析。Leak Suspects 进入疑似泄露点视图。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-bb4fb6421c.webp"></p>
+<p>图3.1 内存对象分析</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-32b4608494.webp"></p>
+<p>图3.2 对象链路图</p>
+<p>打开的dump文件如图3.1所示，2.3G的堆内存&nbsp; &nbsp;其中&nbsp;<strong>org.apache.hadoop.conf.Configuration对象占了1.8G，占了整个堆内存的78.63%</strong>。</p>
+<p>展开该对象的关联对象和路径，可以看到主要占用的对象为<strong>HashMap</strong>，该HashMap由<strong>FileSystem.Cache</strong>对象持有，再上层就是<strong>FileSystem</strong>。可以猜想内存泄漏大概率跟FileSystem有关。</p>
+<h2>3.2 源码分析</h2>
+<p>找到内存泄漏的对象，那么接下来一步就是找到内存泄漏的代码。</p>
+<p>在图3.3我们的代码里面可以发现这么一段代码，在每次与hdfs交互时，都会与hdfs建立一次连接，并创建一个FileSystem对象。但在使用完FileSystem对象之后并未调用close()方法释放连接。</p>
+<p>但是此处的<strong>Configuration</strong>实例和<strong>FileSystem</strong>实例都是局部变量，在该方法执行完成之后，这两个对象都应该是可以被JVM回收的，怎么会导致内存泄漏呢？</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29bfe3ab67.webp"></p>
+<p>图3.3</p>
+<p><strong>（1）猜想一：FileSystem是不是有常量对象？</strong></p>
+<p>接下里我们就查看FileSystem类的源码，<strong>FileSystem的init和get</strong>方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-e21a740b17.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-29ba3c13d5.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-d95b8826f5.webp"></p>
+<p>图3.4</p>
+<p><strong>从图3.4最后一行代码可以看到，FileSystem类存在一个CACHE，通过disableCacheName控制是否从该缓存拿对象</strong>。该参数默认值为false。也就是<strong>默认情况下会通过CACHE</strong>对象返回FileSystem。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c71bc6df47.webp"></p>
+<p>图3.5</p>
+<p><strong>从图3.5可以看到CACHE为FileSystem类的静态对象，也就是说，该CACHE对象会一直存在不会被回收，确实存在常量对象CACHE，猜想一得到验证。</strong></p>
+<p>那接下来看一下CACHE.get方法：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-20c9834f76.webp"></p>
+<p>从这段代码中可以看出：</p>
+<ol>
+<li> <p>在Cache类内部维护了一个Map，该Map用于缓存已经连接好的FileSystem对象，Map的Key为Cache.Key对象。每次都会通过Cache.Key获取FileSystem，如果未获取到，才会继续创建的流程。</p> </li>
+<li> <p>在Cache类内部维护了一个Set（toAutoClose），该Set用于存放需自动关闭的连接。在客户端关闭时会自动关闭该集合中的连接。</p> </li>
+<li> <p>每次创建的FileSystem都会以Cache.Key为key，FileSystem为Value存储在Cache类中的Map中。那至于在缓存时候是否对于相同hdfs URI是否会存在多次缓存，就需要查看一下Cache.Key的hashCode方法了。</p> </li>
+</ol>
+<p>Cache.Key的hashCode方法如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-5c01b10e1c.webp"></p>
+<p>schema和authority变量为String类型，如果在相同的URI情况下，其hashCode是一致。而unique该参数的值每次都是0。那么Cache.Key的hashCode就由<strong>ugi.hashCode()</strong>决定。</p>
+<p>由以上代码分析可以梳理得到：</p>
+<ol>
+<li> <p>业务代码与hdfs交互过程中，每次交互都会新建一个<strong>FileSystem</strong>连接，结束时并未关闭FileSystem连接。</p> </li>
+<li> <p>FileSystem内置了一个static的<strong>Cache</strong>，该Cache内部有一个Map，用于缓存已经创建连接的FileSystem。</p> </li>
+<li> <p>参数fs.hdfs.impl.disable.cache，用于控制FileSystem是否需要缓存，默认情况下是false，即缓存。</p> </li>
+<li> <p>Cache中的Map，Key为Cache.Key类，该类通过<strong>schem，authority，ugi，unique</strong>&nbsp;4个参数来确定一个Key，如上Cache.Key的hashCode方法。</p> </li>
+</ol>
+<p><strong>（2）猜想二：FileSystem同样hdfs URI是不是多次缓存？</strong></p>
+<p>FileSystem.Cache.Key构造函数如下所示：ugi由UserGroupInformation的getCurrentUser()决定。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-c87d72da52.webp"></p>
+<p>继续看UserGroupInformation的getCurrentUser()方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a440573d22.webp"></p>
+<p>其中比较关键的就是是否能通过AccessControlContext获取到Subject对象。在本例中通过get(final URI uri, final Configuration conf,final String user)获取时候，在debug调试时，发现此处每次都能获取到一个新的Subject对象。也就是说相同的hdfs路径每次都会缓存一个<strong>FileSystem对象</strong>。</p>
+<p><strong>猜想二得到验证：同一个hdfs URI会进行多次缓存，导致缓存快速膨胀，并且缓存没有设置过期时间和淘汰策略，最终导致内存溢出。</strong></p>
+<p><strong>（3）FileSystem为什么会重复缓存？</strong></p>
+<p>那为什么会每次都获取到一个新的Subject对象呢，我们接着往下看一下获取AccessControlContext的代码，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-baaada3704.webp"></p>
+<p>其中比较关键的是getStackAccessControlContext方法，该方法调用了Native方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-7a288a359e.webp"></p>
+<p>该方法会返回当前堆栈的保护域权限的AccessControlContext对象。</p>
+<p>我们通过图3.6&nbsp;<strong>get(final URI uri, final Configuration conf,final String user)&nbsp;</strong>方法可以看到，如下：</p>
+<ul>
+<li> <p>先通过<strong>UserGroupInformation.getBestUGI</strong>方法获取了一个<strong>UserGroupInformation</strong>对象。</p> </li>
+<li> <p>然后在通过<strong>UserGroupInformation</strong>的doAs方法去调用了get(URI uri, Configuration conf)方法</p> </li>
+<li> <p>图3.7&nbsp;<strong>UserGroupInformation.getBestUGI</strong>方法的实现，此处关注一下传入的两个参数<strong>ticketCachePath，user</strong>。ticketCachePath是获取配置hadoop.security.kerberos.ticket.cache.path的值，在本例中该参数未配置，因此ticketCachePath为空。user参数是本例中传入的用户名。</p> </li>
+<li> <p>ticketCachePath为空，user不为空，因此最终会执行图3.7的<strong>createRemoteUser</strong>方法</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-3c011e7674.webp"></p>
+<p>图3.6</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-dc88ba7c64.webp"></p>
+<p>图3.7</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-ba39a58b4c.webp"></p>
+<p>图3.8</p>
+<p>从图3.8标红的代码可以看到在createRemoteUser方法中，创建了一个新的<strong>Subject对象</strong>，并通过该对象创建了<strong>UserGroupInformation</strong>对象。至此，UserGroupInformation.getBestUGI方法执行完成。</p>
+<p>接下来看一下<strong>UserGroupInformation.doAs</strong>方法（FileSystem.get(final URI uri, final Configuration conf, final String user)执行的最后一个方法），如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-b8a75c19df.webp"></p>
+<p>然后在调用Subject.doAs方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9129cbd9c1.webp"></p>
+<p>最后在调用AccessController.doPrivileged方法，如下：</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a1f0be8cfa.webp"></p>
+<p>该方法为Native方法，该方法会使用指定的AccessControlContext来执行PrivilegedExceptionAction，也就是调用该实现的run方法。即FileSystem.get(uri, conf)方法。</p>
+<p>至此，就能够解释在本例中，通过get(final URI uri, final Configuration conf,final String user) 方法创建FileSystem时，每次存入FileSystem的Cache中的Cache.key的hashCode都不一致的情况了。</p>
+<p>小结一下：</p>
+<ol>
+<li> <p>在通过<strong>get(final URI uri, final Configuration conf,final String user)</strong>方法创建<strong>FileSystem</strong>时，由于每次都会创建新的<strong>UserGroupInformation</strong>和<strong>Subject</strong>对象。</p> </li>
+<li> <p>&nbsp;在Cache.Key对象计算<strong>hashCode</strong>时，影响计算结果的是调用了<strong>UserGroupInformation.hashCode</strong>方法。</p> </li>
+<li> <p>UserGroupInformation.hashCode方法，计算为：<strong>System.identityHashCode(subject)</strong>。即如果Subject是同一个对象则返回相同的hashCode，由于在本例中每次都不一样，因此计算的hashCode不一致。</p> </li>
+<li> <p>综上，就导致每次计算Cache.key的hashCode不一致，便会重复写入FileSystem的Cache。</p> </li>
+</ol>
+<p><strong>（4）FileSystem的正确用法</strong></p>
+<p>从上述分析，既然FileSystem.Cache都没有起到应起的作用，那为什么要设计这个Cache呢。其实只是我们的用法没用对而已。</p>
+<p>在FileSystem中，有两个重载的get方法：</p>
+<pre><code>public static FileSystem get(final URI uri, final Configuration conf, final String user)
+public static FileSystem get(URI uri, Configuration conf)</code></pre>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-34dde8596c.webp"></p>
+<p>我们可以看到 FileSystem get(final URI uri, final Configuration conf, final String user)方法最后是调用FileSystem get(URI uri, Configuration conf)方法的，区别在于FileSystem get(URI uri, Configuration conf)方法于缺少也就是缺少每次新建Subject的的操作。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-123c43e458.webp"></p>
+<p>图3.9</p>
+<p>没有新建Subject的的操作，那么图3.9 中Subject为null，会走最后的getLoginUser方法获取loginUser。而loginUser是静态变量，所以一旦该loginUser对象初始化成功，那么后续会一直使用该对象。UserGroupInformation.hashCode方法将会返回一样的hashCode值。也就是能成功的使用到缓存在FileSystem的Cache。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-77effcbc76.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-8a606547fc.webp"></p>
+<p>图3.10</p>
+<h1>四、解决方案</h1>
+<p>经过前面的介绍，如果要解决FileSystem 存在的内存泄露问题，我们有以下两种方式：</p>
+<p>（1）使用<strong>public static FileSystem get(URI uri, Configuration conf)：</strong></p>
+<ul>
+<li> <p>该方法是能够使用到FileSystem的Cache的，也就是说对于同一个hdfs URI是只会有一个FileSystem连接对象的。</p> </li>
+<li> <p>通过System.setProperty("HADOOP_USER_NAME", "hive")方式设置访问用户。</p> </li>
+<li> <p>默认情况下fs.automatic.close=true，即所有的连接都会通过ShutdownHook关闭。</p> </li>
+</ul>
+<p>（2）使用<strong>public static FileSystem get(final URI uri, final Configuration conf, final String user)：</strong></p>
+<ul>
+<li> <p>该方法如上分析，会导致FileSystem的Cache失效，且每次都会添加至Cache的Map中，导致不能被回收。</p> </li>
+<li> <p>在使用时，一种方案是：保证对于同一个hdfs URI只会存在一个FileSystem连接对象。</p> </li>
+<li> <p>另一种方案是：在每次使用完FileSystem之后，调用close方法，该方法会将Cache中的FileSystem删除。</p> </li>
+</ul>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-76781116bd.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-a08b1cca66.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-4d0a29617a.webp"></p>
+<p>基于我们已有的历史代码最小改动的前提下，我们选择了第二种修改方式。在我们每次使用完FileSystem之后都关闭FileSystem对象。</p>
+<h1>五、优化结果</h1>
+<p>对代码进行修复发布上线之后，如下图一所示，可以看到修复之后老年代的内存可以正常回收了，至此问题终于全部解决。</p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-cfe5fab5cf.webp"></p>
+<p><img alt="图片" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-9ba0ac26dd.webp"></p>
+<h1>六、总结</h1>
+<p><strong>内存溢出</strong>是 Java 开发中最常见的问题之一，其原因通常是由于<strong>内存泄漏</strong>导致内存无法正常回收引起的。在我们这篇文章中，详细介绍一次完整的线上内存溢出的处理过程。</p>
+<p>总结一下我们在碰到内存溢出时候的常用解决思路：</p>
+<p>（1）<strong>生成堆内存文件</strong>：</p>
+<p>在服务启动命令添加</p>
+<pre><code> -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/local/base</code></pre>
+<p>让服务在发生oom时自动dump内存文件，或者使用 jamp 命令dump内存文件。</p>
+<p>（2）<strong>堆内存分析</strong>：使用内存分析工具帮助我们更深入地分析内存溢出问题，并找到导致内存溢出的原因。以下是几个常用的内存分析工具：</p>
+<ul>
+<li> <p><strong>Eclipse Memory Analyzer</strong>：一款开源的 Java 内存分析工具，可以帮助我们快速定位内存泄漏问题。</p> </li>
+<li> <p><strong>VisualVM Memory Analyzer</strong>：一个基于图形化界面的工具，可以帮助我们分析java应用程序的内存使用情况。</p> </li>
+</ul>
+<p>（3）根据堆内存分析定位到具体的内存泄漏代码。</p>
+<p>（4）修改内存泄漏代码，重新发布验证。</p>
+<p>内存泄漏是内存溢出的常见原因，但不是唯一原因。常见导致内存溢出问题的原因还是有：<strong>超大对象、堆内存分配太小、死循环调用</strong>等等都会导致内存溢出问题。</p>
+<p>在遇到内存溢出问题时，我们需要多方面思考，从不同角度分析问题。通过我们上述提到的方法和工具以及各种监控帮助我们快速定位和解决问题，提高我们系统的稳定性和可用性。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-36b778d3c8.webp"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static001.geekbang.org-36b778d3c8.webp" medium="image"/>
+    <pubDate>Thu, 16 May 2024 16:48:59 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[OSI 即将给出开源 AI 的定义]]></title>
+    <link>https://www.oschina.net/news/292744/osi-open-source-ai-definition</link>
+    <itunes:title><![CDATA[OSI 即将给出开源 AI 的定义]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>考虑到目前有许多组织都在声称他们的 AI 为“开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义“Open Source AI”。</span></p>
+<p><span>OSI <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fblog%2Fthe-open-source-ai-definition-gets-closer-to-reality-with-a-global-workshop-series" target="_blank">介绍称</a>，该定义将提供一个框架，帮助 AI 开发人员和用户确定 AI 系统是否开源，这意味着它可以在允许不受限制的使用、研究、修改和共享权利的条款下使用。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><span>OSI 执行董事 Stefano Maffulli 表示：</span></p>
+<p><span>“AI 不同于常规软件，它迫使所有利益相关者重新审视开源原则如何应用于该领域。OSI 相信每个人都应该保持对技术的代理和控制。我们还认识到，当明确的定义促进透明度、协作和无需许可的创新时，市场就会蓬勃发展。在花了近两年的时间收集来自世界各地的声音以确定适合 AI 系统的开源原则之后，我们正在着手进行全球路演，以完善和验证 Open Source AI Definition 的候选版本。”</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>考虑到目前有许多组织都在声称他们的 AI 为“开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义“Open Source AI”。</span></p>
+<p><span>OSI <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fblog%2Fthe-open-source-ai-definition-gets-closer-to-reality-with-a-global-workshop-series" target="_blank">介绍称</a>，该定义将提供一个框架，帮助 AI 开发人员和用户确定 AI 系统是否开源，这意味着它可以在允许不受限制的使用、研究、修改和共享权利的条款下使用。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><span>OSI 执行董事 Stefano Maffulli 表示：</span></p>
+<p><span>“AI 不同于常规软件，它迫使所有利益相关者重新审视开源原则如何应用于该领域。OSI 相信每个人都应该保持对技术的代理和控制。我们还认识到，当明确的定义促进透明度、协作和无需许可的创新时，市场就会蓬勃发展。在花了近两年的时间收集来自世界各地的声音以确定适合 AI 系统的开源原则之后，我们正在着手进行全球路演，以完善和验证 Open Source AI Definition 的候选版本。”</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>考虑到目前有许多组织都在声称他们的 AI 为“开源的”，但事实上还没有公认的方法来验证 AI 的开放性。因此，Open Source Initiative (OSI) 正在着手推动全球多利益相关者一起来定义“Open Source AI”。</span></p>
+<p><span>OSI <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fblog%2Fthe-open-source-ai-definition-gets-closer-to-reality-with-a-global-workshop-series" target="_blank">介绍称</a>，该定义将提供一个框架，帮助 AI 开发人员和用户确定 AI 系统是否开源，这意味着它可以在允许不受限制的使用、研究、修改和共享权利的条款下使用。</span></p>
+<p><span>“正如 Open Source Definition 是全球公认的开源软件标准一样，Open Source AI Definition 也将成为 AI 系统及其组件的开放性标准。”</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"></p>
+<p><span>OSI 小组自 2022 年以来就启动了一项深入的全球倡议，让主要参与者（包括企业、学术界、法律界以及代表更广泛民间社会的组织和非营利组织）参与进来，共同起草 Open Source AI Definition。</span></p>
+<p><span>经过了几个月的会议及<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopensource.org%2Fdeepdive%2Fdrafts" target="_blank">草案版本</a>和审查。 OSI 表示，他们已经接近 Open Source AI Definition 的稳定版本；在接下来的几个月里，他们计划在北美、欧洲、非洲、亚太地区和拉丁美洲举办研讨会路演，以征求对草案的进一步意见。目标是能够在 10 月于北卡罗来纳州罗利举行的 All Things Open 上提出该定义的稳定版本。</span></p>
+<p><span>OSI 执行董事 Stefano Maffulli 表示：</span></p>
+<p><span>“AI 不同于常规软件，它迫使所有利益相关者重新审视开源原则如何应用于该领域。OSI 相信每个人都应该保持对技术的代理和控制。我们还认识到，当明确的定义促进透明度、协作和无需许可的创新时，市场就会蓬勃发展。在花了近两年的时间收集来自世界各地的声音以确定适合 AI 系统的开源原则之后，我们正在着手进行全球路演，以完善和验证 Open Source AI Definition 的候选版本。”</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d510612e72.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 16:24:55 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[记 Codes 研发管理平台——瀑布与敏捷模式融合的创新实现]]></title>
+    <link>https://www.oschina.net/news/292740</link>
+    <itunes:title><![CDATA[记 Codes 研发管理平台——瀑布与敏捷模式融合的创新实现]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><strong>传统的项目管理理念中，瀑布和敏捷两种项目模式泾渭分明，市面上所有的研发管理软件，也是基于传统的理念，只能2选1，非常死板。</strong></p>
+<p>&nbsp; &nbsp; &nbsp;<span>2选1的模式一点都不与时俱进，为什么这样说呢？受敏捷思想的影响，在实际项目实践中，<span>不是完完全全按瀑布来，而</span>是采用“小”瀑布模式，这里的“小”，就是在阶段内执行不同的计划（类似于一个阶段下有多次迭代），每个计划都有可验证的产出物，以防“大"瀑布那种，最后才发现问题，修复的代价太大&nbsp;。</span></p>
+<p>&nbsp; &nbsp; &nbsp;Codes 产品团队基于以上众所周知的认知，不走寻常路，不死板的限定在理论中，从实际出发，采用了二者融合实现。</p>
+<p>&nbsp; &nbsp; &nbsp;<strong>1、需求分析过程如下：</strong></p>
+<p>&nbsp; &nbsp; &nbsp; 功能上体现为，项目支持在敏捷视图和瀑布视图中随意切换。底层的逻辑是，不管哪种模式Codes 中底层数据是一套，只是敏捷<span>模</span>和瀑布模式时，主要差别是“主线”不一样，敏捷以迭代为主线，<span>瀑布</span>以阶段为主线。</p>
+<p><strong>&nbsp; &nbsp; 2、功能实现，设置项目缺省项目模式视图：</strong></p>
+<p>&nbsp; &nbsp; &nbsp;在建项目时，可设置缺省视图是敏捷还是瀑布，如果选择了<span>瀑</span><span>布且当前项目没有维护阶段，且需要选择一个阶段模板以自动创建阶段</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b54e4c0ba.png"></p>
+<p><strong>3、功能实现，在</strong><strong>项目中敏捷视图和瀑布视图可随意切换，</strong>且看下面细细道来。</p>
+<p><strong>&nbsp; &nbsp; &nbsp;3.1&nbsp;各个</strong><strong>阶段概况了如指掌</strong><strong>，</strong>如工时，进度，任务等</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2835b2e06c.png"></p>
+<p><strong><strong><span>&nbsp;</span>3.2敏捷与瀑布融合 ，功能上就是阶段和计划（迭代）的融合</strong><span>&nbsp;。</span></strong></p>
+<p><span>&nbsp; &nbsp; &nbsp; &nbsp;左边展开阶段，显示其下计划，一对多的关系；右边显示计划中的工作事项</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b26359f8c.png"></p>
+<p><strong>3.3敏捷与瀑布，左右开弓，想切就切</strong></p>
+<p><strong><span>&nbsp; &nbsp;<span>&nbsp;</span></span></strong><span>&nbsp;前两节瀑布视图以阶段为主线的显示，下图切换为敏捷视图下以迭代为主线的显示</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7cb7ff4f1a.png"></p>
+<p><strong><span>3.4敏捷与瀑布融合 ，宏观微观兼顾</span></strong><span><span>&nbsp;</span>。</span><span>在仪表盘中有</span><span><span><span>&nbsp;</span>PMO 关注的宏观层面的</span><strong>里程碑，</strong><span>也有细粒度的</span><strong>迭代数据</strong><span>还有更细粒度的</span><strong>各项事项的汇总。</strong></span><span>且能通过阶段下的计划层层推算阶段的进度。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4defb0d182.png"></p>
+<p><span><strong>最后打个总结：</strong>Codes 这敏捷和瀑布的融合模式，是不是很爽，解决了只能2选1的问题，关键确实实用，与时俱进；创新不是为了玩新奇，是为了解决问题，下一次我们来聊聊Codes 生成式全局看板，一板走天下，也是很酷的功能。</span><span><strong>匠心打磨，持续创新是Codes的产品基因</strong></span><span>。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><strong>传统的项目管理理念中，瀑布和敏捷两种项目模式泾渭分明，市面上所有的研发管理软件，也是基于传统的理念，只能2选1，非常死板。</strong></p>
+<p>&nbsp; &nbsp; &nbsp;<span>2选1的模式一点都不与时俱进，为什么这样说呢？受敏捷思想的影响，在实际项目实践中，<span>不是完完全全按瀑布来，而</span>是采用“小”瀑布模式，这里的“小”，就是在阶段内执行不同的计划（类似于一个阶段下有多次迭代），每个计划都有可验证的产出物，以防“大"瀑布那种，最后才发现问题，修复的代价太大&nbsp;。</span></p>
+<p>&nbsp; &nbsp; &nbsp;Codes 产品团队基于以上众所周知的认知，不走寻常路，不死板的限定在理论中，从实际出发，采用了二者融合实现。</p>
+<p>&nbsp; &nbsp; &nbsp;<strong>1、需求分析过程如下：</strong></p>
+<p>&nbsp; &nbsp; &nbsp; 功能上体现为，项目支持在敏捷视图和瀑布视图中随意切换。底层的逻辑是，不管哪种模式Codes 中底层数据是一套，只是敏捷<span>模</span>和瀑布模式时，主要差别是“主线”不一样，敏捷以迭代为主线，<span>瀑布</span>以阶段为主线。</p>
+<p><strong>&nbsp; &nbsp; 2、功能实现，设置项目缺省项目模式视图：</strong></p>
+<p>&nbsp; &nbsp; &nbsp;在建项目时，可设置缺省视图是敏捷还是瀑布，如果选择了<span>瀑</span><span>布且当前项目没有维护阶段，且需要选择一个阶段模板以自动创建阶段</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b54e4c0ba.png"></p>
+<p><strong>3、功能实现，在</strong><strong>项目中敏捷视图和瀑布视图可随意切换，</strong>且看下面细细道来。</p>
+<p><strong>&nbsp; &nbsp; &nbsp;3.1&nbsp;各个</strong><strong>阶段概况了如指掌</strong><strong>，</strong>如工时，进度，任务等</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2835b2e06c.png"></p>
+<p><strong><strong><span>&nbsp;</span>3.2敏捷与瀑布融合 ，功能上就是阶段和计划（迭代）的融合</strong><span>&nbsp;。</span></strong></p>
+<p><span>&nbsp; &nbsp; &nbsp; &nbsp;左边展开阶段，显示其下计划，一对多的关系；右边显示计划中的工作事项</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b26359f8c.png"></p>
+<p><strong>3.3敏捷与瀑布，左右开弓，想切就切</strong></p>
+<p><strong><span>&nbsp; &nbsp;<span>&nbsp;</span></span></strong><span>&nbsp;前两节瀑布视图以阶段为主线的显示，下图切换为敏捷视图下以迭代为主线的显示</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7cb7ff4f1a.png"></p>
+<p><strong><span>3.4敏捷与瀑布融合 ，宏观微观兼顾</span></strong><span><span>&nbsp;</span>。</span><span>在仪表盘中有</span><span><span><span>&nbsp;</span>PMO 关注的宏观层面的</span><strong>里程碑，</strong><span>也有细粒度的</span><strong>迭代数据</strong><span>还有更细粒度的</span><strong>各项事项的汇总。</strong></span><span>且能通过阶段下的计划层层推算阶段的进度。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4defb0d182.png"></p>
+<p><span><strong>最后打个总结：</strong>Codes 这敏捷和瀑布的融合模式，是不是很爽，解决了只能2选1的问题，关键确实实用，与时俱进；创新不是为了玩新奇，是为了解决问题，下一次我们来聊聊Codes 生成式全局看板，一板走天下，也是很酷的功能。</span><span><strong>匠心打磨，持续创新是Codes的产品基因</strong></span><span>。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><strong>传统的项目管理理念中，瀑布和敏捷两种项目模式泾渭分明，市面上所有的研发管理软件，也是基于传统的理念，只能2选1，非常死板。</strong></p>
+<p>&nbsp; &nbsp; &nbsp;<span>2选1的模式一点都不与时俱进，为什么这样说呢？受敏捷思想的影响，在实际项目实践中，<span>不是完完全全按瀑布来，而</span>是采用“小”瀑布模式，这里的“小”，就是在阶段内执行不同的计划（类似于一个阶段下有多次迭代），每个计划都有可验证的产出物，以防“大"瀑布那种，最后才发现问题，修复的代价太大&nbsp;。</span></p>
+<p>&nbsp; &nbsp; &nbsp;Codes 产品团队基于以上众所周知的认知，不走寻常路，不死板的限定在理论中，从实际出发，采用了二者融合实现。</p>
+<p>&nbsp; &nbsp; &nbsp;<strong>1、需求分析过程如下：</strong></p>
+<p>&nbsp; &nbsp; &nbsp; 功能上体现为，项目支持在敏捷视图和瀑布视图中随意切换。底层的逻辑是，不管哪种模式Codes 中底层数据是一套，只是敏捷<span>模</span>和瀑布模式时，主要差别是“主线”不一样，敏捷以迭代为主线，<span>瀑布</span>以阶段为主线。</p>
+<p><strong>&nbsp; &nbsp; 2、功能实现，设置项目缺省项目模式视图：</strong></p>
+<p>&nbsp; &nbsp; &nbsp;在建项目时，可设置缺省视图是敏捷还是瀑布，如果选择了<span>瀑</span><span>布且当前项目没有维护阶段，且需要选择一个阶段模板以自动创建阶段</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b54e4c0ba.png"></p>
+<p><strong>3、功能实现，在</strong><strong>项目中敏捷视图和瀑布视图可随意切换，</strong>且看下面细细道来。</p>
+<p><strong>&nbsp; &nbsp; &nbsp;3.1&nbsp;各个</strong><strong>阶段概况了如指掌</strong><strong>，</strong>如工时，进度，任务等</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2835b2e06c.png"></p>
+<p><strong><strong><span>&nbsp;</span>3.2敏捷与瀑布融合 ，功能上就是阶段和计划（迭代）的融合</strong><span>&nbsp;。</span></strong></p>
+<p><span>&nbsp; &nbsp; &nbsp; &nbsp;左边展开阶段，显示其下计划，一对多的关系；右边显示计划中的工作事项</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b26359f8c.png"></p>
+<p><strong>3.3敏捷与瀑布，左右开弓，想切就切</strong></p>
+<p><strong><span>&nbsp; &nbsp;<span>&nbsp;</span></span></strong><span>&nbsp;前两节瀑布视图以阶段为主线的显示，下图切换为敏捷视图下以迭代为主线的显示</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7cb7ff4f1a.png"></p>
+<p><strong><span>3.4敏捷与瀑布融合 ，宏观微观兼顾</span></strong><span><span>&nbsp;</span>。</span><span>在仪表盘中有</span><span><span><span>&nbsp;</span>PMO 关注的宏观层面的</span><strong>里程碑，</strong><span>也有细粒度的</span><strong>迭代数据</strong><span>还有更细粒度的</span><strong>各项事项的汇总。</strong></span><span>且能通过阶段下的计划层层推算阶段的进度。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4defb0d182.png"></p>
+<p><span><strong>最后打个总结：</strong>Codes 这敏捷和瀑布的融合模式，是不是很爽，解决了只能2选1的问题，关键确实实用，与时俱进；创新不是为了玩新奇，是为了解决问题，下一次我们来聊聊Codes 生成式全局看板，一板走天下，也是很酷的功能。</span><span><strong>匠心打磨，持续创新是Codes的产品基因</strong></span><span>。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b54e4c0ba.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3b54e4c0ba.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 16:10:55 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[周鸿祎：GPT-4o 让闭源往前冲了一截，但我依然对开源有信心]]></title>
+    <link>https://www.oschina.net/news/292724</link>
+    <itunes:title><![CDATA[周鸿祎：GPT-4o 让闭源往前冲了一截，但我依然对开源有信心]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>转自周鸿祎<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">微博</a>：</p>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14b97d11ab.png"></p>
+<p>延伸阅读</p>
+<ul>
+<li><a href="https://www.oschina.net/news/288712" target="news">周鸿祎：闭源比开源好？Llama 3 已经给出最好答案</a></li>
+<li><a href="https://www.oschina.net/news/285345" target="news">周鸿祎自称“开源信徒”</a></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>转自周鸿祎<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">微博</a>：</p>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14b97d11ab.png"></p>
+<p>延伸阅读</p>
+<ul>
+<li><a href="https://www.oschina.net/news/288712" target="news">周鸿祎：闭源比开源好？Llama 3 已经给出最好答案</a></li>
+<li><a href="https://www.oschina.net/news/285345" target="news">周鸿祎自称“开源信徒”</a></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>转自周鸿祎<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1708942053%2FOer2rwSRk" target="_blank">微博</a>：</p>
+<blockquote>
+<p>前一段有开源和闭源之争，GPT-4o又让闭源系统的能力往前冲了一截，但是我依然对开源世界有信心。</p>
+<p>坦率的说，可能我们又落后了，但这个落后我觉得也就不到一年，我还是坚持我的观点，中国发展大模型应该坚持两条腿走路，一条路是跟着OpenAI，但是用开源的思路，另一条路就是继续走应用之路，走企业场景化的专业大模型之路。</p>
+</blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14b97d11ab.png"></p>
+<p>延伸阅读</p>
+<ul>
+<li><a href="https://www.oschina.net/news/288712" target="news">周鸿祎：闭源比开源好？Llama 3 已经给出最好答案</a></li>
+<li><a href="https://www.oschina.net/news/285345" target="news">周鸿祎自称“开源信徒”</a></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14b97d11ab.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-14b97d11ab.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 14:59:51 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[你的产品设置 14 天免费试用期，根本没意义！]]></title>
+    <link>https://my.oschina.net/u/6148470/blog/11106178</link>
+    <itunes:title><![CDATA[你的产品设置 14 天免费试用期，根本没意义！]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<blockquote>
+<p>原文 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fyour-14-day-free-trial-aint-gonna-cut-it%2F" target="_blank">Your 14-Day Free Trial Ain't Gonna Cut It</a>。作者 Zeke Gabrielse，Keygen 创始人。 Keygen 是一个开源的软件许可和分发 API。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0ecaa08d7c.png" alt="file"></p>
+</blockquote>
+<p>我已经开发 Keygen 快 8 年了（<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkeygen-sh%2Fkeygen-api%2Fcommit%2F84e8ccc35ea4accaf45d8bf529ba554650465644" target="_blank">准确点说</a>，是 2016.5.22 开始的 ）。毫不夸张地说，这期间我学到了许多东西。其中一个很重要的是，很多创始人，包括我自己，都多少会忽略关键商业指标。今天我们就来讨论一下指标**「转化所需时间」（TTC, Time To Convert）**。</p>
+<p>我刚创立 Keygen 时，就像大多数人一样，设定了 14 天的免费试用期。但很快发现，这么短的时间内，指望潜在客户完全整合软件许可 API 到他们的系统不太可能。</p>
+<p>于是我开始提供试用期延长服务，这一点在定价页面、初始和后续邮件中都有提及。目的是让潜在客户明白，他们可以有更多时间来测试产品。</p>
+<p>经验告诉我，绝大多数转化为付费客户的用户都曾请求过延长试用期。比起那些没有请求延长的人，请求延长的客户的转化率更高。</p>
+<p>这是为什么呢？</p>
+<p>每次延长试用期，我都会要求潜在客户在试用期延长前提供信用卡信息。这样就无缝从无需信用卡的免费试用转变为需要信用卡的免费试用，无疑提升了客户的转化意愿。</p>
+<p>你大概会奇怪，这和「转化所需时间」有什么联系？</p>
+<p>原因是：</p>
+<p>意识到延长免费试用期能显著提升转化率之后，我会亲自给试用期即将结束的潜在客户发邮件，邀请他们延长试用期。这是个大大的成功。</p>
+<p>以至于我甚至不再要求客户在延长试用期前提交信用卡信息 - 主要是因为我懒得处理这些繁琐事务。</p>
+<p>出乎意料的是，这种做法并没有影响到转化率（这也推倒了之前对高转化率的假设）。</p>
+<p>接下来的几年里，我就一直手动延长试用期。</p>
+<p>后来，我对 Baremetrics 提供的有限度量<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fhow-i-replaced-baremetrics-and-chartmogul-with-rake%2F" target="_blank">感到不满</a>，所以找了 Rake 当替代品。随着我们在 Stripe 上的客户数量增加，Rake 没能很好地扩展，最终还是停止使用了。但是，通过这一过程，我了解到了我的转化所需时间，这是许多创始人（包括当时的我）都未曾了解的关键商业指标。</p>
+<p>那么，什么是转化所需时间？它指的是从客户注册到实际付费的时间。简单明了！</p>
+<p>为什么这是一个重要的指标？</p>
+<p>因为设置的 14 天免费试用期并不足以让客户真正体验到 Keygen 的价值，并决定「这是否值得我投资？」</p>
+<p>他们只有 14 天来做这个决定。</p>
+<p>但我 41 天的 TTC 是 50%。130 天，90%；198 天，95%；290 天，99%。 如果想用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstripe.com%2Fen-hk%2Fsigma" target="_blank">Stripe Sigma</a> 来计算你的，可以用这个查询：</p>
+<pre><code>SELECT
+format('%d days', approx_percentile(time_to_convert, 0.5))  AS time_to_convert_p50,
+format('%d days', approx_percentile(time_to_convert, 0.9))  AS time_to_convert_p90,
+format('%d days', approx_percentile(time_to_convert, 0.95)) AS time_to_convert_p95,
+format('%d days', approx_percentile(time_to_convert, 0.99)) AS time_to_convert_p99
+FROM (
+SELECT
+DATE_DIFF('day', MIN(customers.created), MIN(charges.created)) AS time_to_convert,
+customers.id
+FROM
+customers
+INNER JOIN charges ON charges.customer_id = customers.id
+WHERE
+customers.created BETWEEN DATE_ADD('year', -1, CURRENT_DATE) AND CURRENT_DATE
+AND charges.paid = TRUE
+AND charges.amount &gt; 0
+GROUP BY
+customers.id
+)
+</code></pre>
+<p>如上所述，我其实是在要求用户在 14 天内完成一系列概念验证，包括阅读文档、完成上手、规划并执行<strong>概念验证（PoC, Proof of Concept）</strong>。</p>
+<p>然而，实际的中位转化时间却是 41 天！</p>
+<p>显然，14 天远远不够。</p>
+<p>在公司还有其他项目压力的同时，从发现到集成（或至少得到一个概念验证 PoC），要在 14 天内完全理解并集成一个新的 API 几乎是不可能的。</p>
+<p>我实际上是在让潜在客户等待：</p>
+<ul>
+<li>等待他们准备好开始理解 API；</li>
+<li>等待他们准备好接受培训；</li>
+<li>等待他们规划好概念验证 PoC；</li>
+<li>等待开发人员有空闲时间；</li>
+<li>不停等待。</li>
+</ul>
+<p>实际上，人们会因为太忙而错过了 14 天的期限，发现自己还没准备好，那就先不搞了，等之后准备好了再说，却往往一去不复返了。</p>
+<p>因此，我决定消除这个障碍。我的目标是，一旦潜在客户认为 Keygen 可以是他们的解决方案，就立刻抓住这些他们。这样，我就可以开始培养这些潜在的客户。</p>
+<p>接下来，我做了每一个创业者都会告诉你不要做的事：</p>
+<p>引入无限期的试用期，也就是可以免费使用。</p>
+<p>结果如何呢？</p>
+<p>正如预期的那样，总体注册数量增加了。而且，通过对只使用免费档的用户进行分析，我发现付费注册数量也有所增加，转化率保持稳定，而且不再需要进行手动操作。我认为这是一个双赢的结果。</p>
+<p>所以，你的转化所需时间是多少？⏳</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<blockquote>
+<p>原文 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fyour-14-day-free-trial-aint-gonna-cut-it%2F" target="_blank">Your 14-Day Free Trial Ain't Gonna Cut It</a>。作者 Zeke Gabrielse，Keygen 创始人。 Keygen 是一个开源的软件许可和分发 API。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0ecaa08d7c.png" alt="file"></p>
+</blockquote>
+<p>我已经开发 Keygen 快 8 年了（<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkeygen-sh%2Fkeygen-api%2Fcommit%2F84e8ccc35ea4accaf45d8bf529ba554650465644" target="_blank">准确点说</a>，是 2016.5.22 开始的 ）。毫不夸张地说，这期间我学到了许多东西。其中一个很重要的是，很多创始人，包括我自己，都多少会忽略关键商业指标。今天我们就来讨论一下指标**「转化所需时间」（TTC, Time To Convert）**。</p>
+<p>我刚创立 Keygen 时，就像大多数人一样，设定了 14 天的免费试用期。但很快发现，这么短的时间内，指望潜在客户完全整合软件许可 API 到他们的系统不太可能。</p>
+<p>于是我开始提供试用期延长服务，这一点在定价页面、初始和后续邮件中都有提及。目的是让潜在客户明白，他们可以有更多时间来测试产品。</p>
+<p>经验告诉我，绝大多数转化为付费客户的用户都曾请求过延长试用期。比起那些没有请求延长的人，请求延长的客户的转化率更高。</p>
+<p>这是为什么呢？</p>
+<p>每次延长试用期，我都会要求潜在客户在试用期延长前提供信用卡信息。这样就无缝从无需信用卡的免费试用转变为需要信用卡的免费试用，无疑提升了客户的转化意愿。</p>
+<p>你大概会奇怪，这和「转化所需时间」有什么联系？</p>
+<p>原因是：</p>
+<p>意识到延长免费试用期能显著提升转化率之后，我会亲自给试用期即将结束的潜在客户发邮件，邀请他们延长试用期。这是个大大的成功。</p>
+<p>以至于我甚至不再要求客户在延长试用期前提交信用卡信息 - 主要是因为我懒得处理这些繁琐事务。</p>
+<p>出乎意料的是，这种做法并没有影响到转化率（这也推倒了之前对高转化率的假设）。</p>
+<p>接下来的几年里，我就一直手动延长试用期。</p>
+<p>后来，我对 Baremetrics 提供的有限度量<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fhow-i-replaced-baremetrics-and-chartmogul-with-rake%2F" target="_blank">感到不满</a>，所以找了 Rake 当替代品。随着我们在 Stripe 上的客户数量增加，Rake 没能很好地扩展，最终还是停止使用了。但是，通过这一过程，我了解到了我的转化所需时间，这是许多创始人（包括当时的我）都未曾了解的关键商业指标。</p>
+<p>那么，什么是转化所需时间？它指的是从客户注册到实际付费的时间。简单明了！</p>
+<p>为什么这是一个重要的指标？</p>
+<p>因为设置的 14 天免费试用期并不足以让客户真正体验到 Keygen 的价值，并决定「这是否值得我投资？」</p>
+<p>他们只有 14 天来做这个决定。</p>
+<p>但我 41 天的 TTC 是 50%。130 天，90%；198 天，95%；290 天，99%。 如果想用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstripe.com%2Fen-hk%2Fsigma" target="_blank">Stripe Sigma</a> 来计算你的，可以用这个查询：</p>
+<pre><code>SELECT
+format('%d days', approx_percentile(time_to_convert, 0.5))  AS time_to_convert_p50,
+format('%d days', approx_percentile(time_to_convert, 0.9))  AS time_to_convert_p90,
+format('%d days', approx_percentile(time_to_convert, 0.95)) AS time_to_convert_p95,
+format('%d days', approx_percentile(time_to_convert, 0.99)) AS time_to_convert_p99
+FROM (
+SELECT
+DATE_DIFF('day', MIN(customers.created), MIN(charges.created)) AS time_to_convert,
+customers.id
+FROM
+customers
+INNER JOIN charges ON charges.customer_id = customers.id
+WHERE
+customers.created BETWEEN DATE_ADD('year', -1, CURRENT_DATE) AND CURRENT_DATE
+AND charges.paid = TRUE
+AND charges.amount &gt; 0
+GROUP BY
+customers.id
+)
+</code></pre>
+<p>如上所述，我其实是在要求用户在 14 天内完成一系列概念验证，包括阅读文档、完成上手、规划并执行<strong>概念验证（PoC, Proof of Concept）</strong>。</p>
+<p>然而，实际的中位转化时间却是 41 天！</p>
+<p>显然，14 天远远不够。</p>
+<p>在公司还有其他项目压力的同时，从发现到集成（或至少得到一个概念验证 PoC），要在 14 天内完全理解并集成一个新的 API 几乎是不可能的。</p>
+<p>我实际上是在让潜在客户等待：</p>
+<ul>
+<li>等待他们准备好开始理解 API；</li>
+<li>等待他们准备好接受培训；</li>
+<li>等待他们规划好概念验证 PoC；</li>
+<li>等待开发人员有空闲时间；</li>
+<li>不停等待。</li>
+</ul>
+<p>实际上，人们会因为太忙而错过了 14 天的期限，发现自己还没准备好，那就先不搞了，等之后准备好了再说，却往往一去不复返了。</p>
+<p>因此，我决定消除这个障碍。我的目标是，一旦潜在客户认为 Keygen 可以是他们的解决方案，就立刻抓住这些他们。这样，我就可以开始培养这些潜在的客户。</p>
+<p>接下来，我做了每一个创业者都会告诉你不要做的事：</p>
+<p>引入无限期的试用期，也就是可以免费使用。</p>
+<p>结果如何呢？</p>
+<p>正如预期的那样，总体注册数量增加了。而且，通过对只使用免费档的用户进行分析，我发现付费注册数量也有所增加，转化率保持稳定，而且不再需要进行手动操作。我认为这是一个双赢的结果。</p>
+<p>所以，你的转化所需时间是多少？⏳</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]>
+    </description>
+    <content:encoded><![CDATA[<blockquote>
+<p>原文 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fyour-14-day-free-trial-aint-gonna-cut-it%2F" target="_blank">Your 14-Day Free Trial Ain't Gonna Cut It</a>。作者 Zeke Gabrielse，Keygen 创始人。 Keygen 是一个开源的软件许可和分发 API。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0ecaa08d7c.png" alt="file"></p>
+</blockquote>
+<p>我已经开发 Keygen 快 8 年了（<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkeygen-sh%2Fkeygen-api%2Fcommit%2F84e8ccc35ea4accaf45d8bf529ba554650465644" target="_blank">准确点说</a>，是 2016.5.22 开始的 ）。毫不夸张地说，这期间我学到了许多东西。其中一个很重要的是，很多创始人，包括我自己，都多少会忽略关键商业指标。今天我们就来讨论一下指标**「转化所需时间」（TTC, Time To Convert）**。</p>
+<p>我刚创立 Keygen 时，就像大多数人一样，设定了 14 天的免费试用期。但很快发现，这么短的时间内，指望潜在客户完全整合软件许可 API 到他们的系统不太可能。</p>
+<p>于是我开始提供试用期延长服务，这一点在定价页面、初始和后续邮件中都有提及。目的是让潜在客户明白，他们可以有更多时间来测试产品。</p>
+<p>经验告诉我，绝大多数转化为付费客户的用户都曾请求过延长试用期。比起那些没有请求延长的人，请求延长的客户的转化率更高。</p>
+<p>这是为什么呢？</p>
+<p>每次延长试用期，我都会要求潜在客户在试用期延长前提供信用卡信息。这样就无缝从无需信用卡的免费试用转变为需要信用卡的免费试用，无疑提升了客户的转化意愿。</p>
+<p>你大概会奇怪，这和「转化所需时间」有什么联系？</p>
+<p>原因是：</p>
+<p>意识到延长免费试用期能显著提升转化率之后，我会亲自给试用期即将结束的潜在客户发邮件，邀请他们延长试用期。这是个大大的成功。</p>
+<p>以至于我甚至不再要求客户在延长试用期前提交信用卡信息 - 主要是因为我懒得处理这些繁琐事务。</p>
+<p>出乎意料的是，这种做法并没有影响到转化率（这也推倒了之前对高转化率的假设）。</p>
+<p>接下来的几年里，我就一直手动延长试用期。</p>
+<p>后来，我对 Baremetrics 提供的有限度量<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fkeygen.sh%2Fblog%2Fhow-i-replaced-baremetrics-and-chartmogul-with-rake%2F" target="_blank">感到不满</a>，所以找了 Rake 当替代品。随着我们在 Stripe 上的客户数量增加，Rake 没能很好地扩展，最终还是停止使用了。但是，通过这一过程，我了解到了我的转化所需时间，这是许多创始人（包括当时的我）都未曾了解的关键商业指标。</p>
+<p>那么，什么是转化所需时间？它指的是从客户注册到实际付费的时间。简单明了！</p>
+<p>为什么这是一个重要的指标？</p>
+<p>因为设置的 14 天免费试用期并不足以让客户真正体验到 Keygen 的价值，并决定「这是否值得我投资？」</p>
+<p>他们只有 14 天来做这个决定。</p>
+<p>但我 41 天的 TTC 是 50%。130 天，90%；198 天，95%；290 天，99%。 如果想用 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstripe.com%2Fen-hk%2Fsigma" target="_blank">Stripe Sigma</a> 来计算你的，可以用这个查询：</p>
+<pre><code>SELECT
+format('%d days', approx_percentile(time_to_convert, 0.5))  AS time_to_convert_p50,
+format('%d days', approx_percentile(time_to_convert, 0.9))  AS time_to_convert_p90,
+format('%d days', approx_percentile(time_to_convert, 0.95)) AS time_to_convert_p95,
+format('%d days', approx_percentile(time_to_convert, 0.99)) AS time_to_convert_p99
+FROM (
+SELECT
+DATE_DIFF('day', MIN(customers.created), MIN(charges.created)) AS time_to_convert,
+customers.id
+FROM
+customers
+INNER JOIN charges ON charges.customer_id = customers.id
+WHERE
+customers.created BETWEEN DATE_ADD('year', -1, CURRENT_DATE) AND CURRENT_DATE
+AND charges.paid = TRUE
+AND charges.amount &gt; 0
+GROUP BY
+customers.id
+)
+</code></pre>
+<p>如上所述，我其实是在要求用户在 14 天内完成一系列概念验证，包括阅读文档、完成上手、规划并执行<strong>概念验证（PoC, Proof of Concept）</strong>。</p>
+<p>然而，实际的中位转化时间却是 41 天！</p>
+<p>显然，14 天远远不够。</p>
+<p>在公司还有其他项目压力的同时，从发现到集成（或至少得到一个概念验证 PoC），要在 14 天内完全理解并集成一个新的 API 几乎是不可能的。</p>
+<p>我实际上是在让潜在客户等待：</p>
+<ul>
+<li>等待他们准备好开始理解 API；</li>
+<li>等待他们准备好接受培训；</li>
+<li>等待他们规划好概念验证 PoC；</li>
+<li>等待开发人员有空闲时间；</li>
+<li>不停等待。</li>
+</ul>
+<p>实际上，人们会因为太忙而错过了 14 天的期限，发现自己还没准备好，那就先不搞了，等之后准备好了再说，却往往一去不复返了。</p>
+<p>因此，我决定消除这个障碍。我的目标是，一旦潜在客户认为 Keygen 可以是他们的解决方案，就立刻抓住这些他们。这样，我就可以开始培养这些潜在的客户。</p>
+<p>接下来，我做了每一个创业者都会告诉你不要做的事：</p>
+<p>引入无限期的试用期，也就是可以免费使用。</p>
+<p>结果如何呢？</p>
+<p>正如预期的那样，总体注册数量增加了。而且，通过对只使用免费档的用户进行分析，我发现付费注册数量也有所增加，转化率保持稳定，而且不再需要进行手动操作。我认为这是一个双赢的结果。</p>
+<p>所以，你的转化所需时间是多少？⏳</p>
+<hr>
+<p>💡 更多资讯，请关注 Bytebase 公号：Bytebase</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0ecaa08d7c.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0ecaa08d7c.png" medium="image"/>
+    <pubDate>Thu, 16 May 2024 14:31:08 +0800</pubDate>
+  </item></channel>
 </rss>
