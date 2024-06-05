@@ -30,6 +30,192 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[Apache dubbo-getty 1.5.0 发布，限制 TCP 客户端重连行为，修复 WebSocket 并行安全问题]]></title>
+    <link>https://my.oschina.net/dubbogo/blog/11206423</link>
+    <itunes:title><![CDATA[Apache dubbo-getty 1.5.0 发布，限制 TCP 客户端重连行为，修复 WebSocket 并行安全问题]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>经过半年改进，dubbo-getty 发布了 v1.5.0 版本，致力于提升稳定性，并修复已知问题，为用户提供更可靠的网络通信服务。</p>
+<p>如昔，依然坚持 "Getty 只考虑使用 Go 语言原生的网络接口，如果遇到网络性能瓶颈也只会在自身层面寻找优化突破点" <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 。</p>
+<h1>1. 限制 TCP 客户端重连行为</h1>
+<hr>
+<p>Getty 支持 TCP lazy reconnect，所谓 lazy reconnect，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 有详细描述。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06ee051e63.png"></p>
+<p>lazy reconnect 整体流程图如上。</p>
+<p>近期社区 No-SilverBullet 筒子觉得：服务端的连接数是动态的，所以我觉得 getty 还是应该有一个兜底的逻辑，而不是 "无脑的" 一直去重连，可以 "添加一个最多重来次数或者重连时间限制"：</p>
+<ul>
+<li>
+<ol>
+<li>客户端在 read EOF 时，停止重连维护连接池的行为</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>reconnect 增加最大次数，当重连次数超过设定的连接数时，退出</li>
+</ol> </li>
+</ul>
+<p>具体改进是：</p>
+<ul>
+<li>
+<ol>
+<li>session 增加了新的 attribute（ignoreReconnectKey），用于标识是否重连</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>最大重连次数设定为用户设定的连接数</li>
+</ol> </li>
+</ul>
+<p>相关 PR 是 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F117%E3%80%82" target="_blank">https://github.com/apache/dubbo-getty/pull/117。</a></p>
+<h1>2. 修复 WebSocket 并行安全问题</h1>
+<hr>
+<p>Getty WebSocket 通信依赖于 gorilla/websocket 这个包，进行 WebSocket 网络通信时只能 "支持一个并发 reader 和一个并发 writer"。</p>
+<pre><code>Connections support one concurrent reader and one concurrent writer.
+Applications are responsible for ensuring that no more than one goroutine calls the write methods (NextWriter, SetWriteDeadline, WriteMessage, WriteJSON, EnableWriteCompression, SetCompressionLevel) concurrently and that no more than one goroutine calls the read methods (NextReader, SetReadDeadline, ReadMessage, ReadJSON, SetPongHandler, SetPingHandler) concurrently.
+The Close and WriteControl methods can be called concurrently with all other methods.
+-- from https://pkg.go.dev/github.com/gorilla/websocket#hdr-Concurrency
+</code></pre>
+<p>Getty WebSocket 以往没有注意到这个规则，近期有人在 [issue 120] 中报出了这个 bug，社区筒子立即响应，添加了 <code>gettyWSConn:threadSafeWriteMessage</code> 和 gettyWSConn:threadSafeReadMessage 这两个接口以解决并行通信的 data race 问题，相关代码详见 PR 121 和 PR 123。</p>
+<p>相关 PR 是：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F121" target="_blank">https://github.com/apache/dubbo-getty/pull/121</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F123" target="_blank">https://github.com/apache/dubbo-getty/pull/123</a></p>
+<p>在 PR 121 中我们顺便解决了 [issue 103] 描述的 session 异常关闭问题。</p>
+<h1>3 致谢</h1>
+<hr>
+<p>感谢所有为 Dubbo-Getty 1.5.0 做出贡献的社区成员，包括 issue/PR 提交者、代码 reviewer 以及文章作者【排名不分先后，依据字母序列】：</p>
+<ul>
+<li>chenbaoding2818</li>
+<li>FoghostCn</li>
+<li>Lvnszn</li>
+<li>No-SilverBullet</li>
+<li>seven-ali</li>
+</ul>
+<p>alexstocks/getty 作为 dubbo-getty 的上游仓库，已在 alexstocks/gettyv1.5.0 中吸收了本次更新。</p>
+<p>另外，我们搜到一些第三方作者对 getty 的解析文章，代表社区向这些传播 getty 的文章作者致敬：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483810%26idx%3D1%26sn%3D4779ca161c6c36438f1d7b649338eadd%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？客户端篇</a></li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483815%26idx%3D1%26sn%3Dfc20eb5f6120c111f81da0ca8609dfb3%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？服务篇</a></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>经过半年改进，dubbo-getty 发布了 v1.5.0 版本，致力于提升稳定性，并修复已知问题，为用户提供更可靠的网络通信服务。</p>
+<p>如昔，依然坚持 "Getty 只考虑使用 Go 语言原生的网络接口，如果遇到网络性能瓶颈也只会在自身层面寻找优化突破点" <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 。</p>
+<h1>1. 限制 TCP 客户端重连行为</h1>
+<hr>
+<p>Getty 支持 TCP lazy reconnect，所谓 lazy reconnect，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 有详细描述。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06ee051e63.png"></p>
+<p>lazy reconnect 整体流程图如上。</p>
+<p>近期社区 No-SilverBullet 筒子觉得：服务端的连接数是动态的，所以我觉得 getty 还是应该有一个兜底的逻辑，而不是 "无脑的" 一直去重连，可以 "添加一个最多重来次数或者重连时间限制"：</p>
+<ul>
+<li>
+<ol>
+<li>客户端在 read EOF 时，停止重连维护连接池的行为</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>reconnect 增加最大次数，当重连次数超过设定的连接数时，退出</li>
+</ol> </li>
+</ul>
+<p>具体改进是：</p>
+<ul>
+<li>
+<ol>
+<li>session 增加了新的 attribute（ignoreReconnectKey），用于标识是否重连</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>最大重连次数设定为用户设定的连接数</li>
+</ol> </li>
+</ul>
+<p>相关 PR 是 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F117%E3%80%82" target="_blank">https://github.com/apache/dubbo-getty/pull/117。</a></p>
+<h1>2. 修复 WebSocket 并行安全问题</h1>
+<hr>
+<p>Getty WebSocket 通信依赖于 gorilla/websocket 这个包，进行 WebSocket 网络通信时只能 "支持一个并发 reader 和一个并发 writer"。</p>
+<pre><code>Connections support one concurrent reader and one concurrent writer.
+Applications are responsible for ensuring that no more than one goroutine calls the write methods (NextWriter, SetWriteDeadline, WriteMessage, WriteJSON, EnableWriteCompression, SetCompressionLevel) concurrently and that no more than one goroutine calls the read methods (NextReader, SetReadDeadline, ReadMessage, ReadJSON, SetPongHandler, SetPingHandler) concurrently.
+The Close and WriteControl methods can be called concurrently with all other methods.
+-- from https://pkg.go.dev/github.com/gorilla/websocket#hdr-Concurrency
+</code></pre>
+<p>Getty WebSocket 以往没有注意到这个规则，近期有人在 [issue 120] 中报出了这个 bug，社区筒子立即响应，添加了 <code>gettyWSConn:threadSafeWriteMessage</code> 和 gettyWSConn:threadSafeReadMessage 这两个接口以解决并行通信的 data race 问题，相关代码详见 PR 121 和 PR 123。</p>
+<p>相关 PR 是：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F121" target="_blank">https://github.com/apache/dubbo-getty/pull/121</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F123" target="_blank">https://github.com/apache/dubbo-getty/pull/123</a></p>
+<p>在 PR 121 中我们顺便解决了 [issue 103] 描述的 session 异常关闭问题。</p>
+<h1>3 致谢</h1>
+<hr>
+<p>感谢所有为 Dubbo-Getty 1.5.0 做出贡献的社区成员，包括 issue/PR 提交者、代码 reviewer 以及文章作者【排名不分先后，依据字母序列】：</p>
+<ul>
+<li>chenbaoding2818</li>
+<li>FoghostCn</li>
+<li>Lvnszn</li>
+<li>No-SilverBullet</li>
+<li>seven-ali</li>
+</ul>
+<p>alexstocks/getty 作为 dubbo-getty 的上游仓库，已在 alexstocks/gettyv1.5.0 中吸收了本次更新。</p>
+<p>另外，我们搜到一些第三方作者对 getty 的解析文章，代表社区向这些传播 getty 的文章作者致敬：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483810%26idx%3D1%26sn%3D4779ca161c6c36438f1d7b649338eadd%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？客户端篇</a></li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483815%26idx%3D1%26sn%3Dfc20eb5f6120c111f81da0ca8609dfb3%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？服务篇</a></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>经过半年改进，dubbo-getty 发布了 v1.5.0 版本，致力于提升稳定性，并修复已知问题，为用户提供更可靠的网络通信服务。</p>
+<p>如昔，依然坚持 "Getty 只考虑使用 Go 语言原生的网络接口，如果遇到网络性能瓶颈也只会在自身层面寻找优化突破点" <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 。</p>
+<h1>1. 限制 TCP 客户端重连行为</h1>
+<hr>
+<p>Getty 支持 TCP lazy reconnect，所谓 lazy reconnect，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzU5NDUyNTQ0MA%3D%3D%26mid%3D2247483972%26idx%3D1%26sn%3Df7a93c91444a40f379e9a3db8bac4cb3%26scene%3D21%23wechat_redirect" title="Go 语言网络库 getty 的那些事" target="_blank">Go 语言网络库 getty 的那些事</a> 有详细描述。 <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06ee051e63.png"></p>
+<p>lazy reconnect 整体流程图如上。</p>
+<p>近期社区 No-SilverBullet 筒子觉得：服务端的连接数是动态的，所以我觉得 getty 还是应该有一个兜底的逻辑，而不是 "无脑的" 一直去重连，可以 "添加一个最多重来次数或者重连时间限制"：</p>
+<ul>
+<li>
+<ol>
+<li>客户端在 read EOF 时，停止重连维护连接池的行为</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>reconnect 增加最大次数，当重连次数超过设定的连接数时，退出</li>
+</ol> </li>
+</ul>
+<p>具体改进是：</p>
+<ul>
+<li>
+<ol>
+<li>session 增加了新的 attribute（ignoreReconnectKey），用于标识是否重连</li>
+</ol> </li>
+<li>
+<ol start="2">
+<li>最大重连次数设定为用户设定的连接数</li>
+</ol> </li>
+</ul>
+<p>相关 PR 是 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F117%E3%80%82" target="_blank">https://github.com/apache/dubbo-getty/pull/117。</a></p>
+<h1>2. 修复 WebSocket 并行安全问题</h1>
+<hr>
+<p>Getty WebSocket 通信依赖于 gorilla/websocket 这个包，进行 WebSocket 网络通信时只能 "支持一个并发 reader 和一个并发 writer"。</p>
+<pre><code>Connections support one concurrent reader and one concurrent writer.
+Applications are responsible for ensuring that no more than one goroutine calls the write methods (NextWriter, SetWriteDeadline, WriteMessage, WriteJSON, EnableWriteCompression, SetCompressionLevel) concurrently and that no more than one goroutine calls the read methods (NextReader, SetReadDeadline, ReadMessage, ReadJSON, SetPongHandler, SetPingHandler) concurrently.
+The Close and WriteControl methods can be called concurrently with all other methods.
+-- from https://pkg.go.dev/github.com/gorilla/websocket#hdr-Concurrency
+</code></pre>
+<p>Getty WebSocket 以往没有注意到这个规则，近期有人在 [issue 120] 中报出了这个 bug，社区筒子立即响应，添加了 <code>gettyWSConn:threadSafeWriteMessage</code> 和 gettyWSConn:threadSafeReadMessage 这两个接口以解决并行通信的 data race 问题，相关代码详见 PR 121 和 PR 123。</p>
+<p>相关 PR 是：</p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F121" target="_blank">https://github.com/apache/dubbo-getty/pull/121</a></p>
+<p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fapache%2Fdubbo-getty%2Fpull%2F123" target="_blank">https://github.com/apache/dubbo-getty/pull/123</a></p>
+<p>在 PR 121 中我们顺便解决了 [issue 103] 描述的 session 异常关闭问题。</p>
+<h1>3 致谢</h1>
+<hr>
+<p>感谢所有为 Dubbo-Getty 1.5.0 做出贡献的社区成员，包括 issue/PR 提交者、代码 reviewer 以及文章作者【排名不分先后，依据字母序列】：</p>
+<ul>
+<li>chenbaoding2818</li>
+<li>FoghostCn</li>
+<li>Lvnszn</li>
+<li>No-SilverBullet</li>
+<li>seven-ali</li>
+</ul>
+<p>alexstocks/getty 作为 dubbo-getty 的上游仓库，已在 alexstocks/gettyv1.5.0 中吸收了本次更新。</p>
+<p>另外，我们搜到一些第三方作者对 getty 的解析文章，代表社区向这些传播 getty 的文章作者致敬：</p>
+<ul>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483810%26idx%3D1%26sn%3D4779ca161c6c36438f1d7b649338eadd%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？客户端篇</a></li>
+<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzg4MDY4NzQxMA%3D%3D%26mid%3D2247483815%26idx%3D1%26sn%3Dfc20eb5f6120c111f81da0ca8609dfb3%26scene%3D21%23wechat_redirect" target="_blank">用golang实现的dubbo-getty是怎么进行tcp通信的？服务篇</a></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06ee051e63.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06ee051e63.png" medium="image"/>
+    <pubDate>Wed, 05 Jun 2024 22:49:15 +0800</pubDate>
+  </item><item>
     <title><![CDATA[开源日报 | 智谱开源GLM9B系列模型；FFmpeg社区委员会新成员是中国开发者；对“斯坦福抄袭中国大模型”事件的三重思考；昆仑万维开源天工MoE]]></title>
     <link>https://www.oschina.net/news/295990</link>
     <itunes:title><![CDATA[开源日报 | 智谱开源GLM9B系列模型；FFmpeg社区委员会新成员是中国开发者；对“斯坦福抄袭中国大模型”事件的三重思考；昆仑万维开源天工MoE]]></itunes:title>
