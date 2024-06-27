@@ -30,6 +30,555 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[技术分享 | 如何通过 WSL 2 在 Windows 上挂载 Linux 磁盘？]]></title>
+    <link>https://www.oschina.net/news/299242</link>
+    <itunes:title><![CDATA[技术分享 | 如何通过 WSL 2 在 Windows 上挂载 Linux 磁盘？]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e6a38c3e33.png"></p>
+<p>你是否常常苦恼，为了传输或者共享不同系统的文件需要频繁地在 Windows 和 Linux 系统之间切换，既耽误工作效率，也容易出错。</p>
+<p>那么有没有一种办法，能够让你在Windows系统中像访问本地硬盘一样来操作Linux系统中的文件呢？</p>
+<p>希望这篇文章分享的实用操作能够帮助到有需要的朋友。</p>
+<h1><strong>先决条件</strong></h1>
+<p>需要在Windows 10 2004 及更高版本（Build 19041 及更高版本）或 Windows 11系统的前提下操作。</p>
+<h1><strong>第一步：在 Windows 上安装 WSL</strong></h1>
+<p>1.以管理员模式打开 PowerShell 或 Windows 命令提示符:</p>
+<ul>
+<li>按下Win + X组合键，打开快速访问菜单。</li>
+<li>在菜单中选择“Windows PowerShell（管理员）”，以管理员身份运行PowerShell。</li>
+</ul>
+<p>2.输入<u>&nbsp;wsl install&nbsp;</u>命令。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-73d27bf245.jpg"></p>
+<p>完成后重新启动电脑。</p>
+<p>3.电脑重启后，你需要为新安装的 Linux 子系统创建一个用户账户和密码。</p>
+<blockquote>
+<p><em>备注：适用于 Linux 的 Windows 子系统 (WSL) 是 Windows 的一项功能，可用于在 Windows 计算机上运行 Linux 环境，而无需单独的虚拟机或双引导。WSL 旨在为希望同时使用 Windows 和 Linux 的开发人员提供无缝高效的体验。</em></p>
+</blockquote>
+<h1><strong>第二步：在WSL 2中挂载磁盘</strong></h1>
+<h2><strong>获取驱动器列表</strong></h2>
+<ol>
+<li>以管理员模式打开 PowerShell 或 Windows 命令提示符;</li>
+<li>运行命令（<u>wmic diskdrive list brief</u>），获取可用驱动器列表。</li>
+</ol>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3501966307.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<p><u>wmic diskdrive list brief&nbsp;</u>是一个用于列出系统中所有磁盘驱动器的 Windows Management Instrumentation Command-line (WMIC) 命令。WMIC 是 Windows 操作系统中用于管理系统的一个命令行工具。</p>
+<ol>
+<li><strong>Caption</strong>: 磁盘驱动器的简短描述，通常与 Model 类似，但可能包含更多的用户友好信息。</li>
+<li><strong>DeviceID</strong>: 磁盘驱动器的设备标识符。</li>
+<li><strong>Model</strong>: 磁盘驱动器的型号。</li>
+<li><strong>Partitions</strong>: 磁盘驱动器上的分区数量。</li>
+<li><strong>Size</strong>: 磁盘驱动器的大小，以字节为单位。</li>
+</ol>
+<h2><strong>WSL 挂载</strong></h2>
+<p>在我们的例子中，我们的外置硬盘是 PHYSICALDRIVE1 ，你可以使用命令加载它：</p>
+<p><u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a5b66880b.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<ol>
+<li><strong>wsl</strong>: 这是启动 Windows Subsystem for Linux 的命令行工具。</li>
+<li><strong>--mount</strong>: 该选项用于挂载物理磁盘或其分区到 WSL 中。</li>
+<li><strong>.\PHYSICALDRIVE1</strong>: 这是指定的物理驱动器。在 Windows 中，物理驱动器通常标识为 \\.\PHYSICALDRIVE0，\\.\PHYSICALDRIVE1 等等，这里指的是第二个物理驱动器。</li>
+<li><strong>--partition 1</strong>: 这是指定要挂载的分区编号。</li>
+</ol>
+<p>要挂载指定文件系统，可使用以下命令：<u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1 -t ext3</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3447fddfc9.jpg"></p>
+<h2><strong>图形化访问挂载的硬盘</strong></h2>
+<p>要访问已挂载的磁盘，请打开 Windows 文件资源管理器，然后打开 Linux 类别并导航到/mnt/wsl</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7e1e5f1e16.jpg"></p>
+<h2><strong>卸载磁盘</strong></h2>
+<p>你可以使用命令卸载磁盘：</p>
+<p><u>wsl --unmount \\.\PHYSICALDRIVE1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4ddc68cbbd.jpg"></p>
+<h1><strong>总结</strong></h1>
+<p>对于需要频繁在Windows和Linux系统之间切换的用户来说，Windows 挂载 Linux 磁盘是一个比较实用的操作，能够在不同操作系统之间方便地进行文件共享和操作。感兴趣的朋友快来试试吧！</p>
+<p>最后，特别感谢deepin（深度）论坛用<em>户东夷浪子</em>创作此教程，也欢迎各位用户能积极投稿，我们会定期精选内容进行展示宣传，共同将这个技术市集搞的红红火火。</p>
+<div>
+<h1><strong>附录：</strong></h1>
+<p><strong>（1）deepin V23 RC2 ：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.deepin.org%2Fzh%2Fdownload%2F" target="_blank">https://www.deepin.org/zh/download/</a></p>
+<p><strong>（2）deepin 历史版本镜像（含 deepin V15）：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdistrowatch.com%2Findex.php%3Fdistribution%3Ddeepin" target="_blank">https://distrowatch.com/index.php?distribution=deepin</a></p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e6a38c3e33.png"></p>
+<p>你是否常常苦恼，为了传输或者共享不同系统的文件需要频繁地在 Windows 和 Linux 系统之间切换，既耽误工作效率，也容易出错。</p>
+<p>那么有没有一种办法，能够让你在Windows系统中像访问本地硬盘一样来操作Linux系统中的文件呢？</p>
+<p>希望这篇文章分享的实用操作能够帮助到有需要的朋友。</p>
+<h1><strong>先决条件</strong></h1>
+<p>需要在Windows 10 2004 及更高版本（Build 19041 及更高版本）或 Windows 11系统的前提下操作。</p>
+<h1><strong>第一步：在 Windows 上安装 WSL</strong></h1>
+<p>1.以管理员模式打开 PowerShell 或 Windows 命令提示符:</p>
+<ul>
+<li>按下Win + X组合键，打开快速访问菜单。</li>
+<li>在菜单中选择“Windows PowerShell（管理员）”，以管理员身份运行PowerShell。</li>
+</ul>
+<p>2.输入<u>&nbsp;wsl install&nbsp;</u>命令。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-73d27bf245.jpg"></p>
+<p>完成后重新启动电脑。</p>
+<p>3.电脑重启后，你需要为新安装的 Linux 子系统创建一个用户账户和密码。</p>
+<blockquote>
+<p><em>备注：适用于 Linux 的 Windows 子系统 (WSL) 是 Windows 的一项功能，可用于在 Windows 计算机上运行 Linux 环境，而无需单独的虚拟机或双引导。WSL 旨在为希望同时使用 Windows 和 Linux 的开发人员提供无缝高效的体验。</em></p>
+</blockquote>
+<h1><strong>第二步：在WSL 2中挂载磁盘</strong></h1>
+<h2><strong>获取驱动器列表</strong></h2>
+<ol>
+<li>以管理员模式打开 PowerShell 或 Windows 命令提示符;</li>
+<li>运行命令（<u>wmic diskdrive list brief</u>），获取可用驱动器列表。</li>
+</ol>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3501966307.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<p><u>wmic diskdrive list brief&nbsp;</u>是一个用于列出系统中所有磁盘驱动器的 Windows Management Instrumentation Command-line (WMIC) 命令。WMIC 是 Windows 操作系统中用于管理系统的一个命令行工具。</p>
+<ol>
+<li><strong>Caption</strong>: 磁盘驱动器的简短描述，通常与 Model 类似，但可能包含更多的用户友好信息。</li>
+<li><strong>DeviceID</strong>: 磁盘驱动器的设备标识符。</li>
+<li><strong>Model</strong>: 磁盘驱动器的型号。</li>
+<li><strong>Partitions</strong>: 磁盘驱动器上的分区数量。</li>
+<li><strong>Size</strong>: 磁盘驱动器的大小，以字节为单位。</li>
+</ol>
+<h2><strong>WSL 挂载</strong></h2>
+<p>在我们的例子中，我们的外置硬盘是 PHYSICALDRIVE1 ，你可以使用命令加载它：</p>
+<p><u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a5b66880b.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<ol>
+<li><strong>wsl</strong>: 这是启动 Windows Subsystem for Linux 的命令行工具。</li>
+<li><strong>--mount</strong>: 该选项用于挂载物理磁盘或其分区到 WSL 中。</li>
+<li><strong>.\PHYSICALDRIVE1</strong>: 这是指定的物理驱动器。在 Windows 中，物理驱动器通常标识为 \\.\PHYSICALDRIVE0，\\.\PHYSICALDRIVE1 等等，这里指的是第二个物理驱动器。</li>
+<li><strong>--partition 1</strong>: 这是指定要挂载的分区编号。</li>
+</ol>
+<p>要挂载指定文件系统，可使用以下命令：<u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1 -t ext3</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3447fddfc9.jpg"></p>
+<h2><strong>图形化访问挂载的硬盘</strong></h2>
+<p>要访问已挂载的磁盘，请打开 Windows 文件资源管理器，然后打开 Linux 类别并导航到/mnt/wsl</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7e1e5f1e16.jpg"></p>
+<h2><strong>卸载磁盘</strong></h2>
+<p>你可以使用命令卸载磁盘：</p>
+<p><u>wsl --unmount \\.\PHYSICALDRIVE1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4ddc68cbbd.jpg"></p>
+<h1><strong>总结</strong></h1>
+<p>对于需要频繁在Windows和Linux系统之间切换的用户来说，Windows 挂载 Linux 磁盘是一个比较实用的操作，能够在不同操作系统之间方便地进行文件共享和操作。感兴趣的朋友快来试试吧！</p>
+<p>最后，特别感谢deepin（深度）论坛用<em>户东夷浪子</em>创作此教程，也欢迎各位用户能积极投稿，我们会定期精选内容进行展示宣传，共同将这个技术市集搞的红红火火。</p>
+<div>
+<h1><strong>附录：</strong></h1>
+<p><strong>（1）deepin V23 RC2 ：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.deepin.org%2Fzh%2Fdownload%2F" target="_blank">https://www.deepin.org/zh/download/</a></p>
+<p><strong>（2）deepin 历史版本镜像（含 deepin V15）：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdistrowatch.com%2Findex.php%3Fdistribution%3Ddeepin" target="_blank">https://distrowatch.com/index.php?distribution=deepin</a></p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e6a38c3e33.png"></p>
+<p>你是否常常苦恼，为了传输或者共享不同系统的文件需要频繁地在 Windows 和 Linux 系统之间切换，既耽误工作效率，也容易出错。</p>
+<p>那么有没有一种办法，能够让你在Windows系统中像访问本地硬盘一样来操作Linux系统中的文件呢？</p>
+<p>希望这篇文章分享的实用操作能够帮助到有需要的朋友。</p>
+<h1><strong>先决条件</strong></h1>
+<p>需要在Windows 10 2004 及更高版本（Build 19041 及更高版本）或 Windows 11系统的前提下操作。</p>
+<h1><strong>第一步：在 Windows 上安装 WSL</strong></h1>
+<p>1.以管理员模式打开 PowerShell 或 Windows 命令提示符:</p>
+<ul>
+<li>按下Win + X组合键，打开快速访问菜单。</li>
+<li>在菜单中选择“Windows PowerShell（管理员）”，以管理员身份运行PowerShell。</li>
+</ul>
+<p>2.输入<u>&nbsp;wsl install&nbsp;</u>命令。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-73d27bf245.jpg"></p>
+<p>完成后重新启动电脑。</p>
+<p>3.电脑重启后，你需要为新安装的 Linux 子系统创建一个用户账户和密码。</p>
+<blockquote>
+<p><em>备注：适用于 Linux 的 Windows 子系统 (WSL) 是 Windows 的一项功能，可用于在 Windows 计算机上运行 Linux 环境，而无需单独的虚拟机或双引导。WSL 旨在为希望同时使用 Windows 和 Linux 的开发人员提供无缝高效的体验。</em></p>
+</blockquote>
+<h1><strong>第二步：在WSL 2中挂载磁盘</strong></h1>
+<h2><strong>获取驱动器列表</strong></h2>
+<ol>
+<li>以管理员模式打开 PowerShell 或 Windows 命令提示符;</li>
+<li>运行命令（<u>wmic diskdrive list brief</u>），获取可用驱动器列表。</li>
+</ol>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3501966307.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<p><u>wmic diskdrive list brief&nbsp;</u>是一个用于列出系统中所有磁盘驱动器的 Windows Management Instrumentation Command-line (WMIC) 命令。WMIC 是 Windows 操作系统中用于管理系统的一个命令行工具。</p>
+<ol>
+<li><strong>Caption</strong>: 磁盘驱动器的简短描述，通常与 Model 类似，但可能包含更多的用户友好信息。</li>
+<li><strong>DeviceID</strong>: 磁盘驱动器的设备标识符。</li>
+<li><strong>Model</strong>: 磁盘驱动器的型号。</li>
+<li><strong>Partitions</strong>: 磁盘驱动器上的分区数量。</li>
+<li><strong>Size</strong>: 磁盘驱动器的大小，以字节为单位。</li>
+</ol>
+<h2><strong>WSL 挂载</strong></h2>
+<p>在我们的例子中，我们的外置硬盘是 PHYSICALDRIVE1 ，你可以使用命令加载它：</p>
+<p><u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1a5b66880b.jpg"></p>
+<p><strong>命令解释：</strong></p>
+<ol>
+<li><strong>wsl</strong>: 这是启动 Windows Subsystem for Linux 的命令行工具。</li>
+<li><strong>--mount</strong>: 该选项用于挂载物理磁盘或其分区到 WSL 中。</li>
+<li><strong>.\PHYSICALDRIVE1</strong>: 这是指定的物理驱动器。在 Windows 中，物理驱动器通常标识为 \\.\PHYSICALDRIVE0，\\.\PHYSICALDRIVE1 等等，这里指的是第二个物理驱动器。</li>
+<li><strong>--partition 1</strong>: 这是指定要挂载的分区编号。</li>
+</ol>
+<p>要挂载指定文件系统，可使用以下命令：<u>wsl --mount \\.\PHYSICALDRIVE1 --partition 1 -t ext3</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3447fddfc9.jpg"></p>
+<h2><strong>图形化访问挂载的硬盘</strong></h2>
+<p>要访问已挂载的磁盘，请打开 Windows 文件资源管理器，然后打开 Linux 类别并导航到/mnt/wsl</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7e1e5f1e16.jpg"></p>
+<h2><strong>卸载磁盘</strong></h2>
+<p>你可以使用命令卸载磁盘：</p>
+<p><u>wsl --unmount \\.\PHYSICALDRIVE1</u></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4ddc68cbbd.jpg"></p>
+<h1><strong>总结</strong></h1>
+<p>对于需要频繁在Windows和Linux系统之间切换的用户来说，Windows 挂载 Linux 磁盘是一个比较实用的操作，能够在不同操作系统之间方便地进行文件共享和操作。感兴趣的朋友快来试试吧！</p>
+<p>最后，特别感谢deepin（深度）论坛用<em>户东夷浪子</em>创作此教程，也欢迎各位用户能积极投稿，我们会定期精选内容进行展示宣传，共同将这个技术市集搞的红红火火。</p>
+<div>
+<h1><strong>附录：</strong></h1>
+<p><strong>（1）deepin V23 RC2 ：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.deepin.org%2Fzh%2Fdownload%2F" target="_blank">https://www.deepin.org/zh/download/</a></p>
+<p><strong>（2）deepin 历史版本镜像（含 deepin V15）：</strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdistrowatch.com%2Findex.php%3Fdistribution%3Ddeepin" target="_blank">https://distrowatch.com/index.php?distribution=deepin</a></p>
+</div>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e6a38c3e33.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-e6a38c3e33.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 14:03:45 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[htmx 2.0 发布，增强 HTML 的工具包]]></title>
+    <link>https://www.oschina.net/news/299239/htmx-2-0-0-released</link>
+    <itunes:title><![CDATA[htmx 2.0 发布，增强 HTML 的工具包]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>htmx 2.0<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fbigskysoftware%2Fhtmx%2Freleases%2Ftag%2Fv2.0.0" target="_blank"> 已发布</a>。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d8dcf645c9.png"></p>
+</blockquote>
+<p>公告写道，htmx 2.0 取消了对 Internet Explorer 的支持，并将扩展项移出了核心仓库，这样每个扩展都可以按照自己的节奏发布更新了。新版本还删除了一些已弃用的属性，并将 HTTP DELETE 请求更改为使用参数。</p>
+<p>htmx 2.0 还加入了一些新特性，包括 htmx.swap() 方法，该方法用新内容替换现有内容。它替换并改进了现有的内部 selectAndSwap() 方法。</p>
+<p>新版还改进了与 Web 组件、可重复使用的自定义元素的集成。</p>
+<p>此外，为了避免破坏现有项目，1.x 版本将在 NPM（节点包管理器）中继续标注为为“latest”，2.x 还是“next”，直到 2025 年 1 月 1 日为止。</p>
+<p>迁移到 2.0 并不困难，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Fmigration-guide-htmx-1%2F" target="_blank">但根据迁移指南</a>，用户可能需要做一些工作。</p>
+<hr>
+<p>htmx 是增强 HTML 的工具包，支持使用属性 (<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Freference%23attributes" target="_blank">attributes</a>) 直接在 HTML 中访问 AJAX、CSS Transitions、WebSockets 和 Server Sent Events，因此开发者能够使用超文本的简单性和强大功能构建现代用户界面。</p>
+<p>htmx 体积很小（压缩后大小为～10k ），无依赖项，可扩展，且和 IE11 兼容。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>htmx 2.0<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fbigskysoftware%2Fhtmx%2Freleases%2Ftag%2Fv2.0.0" target="_blank"> 已发布</a>。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d8dcf645c9.png"></p>
+</blockquote>
+<p>公告写道，htmx 2.0 取消了对 Internet Explorer 的支持，并将扩展项移出了核心仓库，这样每个扩展都可以按照自己的节奏发布更新了。新版本还删除了一些已弃用的属性，并将 HTTP DELETE 请求更改为使用参数。</p>
+<p>htmx 2.0 还加入了一些新特性，包括 htmx.swap() 方法，该方法用新内容替换现有内容。它替换并改进了现有的内部 selectAndSwap() 方法。</p>
+<p>新版还改进了与 Web 组件、可重复使用的自定义元素的集成。</p>
+<p>此外，为了避免破坏现有项目，1.x 版本将在 NPM（节点包管理器）中继续标注为为“latest”，2.x 还是“next”，直到 2025 年 1 月 1 日为止。</p>
+<p>迁移到 2.0 并不困难，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Fmigration-guide-htmx-1%2F" target="_blank">但根据迁移指南</a>，用户可能需要做一些工作。</p>
+<hr>
+<p>htmx 是增强 HTML 的工具包，支持使用属性 (<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Freference%23attributes" target="_blank">attributes</a>) 直接在 HTML 中访问 AJAX、CSS Transitions、WebSockets 和 Server Sent Events，因此开发者能够使用超文本的简单性和强大功能构建现代用户界面。</p>
+<p>htmx 体积很小（压缩后大小为～10k ），无依赖项，可扩展，且和 IE11 兼容。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>htmx 2.0<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fbigskysoftware%2Fhtmx%2Freleases%2Ftag%2Fv2.0.0" target="_blank"> 已发布</a>。</p>
+<blockquote>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d8dcf645c9.png"></p>
+</blockquote>
+<p>公告写道，htmx 2.0 取消了对 Internet Explorer 的支持，并将扩展项移出了核心仓库，这样每个扩展都可以按照自己的节奏发布更新了。新版本还删除了一些已弃用的属性，并将 HTTP DELETE 请求更改为使用参数。</p>
+<p>htmx 2.0 还加入了一些新特性，包括 htmx.swap() 方法，该方法用新内容替换现有内容。它替换并改进了现有的内部 selectAndSwap() 方法。</p>
+<p>新版还改进了与 Web 组件、可重复使用的自定义元素的集成。</p>
+<p>此外，为了避免破坏现有项目，1.x 版本将在 NPM（节点包管理器）中继续标注为为“latest”，2.x 还是“next”，直到 2025 年 1 月 1 日为止。</p>
+<p>迁移到 2.0 并不困难，<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Fmigration-guide-htmx-1%2F" target="_blank">但根据迁移指南</a>，用户可能需要做一些工作。</p>
+<hr>
+<p>htmx 是增强 HTML 的工具包，支持使用属性 (<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhtmx.org%2Freference%23attributes" target="_blank">attributes</a>) 直接在 HTML 中访问 AJAX、CSS Transitions、WebSockets 和 Server Sent Events，因此开发者能够使用超文本的简单性和强大功能构建现代用户界面。</p>
+<p>htmx 体积很小（压缩后大小为～10k ），无依赖项，可扩展，且和 IE11 兼容。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d8dcf645c9.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-d8dcf645c9.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 14:00:13 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[JavaScript 2023 现状：正在向服务器端转移、TypeScript 更受开发者喜爱]]></title>
+    <link>https://www.oschina.net/news/299224/state-of-js-2023</link>
+    <itunes:title><![CDATA[JavaScript 2023 现状：正在向服务器端转移、TypeScript 更受开发者喜爱]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>「State of JavaScript 2023」调查报告已发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d299c099e.png"></p>
+<hr>
+<p><strong>前端框架和类库使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2edc5a15cf.png"></p>
+<p><strong>移动端和客户端</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f1031fe9af.png"></p>
+<p><strong>构建工具（编译和打包代码）</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b33e204efe.png"></p>
+<p><strong>工具类库</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-253aa366dd.png"></p>
+<p><strong>JavaScript 运行时</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7ccd22bf89.png"></p>
+<p><strong>JavaScript 与 TypeScript 使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1450ae4c48.png"></p>
+<hr>
+<p><strong>Theo Browne 总结道：</strong></p>
+<blockquote>
+<p><strong>JavaScript 正在向服务器端转移，对此我们感到不自在。</strong></p>
+<p>在去年的调查中，我们看到像 Next、Nuxt、Remix 和 SvelteKit 这样的服务器渲染框架的采用率迅速增长。</p>
+<p>今年，我们转向了服务器优先的模式，如Partial Hydration和Islands，它们的采用率翻了一番。</p>
+<p>像 HTMX 这样的框架/库表明，不仅仅是 Web 开发人员从利用服务器中受益。单页应用程序（SPAs）不会消失（看看<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finertiajs.com%2F" target="_blank">Inertia</a>就能证明），但随着这些新模式的不断改进，市场似乎也在跟进。</p>
+<p>这种转变并非受到一致喜爱。React 持续增长，但 React 开发者越来越担心它的方向。走到这一步一直......很艰难，但每天都在取得进展。</p>
+<p>我们还看到在 React 生态系统之外出现了更多的选择。从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Froe.dev%2Fblog%2Fnuxt-server-components" target="_blank">Nuxt</a>到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.solidjs.com%2Fsolid-start%2Freference%2Fserver%2Fuse-server" target="_blank">SolidStart</a>再到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fastro.build%2Fblog%2Fastro-480%2F%23experimental-astro-actions" target="_blank">Astro</a>，所有最好的 React 服务器组件功能都在向每一位开发者推出。</p>
+<p>当然，Vite 继续占据主导地位，是应用程序开发人员和框架作者的共同选择。很难想象如果没有它，我们今天会在哪里！</p>
+</blockquote>
+<p>完整报告内容：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F2023.stateofjs.com%2Fzh-Hans%2F" target="_blank">https://2023.stateofjs.com/zh-Hans/</a></u></em></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>「State of JavaScript 2023」调查报告已发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d299c099e.png"></p>
+<hr>
+<p><strong>前端框架和类库使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2edc5a15cf.png"></p>
+<p><strong>移动端和客户端</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f1031fe9af.png"></p>
+<p><strong>构建工具（编译和打包代码）</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b33e204efe.png"></p>
+<p><strong>工具类库</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-253aa366dd.png"></p>
+<p><strong>JavaScript 运行时</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7ccd22bf89.png"></p>
+<p><strong>JavaScript 与 TypeScript 使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1450ae4c48.png"></p>
+<hr>
+<p><strong>Theo Browne 总结道：</strong></p>
+<blockquote>
+<p><strong>JavaScript 正在向服务器端转移，对此我们感到不自在。</strong></p>
+<p>在去年的调查中，我们看到像 Next、Nuxt、Remix 和 SvelteKit 这样的服务器渲染框架的采用率迅速增长。</p>
+<p>今年，我们转向了服务器优先的模式，如Partial Hydration和Islands，它们的采用率翻了一番。</p>
+<p>像 HTMX 这样的框架/库表明，不仅仅是 Web 开发人员从利用服务器中受益。单页应用程序（SPAs）不会消失（看看<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finertiajs.com%2F" target="_blank">Inertia</a>就能证明），但随着这些新模式的不断改进，市场似乎也在跟进。</p>
+<p>这种转变并非受到一致喜爱。React 持续增长，但 React 开发者越来越担心它的方向。走到这一步一直......很艰难，但每天都在取得进展。</p>
+<p>我们还看到在 React 生态系统之外出现了更多的选择。从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Froe.dev%2Fblog%2Fnuxt-server-components" target="_blank">Nuxt</a>到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.solidjs.com%2Fsolid-start%2Freference%2Fserver%2Fuse-server" target="_blank">SolidStart</a>再到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fastro.build%2Fblog%2Fastro-480%2F%23experimental-astro-actions" target="_blank">Astro</a>，所有最好的 React 服务器组件功能都在向每一位开发者推出。</p>
+<p>当然，Vite 继续占据主导地位，是应用程序开发人员和框架作者的共同选择。很难想象如果没有它，我们今天会在哪里！</p>
+</blockquote>
+<p>完整报告内容：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F2023.stateofjs.com%2Fzh-Hans%2F" target="_blank">https://2023.stateofjs.com/zh-Hans/</a></u></em></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>「State of JavaScript 2023」调查报告已发布。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d299c099e.png"></p>
+<hr>
+<p><strong>前端框架和类库使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2edc5a15cf.png"></p>
+<p><strong>移动端和客户端</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f1031fe9af.png"></p>
+<p><strong>构建工具（编译和打包代码）</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b33e204efe.png"></p>
+<p><strong>工具类库</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-253aa366dd.png"></p>
+<p><strong>JavaScript 运行时</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7ccd22bf89.png"></p>
+<p><strong>JavaScript 与 TypeScript 使用情况</strong></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1450ae4c48.png"></p>
+<hr>
+<p><strong>Theo Browne 总结道：</strong></p>
+<blockquote>
+<p><strong>JavaScript 正在向服务器端转移，对此我们感到不自在。</strong></p>
+<p>在去年的调查中，我们看到像 Next、Nuxt、Remix 和 SvelteKit 这样的服务器渲染框架的采用率迅速增长。</p>
+<p>今年，我们转向了服务器优先的模式，如Partial Hydration和Islands，它们的采用率翻了一番。</p>
+<p>像 HTMX 这样的框架/库表明，不仅仅是 Web 开发人员从利用服务器中受益。单页应用程序（SPAs）不会消失（看看<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Finertiajs.com%2F" target="_blank">Inertia</a>就能证明），但随着这些新模式的不断改进，市场似乎也在跟进。</p>
+<p>这种转变并非受到一致喜爱。React 持续增长，但 React 开发者越来越担心它的方向。走到这一步一直......很艰难，但每天都在取得进展。</p>
+<p>我们还看到在 React 生态系统之外出现了更多的选择。从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Froe.dev%2Fblog%2Fnuxt-server-components" target="_blank">Nuxt</a>到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdocs.solidjs.com%2Fsolid-start%2Freference%2Fserver%2Fuse-server" target="_blank">SolidStart</a>再到<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fastro.build%2Fblog%2Fastro-480%2F%23experimental-astro-actions" target="_blank">Astro</a>，所有最好的 React 服务器组件功能都在向每一位开发者推出。</p>
+<p>当然，Vite 继续占据主导地位，是应用程序开发人员和框架作者的共同选择。很难想象如果没有它，我们今天会在哪里！</p>
+</blockquote>
+<p>完整报告内容：<em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F2023.stateofjs.com%2Fzh-Hans%2F" target="_blank">https://2023.stateofjs.com/zh-Hans/</a></u></em></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d299c099e.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d299c099e.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 12:01:03 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Forrester 发布 2024 年十大新兴技术趋势]]></title>
+    <link>https://www.oschina.net/news/299214/top-10-emerging-technologies-2024</link>
+    <itunes:title><![CDATA[Forrester 发布 2024 年十大新兴技术趋势]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>分析公司&nbsp;Forrester 发布了最新的</span><span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.forrester.com%2Fgo%3Fobjectid%3DRES181045" target="_blank"><span>2024 年十大新兴技术</span></a><span>报告。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d97888297.png"></p>
+<ul>
+<li><span><strong>GenAI for visual content</strong></span></li>
+</ul>
+<p><span>先进的机器学习模型可以根据文本、音频或视频提示生成图像或视频，这项技术将帮助公司为营销、体验和产品生成视觉内容。</span></p>
+<ul>
+<li><span><strong>GenAI for language</strong></span></li>
+</ul>
+<p><span>GenAI for language&nbsp;已经在客户支持和内容创建方面实现了价值，并将继续以惊人的速度向前发展。它正在加速许多其他技术的发展。</span></p>
+<ul>
+<li><span><strong>TuringBots</strong></span></li>
+</ul>
+<p><span>图灵机器人是由人工智能驱动的软件机器人，可帮助开发人员构建应用程序。随着语言 genAI 技术的进步，这些由人工智能驱动的软件机器人可以帮助开发人员构建不仅仅提供代码生成的应用程序。</span></p>
+<ul>
+<li><span><strong>物联网安全</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>设备的激增导致安全攻击呈指数级增长，提高了物联网设备安全性的重要性。供应商们争相提供各种功能，相互竞争。</span></p>
+<ul>
+<li><span><strong>AI agents</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>自主工作场所助理或 AI agents&nbsp;的作用已从后台办公室和员工协助扩展到面向客户的自动化。这些 AI agents&nbsp;将变得越来越复杂，以更好地理解和响应细微差别和背景。</span></p>
+<ul>
+<li><span><strong>自动驾驶</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>该技术将加速商业和城市交通生态系统的协作，为客户和企业提供个性化的出行体验。</span></p>
+<ul>
+<li><span><strong>边缘智能（Edge intelligence）</strong></span></li>
+</ul>
+<p><span>尽管许多基础元素（如 Apple 基础模型）正在逐渐普及，但边缘机器学习等高级边缘智能功能仍不常见。</span></p>
+<ul>
+<li><span><strong>量子安全</strong></span></li>
+</ul>
+<p><span>​​​​​​​这项技术将彻底改革本地和云计算、存储和网络基础设施、商用现成软件、商业软件即服务产品和内部开发软件的安全系统。</span></p>
+<ul>
+<li><span><strong>扩展现实（XR）</strong></span></li>
+</ul>
+<p><span>​​​​​​​​​​​​​​一种将计算机图像覆盖在用户视野上的技术，采用增强现实、混合现实和虚拟现实技术，并由相同的开发工具、传感器和相机以及模拟引擎支持。虽然 XR 在培训和入职方面取得了进展，但公司在看到广泛采用之前，仍在抵制投资此类工具。</span></p>
+<ul>
+<li><span><strong>零信任边缘（ZTE）</strong></span></li>
+</ul>
+<p><span>该解决方案使用零信任访问原则在远程站点内外安全地连接和传输数字信息，主要使用基于云的安全和网络服务。ZTE 技术具有保护远程员工、零售店和分支机构的潜力，可提供嵌入式本地安全保护，但目前真正的 ZTE 解决方案屈指可数，而且传统设备增加了额外的管理复杂性。</span></p>
+<hr>
+<p><span>报告将这十大技术划分成了短期受益期限（两年以内）、中期受益期限（两到五年）、长期受益期限（五年以上）三个部分。其中，短期技术包括 <strong>GenAI for visual content</strong>、GenAI for language、物联网安全、以及图灵机器人（TuringBots），这些技术可以迅速带来效益。Forrester 此前曾预测 TuringBots 的价值时间线为 5-10 年，但现在他们将其缩短为 1-2 年。&nbsp;</span></p>
+<p><span>中期技术包括 AI agents、自动驾驶、边缘智能和量子安全，这些技术还需要两到五年的时间才能实现预期效益。扩展现实、和零信任边缘则继续被归为长期分类，Forrester&nbsp;认为这两项技术都具有巨大的潜在效益和巨大的风险。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>分析公司&nbsp;Forrester 发布了最新的</span><span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.forrester.com%2Fgo%3Fobjectid%3DRES181045" target="_blank"><span>2024 年十大新兴技术</span></a><span>报告。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d97888297.png"></p>
+<ul>
+<li><span><strong>GenAI for visual content</strong></span></li>
+</ul>
+<p><span>先进的机器学习模型可以根据文本、音频或视频提示生成图像或视频，这项技术将帮助公司为营销、体验和产品生成视觉内容。</span></p>
+<ul>
+<li><span><strong>GenAI for language</strong></span></li>
+</ul>
+<p><span>GenAI for language&nbsp;已经在客户支持和内容创建方面实现了价值，并将继续以惊人的速度向前发展。它正在加速许多其他技术的发展。</span></p>
+<ul>
+<li><span><strong>TuringBots</strong></span></li>
+</ul>
+<p><span>图灵机器人是由人工智能驱动的软件机器人，可帮助开发人员构建应用程序。随着语言 genAI 技术的进步，这些由人工智能驱动的软件机器人可以帮助开发人员构建不仅仅提供代码生成的应用程序。</span></p>
+<ul>
+<li><span><strong>物联网安全</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>设备的激增导致安全攻击呈指数级增长，提高了物联网设备安全性的重要性。供应商们争相提供各种功能，相互竞争。</span></p>
+<ul>
+<li><span><strong>AI agents</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>自主工作场所助理或 AI agents&nbsp;的作用已从后台办公室和员工协助扩展到面向客户的自动化。这些 AI agents&nbsp;将变得越来越复杂，以更好地理解和响应细微差别和背景。</span></p>
+<ul>
+<li><span><strong>自动驾驶</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>该技术将加速商业和城市交通生态系统的协作，为客户和企业提供个性化的出行体验。</span></p>
+<ul>
+<li><span><strong>边缘智能（Edge intelligence）</strong></span></li>
+</ul>
+<p><span>尽管许多基础元素（如 Apple 基础模型）正在逐渐普及，但边缘机器学习等高级边缘智能功能仍不常见。</span></p>
+<ul>
+<li><span><strong>量子安全</strong></span></li>
+</ul>
+<p><span>​​​​​​​这项技术将彻底改革本地和云计算、存储和网络基础设施、商用现成软件、商业软件即服务产品和内部开发软件的安全系统。</span></p>
+<ul>
+<li><span><strong>扩展现实（XR）</strong></span></li>
+</ul>
+<p><span>​​​​​​​​​​​​​​一种将计算机图像覆盖在用户视野上的技术，采用增强现实、混合现实和虚拟现实技术，并由相同的开发工具、传感器和相机以及模拟引擎支持。虽然 XR 在培训和入职方面取得了进展，但公司在看到广泛采用之前，仍在抵制投资此类工具。</span></p>
+<ul>
+<li><span><strong>零信任边缘（ZTE）</strong></span></li>
+</ul>
+<p><span>该解决方案使用零信任访问原则在远程站点内外安全地连接和传输数字信息，主要使用基于云的安全和网络服务。ZTE 技术具有保护远程员工、零售店和分支机构的潜力，可提供嵌入式本地安全保护，但目前真正的 ZTE 解决方案屈指可数，而且传统设备增加了额外的管理复杂性。</span></p>
+<hr>
+<p><span>报告将这十大技术划分成了短期受益期限（两年以内）、中期受益期限（两到五年）、长期受益期限（五年以上）三个部分。其中，短期技术包括 <strong>GenAI for visual content</strong>、GenAI for language、物联网安全、以及图灵机器人（TuringBots），这些技术可以迅速带来效益。Forrester 此前曾预测 TuringBots 的价值时间线为 5-10 年，但现在他们将其缩短为 1-2 年。&nbsp;</span></p>
+<p><span>中期技术包括 AI agents、自动驾驶、边缘智能和量子安全，这些技术还需要两到五年的时间才能实现预期效益。扩展现实、和零信任边缘则继续被归为长期分类，Forrester&nbsp;认为这两项技术都具有巨大的潜在效益和巨大的风险。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>分析公司&nbsp;Forrester 发布了最新的</span><span>&nbsp;</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.forrester.com%2Fgo%3Fobjectid%3DRES181045" target="_blank"><span>2024 年十大新兴技术</span></a><span>报告。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d97888297.png"></p>
+<ul>
+<li><span><strong>GenAI for visual content</strong></span></li>
+</ul>
+<p><span>先进的机器学习模型可以根据文本、音频或视频提示生成图像或视频，这项技术将帮助公司为营销、体验和产品生成视觉内容。</span></p>
+<ul>
+<li><span><strong>GenAI for language</strong></span></li>
+</ul>
+<p><span>GenAI for language&nbsp;已经在客户支持和内容创建方面实现了价值，并将继续以惊人的速度向前发展。它正在加速许多其他技术的发展。</span></p>
+<ul>
+<li><span><strong>TuringBots</strong></span></li>
+</ul>
+<p><span>图灵机器人是由人工智能驱动的软件机器人，可帮助开发人员构建应用程序。随着语言 genAI 技术的进步，这些由人工智能驱动的软件机器人可以帮助开发人员构建不仅仅提供代码生成的应用程序。</span></p>
+<ul>
+<li><span><strong>物联网安全</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>设备的激增导致安全攻击呈指数级增长，提高了物联网设备安全性的重要性。供应商们争相提供各种功能，相互竞争。</span></p>
+<ul>
+<li><span><strong>AI agents</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>自主工作场所助理或 AI agents&nbsp;的作用已从后台办公室和员工协助扩展到面向客户的自动化。这些 AI agents&nbsp;将变得越来越复杂，以更好地理解和响应细微差别和背景。</span></p>
+<ul>
+<li><span><strong>自动驾驶</strong></span></li>
+</ul>
+<p><span><strong>​​​​​​​</strong>该技术将加速商业和城市交通生态系统的协作，为客户和企业提供个性化的出行体验。</span></p>
+<ul>
+<li><span><strong>边缘智能（Edge intelligence）</strong></span></li>
+</ul>
+<p><span>尽管许多基础元素（如 Apple 基础模型）正在逐渐普及，但边缘机器学习等高级边缘智能功能仍不常见。</span></p>
+<ul>
+<li><span><strong>量子安全</strong></span></li>
+</ul>
+<p><span>​​​​​​​这项技术将彻底改革本地和云计算、存储和网络基础设施、商用现成软件、商业软件即服务产品和内部开发软件的安全系统。</span></p>
+<ul>
+<li><span><strong>扩展现实（XR）</strong></span></li>
+</ul>
+<p><span>​​​​​​​​​​​​​​一种将计算机图像覆盖在用户视野上的技术，采用增强现实、混合现实和虚拟现实技术，并由相同的开发工具、传感器和相机以及模拟引擎支持。虽然 XR 在培训和入职方面取得了进展，但公司在看到广泛采用之前，仍在抵制投资此类工具。</span></p>
+<ul>
+<li><span><strong>零信任边缘（ZTE）</strong></span></li>
+</ul>
+<p><span>该解决方案使用零信任访问原则在远程站点内外安全地连接和传输数字信息，主要使用基于云的安全和网络服务。ZTE 技术具有保护远程员工、零售店和分支机构的潜力，可提供嵌入式本地安全保护，但目前真正的 ZTE 解决方案屈指可数，而且传统设备增加了额外的管理复杂性。</span></p>
+<hr>
+<p><span>报告将这十大技术划分成了短期受益期限（两年以内）、中期受益期限（两到五年）、长期受益期限（五年以上）三个部分。其中，短期技术包括 <strong>GenAI for visual content</strong>、GenAI for language、物联网安全、以及图灵机器人（TuringBots），这些技术可以迅速带来效益。Forrester 此前曾预测 TuringBots 的价值时间线为 5-10 年，但现在他们将其缩短为 1-2 年。&nbsp;</span></p>
+<p><span>中期技术包括 AI agents、自动驾驶、边缘智能和量子安全，这些技术还需要两到五年的时间才能实现预期效益。扩展现实、和零信任边缘则继续被归为长期分类，Forrester&nbsp;认为这两项技术都具有巨大的潜在效益和巨大的风险。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d97888297.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5d97888297.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 11:29:09 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[上海市新增 6 款生成式人工智能服务]]></title>
+    <link>https://www.oschina.net/news/299193</link>
+    <itunes:title><![CDATA[上海市新增 6 款生成式人工智能服务]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>网信上海微信公众号消息，截至6月26日，上海市新增6款已完成登记的生成式人工智能服务，累计已完成9款生成式人工智能服务登记。</p>
+<p>“已上线的生成式人工智能应用或功能，应在显著位置或产品详情页面标明所取得的上线编号。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5423189bd5.png"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>网信上海微信公众号消息，截至6月26日，上海市新增6款已完成登记的生成式人工智能服务，累计已完成9款生成式人工智能服务登记。</p>
+<p>“已上线的生成式人工智能应用或功能，应在显著位置或产品详情页面标明所取得的上线编号。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5423189bd5.png"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>网信上海微信公众号消息，截至6月26日，上海市新增6款已完成登记的生成式人工智能服务，累计已完成9款生成式人工智能服务登记。</p>
+<p>“已上线的生成式人工智能应用或功能，应在显著位置或产品详情页面标明所取得的上线编号。”</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5423189bd5.png"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5423189bd5.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5423189bd5.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 10:26:04 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Google 重新采用分页显示搜索结果]]></title>
+    <link>https://www.oschina.net/news/299182/google-dropping-continuous-scroll-in-search-results</link>
+    <itunes:title><![CDATA[Google 重新采用分页显示搜索结果]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>刚刚发现，Google 在展示搜索结果时已不再使用「滚动加载」方式，而是重新采用经典的「分页展示」。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-baecb0bf0e.png"></p>
+<p>从桌面端开始，谷歌已于2024年6月25日开始停止桌面版 Google 搜索结果的持续滚动展示功能。未来一个月内，Google 移动端搜索也将下线该功能。</p>
+<p>下图是旧版的“持续滚动展示”功能：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-731fdd3337.gif"></p>
+<p>据介绍，谷歌于2021年10月首次在移动端搜索引擎上推出了持续滚动展示功能，并在2022年12月同步上线至桌面端。</p>
+<p>因此，“持续滚动展示功能”在桌面端搜索上只存在了大约一年半的时间。</p>
+<p>谷歌表示，这一改变是为了让搜索公司能够在更多搜索中更快地提供搜索结果，而不是自动加载用户没有明确要求的结果。<span>&nbsp;</span></p>
+<p>谷歌还表示，他们发现自动加载更多结果并不会显著提高用户对 Google 搜索的满意度。<span>&nbsp;</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>刚刚发现，Google 在展示搜索结果时已不再使用「滚动加载」方式，而是重新采用经典的「分页展示」。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-baecb0bf0e.png"></p>
+<p>从桌面端开始，谷歌已于2024年6月25日开始停止桌面版 Google 搜索结果的持续滚动展示功能。未来一个月内，Google 移动端搜索也将下线该功能。</p>
+<p>下图是旧版的“持续滚动展示”功能：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-731fdd3337.gif"></p>
+<p>据介绍，谷歌于2021年10月首次在移动端搜索引擎上推出了持续滚动展示功能，并在2022年12月同步上线至桌面端。</p>
+<p>因此，“持续滚动展示功能”在桌面端搜索上只存在了大约一年半的时间。</p>
+<p>谷歌表示，这一改变是为了让搜索公司能够在更多搜索中更快地提供搜索结果，而不是自动加载用户没有明确要求的结果。<span>&nbsp;</span></p>
+<p>谷歌还表示，他们发现自动加载更多结果并不会显著提高用户对 Google 搜索的满意度。<span>&nbsp;</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>刚刚发现，Google 在展示搜索结果时已不再使用「滚动加载」方式，而是重新采用经典的「分页展示」。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-baecb0bf0e.png"></p>
+<p>从桌面端开始，谷歌已于2024年6月25日开始停止桌面版 Google 搜索结果的持续滚动展示功能。未来一个月内，Google 移动端搜索也将下线该功能。</p>
+<p>下图是旧版的“持续滚动展示”功能：</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-731fdd3337.gif"></p>
+<p>据介绍，谷歌于2021年10月首次在移动端搜索引擎上推出了持续滚动展示功能，并在2022年12月同步上线至桌面端。</p>
+<p>因此，“持续滚动展示功能”在桌面端搜索上只存在了大约一年半的时间。</p>
+<p>谷歌表示，这一改变是为了让搜索公司能够在更多搜索中更快地提供搜索结果，而不是自动加载用户没有明确要求的结果。<span>&nbsp;</span></p>
+<p>谷歌还表示，他们发现自动加载更多结果并不会显著提高用户对 Google 搜索的满意度。<span>&nbsp;</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-baecb0bf0e.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-baecb0bf0e.png" medium="image"/>
+    <pubDate>Thu, 27 Jun 2024 10:04:00 +0800</pubDate>
+  </item><item>
     <title><![CDATA[开源日报 | 开源“卖货主播”AI大模型；PG开发者年薪比MySQL的高；我做了一个AI搜索引擎；OpenAI终止对中国提供服务影响有多大？]]></title>
     <link>https://www.oschina.net/news/299105</link>
     <itunes:title><![CDATA[开源日报 | 开源“卖货主播”AI大模型；PG开发者年薪比MySQL的高；我做了一个AI搜索引擎；OpenAI终止对中国提供服务影响有多大？]]></itunes:title>
