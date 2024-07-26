@@ -30,6 +30,365 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[Rust 1.80.0 发布]]></title>
+    <link>https://www.oschina.net/news/304009/rust-1-80-0-released</link>
+    <itunes:title><![CDATA[Rust 1.80.0 发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Rust 1.80.0 稳定版现已发布，<span>主要带来以下变化：</span></p>
+<h4><strong><code>LazyCell</code>和<code>LazyLock</code></strong></h4>
+<p>新的“lazy”类型将值的初始化延迟到首次访问，它们类似于<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2023%2F06%2F01%2FRust-1.70.0.html%23oncecell-and-oncelock" target="_blank">1.70 中稳定的</a><code>OnceCell</code>和<code>OnceLock</code>类型，但单元格中包含了初始化函数。这完成了从流行的和板条箱中采用到标准库中的功能的稳定化。完成了从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Flazy-static" target="_blank"><code>lazy_static</code></a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Fonce_cell" target="_blank"><code>once_cell</code></a><span>crates&nbsp;</span>到标准库中所采用功能的稳定化。</p>
+<p>LazyLock 是线程安全选项，适用于<code>static</code><span>&nbsp;values&nbsp;</span>等地方。</p>
+<pre><code><span>use</span> std::sync::LazyLock;
+<span>use</span> std::time::Instant;
+<span>static</span> LAZY_TIME: LazyLock&lt;Instant&gt; = LazyLock::new(Instant::now);
+<span>fn</span> <span>main</span>() {
+<span>let</span> start = Instant::now();
+std::thread::scope(|s| {
+s.spawn(|| {
+<span>println!</span>(<span>"Thread lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+<span>println!</span>(<span>"Main lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+}</code></pre>
+<p>LazyCell 缺乏线程同步，因此没有实现<code>static</code>所需的 Sync，但仍可用于<code>thread_local!</code><span>&nbsp;statics</span>。Rust团队表示，根据线程安全的需要，这两种类型也可用于其他数据结构，因此 lazy initialization 在任何地方都可用。</p>
+<h4><strong>Checked&nbsp;<code>cfg</code>&nbsp;names and values</strong></h4>
+<p><span>在 1.79 中，<code>rustc</code>稳定了一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html" target="_blank"><code>--check-cfg</code>flag</a>，现在 Cargo 1.80 正在对其知道的所有<code>cfg</code>名称和值启用这些检查（除了来自<code>rustc</code>的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23well-known-names-and-values" target="_blank">众所周知的名称和值</a>）。包括来自<code>Cargo.toml</code>的功能名称以及来自构建脚本的新<code>cargo::rustc-check-cfg</code>output。</span></p>
+<p><span><code>unexpected_cfgs</code>会被 warning-by-default unexpected_cfgs lint 报告，用于捕获拼写错误或其他错误配置。例如，在具有可选<code>rayon</code>依赖项的项目中，此代码配置了错误的<code>feature</code>值：</span></p>
+<pre><code><span>fn</span> <span>main</span>() {
+<span>println!</span>(<span>"Hello, world!"</span>);
+<span>#[cfg(feature = "crayon")]</span>
+rayon::join(
+|| <span>println!</span>(<span>"Hello, Thing One!"</span>),
+|| <span>println!</span>(<span>"Hello, Thing Two!"</span>),
+);
+}
+</code></pre>
+<pre><code>warning: unexpected `cfg` condition value: `crayon`
+--&gt; src/main.rs:4:11
+|
+4 |     #[cfg(feature = "crayon")]
+|           ^^^^^^^^^^--------
+|                     |
+|                     help: there is a expected value with a similar name: `"rayon"`
+|
+= note: expected values for `feature` are: `rayon`
+= help: consider adding `crayon` as a feature in `Cargo.toml`
+= note: see &lt;https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html&gt; for more information about checking conditional configuration
+= note: `#[warn(unexpected_cfgs)]` on by default
+</code></pre>
+<p><span>无论实际的<code>rayon</code>功能是否启用，都会报告相同的警告。</span></p>
+<p><span>还可以使用<code>Cargo.toml</code>清单中的<code>[lints]</code>表来扩展自定义<code>cfg</code>的已知名称和值列表。<code>rustc</code>会自动提供警告中使用的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23specifying-expected-names-and-values" target="_blank">语法。</a></span></p>
+<pre><code><span>[lints.rust]</span>
+unexpected_cfgs = { level = <span>"warn"</span>, check-cfg = [<span>'cfg(foo, values("bar"))'</span>] }</code></pre>
+<p><span>可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F05%2F06%2Fcheck-cfg.html" target="_blank">之前的博客文章</a>中阅读有关此功能的更多信息。</span></p>
+<h4><strong><span>Exclusive ranges in patterns</span></strong></h4>
+<p>Rust ranged 模式现在可以使用 exclusive endpoints，写成<code>a..b</code>或<code>..b</code>，类似于<code>Range</code>&nbsp;和&nbsp;<code>RangeTo</code>表达式类型。例如，以下模式现在可以在一个模式的终点和下一个模式的起点使用相同的常量：</p>
+<pre><code><span>pub</span> <span>fn</span> <span>size_prefix</span>(n: <span>u32</span>) -&gt; &amp;<span>'static</span> <span>str</span> {
+<span>const</span> K: <span>u32</span> = <span>10u32</span>.pow(<span>3</span>);
+<span>const</span> M: <span>u32</span> = <span>10u32</span>.pow(<span>6</span>);
+<span>const</span> G: <span>u32</span> = <span>10u32</span>.pow(<span>9</span>);
+<span>match</span> n {
+..K =&gt; <span>""</span>,
+K..M =&gt; <span>"k"</span>,
+M..G =&gt; <span>"M"</span>,
+G.. =&gt; <span>"G"</span>,
+}
+}</code></pre>
+<p><span>Exclusive ranges&nbsp;</span>一直以来作为一个不稳定的功能提供。Rust 团队表示，阻碍因素在于它们可能会增加混乱并增加模式中出现 off-by-one errors 的可能性。在 Rust 1.80 中，exhaustiveness checking 得到了增强，可以更好地检测模式匹配中的差距，新的 lint<code>non_contiguous_range_endpoints</code>和<code>overlapping_range_endpoints</code>将有助于检测在哪些情况下需要将 exclusive 模式切换为 inclusive 模式，反之亦然。</p>
+<p>Rust 1.80 还稳定了许多 API，详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F07%2F25%2FRust-1.80.0.html" target="_blank">查看官方公告</a>。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Rust 1.80.0 稳定版现已发布，<span>主要带来以下变化：</span></p>
+<h4><strong><code>LazyCell</code>和<code>LazyLock</code></strong></h4>
+<p>新的“lazy”类型将值的初始化延迟到首次访问，它们类似于<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2023%2F06%2F01%2FRust-1.70.0.html%23oncecell-and-oncelock" target="_blank">1.70 中稳定的</a><code>OnceCell</code>和<code>OnceLock</code>类型，但单元格中包含了初始化函数。这完成了从流行的和板条箱中采用到标准库中的功能的稳定化。完成了从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Flazy-static" target="_blank"><code>lazy_static</code></a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Fonce_cell" target="_blank"><code>once_cell</code></a><span>crates&nbsp;</span>到标准库中所采用功能的稳定化。</p>
+<p>LazyLock 是线程安全选项，适用于<code>static</code><span>&nbsp;values&nbsp;</span>等地方。</p>
+<pre><code><span>use</span> std::sync::LazyLock;
+<span>use</span> std::time::Instant;
+<span>static</span> LAZY_TIME: LazyLock&lt;Instant&gt; = LazyLock::new(Instant::now);
+<span>fn</span> <span>main</span>() {
+<span>let</span> start = Instant::now();
+std::thread::scope(|s| {
+s.spawn(|| {
+<span>println!</span>(<span>"Thread lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+<span>println!</span>(<span>"Main lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+}</code></pre>
+<p>LazyCell 缺乏线程同步，因此没有实现<code>static</code>所需的 Sync，但仍可用于<code>thread_local!</code><span>&nbsp;statics</span>。Rust团队表示，根据线程安全的需要，这两种类型也可用于其他数据结构，因此 lazy initialization 在任何地方都可用。</p>
+<h4><strong>Checked&nbsp;<code>cfg</code>&nbsp;names and values</strong></h4>
+<p><span>在 1.79 中，<code>rustc</code>稳定了一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html" target="_blank"><code>--check-cfg</code>flag</a>，现在 Cargo 1.80 正在对其知道的所有<code>cfg</code>名称和值启用这些检查（除了来自<code>rustc</code>的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23well-known-names-and-values" target="_blank">众所周知的名称和值</a>）。包括来自<code>Cargo.toml</code>的功能名称以及来自构建脚本的新<code>cargo::rustc-check-cfg</code>output。</span></p>
+<p><span><code>unexpected_cfgs</code>会被 warning-by-default unexpected_cfgs lint 报告，用于捕获拼写错误或其他错误配置。例如，在具有可选<code>rayon</code>依赖项的项目中，此代码配置了错误的<code>feature</code>值：</span></p>
+<pre><code><span>fn</span> <span>main</span>() {
+<span>println!</span>(<span>"Hello, world!"</span>);
+<span>#[cfg(feature = "crayon")]</span>
+rayon::join(
+|| <span>println!</span>(<span>"Hello, Thing One!"</span>),
+|| <span>println!</span>(<span>"Hello, Thing Two!"</span>),
+);
+}
+</code></pre>
+<pre><code>warning: unexpected `cfg` condition value: `crayon`
+--&gt; src/main.rs:4:11
+|
+4 |     #[cfg(feature = "crayon")]
+|           ^^^^^^^^^^--------
+|                     |
+|                     help: there is a expected value with a similar name: `"rayon"`
+|
+= note: expected values for `feature` are: `rayon`
+= help: consider adding `crayon` as a feature in `Cargo.toml`
+= note: see &lt;https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html&gt; for more information about checking conditional configuration
+= note: `#[warn(unexpected_cfgs)]` on by default
+</code></pre>
+<p><span>无论实际的<code>rayon</code>功能是否启用，都会报告相同的警告。</span></p>
+<p><span>还可以使用<code>Cargo.toml</code>清单中的<code>[lints]</code>表来扩展自定义<code>cfg</code>的已知名称和值列表。<code>rustc</code>会自动提供警告中使用的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23specifying-expected-names-and-values" target="_blank">语法。</a></span></p>
+<pre><code><span>[lints.rust]</span>
+unexpected_cfgs = { level = <span>"warn"</span>, check-cfg = [<span>'cfg(foo, values("bar"))'</span>] }</code></pre>
+<p><span>可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F05%2F06%2Fcheck-cfg.html" target="_blank">之前的博客文章</a>中阅读有关此功能的更多信息。</span></p>
+<h4><strong><span>Exclusive ranges in patterns</span></strong></h4>
+<p>Rust ranged 模式现在可以使用 exclusive endpoints，写成<code>a..b</code>或<code>..b</code>，类似于<code>Range</code>&nbsp;和&nbsp;<code>RangeTo</code>表达式类型。例如，以下模式现在可以在一个模式的终点和下一个模式的起点使用相同的常量：</p>
+<pre><code><span>pub</span> <span>fn</span> <span>size_prefix</span>(n: <span>u32</span>) -&gt; &amp;<span>'static</span> <span>str</span> {
+<span>const</span> K: <span>u32</span> = <span>10u32</span>.pow(<span>3</span>);
+<span>const</span> M: <span>u32</span> = <span>10u32</span>.pow(<span>6</span>);
+<span>const</span> G: <span>u32</span> = <span>10u32</span>.pow(<span>9</span>);
+<span>match</span> n {
+..K =&gt; <span>""</span>,
+K..M =&gt; <span>"k"</span>,
+M..G =&gt; <span>"M"</span>,
+G.. =&gt; <span>"G"</span>,
+}
+}</code></pre>
+<p><span>Exclusive ranges&nbsp;</span>一直以来作为一个不稳定的功能提供。Rust 团队表示，阻碍因素在于它们可能会增加混乱并增加模式中出现 off-by-one errors 的可能性。在 Rust 1.80 中，exhaustiveness checking 得到了增强，可以更好地检测模式匹配中的差距，新的 lint<code>non_contiguous_range_endpoints</code>和<code>overlapping_range_endpoints</code>将有助于检测在哪些情况下需要将 exclusive 模式切换为 inclusive 模式，反之亦然。</p>
+<p>Rust 1.80 还稳定了许多 API，详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F07%2F25%2FRust-1.80.0.html" target="_blank">查看官方公告</a>。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Rust 1.80.0 稳定版现已发布，<span>主要带来以下变化：</span></p>
+<h4><strong><code>LazyCell</code>和<code>LazyLock</code></strong></h4>
+<p>新的“lazy”类型将值的初始化延迟到首次访问，它们类似于<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2023%2F06%2F01%2FRust-1.70.0.html%23oncecell-and-oncelock" target="_blank">1.70 中稳定的</a><code>OnceCell</code>和<code>OnceLock</code>类型，但单元格中包含了初始化函数。这完成了从流行的和板条箱中采用到标准库中的功能的稳定化。完成了从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Flazy-static" target="_blank"><code>lazy_static</code></a>和<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fcrates.io%2Fcrates%2Fonce_cell" target="_blank"><code>once_cell</code></a><span>crates&nbsp;</span>到标准库中所采用功能的稳定化。</p>
+<p>LazyLock 是线程安全选项，适用于<code>static</code><span>&nbsp;values&nbsp;</span>等地方。</p>
+<pre><code><span>use</span> std::sync::LazyLock;
+<span>use</span> std::time::Instant;
+<span>static</span> LAZY_TIME: LazyLock&lt;Instant&gt; = LazyLock::new(Instant::now);
+<span>fn</span> <span>main</span>() {
+<span>let</span> start = Instant::now();
+std::thread::scope(|s| {
+s.spawn(|| {
+<span>println!</span>(<span>"Thread lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+<span>println!</span>(<span>"Main lazy time is {:?}"</span>, LAZY_TIME.duration_since(start));
+});
+}</code></pre>
+<p>LazyCell 缺乏线程同步，因此没有实现<code>static</code>所需的 Sync，但仍可用于<code>thread_local!</code><span>&nbsp;statics</span>。Rust团队表示，根据线程安全的需要，这两种类型也可用于其他数据结构，因此 lazy initialization 在任何地方都可用。</p>
+<h4><strong>Checked&nbsp;<code>cfg</code>&nbsp;names and values</strong></h4>
+<p><span>在 1.79 中，<code>rustc</code>稳定了一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html" target="_blank"><code>--check-cfg</code>flag</a>，现在 Cargo 1.80 正在对其知道的所有<code>cfg</code>名称和值启用这些检查（除了来自<code>rustc</code>的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23well-known-names-and-values" target="_blank">众所周知的名称和值</a>）。包括来自<code>Cargo.toml</code>的功能名称以及来自构建脚本的新<code>cargo::rustc-check-cfg</code>output。</span></p>
+<p><span><code>unexpected_cfgs</code>会被 warning-by-default unexpected_cfgs lint 报告，用于捕获拼写错误或其他错误配置。例如，在具有可选<code>rayon</code>依赖项的项目中，此代码配置了错误的<code>feature</code>值：</span></p>
+<pre><code><span>fn</span> <span>main</span>() {
+<span>println!</span>(<span>"Hello, world!"</span>);
+<span>#[cfg(feature = "crayon")]</span>
+rayon::join(
+|| <span>println!</span>(<span>"Hello, Thing One!"</span>),
+|| <span>println!</span>(<span>"Hello, Thing Two!"</span>),
+);
+}
+</code></pre>
+<pre><code>warning: unexpected `cfg` condition value: `crayon`
+--&gt; src/main.rs:4:11
+|
+4 |     #[cfg(feature = "crayon")]
+|           ^^^^^^^^^^--------
+|                     |
+|                     help: there is a expected value with a similar name: `"rayon"`
+|
+= note: expected values for `feature` are: `rayon`
+= help: consider adding `crayon` as a feature in `Cargo.toml`
+= note: see &lt;https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html&gt; for more information about checking conditional configuration
+= note: `#[warn(unexpected_cfgs)]` on by default
+</code></pre>
+<p><span>无论实际的<code>rayon</code>功能是否启用，都会报告相同的警告。</span></p>
+<p><span>还可以使用<code>Cargo.toml</code>清单中的<code>[lints]</code>表来扩展自定义<code>cfg</code>的已知名称和值列表。<code>rustc</code>会自动提供警告中使用的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fdoc.rust-lang.org%2Frustc%2Fcheck-cfg.html%23specifying-expected-names-and-values" target="_blank">语法。</a></span></p>
+<pre><code><span>[lints.rust]</span>
+unexpected_cfgs = { level = <span>"warn"</span>, check-cfg = [<span>'cfg(foo, values("bar"))'</span>] }</code></pre>
+<p><span>可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F05%2F06%2Fcheck-cfg.html" target="_blank">之前的博客文章</a>中阅读有关此功能的更多信息。</span></p>
+<h4><strong><span>Exclusive ranges in patterns</span></strong></h4>
+<p>Rust ranged 模式现在可以使用 exclusive endpoints，写成<code>a..b</code>或<code>..b</code>，类似于<code>Range</code>&nbsp;和&nbsp;<code>RangeTo</code>表达式类型。例如，以下模式现在可以在一个模式的终点和下一个模式的起点使用相同的常量：</p>
+<pre><code><span>pub</span> <span>fn</span> <span>size_prefix</span>(n: <span>u32</span>) -&gt; &amp;<span>'static</span> <span>str</span> {
+<span>const</span> K: <span>u32</span> = <span>10u32</span>.pow(<span>3</span>);
+<span>const</span> M: <span>u32</span> = <span>10u32</span>.pow(<span>6</span>);
+<span>const</span> G: <span>u32</span> = <span>10u32</span>.pow(<span>9</span>);
+<span>match</span> n {
+..K =&gt; <span>""</span>,
+K..M =&gt; <span>"k"</span>,
+M..G =&gt; <span>"M"</span>,
+G.. =&gt; <span>"G"</span>,
+}
+}</code></pre>
+<p><span>Exclusive ranges&nbsp;</span>一直以来作为一个不稳定的功能提供。Rust 团队表示，阻碍因素在于它们可能会增加混乱并增加模式中出现 off-by-one errors 的可能性。在 Rust 1.80 中，exhaustiveness checking 得到了增强，可以更好地检测模式匹配中的差距，新的 lint<code>non_contiguous_range_endpoints</code>和<code>overlapping_range_endpoints</code>将有助于检测在哪些情况下需要将 exclusive 模式切换为 inclusive 模式，反之亦然。</p>
+<p>Rust 1.80 还稳定了许多 API，详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.rust-lang.org%2F2024%2F07%2F25%2FRust-1.80.0.html" target="_blank">查看官方公告</a>。</p>]]></content:encoded>
+    
+    <pubDate>Fri, 26 Jul 2024 11:41:28 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[豆包大模型日均 tokens 使用量超 5000 亿]]></title>
+    <link>https://www.oschina.net/news/303999</link>
+    <itunes:title><![CDATA[豆包大模型日均 tokens 使用量超 5000 亿]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在 2024火山引擎 AI 创新巡展·成都站上，火山引擎方面透露，截至今年7月，豆包大模型日均 tokens 使用量超过5000亿。</p>
+<p>火山引擎在今年5月发布豆包大模型，提供包含大语言模型、语音模型、视觉模型的豆包模型家族，以满足不同场景的关键需求。自今年5月15日豆包大模型发布的2个月内，平均每家企业客户日均 tokens 使用量增长了22倍。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a12319cd3.png"></p>
+<p>火山引擎副总裁张鑫在会上介绍，在字节内部，有50多个业务在使用豆包大模型，覆盖了协同办公、数据分析、文案创作、辅助编程、内容审核、客服、游戏NPC、角色对话、教育等各种场景，基于豆包大模型打造的新技术引擎正在加速业务创新。</p>
+<p>此外，豆包大模型的外部客户已覆盖手机、汽车、金融、消费、互娱等30多个行业。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在 2024火山引擎 AI 创新巡展·成都站上，火山引擎方面透露，截至今年7月，豆包大模型日均 tokens 使用量超过5000亿。</p>
+<p>火山引擎在今年5月发布豆包大模型，提供包含大语言模型、语音模型、视觉模型的豆包模型家族，以满足不同场景的关键需求。自今年5月15日豆包大模型发布的2个月内，平均每家企业客户日均 tokens 使用量增长了22倍。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a12319cd3.png"></p>
+<p>火山引擎副总裁张鑫在会上介绍，在字节内部，有50多个业务在使用豆包大模型，覆盖了协同办公、数据分析、文案创作、辅助编程、内容审核、客服、游戏NPC、角色对话、教育等各种场景，基于豆包大模型打造的新技术引擎正在加速业务创新。</p>
+<p>此外，豆包大模型的外部客户已覆盖手机、汽车、金融、消费、互娱等30多个行业。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在 2024火山引擎 AI 创新巡展·成都站上，火山引擎方面透露，截至今年7月，豆包大模型日均 tokens 使用量超过5000亿。</p>
+<p>火山引擎在今年5月发布豆包大模型，提供包含大语言模型、语音模型、视觉模型的豆包模型家族，以满足不同场景的关键需求。自今年5月15日豆包大模型发布的2个月内，平均每家企业客户日均 tokens 使用量增长了22倍。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a12319cd3.png"></p>
+<p>火山引擎副总裁张鑫在会上介绍，在字节内部，有50多个业务在使用豆包大模型，覆盖了协同办公、数据分析、文案创作、辅助编程、内容审核、客服、游戏NPC、角色对话、教育等各种场景，基于豆包大模型打造的新技术引擎正在加速业务创新。</p>
+<p>此外，豆包大模型的外部客户已覆盖手机、汽车、金融、消费、互娱等30多个行业。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a12319cd3.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a12319cd3.png" medium="image"/>
+    <pubDate>Fri, 26 Jul 2024 11:08:52 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[OpenAI 进军 AI 搜索大战 —— 开始小范围内测 SearchGPT]]></title>
+    <link>https://www.oschina.net/news/303988/openai=searchgpt-prototype</link>
+    <itunes:title><![CDATA[OpenAI 进军 AI 搜索大战 —— 开始小范围内测 SearchGPT]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>7 月 25 日，OpenAI 突然在 X&nbsp;<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fx.com%2FOpenAI%2Fstatus%2F1816536290822881780" target="_blank">宣布</a>，正在测试其备受期待的 AI 搜索市场入驻产品「<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenai.com%2Findex%2Fsearchgpt-prototype%2F" target="_blank">SearchGPT</a> 」—— 一款由 GPT-4 系列模型驱动、能实时访问全网信息，附带清晰来源链接的搜索引擎。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0346078e9b.png"></p>
+<p>官方介绍称， SearchGPT 只是其新开发 AI 搜索功能的 “临时原型”。初期仅对小部分用户和出版商开放，其他有人若有兴趣尝试可以加入等候名单。未来这些功能的最佳部分将被直接集成到 ChatGPT 中。</p>
+<p>从官方发布的演示来看，与现有的各类 AI 搜索相比，SearchGPT 并没有在交互上有特别明显的颠覆设计。整体界面与Perplexity差不多。用户在对话框中输入查询，SearchGPT实时搜索网络后总结出一份结构化的答案，包含图片和视频信息，同时列出相关信息来源。用户可以继续追问或在侧边栏中探索更多相关搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d97c42cbf.png"></p>
+<p><em>Join waitlist：<a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fchatgpt.com%2Fsearch" target="_blank">http://chatgpt.com/search</a></em></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>7 月 25 日，OpenAI 突然在 X&nbsp;<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fx.com%2FOpenAI%2Fstatus%2F1816536290822881780" target="_blank">宣布</a>，正在测试其备受期待的 AI 搜索市场入驻产品「<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenai.com%2Findex%2Fsearchgpt-prototype%2F" target="_blank">SearchGPT</a> 」—— 一款由 GPT-4 系列模型驱动、能实时访问全网信息，附带清晰来源链接的搜索引擎。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0346078e9b.png"></p>
+<p>官方介绍称， SearchGPT 只是其新开发 AI 搜索功能的 “临时原型”。初期仅对小部分用户和出版商开放，其他有人若有兴趣尝试可以加入等候名单。未来这些功能的最佳部分将被直接集成到 ChatGPT 中。</p>
+<p>从官方发布的演示来看，与现有的各类 AI 搜索相比，SearchGPT 并没有在交互上有特别明显的颠覆设计。整体界面与Perplexity差不多。用户在对话框中输入查询，SearchGPT实时搜索网络后总结出一份结构化的答案，包含图片和视频信息，同时列出相关信息来源。用户可以继续追问或在侧边栏中探索更多相关搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d97c42cbf.png"></p>
+<p><em>Join waitlist：<a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fchatgpt.com%2Fsearch" target="_blank">http://chatgpt.com/search</a></em></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>7 月 25 日，OpenAI 突然在 X&nbsp;<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fx.com%2FOpenAI%2Fstatus%2F1816536290822881780" target="_blank">宣布</a>，正在测试其备受期待的 AI 搜索市场入驻产品「<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenai.com%2Findex%2Fsearchgpt-prototype%2F" target="_blank">SearchGPT</a> 」—— 一款由 GPT-4 系列模型驱动、能实时访问全网信息，附带清晰来源链接的搜索引擎。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0346078e9b.png"></p>
+<p>官方介绍称， SearchGPT 只是其新开发 AI 搜索功能的 “临时原型”。初期仅对小部分用户和出版商开放，其他有人若有兴趣尝试可以加入等候名单。未来这些功能的最佳部分将被直接集成到 ChatGPT 中。</p>
+<p>从官方发布的演示来看，与现有的各类 AI 搜索相比，SearchGPT 并没有在交互上有特别明显的颠覆设计。整体界面与Perplexity差不多。用户在对话框中输入查询，SearchGPT实时搜索网络后总结出一份结构化的答案，包含图片和视频信息，同时列出相关信息来源。用户可以继续追问或在侧边栏中探索更多相关搜索。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d97c42cbf.png"></p>
+<p><em>Join waitlist：<a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fchatgpt.com%2Fsearch" target="_blank">http://chatgpt.com/search</a></em></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0346078e9b.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0346078e9b.png" medium="image"/>
+    <pubDate>Fri, 26 Jul 2024 10:48:02 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[Linux Mint 22 “Wilma” 正式发布]]></title>
+    <link>https://www.oschina.net/news/303986/linux-mint-22-released</link>
+    <itunes:title><![CDATA[Linux Mint 22 “Wilma” 正式发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Linux Mint 22 “Wilma” 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.linuxmint.com%2F%3Fp%3D4731" target="_blank">发布</a>，这是一个长期支持版本 (LTS)，将支持到 2029 年。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c40b49d99d.png"></p>
+<p>新版本提供了更好的语言支持。现在，当你安装 Linux Mint 22 时，只有你选择的语言和英语会在安装结束时保留下来，这为你节省了大量空间。大多数人可能没有意识到，旧版本并没有对这一点进行优化。</p>
+<p>说到语言，安装介质现在包括英语、德语、西班牙语、法语、俄语、葡萄牙语、荷兰语和意大利语，用于离线安装。其他语言则需要互联网连接。</p>
+<p>就新技术而言，以下是与此版本相关的内容：</p>
+<ul>
+<li> <p>Linux Mint 22 配备了现代组件和新的 Ubuntu 24.04 软件包库。</p> </li>
+<li> <p>为了保证与现代硬件更好地兼容，内核版本为 6.8，Linux Mint 22.x 版本将沿用 HWE 系列。</p> </li>
+<li> <p>默认声音服务器切换为 Pipewire。</p> </li>
+<li> <p>软件源支持新的 Debian DEB822 格式。</p> </li>
+<li> <p>更新了主题以支持 GTK4。</p> </li>
+<li> <p>为 Pix 添加了 JXL 支持，并为其实施了新的缩略图编辑器。</p> </li>
+<li> <p>所有使用 libsoup2 的软件都已迁移到 libsoup3。</p> </li>
+<li> <p>在启动序列、Plymouth 和 Slick-Greeter 中改进了对 HiDPI 的支持。</p> </li>
+</ul>
+<p>Linux Mint 22 的另一项重大改进是对 mintinstall 软件管理器的改进。现在，它的加载速度比以前更快，主窗口会立即出现。它还包括改进的多线程、新的偏好设置页面和横幅幻灯片。</p>
+<p>我们之前提到过这一点，但新的软件管理器现在<a href="https://www.oschina.net/news/295778/linux-mint-unverified-flatpaks">默认禁用未验证的 Flatpak 软件包</a>，以提高系统的安全性；已验证的 Flatpak 软件包现在会显示维护者姓名，以增加信任度。如果启用未经验证的 Flatpak 软件包，它们将被清楚地标记出来。</p>
+<p>最后，Linux Mint 22 配备了Cinnamon 6.2 桌面。新功能如下：</p>
+<ul>
+<li> <p>减少打印机添加的通知（静音 2 小时）</p> </li>
+<li> <p>支持 Wayland：Clutter Polkit 代理</p> </li>
+<li> <p>Spices：支持按键绑定</p> </li>
+<li> <p>Polkit 代理和用户小程序更好地支持头像功能</p> </li>
+<li> <p>工作区切换器：中间点击可移除悬停的工作区</p> </li>
+<li> <p>按键绑定：可按绑定搜索</p> </li>
+<li> <p>角栏小程序：添加 Shift+ 点击操作</p> </li>
+<li> <p>小程序：提高报告 VPN 和电池状态的精确度</p> </li>
+</ul>
+<p>如果你运行的是 Linux Mint 22 Beta 版，则无需升级即可跳转到稳定版，只需打开"更新管理器"并应用可用的更新即可。</p>
+<p>如果你运行的是 Linux Mint 21.3，升级说明将在未来几天内发布，不过，如果它和以前的版本一样，你会收到更新管理器的更新，然后就可以在更新管理器的菜单中找到升级选项了。</p>
+<p>如果你想直接安装 Linux Mint 22，只需从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxmint.com%2Fdownload.php" target="_blank">下载页面下载</a>你喜欢的版本即可。你可以在Cinnamon、Xfce 和 Mate 中进行选择。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Linux Mint 22 “Wilma” 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.linuxmint.com%2F%3Fp%3D4731" target="_blank">发布</a>，这是一个长期支持版本 (LTS)，将支持到 2029 年。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c40b49d99d.png"></p>
+<p>新版本提供了更好的语言支持。现在，当你安装 Linux Mint 22 时，只有你选择的语言和英语会在安装结束时保留下来，这为你节省了大量空间。大多数人可能没有意识到，旧版本并没有对这一点进行优化。</p>
+<p>说到语言，安装介质现在包括英语、德语、西班牙语、法语、俄语、葡萄牙语、荷兰语和意大利语，用于离线安装。其他语言则需要互联网连接。</p>
+<p>就新技术而言，以下是与此版本相关的内容：</p>
+<ul>
+<li> <p>Linux Mint 22 配备了现代组件和新的 Ubuntu 24.04 软件包库。</p> </li>
+<li> <p>为了保证与现代硬件更好地兼容，内核版本为 6.8，Linux Mint 22.x 版本将沿用 HWE 系列。</p> </li>
+<li> <p>默认声音服务器切换为 Pipewire。</p> </li>
+<li> <p>软件源支持新的 Debian DEB822 格式。</p> </li>
+<li> <p>更新了主题以支持 GTK4。</p> </li>
+<li> <p>为 Pix 添加了 JXL 支持，并为其实施了新的缩略图编辑器。</p> </li>
+<li> <p>所有使用 libsoup2 的软件都已迁移到 libsoup3。</p> </li>
+<li> <p>在启动序列、Plymouth 和 Slick-Greeter 中改进了对 HiDPI 的支持。</p> </li>
+</ul>
+<p>Linux Mint 22 的另一项重大改进是对 mintinstall 软件管理器的改进。现在，它的加载速度比以前更快，主窗口会立即出现。它还包括改进的多线程、新的偏好设置页面和横幅幻灯片。</p>
+<p>我们之前提到过这一点，但新的软件管理器现在<a href="https://www.oschina.net/news/295778/linux-mint-unverified-flatpaks">默认禁用未验证的 Flatpak 软件包</a>，以提高系统的安全性；已验证的 Flatpak 软件包现在会显示维护者姓名，以增加信任度。如果启用未经验证的 Flatpak 软件包，它们将被清楚地标记出来。</p>
+<p>最后，Linux Mint 22 配备了Cinnamon 6.2 桌面。新功能如下：</p>
+<ul>
+<li> <p>减少打印机添加的通知（静音 2 小时）</p> </li>
+<li> <p>支持 Wayland：Clutter Polkit 代理</p> </li>
+<li> <p>Spices：支持按键绑定</p> </li>
+<li> <p>Polkit 代理和用户小程序更好地支持头像功能</p> </li>
+<li> <p>工作区切换器：中间点击可移除悬停的工作区</p> </li>
+<li> <p>按键绑定：可按绑定搜索</p> </li>
+<li> <p>角栏小程序：添加 Shift+ 点击操作</p> </li>
+<li> <p>小程序：提高报告 VPN 和电池状态的精确度</p> </li>
+</ul>
+<p>如果你运行的是 Linux Mint 22 Beta 版，则无需升级即可跳转到稳定版，只需打开"更新管理器"并应用可用的更新即可。</p>
+<p>如果你运行的是 Linux Mint 21.3，升级说明将在未来几天内发布，不过，如果它和以前的版本一样，你会收到更新管理器的更新，然后就可以在更新管理器的菜单中找到升级选项了。</p>
+<p>如果你想直接安装 Linux Mint 22，只需从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxmint.com%2Fdownload.php" target="_blank">下载页面下载</a>你喜欢的版本即可。你可以在Cinnamon、Xfce 和 Mate 中进行选择。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Linux Mint 22 “Wilma” 已正式<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.linuxmint.com%2F%3Fp%3D4731" target="_blank">发布</a>，这是一个长期支持版本 (LTS)，将支持到 2029 年。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c40b49d99d.png"></p>
+<p>新版本提供了更好的语言支持。现在，当你安装 Linux Mint 22 时，只有你选择的语言和英语会在安装结束时保留下来，这为你节省了大量空间。大多数人可能没有意识到，旧版本并没有对这一点进行优化。</p>
+<p>说到语言，安装介质现在包括英语、德语、西班牙语、法语、俄语、葡萄牙语、荷兰语和意大利语，用于离线安装。其他语言则需要互联网连接。</p>
+<p>就新技术而言，以下是与此版本相关的内容：</p>
+<ul>
+<li> <p>Linux Mint 22 配备了现代组件和新的 Ubuntu 24.04 软件包库。</p> </li>
+<li> <p>为了保证与现代硬件更好地兼容，内核版本为 6.8，Linux Mint 22.x 版本将沿用 HWE 系列。</p> </li>
+<li> <p>默认声音服务器切换为 Pipewire。</p> </li>
+<li> <p>软件源支持新的 Debian DEB822 格式。</p> </li>
+<li> <p>更新了主题以支持 GTK4。</p> </li>
+<li> <p>为 Pix 添加了 JXL 支持，并为其实施了新的缩略图编辑器。</p> </li>
+<li> <p>所有使用 libsoup2 的软件都已迁移到 libsoup3。</p> </li>
+<li> <p>在启动序列、Plymouth 和 Slick-Greeter 中改进了对 HiDPI 的支持。</p> </li>
+</ul>
+<p>Linux Mint 22 的另一项重大改进是对 mintinstall 软件管理器的改进。现在，它的加载速度比以前更快，主窗口会立即出现。它还包括改进的多线程、新的偏好设置页面和横幅幻灯片。</p>
+<p>我们之前提到过这一点，但新的软件管理器现在<a href="https://www.oschina.net/news/295778/linux-mint-unverified-flatpaks">默认禁用未验证的 Flatpak 软件包</a>，以提高系统的安全性；已验证的 Flatpak 软件包现在会显示维护者姓名，以增加信任度。如果启用未经验证的 Flatpak 软件包，它们将被清楚地标记出来。</p>
+<p>最后，Linux Mint 22 配备了Cinnamon 6.2 桌面。新功能如下：</p>
+<ul>
+<li> <p>减少打印机添加的通知（静音 2 小时）</p> </li>
+<li> <p>支持 Wayland：Clutter Polkit 代理</p> </li>
+<li> <p>Spices：支持按键绑定</p> </li>
+<li> <p>Polkit 代理和用户小程序更好地支持头像功能</p> </li>
+<li> <p>工作区切换器：中间点击可移除悬停的工作区</p> </li>
+<li> <p>按键绑定：可按绑定搜索</p> </li>
+<li> <p>角栏小程序：添加 Shift+ 点击操作</p> </li>
+<li> <p>小程序：提高报告 VPN 和电池状态的精确度</p> </li>
+</ul>
+<p>如果你运行的是 Linux Mint 22 Beta 版，则无需升级即可跳转到稳定版，只需打开"更新管理器"并应用可用的更新即可。</p>
+<p>如果你运行的是 Linux Mint 21.3，升级说明将在未来几天内发布，不过，如果它和以前的版本一样，你会收到更新管理器的更新，然后就可以在更新管理器的菜单中找到升级选项了。</p>
+<p>如果你想直接安装 Linux Mint 22，只需从<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxmint.com%2Fdownload.php" target="_blank">下载页面下载</a>你喜欢的版本即可。你可以在Cinnamon、Xfce 和 Mate 中进行选择。</p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c40b49d99d.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c40b49d99d.png" medium="image"/>
+    <pubDate>Fri, 26 Jul 2024 10:40:53 +0800</pubDate>
+  </item><item>
     <title><![CDATA[马斯克再次约架扎克伯格：任何地点、任何时间、任何规则都可以]]></title>
     <link>https://www.oschina.net/news/303884/musk-zuck-cage-fight-mma</link>
     <itunes:title><![CDATA[马斯克再次约架扎克伯格：任何地点、任何时间、任何规则都可以]]></itunes:title>
