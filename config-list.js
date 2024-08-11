@@ -266,22 +266,22 @@ let feedList = [
 ]
 // ----------------------------------------------------------------
 
-feedList = [
-  { // <outline type="rss" text="Linuxeden开源社区++$0413-0909$" title="Linuxeden开源社区++$0413-0909$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0413-0909$,/http%3A%2F%2Fwww.linuxeden.com%2Ffeed" htmlUrl="http://www.linuxeden.com"/>
-    title: 'Linuxeden开源社区',
-    feedID: 'linuxeden',
-    feedURL: 'http://www.linuxeden.com/feed',
-    thumbnail: 'http://www.linuxeden.com/image/logonew2009.gif',
-    itemFilters: [
-      // ItemFilters['sites'].ItemFilterBlog,
-      ItemFilters['common'].ItemFilterImageEmbed,
-      ItemFilters['common'].ItemFilterArticleClean,
-      ItemFilters['sites'].ItemFilterLinuxeden,
-    ],
-    // options: {
-    //   selector: '#article-content-inner[itemprop="articleBody"]'
-    // }
-  },
-]
+// feedList = [
+//   { // <outline type="rss" text="Linuxeden开源社区++$0413-0909$" title="Linuxeden开源社区++$0413-0909$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0413-0909$,/http%3A%2F%2Fwww.linuxeden.com%2Ffeed" htmlUrl="http://www.linuxeden.com"/>
+//     title: 'Linuxeden开源社区',
+//     feedID: 'linuxeden',
+//     feedURL: 'http://www.linuxeden.com/feed',
+//     thumbnail: 'http://www.linuxeden.com/image/logonew2009.gif',
+//     itemFilters: [
+//       // ItemFilters['sites'].ItemFilterBlog,
+//       ItemFilters['common'].ItemFilterImageEmbed,
+//       ItemFilters['common'].ItemFilterArticleClean,
+//       ItemFilters['sites'].ItemFilterLinuxeden,
+//     ],
+//     // options: {
+//     //   selector: '#article-content-inner[itemprop="articleBody"]'
+//     // }
+//   },
+// ]
 
 module.exports = feedList
