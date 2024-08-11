@@ -2,9 +2,9 @@ name: Crawler
 on: 
   push:
   schedule:
-    - cron:  "5 22 * * *" # 實際執行時間是這個時間加八小時
-    - cron:  "5 6 * * *" # 實際執行時間是這個時間加八小時
-    - cron:  "5 14 * * *" # 實際執行時間是這個時間加八小時
+    - cron:  "5 23 * * *" # 實際執行時間是這個時間加八小時
+    - cron:  "5 8 * * *" # 實際執行時間是這個時間加八小時
+    - cron:  "5 17 * * *" # 實際執行時間是這個時間加八小時
   workflow_dispatch:
 permissions:
   contents: write
@@ -23,20 +23,17 @@ jobs:
 
       - name: free disk space
         run: | 
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          docker rmi $(docker image ls -aq)
+          sudo swapoff -a 1> /dev/null
+          sudo rm -f /swapfile 1> /dev/null
+          sudo apt clean 1> /dev/null
+          docker rmi $(docker image ls -aq) 1> /dev/null
           df -h
 
       # ----------------------------------------------------------------
 
-      # In this step, this action saves a list of existing images,
-      # the cache is created without them in the post run.
-      # It also restores the cache if it exists.
-      - uses: jpribyl/action-docker-layer-caching@v0.1.1
-        # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
+      # - uses: satackey/action-docker-layer-caching@v0.0.11
+      #   # Ignore the failure of a step and avoid terminating the job.
+      #   continue-on-error: true
 
       # ----------------------------------------------------------------
 
@@ -74,11 +71,11 @@ jobs:
 
       # - name: Clean Cache
       #   run: |
-      #     rm -rf /output/test*
-      #    rm -rf /output/*
-      #     docker rmi -f $(docker images -aq)
-      #     docker network prune -f
-      #     docker volume prune -f
+      #     rm -rf ./output/test* || true
+      #     rm -rf ./output/* || true
+      #     docker rmi -f $(docker images -aq) || true
+      #     docker network prune -f || true
+      #     docker volume prune -f || true
 
       # - name: Clean Cache node-cache.sqlite RSS feed
       #   run: |
@@ -144,8 +141,8 @@ jobs:
 
       - name: Main
         run: |
-          bash install_docker_compose.sh
-          docker-compose up
+          docker compose up --abort-on-container-exit --quiet-pull
+          exit
 
       # ----------------------------------------------------------------
 
@@ -156,6 +153,10 @@ jobs:
       - name: Output Calculate After
         run: |
           ls -lh ./output/*.rss || true
+
+      - name: Clean output gitignore
+        run: |
+          rm -f ./output/.gitignore
 
       # - name: Cache Save
       #   id: cache-save
