@@ -158,7 +158,7 @@ let feedList = [
       // ItemFilters['common'].ItemFilterImageEmbed,
     ],
     options: {
-      selector: '.wp-block-column > .entry-content'
+      selector: '.entry-content'
     }
   },
   { // <outline type="rss" text="電獺少女++" title="電獺少女++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/http%3A%2F%2Fagirls.aotter.net%2F%3Ffeed%3Drss2" htmlUrl="https://agirls.aotter.net/"/>
@@ -267,17 +267,18 @@ let feedList = [
 // ----------------------------------------------------------------
 
 // feedList = [
-//   { // <outline type="rss" text="學不完．教不停．用不盡 :: 痞客邦 PIXNET ::" title="學不完．教不停．用不盡 :: 痞客邦 PIXNET ::" xmlUrl="http://feeds.feedburner.com/pixnetisvincent"/>
-//     title: '公視新聞網',
-//     feedID: 'pts-news',
-//     feedURL: 'https://news.pts.org.tw/xml/newsfeed.xml',
+
+//   { // <outline type="rss" text="鷹眼觀察++$0414-1925$" title="鷹眼觀察++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffeeds.feedburner.com%2FVedfolnir" htmlUrl="https://www.vedfolnir.com"/>
+//     title: '鷹眼觀察',
+//     feedID: 'vedfolnir',
+//     feedURL: 'https://www.vedfolnir.com/feed',
 //     itemFilters: [
+//       ItemFilters['common'].ItemFilterThumbnail,
 //       ItemFilters['sites'].ItemFilterBlog,
-//       ItemFilters['sites'].ItemFilterPTSNews,
+//       // ItemFilters['common'].ItemFilterImageEmbed,
 //     ],
 //     options: {
-//       selector: 'body > article',
-//       proxy: true,
+//       selector: '.entry-content'
 //     }
 //   },
 // ]
