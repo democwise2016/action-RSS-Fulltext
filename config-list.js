@@ -195,7 +195,7 @@ let feedList = [
       // ItemFilters['common'].ItemFilterImageEmbed,
     ],
     options: {
-      selector: '#article-content-inner[itemprop="articleBody"]'
+      selector: '#article-content-inner'
     }
   },
   { // <outline type="rss" text="Linuxeden开源社区++$0413-0909$" title="Linuxeden开源社区++$0413-0909$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0413-0909$,/http%3A%2F%2Fwww.linuxeden.com%2Ffeed" htmlUrl="http://www.linuxeden.com"/>
