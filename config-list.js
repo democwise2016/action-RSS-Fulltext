@@ -282,6 +282,32 @@ let feedList = [
 //     //   selector: '#article-content-inner[itemprop="articleBody"]'
 //     // }
 //   },
+//   { // <outline type="rss" text="靖技場++" title="靖技場++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/http%3A%2F%2Fjinnsblog.blogspot.com%2Ffeeds%2Fposts%2Fdefault" htmlUrl="https://www.jinnsblog.com/"/>
+//     title: '靖技場 聊 3C',
+//     feedID: 'jinnsblog',
+//     feedURL: 'https://www.jinnsblog.com/feed',
+//     itemFilters: [
+//       ItemFilters['sites'].ItemFilterBlog,
+//       // ItemFilters['common'].ItemFilterImageEmbed,
+//     ],
+//     options: {
+//       selector: 'article[id] > .entry-content'
+//     }
+//   },
+//   { // <outline type="rss" text="軟體玩家++" title="軟體玩家++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/https%3A%2F%2Ffeeds.feedburner.com%2Fquicktop" htmlUrl="https://pcrookie.com/"/>
+//     title: '軟體玩家',
+//     feedID: 'quicktop',
+//     feedURL: 'https://pcrookie.com/?feed=rss2',
+//     thumbnail: 'https://pcrookie.com/wp-content/uploads/2019/11/blog-LOGO-2.png',
+//     itemFilters: [
+//       ItemFilters['sites'].ItemFilterBlog,
+//       ItemFilters['sites'].ItemFilterPCRookie,
+//       // ItemFilters['common'].ItemFilterImageEmbed,
+//     ],
+//     options: {
+//       selector: 'article[id] > .td-post-content'
+//     }
+//   },
 // ]
 
 module.exports = feedList
