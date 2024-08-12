@@ -158,7 +158,8 @@ let feedList = [
       // ItemFilters['common'].ItemFilterImageEmbed,
     ],
     options: {
-      selector: '.entry-content'
+      // selector: '.entry-content'
+      selector: '.wp-block-group > .entry-content.wp-block-post-content-is-layout-flow'
     }
   },
   { // <outline type="rss" text="電獺少女++" title="電獺少女++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/http%3A%2F%2Fagirls.aotter.net%2F%3Ffeed%3Drss2" htmlUrl="https://agirls.aotter.net/"/>
@@ -267,45 +268,17 @@ let feedList = [
 // ----------------------------------------------------------------
 
 // feedList = [
-//   { // <outline type="rss" text="Linuxeden开源社区++$0413-0909$" title="Linuxeden开源社区++$0413-0909$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0413-0909$,/http%3A%2F%2Fwww.linuxeden.com%2Ffeed" htmlUrl="http://www.linuxeden.com"/>
-//     title: 'Linuxeden开源社区',
-//     feedID: 'linuxeden',
-//     feedURL: 'http://www.linuxeden.com/feed',
-//     thumbnail: 'http://www.linuxeden.com/image/logonew2009.gif',
+//   { // <outline type="rss" text="鷹眼觀察++$0414-1925$" title="鷹眼觀察++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffeeds.feedburner.com%2FVedfolnir" htmlUrl="https://www.vedfolnir.com"/>
+//     title: '鷹眼觀察',
+//     feedID: 'vedfolnir',
+//     feedURL: 'https://www.vedfolnir.com/feed',
 //     itemFilters: [
-//       // ItemFilters['sites'].ItemFilterBlog,
-//       ItemFilters['common'].ItemFilterImageEmbed,
-//       ItemFilters['common'].ItemFilterArticleClean,
-//       ItemFilters['sites'].ItemFilterLinuxeden,
-//     ],
-//     // options: {
-//     //   selector: '#article-content-inner[itemprop="articleBody"]'
-//     // }
-//   },
-//   { // <outline type="rss" text="靖技場++" title="靖技場++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/http%3A%2F%2Fjinnsblog.blogspot.com%2Ffeeds%2Fposts%2Fdefault" htmlUrl="https://www.jinnsblog.com/"/>
-//     title: '靖技場 聊 3C',
-//     feedID: 'jinnsblog',
-//     feedURL: 'https://www.jinnsblog.com/feed',
-//     itemFilters: [
+//       ItemFilters['common'].ItemFilterThumbnail,
 //       ItemFilters['sites'].ItemFilterBlog,
 //       // ItemFilters['common'].ItemFilterImageEmbed,
 //     ],
 //     options: {
-//       selector: 'article[id] > .entry-content'
-//     }
-//   },
-//   { // <outline type="rss" text="軟體玩家++" title="軟體玩家++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/https%3A%2F%2Ffeeds.feedburner.com%2Fquicktop" htmlUrl="https://pcrookie.com/"/>
-//     title: '軟體玩家',
-//     feedID: 'quicktop',
-//     feedURL: 'https://pcrookie.com/?feed=rss2',
-//     thumbnail: 'https://pcrookie.com/wp-content/uploads/2019/11/blog-LOGO-2.png',
-//     itemFilters: [
-//       ItemFilters['sites'].ItemFilterBlog,
-//       ItemFilters['sites'].ItemFilterPCRookie,
-//       // ItemFilters['common'].ItemFilterImageEmbed,
-//     ],
-//     options: {
-//       selector: 'article[id] > .td-post-content'
+//       selector: '.wp-block-group > .entry-content.wp-block-post-content-is-layout-flow'
 //     }
 //   },
 // ]
