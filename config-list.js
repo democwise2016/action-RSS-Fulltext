@@ -268,18 +268,15 @@ let feedList = [
 // ----------------------------------------------------------------
 
 // feedList = [
-//   { // <outline type="rss" text="鷹眼觀察++$0414-1925$" title="鷹眼觀察++$0414-1925$" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$0414-1925$/http%3A%2F%2Ffeeds.feedburner.com%2FVedfolnir" htmlUrl="https://www.vedfolnir.com"/>
-//     title: '鷹眼觀察',
-//     feedID: 'vedfolnir',
-//     feedURL: 'https://www.vedfolnir.com/feed',
+//   { // <outline type="rss" text="海芋小站++" title="海芋小站++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$1227-1844$/http%3A%2F%2Ffeedproxy.google.com%2Finotetw" htmlUrl="https://www.inote.tw"/>
+//     title: 'OSCHINA 社区最新新闻',
+//     feedID: 'oschina',
+//     feedURL: 'https://www.oschina.net/news/rss',
 //     itemFilters: [
-//       ItemFilters['common'].ItemFilterThumbnail,
-//       ItemFilters['sites'].ItemFilterBlog,
+//       ItemFilters['sites'].ItemFilterOSChina,
+//       ItemFilters['common'].ItemFilterImageEmbed,
 //       // ItemFilters['common'].ItemFilterImageEmbed,
 //     ],
-//     options: {
-//       selector: '.wp-block-group > .entry-content.wp-block-post-content-is-layout-flow'
-//     }
 //   },
 // ]
 
