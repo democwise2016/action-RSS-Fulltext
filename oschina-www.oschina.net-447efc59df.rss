@@ -30,6 +30,1130 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[Jmix 2.3 发布 - 企业级 Java Web RAD 平台]]></title>
+    <link>https://www.oschina.net/news/307786/jmix-2-3-released</link>
+    <itunes:title><![CDATA[Jmix 2.3 发布 - 企业级 Java Web RAD 平台]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img alt="Jmix2.3 发布" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b42e1750e3.png"></p>
+<p>我们最近发布了 Jmix 的 2.3 版本。这篇博客中，我们将介绍这个新版本中增加的新功能和改进。</p>
+<p>有关完整的详细信息和升级说明，请参阅文档中的<span>最近更新</span>[1]页面。</p>
+<blockquote>
+<div>
+<div>
+<span><a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fjmix.cn" target="_blank">Jmix</a> 是一个企业级 Java Web 快速开发平台，包括：核心开源框架、特定的IDE，称为Studio 以及一组开箱即用的扩展组件。</span>
+</div>
+<div>
+<span>1.</span>
+<span> 开源框架基于 Spring 和其他主流 Java 技术栈构建，使用 Jmix，只需 Java 或 Kotlin 单一开发语言即可完成业务逻辑和 Web UI 的开发。</span>
+</div>
+<div>
+<span>2.</span>
+<span> Jmix Studio 是 IntelliJ IDEA 插件，可以辅助项目开发，极大地提升开发效率。</span>
+</div>
+<div>
+<span>3.</span>
+<span> Jmix 扩展组件为典型的业务需求提供解决方案，例如，数据审计、REST API、电子邮件，报表生成、BPM 等。</span>
+</div>
+</div>
+</blockquote>
+<h2><span>Superset 扩展组件</span></h2>
+<p><span>Apache Superset</span>[2] 是领先的数据探索和可视化开源解决方案。支持创建高度可定制的仪表板，其中可以包含多种图表。图表通过数据集填充数据，而数据是使用 SQL 从数据库中获取。</p>
+<p>通过 Jmix Superset 扩展组件，在应用程序中可以很容易集成 Superset 服务，并将仪表板嵌入到 Jmix 视图中。例如，Bookstore 应用程序的主视图中包含了一个仪表板，展示客户订单的相关信息：</p>
+<p><img alt="Superset 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c0e64e75da.png"></p>
+<p>连接到 Superset 服务时只需指定 URL 和用户凭证，在显示嵌入的仪表板时，由扩展组件负责请求、刷新和使用安全 token。</p>
+<p>在 Superset 中创建好仪表板后，需要一些配置以便能在 Jmix 中嵌入。Superset 会生成一个 ID，外部应用可以通过这个 ID 引用该仪表板。</p>
+<p>扩展组件提供的 <code>dashboard</code> UI 组件可以用于在应用程序视图中嵌入仪表板。只需在 <code>embeddedId</code> 属性中指定仪表板 ID：</p>
+<pre><code><span>&lt;<span>superset:dashboard</span>&nbsp;<span>id</span>=<span>"ordersDashboard"</span>&nbsp;
+&nbsp;&nbsp;<span>embeddedId</span>=<span>"4bc14bf5-a3ec-4151-979e-a920420e1f66"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>height</span>=<span>"100%"</span>&nbsp;<span>width</span>=<span>"100%"</span>&nbsp;<span>maxWidth</span>=<span>"50em"</span>/&gt;</span>
+</code></pre>
+<p>Superset 服务直接与应用程序数据库相连。为了根据用户权限或其他条件筛选仪表板上显示的数据，可以在视图中将约束列表传递给仪表板。以下示例中，仪表板仅显示当前租户的数据：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"ordersDashboard"</span>,&nbsp;subject&nbsp;=&nbsp;<span>"datasetConstraintsProvider"</span>)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;DatasetConstraint&gt;&nbsp;<span>ordersDashboardDatasetConstraintsProvider</span><span>()</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;DatasetConstraint&nbsp;constraint&nbsp;=&nbsp;<span>new</span>&nbsp;DatasetConstraint(<span>25</span>,&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>"tenant&nbsp;=&nbsp;'"</span>&nbsp;+&nbsp;tenantProvider.getCurrentUserTenantId()&nbsp;+&nbsp;<span>"'"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;List.of(constraint);&nbsp;&nbsp;
+}
+</code></pre>
+<p>有关如何在 Jmix 应用程序中使用 Superset 扩展组件的详细信息，请参考 <span>Superset 文档</span>[3]。</p>
+<h2><span>支持 OpenSearch</span></h2>
+<p>Jmix Search 扩展组件现在可以使用 <span>OpenSearch</span>[4] 服务了。无论使用的是 OpenSearch 还是 Elasticsearch 引擎，扩展组件中的所有功能（声明式索引定义、索引队列、UI 搜索控件等）均行为一致。通过在 <code>build.gradle</code> 中指定依赖的 starter 来区分使用的搜索引擎。从市场安装扩展组件时，默认情况下会使用 OpenSearch。</p>
+<h2><span>Fragments</span></h2>
+<p>Fragment 是一种新的 UI 构建块，可以分解复杂的 UI 结构，从而减少重复代码。就其特性而言，Fragment 介于视图和组合组件之间。</p>
+<p>一方面，与视图一样，Fragment 的 XML 中可以包含数据组件和操作。并支持在 fragment 类中进行组件注入和事件处理。Studio 提供了一个用于创建空 fragment 的模板，以及与视图相同的 UI 设计器。</p>
+<p>而另一方面，fragment 又可用作视图或其他 fragment 中的组件。</p>
+<p>使用 Fragment 可以在构建和重用绑定了数据模型的 UI 代码时提供更大的灵活性。</p>
+<p>通过下面的示例可以了解如何创建和使用 fragment。这个简单的 fragment 展示一个名为 <code>Money</code> 的可嵌入实体的数据。在 UI 设计器中可以显示 XML 和预览，如下所示：</p>
+<p><img alt="Fragment 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-483f1601d1.png"></p>
+<p>Fragment 的类（也称为控制器）可以定义 setter 接收来自外部的参数。在我们的例子中，接收一个 <code>Money</code> 实例并将其保存到数据容器中：</p>
+<pre><code><span>@FragmentDescriptor</span>(<span>"money-fragment.xml"</span>)&nbsp;&nbsp;
+<span>public</span>&nbsp;<span><span>class</span>&nbsp;<span>MoneyFragment</span>&nbsp;<span>extends</span>&nbsp;<span>Fragment</span>&lt;<span>JmixFormLayout</span>&gt;&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>@ViewComponent</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>private</span>&nbsp;InstanceContainer&lt;Money&gt;&nbsp;moneyDc;&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>setMoney</span><span>(Money&nbsp;money)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;moneyDc.setItem(money);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>在视图中包含 fragment 时，我们使用 <code>fragment</code> 元素并指定 fragment 的类。例如，父视图可以包含同一 fragment 的两个实例：</p>
+<pre><code><span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://price"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"unitPriceFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://discount"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"discountFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>
+</code></pre>
+<p>在父视图的控制器内可以调用 fragment 的 API 来传递 <code>Money</code> 实例：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;unitPriceFragment;&nbsp;&nbsp;
+<span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;discountFragment;
+<span>@Subscribe</span>&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onReady</span><span>(<span>final</span>&nbsp;ReadyEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;unitPriceFragment.setMoney(orderLineDc.getItem().getUnitPrice());&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;discountFragment.setMoney(orderLineDc.getItem().getDiscount());&nbsp;&nbsp;
+}
+</code></pre>
+<h2><span>Data Repositories</span></h2>
+<p>该版本完成了对 Spring Data Repository 作为 Jmix 生态系统中一等公民的支持。现在，视图中可以很方便地使用它们来加载和保存数据，同时兼容所有标准 Jmix UI 功能，如过滤、分页和排序等。</p>
+<p>当使用向导创建视图时，在 <em>Advanced</em> 部分有 <em>Use Data Repository</em> 复选框。如果勾选，则可以选择已有的 Data Repository。向导生成的视图中，数据的读写都代理给了 Data Repository 的方法。</p>
+<p>列表数据的加载代理中，从 Jmix <code>LoadContext</code> 对象中提取了 Spring Data <code>PageRequest</code>，然后通过 <code>JmixDataRepositoryContext</code> 对象为 Data Repository 提供过滤条件和其他选项。这里可以按需修改，例如，可以设置初始的排序：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"customersDl"</span>,&nbsp;target&nbsp;=&nbsp;Target.DATA_LOADER)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;Customer&gt;&nbsp;<span>loadDelegate</span><span>(LoadContext&lt;Customer&gt;&nbsp;context)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;将&nbsp;Jmix&nbsp;分页和排参数转换为&nbsp;Spring&nbsp;Data&nbsp;PageRequest</span>
+&nbsp;&nbsp;&nbsp;&nbsp;PageRequest&nbsp;pageable&nbsp;=&nbsp;JmixDataRepositoryUtils.buildPageRequest(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(pageable.getSort().isEmpty())&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;设置初始排序</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pageable&nbsp;=&nbsp;pageable.withSort(Direction.ASC,&nbsp;<span>"firstName"</span>,&nbsp;<span>"lastName"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;提供&nbsp;Jmix&nbsp;条件，fetch&nbsp;plan&nbsp;以及&nbsp;hints</span>
+&nbsp;&nbsp;&nbsp;&nbsp;JmixDataRepositoryContext&nbsp;jmixContext&nbsp;=&nbsp;JmixDataRepositoryUtils.buildRepositoryContext(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;调用&nbsp;repository&nbsp;方法并返回分页内容</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;repository.findAll(pageable,&nbsp;jmixContext).getContent();&nbsp;&nbsp;
+}
+</code></pre>
+<p>上面的代码与下面加载器中的 JPQL 功能相同：</p>
+<pre><code><span>&lt;<span>loader</span>&nbsp;<span>id</span>=<span>"customersDl"</span>&nbsp;<span>readOnly</span>=<span>"true"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>query</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;![CDATA[select&nbsp;e&nbsp;from&nbsp;bookstore_Customer&nbsp;e&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;order&nbsp;by&nbsp;e.firstName&nbsp;asc,&nbsp;e.lastName&nbsp;asc]]&gt;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>query</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>loader</span>&gt;</span>
+</code></pre>
+<p>所有继承 <code>JmixDataRepository</code> 了的 Repository 方法现在都支持 <code>JmixDataRepositoryContext</code> 作为附加参数。因此 Data Repository 能兼容 <code>genericFilter</code>、<code>propertyFilter</code> 组件以及声明式数据加载器。</p>
+<h2><span>TabSheet 标签页的延迟加载</span></h2>
+<p>当视图中有许多 UI 控件并且需要通过标签页进行分组时，我们通常使用 TabSheet 组件。</p>
+<p>在该版本中，我们增加了将标签页标记为 <code>lazy</code> 的功能。打开视图时，不会自动加载这种标签页的内容。如果标签页包含大量组件并需要加载其他数据，那么使用该功能可以显著提高性能。</p>
+<p>延迟标签页的数据加载和其他初始化内容需要在 TabSheet 的 <code>SelectedChangeEvent</code> 监听器中完成，例如：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;CollectionLoader&lt;Position&gt;&nbsp;positionsDl;&nbsp;&nbsp;
+&nbsp;&nbsp;
+<span>private</span>&nbsp;<span>boolean</span>&nbsp;positionsInitialized;
+<span>@Subscribe</span>(<span>"tabSheet"</span>)&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onTabSheetSelectedChange</span><span>(<span>final</span>&nbsp;JmixTabSheet.SelectedChangeEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(<span>"positionTab"</span>.equals(event.getSelectedTab().getId().orElse(<span>null</span>))&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;&nbsp;!positionsInitialized)&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsDl.load();&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsInitialized&nbsp;=&nbsp;<span>true</span>;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>还有一点，延迟标签页内的组件不能注入到视图类中，因为在视图初始化时还不存在。因此，只能在标签页完成初始化之后通过 <code>UiComponentUtils.getComponent()</code> 方法获取。</p>
+<h2><span>TwinColumn 组件</span></h2>
+<p>新的 <code>twinColumn</code> 组件为用户提供了一种熟悉且方便的方式来从列表中选择内容：</p>
+<p><img alt="双列组件示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d6f6780c7.png"></p>
+<h2><span>授权服务扩展组件</span></h2>
+<p>我们已将授权服务（Authorization Server）模块提炼成了一个单独的扩展组件，有单独的<span>文档</span>[5]和安装流程。这个组件之前是与通用 REST 扩展组件一起安装。因此，现在如果需要安装通用 REST 组件时，需要考虑如何保护 REST 端点：使用授权服务或 OIDC 组件还是通过其他方式。</p>
+<p>授权服务扩展组件提供了一个新的功能，可以实现资源所有者密码凭证授权（即原来的用户名密码授权）。OAuth 规范现在不推荐使用这种授权类型，但我们收到了很多开发人员的请求，于是决定在组件中实现并提供。可以在受信任的、老系统的或高度受控的环境中使用，使用已注册的 Jmix 应用程序用户对 REST 客户端进行简单的身份验证。</p>
+<h2><span>Liquibase changelog 合并</span></h2>
+<p>新版本中，Studio 最突出的新功能是能够合并已有的 Liquibase changelog。支持开发人员将几个最新的 changelog 合并为一个，并删除 changeset 中的重复操作。</p>
+<p>比如这个场景：由于数据模型的迭代开发，有三个 changelog。第一个在表格中添加了 <code>ALPHA</code> 列，第二个添加 <code>BETA</code> 列，第三个添加 <code>GAMMA</code> 并删除 <code>ALPHA</code>。因此，在第一个 changelog 中引入的更改将被第三个 changelog 覆盖。</p>
+<p><strong>Aggregate Liquibase Changelogs</strong> 的操作在数据存储的右键菜单中。可以选择任意数量的新添加的 changelog 进行合并。比如我们选择上述三个 changelog：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5e42e07182.png"></p>
+<p>新生成的 changelog 将仅包含真正使数据库结构与数据模型同步的更改，即添加 <code>BETA</code> 和 <code>GAMMA</code> 列：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-230039677a.png"></p>
+<p>Studio 会删除选定的 changelog 文件，并添加新的合并文件。为了使新的 changelog 集合与已执行了旧 changelog 的数据库兼容，Studio 会为新的 changeset 添加一个前提条件。这个条件指示 Liquibase 不要执行新的 changeset，例如，如果替换列表中的第一个 changelog 已经执行：</p>
+<pre><code><span>&lt;<span>preConditions</span>&nbsp;<span>onFail</span>=<span>"MARK_RAN"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>not</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>changeSetExecuted</span>&nbsp;<span>id</span>=<span>"1"</span>&nbsp;<span>author</span>=<span>"bookstore"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;<span>changeLogFile</span>=<span>"io/jmix/bookstore/liquibase/changelog/2024/06/27-1-add-alpha.xml"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>not</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>preConditions</span>&gt;</span>
+</code></pre>
+<p>执行 changelog 合并时需小心，因为合并 changelog 并不是对已有 changelog 进行分析和重新生成。而是依据第一个选定的 changelog 之前的数据库结构与当前模型之间的差异生成一个新的 changelog。因此，如果合并的 changelog 包含一些未反映在模型中的数据更新或结构更改（例如，存储过程），则可能丢失。</p>
+<p>总的来看，使用此功能最自然、最安全的方法是在将最新更改提交到共享代码仓库或将功能合并到公共分支之前对 changelog 进行合并。</p>
+<h2><span>Studio 的其他改进</span></h2>
+<p>该版本还引入了多项能提升开发者体验的 Studio 功能：</p>
+<ul>
+<li> <p>Jmix 工具窗口提供了一个用于生成 UI 异常处理方法的操作。</p> </li>
+<li> <p>Jmix UI 结构右键菜单中的 <strong>Convert to</strong> 操作可以将一个组件一键转换为另一个组件。<strong>Wrap into</strong> 操作可以将多个选定的组件包含至 TabSheet 的标签页中。</p> </li>
+<li> <p>改进了 JPQL Designer 布局。</p> </li>
+<li> <p>改进了 Dockerfile 生成。</p> </li>
+</ul>
+<p>所有 Studio 的改进内容，请参考 <span>Issue tracker</span>[6]。</p>
+<h2><span>下一步？</span></h2>
+<p>我们计划在 2024 年 10 月发布下一个功能版本，其中包括 Jmix UI 中几个非常重要的功能：</p>
+<ul>
+<li> <p>集成一些第三方 JavaScript 组件：日历、数据透视表（PivotTable）和看板（Kanban）。</p> </li>
+<li> <p>可以使用 fragment 定义 <code>VirtualList</code> 条目的内部布局。</p> </li>
+<li> <p>标签式主窗口模式，视图在主窗口内的标签页中打开，而不是在浏览器标签页中打开。</p> </li>
+</ul>
+<p>最后一个功能是从迁移经典 UI 的开发人员最需要的功能。因此，我们将提供一个解决方案，可以在单个浏览器标签页中打开多个视图，而同时会牺牲一些浏览器功能，例如历史记录和深度链接。</p>
+<p>我们计划的另一个可以帮助从旧版本的平台迁移的功能是声明试 UI 权限。这个功能在 CUBA 平台就已经有了，支持开发者和管理员通过配置限制用户对 UI 中内容（控件、按钮、动作）的访问，而无需编写任何代码。</p>
+<p>在 Studio 方面，我们将改进 Jmix UI 组件属性面板的可用性，并为 UI 组件属性提供更多编辑器（例如，对于 <code>formLayout.responsiveSteps</code>）。此外，我们还会提供与外部数据源集成方面工作的初步成果。</p>
+<p>像往常一样，我们仍将为错误修复、添加小功能和性能增强分配一定的时间。</p>
+<p>未来版本的详细路线图以<span>GitHub 项目</span>[7]的形式提供。当前版本 2.3 的补丁将大约每月发布一次，大家可以定期更新。</p>
+<p>如果有任何问题，欢迎到我们<span>论坛</span>[8]进行反馈，感谢所有提供想法、建议和错误报告的亲们！</p>
+<h3><span>参考资料</span></h3>
+<p><span><span>[1] </span>最近更新: <em>https://docs.jmix.cn/jmix/whats-new/index.html</em></span></p>
+<p><span><span>[2] </span>Apache Superset: <em>https://superset.apache.org/</em></span></p>
+<p><span><span>[3] </span>Superset 文档: <em>https://docs.jmix.cn/jmix/superset/index.html</em></span></p>
+<p><span><span>[4] </span>OpenSearch: <em>https://opensearch.org/</em></span></p>
+<p><span><span>[5] </span>文档: <em>https://docs.jmix.cn/jmix/authorization-server/index.html</em></span></p>
+<p><span><span>[6] </span>Issue tracker: <em>https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.3.0,-2.2.</em>%20type:%20Feature,Improvement,Usability*</span></p>
+<p><span><span>[7] </span>GitHub 项目: <em>https://github.com/orgs/jmix-framework/projects/23/views/1</em></span></p>
+<p><span><span>[8] </span>论坛: <em>https://forum.jmix.cn/</em></span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img alt="Jmix2.3 发布" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b42e1750e3.png"></p>
+<p>我们最近发布了 Jmix 的 2.3 版本。这篇博客中，我们将介绍这个新版本中增加的新功能和改进。</p>
+<p>有关完整的详细信息和升级说明，请参阅文档中的<span>最近更新</span>[1]页面。</p>
+<blockquote>
+<div>
+<div>
+<span><a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fjmix.cn" target="_blank">Jmix</a> 是一个企业级 Java Web 快速开发平台，包括：核心开源框架、特定的IDE，称为Studio 以及一组开箱即用的扩展组件。</span>
+</div>
+<div>
+<span>1.</span>
+<span> 开源框架基于 Spring 和其他主流 Java 技术栈构建，使用 Jmix，只需 Java 或 Kotlin 单一开发语言即可完成业务逻辑和 Web UI 的开发。</span>
+</div>
+<div>
+<span>2.</span>
+<span> Jmix Studio 是 IntelliJ IDEA 插件，可以辅助项目开发，极大地提升开发效率。</span>
+</div>
+<div>
+<span>3.</span>
+<span> Jmix 扩展组件为典型的业务需求提供解决方案，例如，数据审计、REST API、电子邮件，报表生成、BPM 等。</span>
+</div>
+</div>
+</blockquote>
+<h2><span>Superset 扩展组件</span></h2>
+<p><span>Apache Superset</span>[2] 是领先的数据探索和可视化开源解决方案。支持创建高度可定制的仪表板，其中可以包含多种图表。图表通过数据集填充数据，而数据是使用 SQL 从数据库中获取。</p>
+<p>通过 Jmix Superset 扩展组件，在应用程序中可以很容易集成 Superset 服务，并将仪表板嵌入到 Jmix 视图中。例如，Bookstore 应用程序的主视图中包含了一个仪表板，展示客户订单的相关信息：</p>
+<p><img alt="Superset 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c0e64e75da.png"></p>
+<p>连接到 Superset 服务时只需指定 URL 和用户凭证，在显示嵌入的仪表板时，由扩展组件负责请求、刷新和使用安全 token。</p>
+<p>在 Superset 中创建好仪表板后，需要一些配置以便能在 Jmix 中嵌入。Superset 会生成一个 ID，外部应用可以通过这个 ID 引用该仪表板。</p>
+<p>扩展组件提供的 <code>dashboard</code> UI 组件可以用于在应用程序视图中嵌入仪表板。只需在 <code>embeddedId</code> 属性中指定仪表板 ID：</p>
+<pre><code><span>&lt;<span>superset:dashboard</span>&nbsp;<span>id</span>=<span>"ordersDashboard"</span>&nbsp;
+&nbsp;&nbsp;<span>embeddedId</span>=<span>"4bc14bf5-a3ec-4151-979e-a920420e1f66"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>height</span>=<span>"100%"</span>&nbsp;<span>width</span>=<span>"100%"</span>&nbsp;<span>maxWidth</span>=<span>"50em"</span>/&gt;</span>
+</code></pre>
+<p>Superset 服务直接与应用程序数据库相连。为了根据用户权限或其他条件筛选仪表板上显示的数据，可以在视图中将约束列表传递给仪表板。以下示例中，仪表板仅显示当前租户的数据：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"ordersDashboard"</span>,&nbsp;subject&nbsp;=&nbsp;<span>"datasetConstraintsProvider"</span>)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;DatasetConstraint&gt;&nbsp;<span>ordersDashboardDatasetConstraintsProvider</span><span>()</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;DatasetConstraint&nbsp;constraint&nbsp;=&nbsp;<span>new</span>&nbsp;DatasetConstraint(<span>25</span>,&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>"tenant&nbsp;=&nbsp;'"</span>&nbsp;+&nbsp;tenantProvider.getCurrentUserTenantId()&nbsp;+&nbsp;<span>"'"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;List.of(constraint);&nbsp;&nbsp;
+}
+</code></pre>
+<p>有关如何在 Jmix 应用程序中使用 Superset 扩展组件的详细信息，请参考 <span>Superset 文档</span>[3]。</p>
+<h2><span>支持 OpenSearch</span></h2>
+<p>Jmix Search 扩展组件现在可以使用 <span>OpenSearch</span>[4] 服务了。无论使用的是 OpenSearch 还是 Elasticsearch 引擎，扩展组件中的所有功能（声明式索引定义、索引队列、UI 搜索控件等）均行为一致。通过在 <code>build.gradle</code> 中指定依赖的 starter 来区分使用的搜索引擎。从市场安装扩展组件时，默认情况下会使用 OpenSearch。</p>
+<h2><span>Fragments</span></h2>
+<p>Fragment 是一种新的 UI 构建块，可以分解复杂的 UI 结构，从而减少重复代码。就其特性而言，Fragment 介于视图和组合组件之间。</p>
+<p>一方面，与视图一样，Fragment 的 XML 中可以包含数据组件和操作。并支持在 fragment 类中进行组件注入和事件处理。Studio 提供了一个用于创建空 fragment 的模板，以及与视图相同的 UI 设计器。</p>
+<p>而另一方面，fragment 又可用作视图或其他 fragment 中的组件。</p>
+<p>使用 Fragment 可以在构建和重用绑定了数据模型的 UI 代码时提供更大的灵活性。</p>
+<p>通过下面的示例可以了解如何创建和使用 fragment。这个简单的 fragment 展示一个名为 <code>Money</code> 的可嵌入实体的数据。在 UI 设计器中可以显示 XML 和预览，如下所示：</p>
+<p><img alt="Fragment 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-483f1601d1.png"></p>
+<p>Fragment 的类（也称为控制器）可以定义 setter 接收来自外部的参数。在我们的例子中，接收一个 <code>Money</code> 实例并将其保存到数据容器中：</p>
+<pre><code><span>@FragmentDescriptor</span>(<span>"money-fragment.xml"</span>)&nbsp;&nbsp;
+<span>public</span>&nbsp;<span><span>class</span>&nbsp;<span>MoneyFragment</span>&nbsp;<span>extends</span>&nbsp;<span>Fragment</span>&lt;<span>JmixFormLayout</span>&gt;&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>@ViewComponent</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>private</span>&nbsp;InstanceContainer&lt;Money&gt;&nbsp;moneyDc;&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>setMoney</span><span>(Money&nbsp;money)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;moneyDc.setItem(money);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>在视图中包含 fragment 时，我们使用 <code>fragment</code> 元素并指定 fragment 的类。例如，父视图可以包含同一 fragment 的两个实例：</p>
+<pre><code><span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://price"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"unitPriceFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://discount"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"discountFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>
+</code></pre>
+<p>在父视图的控制器内可以调用 fragment 的 API 来传递 <code>Money</code> 实例：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;unitPriceFragment;&nbsp;&nbsp;
+<span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;discountFragment;
+<span>@Subscribe</span>&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onReady</span><span>(<span>final</span>&nbsp;ReadyEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;unitPriceFragment.setMoney(orderLineDc.getItem().getUnitPrice());&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;discountFragment.setMoney(orderLineDc.getItem().getDiscount());&nbsp;&nbsp;
+}
+</code></pre>
+<h2><span>Data Repositories</span></h2>
+<p>该版本完成了对 Spring Data Repository 作为 Jmix 生态系统中一等公民的支持。现在，视图中可以很方便地使用它们来加载和保存数据，同时兼容所有标准 Jmix UI 功能，如过滤、分页和排序等。</p>
+<p>当使用向导创建视图时，在 <em>Advanced</em> 部分有 <em>Use Data Repository</em> 复选框。如果勾选，则可以选择已有的 Data Repository。向导生成的视图中，数据的读写都代理给了 Data Repository 的方法。</p>
+<p>列表数据的加载代理中，从 Jmix <code>LoadContext</code> 对象中提取了 Spring Data <code>PageRequest</code>，然后通过 <code>JmixDataRepositoryContext</code> 对象为 Data Repository 提供过滤条件和其他选项。这里可以按需修改，例如，可以设置初始的排序：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"customersDl"</span>,&nbsp;target&nbsp;=&nbsp;Target.DATA_LOADER)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;Customer&gt;&nbsp;<span>loadDelegate</span><span>(LoadContext&lt;Customer&gt;&nbsp;context)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;将&nbsp;Jmix&nbsp;分页和排参数转换为&nbsp;Spring&nbsp;Data&nbsp;PageRequest</span>
+&nbsp;&nbsp;&nbsp;&nbsp;PageRequest&nbsp;pageable&nbsp;=&nbsp;JmixDataRepositoryUtils.buildPageRequest(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(pageable.getSort().isEmpty())&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;设置初始排序</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pageable&nbsp;=&nbsp;pageable.withSort(Direction.ASC,&nbsp;<span>"firstName"</span>,&nbsp;<span>"lastName"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;提供&nbsp;Jmix&nbsp;条件，fetch&nbsp;plan&nbsp;以及&nbsp;hints</span>
+&nbsp;&nbsp;&nbsp;&nbsp;JmixDataRepositoryContext&nbsp;jmixContext&nbsp;=&nbsp;JmixDataRepositoryUtils.buildRepositoryContext(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;调用&nbsp;repository&nbsp;方法并返回分页内容</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;repository.findAll(pageable,&nbsp;jmixContext).getContent();&nbsp;&nbsp;
+}
+</code></pre>
+<p>上面的代码与下面加载器中的 JPQL 功能相同：</p>
+<pre><code><span>&lt;<span>loader</span>&nbsp;<span>id</span>=<span>"customersDl"</span>&nbsp;<span>readOnly</span>=<span>"true"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>query</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;![CDATA[select&nbsp;e&nbsp;from&nbsp;bookstore_Customer&nbsp;e&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;order&nbsp;by&nbsp;e.firstName&nbsp;asc,&nbsp;e.lastName&nbsp;asc]]&gt;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>query</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>loader</span>&gt;</span>
+</code></pre>
+<p>所有继承 <code>JmixDataRepository</code> 了的 Repository 方法现在都支持 <code>JmixDataRepositoryContext</code> 作为附加参数。因此 Data Repository 能兼容 <code>genericFilter</code>、<code>propertyFilter</code> 组件以及声明式数据加载器。</p>
+<h2><span>TabSheet 标签页的延迟加载</span></h2>
+<p>当视图中有许多 UI 控件并且需要通过标签页进行分组时，我们通常使用 TabSheet 组件。</p>
+<p>在该版本中，我们增加了将标签页标记为 <code>lazy</code> 的功能。打开视图时，不会自动加载这种标签页的内容。如果标签页包含大量组件并需要加载其他数据，那么使用该功能可以显著提高性能。</p>
+<p>延迟标签页的数据加载和其他初始化内容需要在 TabSheet 的 <code>SelectedChangeEvent</code> 监听器中完成，例如：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;CollectionLoader&lt;Position&gt;&nbsp;positionsDl;&nbsp;&nbsp;
+&nbsp;&nbsp;
+<span>private</span>&nbsp;<span>boolean</span>&nbsp;positionsInitialized;
+<span>@Subscribe</span>(<span>"tabSheet"</span>)&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onTabSheetSelectedChange</span><span>(<span>final</span>&nbsp;JmixTabSheet.SelectedChangeEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(<span>"positionTab"</span>.equals(event.getSelectedTab().getId().orElse(<span>null</span>))&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;&nbsp;!positionsInitialized)&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsDl.load();&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsInitialized&nbsp;=&nbsp;<span>true</span>;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>还有一点，延迟标签页内的组件不能注入到视图类中，因为在视图初始化时还不存在。因此，只能在标签页完成初始化之后通过 <code>UiComponentUtils.getComponent()</code> 方法获取。</p>
+<h2><span>TwinColumn 组件</span></h2>
+<p>新的 <code>twinColumn</code> 组件为用户提供了一种熟悉且方便的方式来从列表中选择内容：</p>
+<p><img alt="双列组件示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d6f6780c7.png"></p>
+<h2><span>授权服务扩展组件</span></h2>
+<p>我们已将授权服务（Authorization Server）模块提炼成了一个单独的扩展组件，有单独的<span>文档</span>[5]和安装流程。这个组件之前是与通用 REST 扩展组件一起安装。因此，现在如果需要安装通用 REST 组件时，需要考虑如何保护 REST 端点：使用授权服务或 OIDC 组件还是通过其他方式。</p>
+<p>授权服务扩展组件提供了一个新的功能，可以实现资源所有者密码凭证授权（即原来的用户名密码授权）。OAuth 规范现在不推荐使用这种授权类型，但我们收到了很多开发人员的请求，于是决定在组件中实现并提供。可以在受信任的、老系统的或高度受控的环境中使用，使用已注册的 Jmix 应用程序用户对 REST 客户端进行简单的身份验证。</p>
+<h2><span>Liquibase changelog 合并</span></h2>
+<p>新版本中，Studio 最突出的新功能是能够合并已有的 Liquibase changelog。支持开发人员将几个最新的 changelog 合并为一个，并删除 changeset 中的重复操作。</p>
+<p>比如这个场景：由于数据模型的迭代开发，有三个 changelog。第一个在表格中添加了 <code>ALPHA</code> 列，第二个添加 <code>BETA</code> 列，第三个添加 <code>GAMMA</code> 并删除 <code>ALPHA</code>。因此，在第一个 changelog 中引入的更改将被第三个 changelog 覆盖。</p>
+<p><strong>Aggregate Liquibase Changelogs</strong> 的操作在数据存储的右键菜单中。可以选择任意数量的新添加的 changelog 进行合并。比如我们选择上述三个 changelog：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5e42e07182.png"></p>
+<p>新生成的 changelog 将仅包含真正使数据库结构与数据模型同步的更改，即添加 <code>BETA</code> 和 <code>GAMMA</code> 列：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-230039677a.png"></p>
+<p>Studio 会删除选定的 changelog 文件，并添加新的合并文件。为了使新的 changelog 集合与已执行了旧 changelog 的数据库兼容，Studio 会为新的 changeset 添加一个前提条件。这个条件指示 Liquibase 不要执行新的 changeset，例如，如果替换列表中的第一个 changelog 已经执行：</p>
+<pre><code><span>&lt;<span>preConditions</span>&nbsp;<span>onFail</span>=<span>"MARK_RAN"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>not</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>changeSetExecuted</span>&nbsp;<span>id</span>=<span>"1"</span>&nbsp;<span>author</span>=<span>"bookstore"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;<span>changeLogFile</span>=<span>"io/jmix/bookstore/liquibase/changelog/2024/06/27-1-add-alpha.xml"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>not</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>preConditions</span>&gt;</span>
+</code></pre>
+<p>执行 changelog 合并时需小心，因为合并 changelog 并不是对已有 changelog 进行分析和重新生成。而是依据第一个选定的 changelog 之前的数据库结构与当前模型之间的差异生成一个新的 changelog。因此，如果合并的 changelog 包含一些未反映在模型中的数据更新或结构更改（例如，存储过程），则可能丢失。</p>
+<p>总的来看，使用此功能最自然、最安全的方法是在将最新更改提交到共享代码仓库或将功能合并到公共分支之前对 changelog 进行合并。</p>
+<h2><span>Studio 的其他改进</span></h2>
+<p>该版本还引入了多项能提升开发者体验的 Studio 功能：</p>
+<ul>
+<li> <p>Jmix 工具窗口提供了一个用于生成 UI 异常处理方法的操作。</p> </li>
+<li> <p>Jmix UI 结构右键菜单中的 <strong>Convert to</strong> 操作可以将一个组件一键转换为另一个组件。<strong>Wrap into</strong> 操作可以将多个选定的组件包含至 TabSheet 的标签页中。</p> </li>
+<li> <p>改进了 JPQL Designer 布局。</p> </li>
+<li> <p>改进了 Dockerfile 生成。</p> </li>
+</ul>
+<p>所有 Studio 的改进内容，请参考 <span>Issue tracker</span>[6]。</p>
+<h2><span>下一步？</span></h2>
+<p>我们计划在 2024 年 10 月发布下一个功能版本，其中包括 Jmix UI 中几个非常重要的功能：</p>
+<ul>
+<li> <p>集成一些第三方 JavaScript 组件：日历、数据透视表（PivotTable）和看板（Kanban）。</p> </li>
+<li> <p>可以使用 fragment 定义 <code>VirtualList</code> 条目的内部布局。</p> </li>
+<li> <p>标签式主窗口模式，视图在主窗口内的标签页中打开，而不是在浏览器标签页中打开。</p> </li>
+</ul>
+<p>最后一个功能是从迁移经典 UI 的开发人员最需要的功能。因此，我们将提供一个解决方案，可以在单个浏览器标签页中打开多个视图，而同时会牺牲一些浏览器功能，例如历史记录和深度链接。</p>
+<p>我们计划的另一个可以帮助从旧版本的平台迁移的功能是声明试 UI 权限。这个功能在 CUBA 平台就已经有了，支持开发者和管理员通过配置限制用户对 UI 中内容（控件、按钮、动作）的访问，而无需编写任何代码。</p>
+<p>在 Studio 方面，我们将改进 Jmix UI 组件属性面板的可用性，并为 UI 组件属性提供更多编辑器（例如，对于 <code>formLayout.responsiveSteps</code>）。此外，我们还会提供与外部数据源集成方面工作的初步成果。</p>
+<p>像往常一样，我们仍将为错误修复、添加小功能和性能增强分配一定的时间。</p>
+<p>未来版本的详细路线图以<span>GitHub 项目</span>[7]的形式提供。当前版本 2.3 的补丁将大约每月发布一次，大家可以定期更新。</p>
+<p>如果有任何问题，欢迎到我们<span>论坛</span>[8]进行反馈，感谢所有提供想法、建议和错误报告的亲们！</p>
+<h3><span>参考资料</span></h3>
+<p><span><span>[1] </span>最近更新: <em>https://docs.jmix.cn/jmix/whats-new/index.html</em></span></p>
+<p><span><span>[2] </span>Apache Superset: <em>https://superset.apache.org/</em></span></p>
+<p><span><span>[3] </span>Superset 文档: <em>https://docs.jmix.cn/jmix/superset/index.html</em></span></p>
+<p><span><span>[4] </span>OpenSearch: <em>https://opensearch.org/</em></span></p>
+<p><span><span>[5] </span>文档: <em>https://docs.jmix.cn/jmix/authorization-server/index.html</em></span></p>
+<p><span><span>[6] </span>Issue tracker: <em>https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.3.0,-2.2.</em>%20type:%20Feature,Improvement,Usability*</span></p>
+<p><span><span>[7] </span>GitHub 项目: <em>https://github.com/orgs/jmix-framework/projects/23/views/1</em></span></p>
+<p><span><span>[8] </span>论坛: <em>https://forum.jmix.cn/</em></span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img alt="Jmix2.3 发布" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b42e1750e3.png"></p>
+<p>我们最近发布了 Jmix 的 2.3 版本。这篇博客中，我们将介绍这个新版本中增加的新功能和改进。</p>
+<p>有关完整的详细信息和升级说明，请参阅文档中的<span>最近更新</span>[1]页面。</p>
+<blockquote>
+<div>
+<div>
+<span><a href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fjmix.cn" target="_blank">Jmix</a> 是一个企业级 Java Web 快速开发平台，包括：核心开源框架、特定的IDE，称为Studio 以及一组开箱即用的扩展组件。</span>
+</div>
+<div>
+<span>1.</span>
+<span> 开源框架基于 Spring 和其他主流 Java 技术栈构建，使用 Jmix，只需 Java 或 Kotlin 单一开发语言即可完成业务逻辑和 Web UI 的开发。</span>
+</div>
+<div>
+<span>2.</span>
+<span> Jmix Studio 是 IntelliJ IDEA 插件，可以辅助项目开发，极大地提升开发效率。</span>
+</div>
+<div>
+<span>3.</span>
+<span> Jmix 扩展组件为典型的业务需求提供解决方案，例如，数据审计、REST API、电子邮件，报表生成、BPM 等。</span>
+</div>
+</div>
+</blockquote>
+<h2><span>Superset 扩展组件</span></h2>
+<p><span>Apache Superset</span>[2] 是领先的数据探索和可视化开源解决方案。支持创建高度可定制的仪表板，其中可以包含多种图表。图表通过数据集填充数据，而数据是使用 SQL 从数据库中获取。</p>
+<p>通过 Jmix Superset 扩展组件，在应用程序中可以很容易集成 Superset 服务，并将仪表板嵌入到 Jmix 视图中。例如，Bookstore 应用程序的主视图中包含了一个仪表板，展示客户订单的相关信息：</p>
+<p><img alt="Superset 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c0e64e75da.png"></p>
+<p>连接到 Superset 服务时只需指定 URL 和用户凭证，在显示嵌入的仪表板时，由扩展组件负责请求、刷新和使用安全 token。</p>
+<p>在 Superset 中创建好仪表板后，需要一些配置以便能在 Jmix 中嵌入。Superset 会生成一个 ID，外部应用可以通过这个 ID 引用该仪表板。</p>
+<p>扩展组件提供的 <code>dashboard</code> UI 组件可以用于在应用程序视图中嵌入仪表板。只需在 <code>embeddedId</code> 属性中指定仪表板 ID：</p>
+<pre><code><span>&lt;<span>superset:dashboard</span>&nbsp;<span>id</span>=<span>"ordersDashboard"</span>&nbsp;
+&nbsp;&nbsp;<span>embeddedId</span>=<span>"4bc14bf5-a3ec-4151-979e-a920420e1f66"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>height</span>=<span>"100%"</span>&nbsp;<span>width</span>=<span>"100%"</span>&nbsp;<span>maxWidth</span>=<span>"50em"</span>/&gt;</span>
+</code></pre>
+<p>Superset 服务直接与应用程序数据库相连。为了根据用户权限或其他条件筛选仪表板上显示的数据，可以在视图中将约束列表传递给仪表板。以下示例中，仪表板仅显示当前租户的数据：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"ordersDashboard"</span>,&nbsp;subject&nbsp;=&nbsp;<span>"datasetConstraintsProvider"</span>)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;DatasetConstraint&gt;&nbsp;<span>ordersDashboardDatasetConstraintsProvider</span><span>()</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;DatasetConstraint&nbsp;constraint&nbsp;=&nbsp;<span>new</span>&nbsp;DatasetConstraint(<span>25</span>,&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>"tenant&nbsp;=&nbsp;'"</span>&nbsp;+&nbsp;tenantProvider.getCurrentUserTenantId()&nbsp;+&nbsp;<span>"'"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;List.of(constraint);&nbsp;&nbsp;
+}
+</code></pre>
+<p>有关如何在 Jmix 应用程序中使用 Superset 扩展组件的详细信息，请参考 <span>Superset 文档</span>[3]。</p>
+<h2><span>支持 OpenSearch</span></h2>
+<p>Jmix Search 扩展组件现在可以使用 <span>OpenSearch</span>[4] 服务了。无论使用的是 OpenSearch 还是 Elasticsearch 引擎，扩展组件中的所有功能（声明式索引定义、索引队列、UI 搜索控件等）均行为一致。通过在 <code>build.gradle</code> 中指定依赖的 starter 来区分使用的搜索引擎。从市场安装扩展组件时，默认情况下会使用 OpenSearch。</p>
+<h2><span>Fragments</span></h2>
+<p>Fragment 是一种新的 UI 构建块，可以分解复杂的 UI 结构，从而减少重复代码。就其特性而言，Fragment 介于视图和组合组件之间。</p>
+<p>一方面，与视图一样，Fragment 的 XML 中可以包含数据组件和操作。并支持在 fragment 类中进行组件注入和事件处理。Studio 提供了一个用于创建空 fragment 的模板，以及与视图相同的 UI 设计器。</p>
+<p>而另一方面，fragment 又可用作视图或其他 fragment 中的组件。</p>
+<p>使用 Fragment 可以在构建和重用绑定了数据模型的 UI 代码时提供更大的灵活性。</p>
+<p>通过下面的示例可以了解如何创建和使用 fragment。这个简单的 fragment 展示一个名为 <code>Money</code> 的可嵌入实体的数据。在 UI 设计器中可以显示 XML 和预览，如下所示：</p>
+<p><img alt="Fragment 示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-483f1601d1.png"></p>
+<p>Fragment 的类（也称为控制器）可以定义 setter 接收来自外部的参数。在我们的例子中，接收一个 <code>Money</code> 实例并将其保存到数据容器中：</p>
+<pre><code><span>@FragmentDescriptor</span>(<span>"money-fragment.xml"</span>)&nbsp;&nbsp;
+<span>public</span>&nbsp;<span><span>class</span>&nbsp;<span>MoneyFragment</span>&nbsp;<span>extends</span>&nbsp;<span>Fragment</span>&lt;<span>JmixFormLayout</span>&gt;&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>@ViewComponent</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>private</span>&nbsp;InstanceContainer&lt;Money&gt;&nbsp;moneyDc;&nbsp;&nbsp;
+&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>setMoney</span><span>(Money&nbsp;money)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;moneyDc.setItem(money);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>在视图中包含 fragment 时，我们使用 <code>fragment</code> 元素并指定 fragment 的类。例如，父视图可以包含同一 fragment 的两个实例：</p>
+<pre><code><span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://price"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"unitPriceFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;<span>vbox</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>h4</span>&nbsp;<span>text</span>=<span>"msg://discount"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>fragment</span>&nbsp;<span>id</span>=<span>"discountFragment"</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>class</span>=<span>"io.jmix.bookstore.view.moneyfragment.MoneyFragment"</span>/&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>vbox</span>&gt;</span>
+</code></pre>
+<p>在父视图的控制器内可以调用 fragment 的 API 来传递 <code>Money</code> 实例：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;unitPriceFragment;&nbsp;&nbsp;
+<span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;MoneyFragment&nbsp;discountFragment;
+<span>@Subscribe</span>&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onReady</span><span>(<span>final</span>&nbsp;ReadyEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;unitPriceFragment.setMoney(orderLineDc.getItem().getUnitPrice());&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;discountFragment.setMoney(orderLineDc.getItem().getDiscount());&nbsp;&nbsp;
+}
+</code></pre>
+<h2><span>Data Repositories</span></h2>
+<p>该版本完成了对 Spring Data Repository 作为 Jmix 生态系统中一等公民的支持。现在，视图中可以很方便地使用它们来加载和保存数据，同时兼容所有标准 Jmix UI 功能，如过滤、分页和排序等。</p>
+<p>当使用向导创建视图时，在 <em>Advanced</em> 部分有 <em>Use Data Repository</em> 复选框。如果勾选，则可以选择已有的 Data Repository。向导生成的视图中，数据的读写都代理给了 Data Repository 的方法。</p>
+<p>列表数据的加载代理中，从 Jmix <code>LoadContext</code> 对象中提取了 Spring Data <code>PageRequest</code>，然后通过 <code>JmixDataRepositoryContext</code> 对象为 Data Repository 提供过滤条件和其他选项。这里可以按需修改，例如，可以设置初始的排序：</p>
+<pre><code><span>@Install</span>(to&nbsp;=&nbsp;<span>"customersDl"</span>,&nbsp;target&nbsp;=&nbsp;Target.DATA_LOADER)&nbsp;&nbsp;
+<span><span>private</span>&nbsp;List&lt;Customer&gt;&nbsp;<span>loadDelegate</span><span>(LoadContext&lt;Customer&gt;&nbsp;context)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;将&nbsp;Jmix&nbsp;分页和排参数转换为&nbsp;Spring&nbsp;Data&nbsp;PageRequest</span>
+&nbsp;&nbsp;&nbsp;&nbsp;PageRequest&nbsp;pageable&nbsp;=&nbsp;JmixDataRepositoryUtils.buildPageRequest(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(pageable.getSort().isEmpty())&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;设置初始排序</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pageable&nbsp;=&nbsp;pageable.withSort(Direction.ASC,&nbsp;<span>"firstName"</span>,&nbsp;<span>"lastName"</span>);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;提供&nbsp;Jmix&nbsp;条件，fetch&nbsp;plan&nbsp;以及&nbsp;hints</span>
+&nbsp;&nbsp;&nbsp;&nbsp;JmixDataRepositoryContext&nbsp;jmixContext&nbsp;=&nbsp;JmixDataRepositoryUtils.buildRepositoryContext(context);&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>//&nbsp;调用&nbsp;repository&nbsp;方法并返回分页内容</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span>return</span>&nbsp;repository.findAll(pageable,&nbsp;jmixContext).getContent();&nbsp;&nbsp;
+}
+</code></pre>
+<p>上面的代码与下面加载器中的 JPQL 功能相同：</p>
+<pre><code><span>&lt;<span>loader</span>&nbsp;<span>id</span>=<span>"customersDl"</span>&nbsp;<span>readOnly</span>=<span>"true"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>query</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;![CDATA[select&nbsp;e&nbsp;from&nbsp;bookstore_Customer&nbsp;e&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;order&nbsp;by&nbsp;e.firstName&nbsp;asc,&nbsp;e.lastName&nbsp;asc]]&gt;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>query</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>loader</span>&gt;</span>
+</code></pre>
+<p>所有继承 <code>JmixDataRepository</code> 了的 Repository 方法现在都支持 <code>JmixDataRepositoryContext</code> 作为附加参数。因此 Data Repository 能兼容 <code>genericFilter</code>、<code>propertyFilter</code> 组件以及声明式数据加载器。</p>
+<h2><span>TabSheet 标签页的延迟加载</span></h2>
+<p>当视图中有许多 UI 控件并且需要通过标签页进行分组时，我们通常使用 TabSheet 组件。</p>
+<p>在该版本中，我们增加了将标签页标记为 <code>lazy</code> 的功能。打开视图时，不会自动加载这种标签页的内容。如果标签页包含大量组件并需要加载其他数据，那么使用该功能可以显著提高性能。</p>
+<p>延迟标签页的数据加载和其他初始化内容需要在 TabSheet 的 <code>SelectedChangeEvent</code> 监听器中完成，例如：</p>
+<pre><code><span>@ViewComponent</span>&nbsp;&nbsp;
+<span>private</span>&nbsp;CollectionLoader&lt;Position&gt;&nbsp;positionsDl;&nbsp;&nbsp;
+&nbsp;&nbsp;
+<span>private</span>&nbsp;<span>boolean</span>&nbsp;positionsInitialized;
+<span>@Subscribe</span>(<span>"tabSheet"</span>)&nbsp;&nbsp;
+<span><span>public</span>&nbsp;<span>void</span>&nbsp;<span>onTabSheetSelectedChange</span><span>(<span>final</span>&nbsp;JmixTabSheet.SelectedChangeEvent&nbsp;event)</span>&nbsp;</span>{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>if</span>&nbsp;(<span>"positionTab"</span>.equals(event.getSelectedTab().getId().orElse(<span>null</span>))&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;&nbsp;!positionsInitialized)&nbsp;{&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsDl.load();&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;positionsInitialized&nbsp;=&nbsp;<span>true</span>;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;
+}
+</code></pre>
+<p>还有一点，延迟标签页内的组件不能注入到视图类中，因为在视图初始化时还不存在。因此，只能在标签页完成初始化之后通过 <code>UiComponentUtils.getComponent()</code> 方法获取。</p>
+<h2><span>TwinColumn 组件</span></h2>
+<p>新的 <code>twinColumn</code> 组件为用户提供了一种熟悉且方便的方式来从列表中选择内容：</p>
+<p><img alt="双列组件示例" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8d6f6780c7.png"></p>
+<h2><span>授权服务扩展组件</span></h2>
+<p>我们已将授权服务（Authorization Server）模块提炼成了一个单独的扩展组件，有单独的<span>文档</span>[5]和安装流程。这个组件之前是与通用 REST 扩展组件一起安装。因此，现在如果需要安装通用 REST 组件时，需要考虑如何保护 REST 端点：使用授权服务或 OIDC 组件还是通过其他方式。</p>
+<p>授权服务扩展组件提供了一个新的功能，可以实现资源所有者密码凭证授权（即原来的用户名密码授权）。OAuth 规范现在不推荐使用这种授权类型，但我们收到了很多开发人员的请求，于是决定在组件中实现并提供。可以在受信任的、老系统的或高度受控的环境中使用，使用已注册的 Jmix 应用程序用户对 REST 客户端进行简单的身份验证。</p>
+<h2><span>Liquibase changelog 合并</span></h2>
+<p>新版本中，Studio 最突出的新功能是能够合并已有的 Liquibase changelog。支持开发人员将几个最新的 changelog 合并为一个，并删除 changeset 中的重复操作。</p>
+<p>比如这个场景：由于数据模型的迭代开发，有三个 changelog。第一个在表格中添加了 <code>ALPHA</code> 列，第二个添加 <code>BETA</code> 列，第三个添加 <code>GAMMA</code> 并删除 <code>ALPHA</code>。因此，在第一个 changelog 中引入的更改将被第三个 changelog 覆盖。</p>
+<p><strong>Aggregate Liquibase Changelogs</strong> 的操作在数据存储的右键菜单中。可以选择任意数量的新添加的 changelog 进行合并。比如我们选择上述三个 changelog：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5e42e07182.png"></p>
+<p>新生成的 changelog 将仅包含真正使数据库结构与数据模型同步的更改，即添加 <code>BETA</code> 和 <code>GAMMA</code> 列：</p>
+<p><img alt="Liquibase changelog 合并" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-230039677a.png"></p>
+<p>Studio 会删除选定的 changelog 文件，并添加新的合并文件。为了使新的 changelog 集合与已执行了旧 changelog 的数据库兼容，Studio 会为新的 changeset 添加一个前提条件。这个条件指示 Liquibase 不要执行新的 changeset，例如，如果替换列表中的第一个 changelog 已经执行：</p>
+<pre><code><span>&lt;<span>preConditions</span>&nbsp;<span>onFail</span>=<span>"MARK_RAN"</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>not</span>&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;<span>changeSetExecuted</span>&nbsp;<span>id</span>=<span>"1"</span>&nbsp;<span>author</span>=<span>"bookstore"</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;<span>changeLogFile</span>=<span>"io/jmix/bookstore/liquibase/changelog/2024/06/27-1-add-alpha.xml"</span>/&gt;</span>&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<span>&lt;/<span>not</span>&gt;</span>&nbsp;&nbsp;
+<span>&lt;/<span>preConditions</span>&gt;</span>
+</code></pre>
+<p>执行 changelog 合并时需小心，因为合并 changelog 并不是对已有 changelog 进行分析和重新生成。而是依据第一个选定的 changelog 之前的数据库结构与当前模型之间的差异生成一个新的 changelog。因此，如果合并的 changelog 包含一些未反映在模型中的数据更新或结构更改（例如，存储过程），则可能丢失。</p>
+<p>总的来看，使用此功能最自然、最安全的方法是在将最新更改提交到共享代码仓库或将功能合并到公共分支之前对 changelog 进行合并。</p>
+<h2><span>Studio 的其他改进</span></h2>
+<p>该版本还引入了多项能提升开发者体验的 Studio 功能：</p>
+<ul>
+<li> <p>Jmix 工具窗口提供了一个用于生成 UI 异常处理方法的操作。</p> </li>
+<li> <p>Jmix UI 结构右键菜单中的 <strong>Convert to</strong> 操作可以将一个组件一键转换为另一个组件。<strong>Wrap into</strong> 操作可以将多个选定的组件包含至 TabSheet 的标签页中。</p> </li>
+<li> <p>改进了 JPQL Designer 布局。</p> </li>
+<li> <p>改进了 Dockerfile 生成。</p> </li>
+</ul>
+<p>所有 Studio 的改进内容，请参考 <span>Issue tracker</span>[6]。</p>
+<h2><span>下一步？</span></h2>
+<p>我们计划在 2024 年 10 月发布下一个功能版本，其中包括 Jmix UI 中几个非常重要的功能：</p>
+<ul>
+<li> <p>集成一些第三方 JavaScript 组件：日历、数据透视表（PivotTable）和看板（Kanban）。</p> </li>
+<li> <p>可以使用 fragment 定义 <code>VirtualList</code> 条目的内部布局。</p> </li>
+<li> <p>标签式主窗口模式，视图在主窗口内的标签页中打开，而不是在浏览器标签页中打开。</p> </li>
+</ul>
+<p>最后一个功能是从迁移经典 UI 的开发人员最需要的功能。因此，我们将提供一个解决方案，可以在单个浏览器标签页中打开多个视图，而同时会牺牲一些浏览器功能，例如历史记录和深度链接。</p>
+<p>我们计划的另一个可以帮助从旧版本的平台迁移的功能是声明试 UI 权限。这个功能在 CUBA 平台就已经有了，支持开发者和管理员通过配置限制用户对 UI 中内容（控件、按钮、动作）的访问，而无需编写任何代码。</p>
+<p>在 Studio 方面，我们将改进 Jmix UI 组件属性面板的可用性，并为 UI 组件属性提供更多编辑器（例如，对于 <code>formLayout.responsiveSteps</code>）。此外，我们还会提供与外部数据源集成方面工作的初步成果。</p>
+<p>像往常一样，我们仍将为错误修复、添加小功能和性能增强分配一定的时间。</p>
+<p>未来版本的详细路线图以<span>GitHub 项目</span>[7]的形式提供。当前版本 2.3 的补丁将大约每月发布一次，大家可以定期更新。</p>
+<p>如果有任何问题，欢迎到我们<span>论坛</span>[8]进行反馈，感谢所有提供想法、建议和错误报告的亲们！</p>
+<h3><span>参考资料</span></h3>
+<p><span><span>[1] </span>最近更新: <em>https://docs.jmix.cn/jmix/whats-new/index.html</em></span></p>
+<p><span><span>[2] </span>Apache Superset: <em>https://superset.apache.org/</em></span></p>
+<p><span><span>[3] </span>Superset 文档: <em>https://docs.jmix.cn/jmix/superset/index.html</em></span></p>
+<p><span><span>[4] </span>OpenSearch: <em>https://opensearch.org/</em></span></p>
+<p><span><span>[5] </span>文档: <em>https://docs.jmix.cn/jmix/authorization-server/index.html</em></span></p>
+<p><span><span>[6] </span>Issue tracker: <em>https://youtrack.jmix.io/issues/JST?q=Fixed%20in%20builds:%202.3.0,-2.2.</em>%20type:%20Feature,Improvement,Usability*</span></p>
+<p><span><span>[7] </span>GitHub 项目: <em>https://github.com/orgs/jmix-framework/projects/23/views/1</em></span></p>
+<p><span><span>[8] </span>论坛: <em>https://forum.jmix.cn/</em></span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b42e1750e3.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b42e1750e3.png" medium="image"/>
+    <pubDate>Mon, 19 Aug 2024 15:40:02 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[墨干 V1.2.9 LTS: 支持中文的 TMU 文档格式]]></title>
+    <link>https://www.oschina.net/news/307771/mogan-1-2-9-released</link>
+    <itunes:title><![CDATA[墨干 V1.2.9 LTS: 支持中文的 TMU 文档格式]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<h2>重要信息</h2>
+<ol>
+<li>墨干 v1.2.9 LTS 是一个长期支持版本，支持周期至少一年。在未来的一年内，我们会发布补丁版本（v1.2.9.2, v1.2.9.3, v1.2.9.5, v1.2.9.7)等，补丁版本的版本编号我们采用质数 :)</li>
+<li>默认格式已经调整TMU格式，TMU格式是TM格式的Unicode版。TM格式长期依赖的通点是无法显示中文，TMU格式解决了这个问题。</li>
+<li>在macOS和Windows内置Noto CJK字体是为了让同一个文档，在不同的平台所采用的字体（在未指定字体的情况下）尽可能一致。</li>
+</ol>
+<h2>重要变更<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E9%2587%258D%25E8%25A6%2581%25E5%258F%2598%25E6%259B%25B4" target="_blank">​</a></h2>
+<ul>
+<li><strong>TMU: 默认格式已经调整为TMU</strong>，使用<code>文件-&gt;导出-&gt;TM文档</code>可以导出TM文档</li>
+<li>字体：在macOS和Windows上内置Noto CJK字体</li>
+<li>字体：在文档语言是中文的情况下，改善数学公式中括号等符号的渲染（开源之夏2024）</li>
+<li>多语言支持：修复法语等语言的翻译编码错乱问题</li>
+<li>默认配置：<code>编辑-&gt;首选项-&gt;键盘-&gt;文本中的空格键</code>调整为允许输入多个空格</li>
+<li>Emacs风格快捷键：修复无法在数学公式中使用<code>Alt+[</code>和<code>Alt+]</code>撤销和重做的问题</li>
+<li>插件：
+<ul>
+<li>Gnuplot: 基于金鱼Scheme重新实现，不再依赖于Python</li>
+<li>Goldfish: 新增sicp启动器，适合学习SICP，内置false,true,nil等兼容SICP示例代码的函数和常量</li>
+</ul> </li>
+<li>社区：
+<ul>
+<li>墨客星球：按照界面语言，选择不同的墨客星球入：w口</li>
+</ul> </li>
+</ul>
+<h2>开发者相关<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E5%25BC%2580%25E5%258F%2591%25E8%2580%2585%25E7%259B%25B8%25E5%2585%25B3" target="_blank">​</a></h2>
+<ul>
+<li>内置金鱼Scheme v17.10.4，将S7 Scheme升级至v10.12-20240813</li>
+</ul>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<h2>重要信息</h2>
+<ol>
+<li>墨干 v1.2.9 LTS 是一个长期支持版本，支持周期至少一年。在未来的一年内，我们会发布补丁版本（v1.2.9.2, v1.2.9.3, v1.2.9.5, v1.2.9.7)等，补丁版本的版本编号我们采用质数 :)</li>
+<li>默认格式已经调整TMU格式，TMU格式是TM格式的Unicode版。TM格式长期依赖的通点是无法显示中文，TMU格式解决了这个问题。</li>
+<li>在macOS和Windows内置Noto CJK字体是为了让同一个文档，在不同的平台所采用的字体（在未指定字体的情况下）尽可能一致。</li>
+</ol>
+<h2>重要变更<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E9%2587%258D%25E8%25A6%2581%25E5%258F%2598%25E6%259B%25B4" target="_blank">​</a></h2>
+<ul>
+<li><strong>TMU: 默认格式已经调整为TMU</strong>，使用<code>文件-&gt;导出-&gt;TM文档</code>可以导出TM文档</li>
+<li>字体：在macOS和Windows上内置Noto CJK字体</li>
+<li>字体：在文档语言是中文的情况下，改善数学公式中括号等符号的渲染（开源之夏2024）</li>
+<li>多语言支持：修复法语等语言的翻译编码错乱问题</li>
+<li>默认配置：<code>编辑-&gt;首选项-&gt;键盘-&gt;文本中的空格键</code>调整为允许输入多个空格</li>
+<li>Emacs风格快捷键：修复无法在数学公式中使用<code>Alt+[</code>和<code>Alt+]</code>撤销和重做的问题</li>
+<li>插件：
+<ul>
+<li>Gnuplot: 基于金鱼Scheme重新实现，不再依赖于Python</li>
+<li>Goldfish: 新增sicp启动器，适合学习SICP，内置false,true,nil等兼容SICP示例代码的函数和常量</li>
+</ul> </li>
+<li>社区：
+<ul>
+<li>墨客星球：按照界面语言，选择不同的墨客星球入：w口</li>
+</ul> </li>
+</ul>
+<h2>开发者相关<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E5%25BC%2580%25E5%258F%2591%25E8%2580%2585%25E7%259B%25B8%25E5%2585%25B3" target="_blank">​</a></h2>
+<ul>
+<li>内置金鱼Scheme v17.10.4，将S7 Scheme升级至v10.12-20240813</li>
+</ul>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<h2>重要信息</h2>
+<ol>
+<li>墨干 v1.2.9 LTS 是一个长期支持版本，支持周期至少一年。在未来的一年内，我们会发布补丁版本（v1.2.9.2, v1.2.9.3, v1.2.9.5, v1.2.9.7)等，补丁版本的版本编号我们采用质数 :)</li>
+<li>默认格式已经调整TMU格式，TMU格式是TM格式的Unicode版。TM格式长期依赖的通点是无法显示中文，TMU格式解决了这个问题。</li>
+<li>在macOS和Windows内置Noto CJK字体是为了让同一个文档，在不同的平台所采用的字体（在未指定字体的情况下）尽可能一致。</li>
+</ol>
+<h2>重要变更<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E9%2587%258D%25E8%25A6%2581%25E5%258F%2598%25E6%259B%25B4" target="_blank">​</a></h2>
+<ul>
+<li><strong>TMU: 默认格式已经调整为TMU</strong>，使用<code>文件-&gt;导出-&gt;TM文档</code>可以导出TM文档</li>
+<li>字体：在macOS和Windows上内置Noto CJK字体</li>
+<li>字体：在文档语言是中文的情况下，改善数学公式中括号等符号的渲染（开源之夏2024）</li>
+<li>多语言支持：修复法语等语言的翻译编码错乱问题</li>
+<li>默认配置：<code>编辑-&gt;首选项-&gt;键盘-&gt;文本中的空格键</code>调整为允许输入多个空格</li>
+<li>Emacs风格快捷键：修复无法在数学公式中使用<code>Alt+[</code>和<code>Alt+]</code>撤销和重做的问题</li>
+<li>插件：
+<ul>
+<li>Gnuplot: 基于金鱼Scheme重新实现，不再依赖于Python</li>
+<li>Goldfish: 新增sicp启动器，适合学习SICP，内置false,true,nil等兼容SICP示例代码的函数和常量</li>
+</ul> </li>
+<li>社区：
+<ul>
+<li>墨客星球：按照界面语言，选择不同的墨客星球入：w口</li>
+</ul> </li>
+</ul>
+<h2>开发者相关<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmogan.app%2Fzh%2Fguide%2Fchangelog%2Fv1.2.9.html%23%25E5%25BC%2580%25E5%258F%2591%25E8%2580%2585%25E7%259B%25B8%25E5%2585%25B3" target="_blank">​</a></h2>
+<ul>
+<li>内置金鱼Scheme v17.10.4，将S7 Scheme升级至v10.12-20240813</li>
+</ul>
+</div>]]></content:encoded>
+    
+    <pubDate>Mon, 19 Aug 2024 14:43:53 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[昆仑万维发布 AI 短剧平台 SkyReels]]></title>
+    <link>https://www.oschina.net/news/307743</link>
+    <itunes:title><![CDATA[昆仑万维发布 AI 短剧平台 SkyReels]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>昆仑万维发布全球首个集成视频大模型与3D大模型的AI短剧平台SkyReels。集剧本生成、角色定制、分镜、剧情、对白/BGM及影片合成于一体，旨在让创作者“一键成剧”，轻松制作高质量AI视频。</span></p>
+<p><span>SkyReels平台集成了昆仑万维自研剧本大模型SkyScript、自研分镜大模型StoryboardGen、自研3D生成大模型Sky3DGen、以及业界首个将AI 3D引擎与视频大模型深度融合的创新平台WorldEngine。</span></p>
+<p><span>能够通过AI一键生成完整剧本、分镜、人物对白与BGM，支持角色形象、音色与分镜的自定义调整，并能够自动将内容转换为1080P 60帧的高清视频，单次可生成视频长度达180秒，相比Sora单次可生成60秒视频、可灵单次可生成10秒视频，有显著突破。一键整合所有创作成果，极大提高视频的创作效率，降低创作成本，推动“一人一剧”时代加速来临。</span></p>
+<p><span>同时，WorldEngine结合了引擎的精确可控能力（如光照模拟、物理模拟、3D空间、实时交互等） 以及AI视频大模型的幻想生成能力，提供了全新的线上混合视频创作模式，让视频创作从模糊生成迈向更加精确可控。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06e16ec94d.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f3916ec75.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bee77c7d1.png"></span></p>
+<p><span><strong>SkyReels亮点</strong></span></p>
+<ul>
+<li><span>全自动化剧本生成：用户输入概念或创意，AI将一键生成一份结构完整、情节丰富的剧本，并支持已有剧本的自动整理与润色，提高创作效率。</span></li>
+<li><span>高质量情节设计：系统通过分析大量剧本情节，生成高质量的故事情节、戏剧冲突、爽点及情感表达，保证剧本的丰富性与吸引力。</span></li>
+<li><span>智能分镜生成：根据剧本内容，一键生成分镜图片和对应的文字脚本，用户还可自由调整分镜、镜头角度、运镜方式等参数，确保创意的精确实现。</span></li>
+<li><span>情感化对白/BGM：通过情感化语音合成技术，赋予角色自然的句间停顿、情感表达、抑扬顿挫，并基于视频内容自动生成AI BGM，让画面与音乐完美融合。</span></li>
+<li><span>个性化定制：支持角色形象、音色和分镜的智能生成与自定义调整，满足创作者的个性化需求，并提供动漫、卡通、真人3D等多种视觉风格选择，适应不同创作者的偏好和内容表达需求。</span></li>
+<li><span>内容一致性与精确性：确保角色与场景在不同分镜中的一致性，同时根据故事描述自动推演角色表演，实现人物表情、动作、台词的协调一致，提升故事表现力。</span></li>
+<li><span>高效视频生成：自动将分镜转换为连续高清视频，提供1080P 60帧输出，确保流畅的观看体验。</span></li>
+<li><span>便捷的后期合成：一键整合所有创作成果，并可快速导出和分享，支持多种格式下载，方便后期编辑。</span></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>昆仑万维发布全球首个集成视频大模型与3D大模型的AI短剧平台SkyReels。集剧本生成、角色定制、分镜、剧情、对白/BGM及影片合成于一体，旨在让创作者“一键成剧”，轻松制作高质量AI视频。</span></p>
+<p><span>SkyReels平台集成了昆仑万维自研剧本大模型SkyScript、自研分镜大模型StoryboardGen、自研3D生成大模型Sky3DGen、以及业界首个将AI 3D引擎与视频大模型深度融合的创新平台WorldEngine。</span></p>
+<p><span>能够通过AI一键生成完整剧本、分镜、人物对白与BGM，支持角色形象、音色与分镜的自定义调整，并能够自动将内容转换为1080P 60帧的高清视频，单次可生成视频长度达180秒，相比Sora单次可生成60秒视频、可灵单次可生成10秒视频，有显著突破。一键整合所有创作成果，极大提高视频的创作效率，降低创作成本，推动“一人一剧”时代加速来临。</span></p>
+<p><span>同时，WorldEngine结合了引擎的精确可控能力（如光照模拟、物理模拟、3D空间、实时交互等） 以及AI视频大模型的幻想生成能力，提供了全新的线上混合视频创作模式，让视频创作从模糊生成迈向更加精确可控。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06e16ec94d.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f3916ec75.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bee77c7d1.png"></span></p>
+<p><span><strong>SkyReels亮点</strong></span></p>
+<ul>
+<li><span>全自动化剧本生成：用户输入概念或创意，AI将一键生成一份结构完整、情节丰富的剧本，并支持已有剧本的自动整理与润色，提高创作效率。</span></li>
+<li><span>高质量情节设计：系统通过分析大量剧本情节，生成高质量的故事情节、戏剧冲突、爽点及情感表达，保证剧本的丰富性与吸引力。</span></li>
+<li><span>智能分镜生成：根据剧本内容，一键生成分镜图片和对应的文字脚本，用户还可自由调整分镜、镜头角度、运镜方式等参数，确保创意的精确实现。</span></li>
+<li><span>情感化对白/BGM：通过情感化语音合成技术，赋予角色自然的句间停顿、情感表达、抑扬顿挫，并基于视频内容自动生成AI BGM，让画面与音乐完美融合。</span></li>
+<li><span>个性化定制：支持角色形象、音色和分镜的智能生成与自定义调整，满足创作者的个性化需求，并提供动漫、卡通、真人3D等多种视觉风格选择，适应不同创作者的偏好和内容表达需求。</span></li>
+<li><span>内容一致性与精确性：确保角色与场景在不同分镜中的一致性，同时根据故事描述自动推演角色表演，实现人物表情、动作、台词的协调一致，提升故事表现力。</span></li>
+<li><span>高效视频生成：自动将分镜转换为连续高清视频，提供1080P 60帧输出，确保流畅的观看体验。</span></li>
+<li><span>便捷的后期合成：一键整合所有创作成果，并可快速导出和分享，支持多种格式下载，方便后期编辑。</span></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>昆仑万维发布全球首个集成视频大模型与3D大模型的AI短剧平台SkyReels。集剧本生成、角色定制、分镜、剧情、对白/BGM及影片合成于一体，旨在让创作者“一键成剧”，轻松制作高质量AI视频。</span></p>
+<p><span>SkyReels平台集成了昆仑万维自研剧本大模型SkyScript、自研分镜大模型StoryboardGen、自研3D生成大模型Sky3DGen、以及业界首个将AI 3D引擎与视频大模型深度融合的创新平台WorldEngine。</span></p>
+<p><span>能够通过AI一键生成完整剧本、分镜、人物对白与BGM，支持角色形象、音色与分镜的自定义调整，并能够自动将内容转换为1080P 60帧的高清视频，单次可生成视频长度达180秒，相比Sora单次可生成60秒视频、可灵单次可生成10秒视频，有显著突破。一键整合所有创作成果，极大提高视频的创作效率，降低创作成本，推动“一人一剧”时代加速来临。</span></p>
+<p><span>同时，WorldEngine结合了引擎的精确可控能力（如光照模拟、物理模拟、3D空间、实时交互等） 以及AI视频大模型的幻想生成能力，提供了全新的线上混合视频创作模式，让视频创作从模糊生成迈向更加精确可控。</span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06e16ec94d.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6f3916ec75.png"></span></p>
+<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2bee77c7d1.png"></span></p>
+<p><span><strong>SkyReels亮点</strong></span></p>
+<ul>
+<li><span>全自动化剧本生成：用户输入概念或创意，AI将一键生成一份结构完整、情节丰富的剧本，并支持已有剧本的自动整理与润色，提高创作效率。</span></li>
+<li><span>高质量情节设计：系统通过分析大量剧本情节，生成高质量的故事情节、戏剧冲突、爽点及情感表达，保证剧本的丰富性与吸引力。</span></li>
+<li><span>智能分镜生成：根据剧本内容，一键生成分镜图片和对应的文字脚本，用户还可自由调整分镜、镜头角度、运镜方式等参数，确保创意的精确实现。</span></li>
+<li><span>情感化对白/BGM：通过情感化语音合成技术，赋予角色自然的句间停顿、情感表达、抑扬顿挫，并基于视频内容自动生成AI BGM，让画面与音乐完美融合。</span></li>
+<li><span>个性化定制：支持角色形象、音色和分镜的智能生成与自定义调整，满足创作者的个性化需求，并提供动漫、卡通、真人3D等多种视觉风格选择，适应不同创作者的偏好和内容表达需求。</span></li>
+<li><span>内容一致性与精确性：确保角色与场景在不同分镜中的一致性，同时根据故事描述自动推演角色表演，实现人物表情、动作、台词的协调一致，提升故事表现力。</span></li>
+<li><span>高效视频生成：自动将分镜转换为连续高清视频，提供1080P 60帧输出，确保流畅的观看体验。</span></li>
+<li><span>便捷的后期合成：一键整合所有创作成果，并可快速导出和分享，支持多种格式下载，方便后期编辑。</span></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06e16ec94d.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-06e16ec94d.png" medium="image"/>
+    <pubDate>Mon, 19 Aug 2024 11:49:24 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[统信软件推出综合型开源自动化测试框架 “YouQu”]]></title>
+    <link>https://www.oschina.net/news/307741/uniontech-youqu</link>
+    <itunes:title><![CDATA[统信软件推出综合型开源自动化测试框架 “YouQu”]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>统信软件宣布推出 “YouQu” （有趣）综合型自动化测试框架。该框架紧密贴合实际需求，专为 Linux 操作系统量身定制，集管理、分发调度、驱动执行等核心功能于一体，实现了测试流程的全方位覆盖。</p>
+<p>YouQu 支持 UI、WEB、接口及命令行等多种自动化测试场景。</p>
+<ul>
+<li> <p><strong>Linux桌面应用UI自动化测试</strong></p> <p>基于Qt属性查找、图像识别、OCR识别、相对位移方案获取元素位置，通过键鼠模拟操控元素进行UI操作。</p> </li>
+<li> <p><strong>Web UI自动化测试</strong></p> <p>基于PlayWright控制浏览器（可自定义）进行Web UI自动化测试。</p> </li>
+<li> <p><strong>Linux DBus接口自动化测试</strong></p> <p>通过框架内置的DBus操控功能，实现对DBus接口访问及获取数据。</p> </li>
+<li> <p><strong>命令行自动化测试</strong></p> <p>基于subprocess、pexpect实现命令行交互。</p> </li>
+<li> <p><strong>HTTP接口自动化测试</strong></p> <p>基于Python标准库urllib，实现网络接口自动化测试流程。</p> </li>
+</ul>
+<p>YouQu 采用工程化架构设计，其核心封装层提供基础能力，业务层根据实际业务需求（测试用例）动态加载核心封装层，执行层加载相应的用例集并控制执行流程。</p>
+<p>测试平台可以根据实际测试策略组装配置，通过执行层接口驱动框架完成自动化测试执行。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-5ea76c1ea2.png"></p>
+<hr>
+<p><strong>开源仓库地址</strong>：</p>
+<ul>
+<li> <p>linuxdeepin开源仓库：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flinuxdeepin%2Fyouqu" target="_blank">https://github.com/linuxdeepin/youqu</a></p> </li>
+<li> <p>openEuler开源仓库：</p> <p><a href="https://gitee.com/src-openeuler/youqu">https://gitee.com/src-openeuler/youqu</a></p> </li>
+<li> <p>YouQu官网地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyouqu.uniontech.com" target="_blank">https://youqu.uniontech.com</a></p> </li>
+<li> <p>统信开发者平台YouQu地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fuosdn.uniontech.com%2F%23document2%3Fdirid%3D66a7735a36fced0b0bdb3139" target="_blank">https://uosdn.uniontech.com/#document2?dirid=66a7735a36fced0b0bdb3139</a></p> </li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>统信软件宣布推出 “YouQu” （有趣）综合型自动化测试框架。该框架紧密贴合实际需求，专为 Linux 操作系统量身定制，集管理、分发调度、驱动执行等核心功能于一体，实现了测试流程的全方位覆盖。</p>
+<p>YouQu 支持 UI、WEB、接口及命令行等多种自动化测试场景。</p>
+<ul>
+<li> <p><strong>Linux桌面应用UI自动化测试</strong></p> <p>基于Qt属性查找、图像识别、OCR识别、相对位移方案获取元素位置，通过键鼠模拟操控元素进行UI操作。</p> </li>
+<li> <p><strong>Web UI自动化测试</strong></p> <p>基于PlayWright控制浏览器（可自定义）进行Web UI自动化测试。</p> </li>
+<li> <p><strong>Linux DBus接口自动化测试</strong></p> <p>通过框架内置的DBus操控功能，实现对DBus接口访问及获取数据。</p> </li>
+<li> <p><strong>命令行自动化测试</strong></p> <p>基于subprocess、pexpect实现命令行交互。</p> </li>
+<li> <p><strong>HTTP接口自动化测试</strong></p> <p>基于Python标准库urllib，实现网络接口自动化测试流程。</p> </li>
+</ul>
+<p>YouQu 采用工程化架构设计，其核心封装层提供基础能力，业务层根据实际业务需求（测试用例）动态加载核心封装层，执行层加载相应的用例集并控制执行流程。</p>
+<p>测试平台可以根据实际测试策略组装配置，通过执行层接口驱动框架完成自动化测试执行。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-5ea76c1ea2.png"></p>
+<hr>
+<p><strong>开源仓库地址</strong>：</p>
+<ul>
+<li> <p>linuxdeepin开源仓库：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flinuxdeepin%2Fyouqu" target="_blank">https://github.com/linuxdeepin/youqu</a></p> </li>
+<li> <p>openEuler开源仓库：</p> <p><a href="https://gitee.com/src-openeuler/youqu">https://gitee.com/src-openeuler/youqu</a></p> </li>
+<li> <p>YouQu官网地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyouqu.uniontech.com" target="_blank">https://youqu.uniontech.com</a></p> </li>
+<li> <p>统信开发者平台YouQu地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fuosdn.uniontech.com%2F%23document2%3Fdirid%3D66a7735a36fced0b0bdb3139" target="_blank">https://uosdn.uniontech.com/#document2?dirid=66a7735a36fced0b0bdb3139</a></p> </li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>统信软件宣布推出 “YouQu” （有趣）综合型自动化测试框架。该框架紧密贴合实际需求，专为 Linux 操作系统量身定制，集管理、分发调度、驱动执行等核心功能于一体，实现了测试流程的全方位覆盖。</p>
+<p>YouQu 支持 UI、WEB、接口及命令行等多种自动化测试场景。</p>
+<ul>
+<li> <p><strong>Linux桌面应用UI自动化测试</strong></p> <p>基于Qt属性查找、图像识别、OCR识别、相对位移方案获取元素位置，通过键鼠模拟操控元素进行UI操作。</p> </li>
+<li> <p><strong>Web UI自动化测试</strong></p> <p>基于PlayWright控制浏览器（可自定义）进行Web UI自动化测试。</p> </li>
+<li> <p><strong>Linux DBus接口自动化测试</strong></p> <p>通过框架内置的DBus操控功能，实现对DBus接口访问及获取数据。</p> </li>
+<li> <p><strong>命令行自动化测试</strong></p> <p>基于subprocess、pexpect实现命令行交互。</p> </li>
+<li> <p><strong>HTTP接口自动化测试</strong></p> <p>基于Python标准库urllib，实现网络接口自动化测试流程。</p> </li>
+</ul>
+<p>YouQu 采用工程化架构设计，其核心封装层提供基础能力，业务层根据实际业务需求（测试用例）动态加载核心封装层，执行层加载相应的用例集并控制执行流程。</p>
+<p>测试平台可以根据实际测试策略组装配置，通过执行层接口驱动框架完成自动化测试执行。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-5ea76c1ea2.png"></p>
+<hr>
+<p><strong>开源仓库地址</strong>：</p>
+<ul>
+<li> <p>linuxdeepin开源仓库：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Flinuxdeepin%2Fyouqu" target="_blank">https://github.com/linuxdeepin/youqu</a></p> </li>
+<li> <p>openEuler开源仓库：</p> <p><a href="https://gitee.com/src-openeuler/youqu">https://gitee.com/src-openeuler/youqu</a></p> </li>
+<li> <p>YouQu官网地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyouqu.uniontech.com" target="_blank">https://youqu.uniontech.com</a></p> </li>
+<li> <p>统信开发者平台YouQu地址：</p> <p><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fuosdn.uniontech.com%2F%23document2%3Fdirid%3D66a7735a36fced0b0bdb3139" target="_blank">https://uosdn.uniontech.com/#document2?dirid=66a7735a36fced0b0bdb3139</a></p> </li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-5ea76c1ea2.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-5ea76c1ea2.png" medium="image"/>
+    <pubDate>Mon, 19 Aug 2024 11:34:46 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[IDEA 研究院编程语言 MoonBit 发布 beta 预览版，快速实现多领域应用]]></title>
+    <link>https://www.oschina.net/news/307723/moonbit-beta</link>
+    <itunes:title><![CDATA[IDEA 研究院编程语言 MoonBit 发布 beta 预览版，快速实现多领域应用]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span>MoonBit beta 预览版比大部分主流语言更早推出现代化泛型、精准错误处理和高效迭代器等重要特性，在云计算、边缘计算、人工智能和教育等领域快速实现落地应用。Beta 预览版标志着 MoonBit 生态进入全新阶段，为用户提供更稳定、流畅的创新操作体验。</span></p>
+<p>MoonBit自去年发布 alpha 版后，反响热烈。经过一年的高速迭代，MoonBit 到达了 beta 预览版的里程碑：在核心语言特性上，MoonBit媲美、甚至超越了大部分主流语言的1.0版本；语言特性的开发稳定，开发者可以更广泛地参与到生态建设中来。这里列举几个 MoonBit 的核心特性：</p>
+<ul>
+<li> <p><span><strong>现代化的泛型系统</strong></span></p> </li>
+</ul>
+<p>现代语言复杂性的很大一部分在于类型系统的设计，很多主流工业语言，<span><strong>比如 Java，Go在 1.0 版本推出很多年以后才会渐渐完善泛型的支持</strong></span>，但是这会对生态造成撕裂。MoonBit 在 beta预览版本已经完成了泛型和 ad-hoc polymoprhism，而且 MoonBit 在保持极快的编译速度的同时，提供了零开销的泛型支持。</p>
+<ul>
+<li> <p><span><strong>准确的错误处理</strong></span></p> </li>
+</ul>
+<p>错误处理是现代语言设计中的重要组成部分，大部分编程语言在静态分析中，彻底放弃错误处理的支持，<span><strong>这意味着任何函数都可以抛出异常，很难写出高可靠性的代码。</strong></span>MoonBit 通过准确的控制流分析，可以完全在编译时期跟踪函数的错误。这一过程几乎完全由编译器自行推导，且不像 Java checked exception 那样过于繁琐，降低用户的心智负担。</p>
+<ul>
+<li> <p><strong>高效的迭代器</strong></p> </li>
+</ul>
+<p>传统的编程语言的迭代器会产生频繁的装箱操作，导致其性能比普通的循环要糟糕很多。MoonBit 创新地使用了零开销的迭代器设计，<span><strong>可以让用户写出优雅代码的同时保持程序的性能。</strong></span></p>
+<p><span><strong>多应用场景</strong></span></p>
+<p>MoonBit 是一个全场景覆盖的开发者平台，紧跟科技前沿和行业趋势，侧重于云计算、边缘计算、人工智能以及教学领域的发展，并在每个领域做到极致，确保在性能上领先其他语言至少一个数量级。</p>
+<p>在云计算领域，MoonBit 近期已支持 Wasm 组件模型，并有海外用户实现了与 Spin 框架集成的 MoonBit SDK。</p>
+<p>通过将应用程序拆分成独立的、可重用的组件，MoonBit 可以在云计算开发中更好地利用模块化开发、灵活的部署和更新、资源优化、防止单点故障提高安全性、易于扩展和集成等特性，实现云计算应用场景中的突出优势，提高系统的灵活性和安全性，简化扩展和集成过程，<span><strong>从而显著提高云计算开发效率并降低运营成本。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-862e75c295.jpg"></p>
+<p>在边缘计算领域，目前已有 MoonBit PDK 插件，<span>并被 Extism 收入官方 PDK 库。</span></p>
+<p>通过 PDK 的支持，MoonBit 能够在边缘计算应用中更高效地利用硬件资源，实现分布式计算和本地处理，<span><strong>提</strong><strong>升性能和响应速度，同时确保设备兼容性和数据安全性</strong>，</span>从而大大提升开发和部署效率，满足低延迟和高效能的需求。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a782ff838.jpg"></p>
+<p>在 MoonBit 的应用生态发展中，<span><strong>注重为学生群体以及编程语言初学者提供简单易学的入门环境</strong></span>，并以游戏的形式打造轻松愉悦的学习体验。</p>
+<p>MoonBit 现已支持使用 WebAssembly 开发小型复古游戏的 WASM-4 框架。凭借 MoonBit 的高效工具链和简洁设计，<span><strong>入门级开发者可以在官方教程的指导下轻松创作属于自己的第一款游戏</strong>。</span></p>
+<p>同时，框架内置的多玩家支持功能能够让至多四名玩家共同体验游戏的乐趣。无论是创作过程还是开发体验，MoonBit 都能让初学者体验前所未有的简单与高效。</p>
+<p>不仅如此，<span><strong>由于 MoonBit 支持实时可视化开发，同时编译速度极快，</strong></span>开发者还能够实时更改代码来灵活调整游戏参数。</p>
+<p>MoonBit 团队正在开发 MiniMoonBit 编译器教学项目。学生可以用 MoonBit 实现 MoonBit 语言的一个子集。由于 MoonBit 强大的表达力，相较传统的用 C/C++ 实现的编译器项目，学生可以更轻松地上手实现。</p>
+<p>同时，MiniMoonBit 项目采用了模块化的设计，多层 IR 都有对应的 JSON 文本表示，<span><strong>学生不再需要从头实现编译器的每个环节，而是可以选择感兴趣的模块来学习。</strong></span></p>
+<p><span><strong>快、小、安全、</strong></span></p>
+<p><span><strong>最佳数据处理体验</strong></span></p>
+<p>MoonBit 于 2022 年启动开发计划，凭借团队在 ReScript、OCaml、Flow 等工业编程语言研发中的十多年经验，迅速在两年内完成了整套工具链的开发，致力于成为第一个走向国际的中国编程语言。</p>
+<p>2023 年 8 月 18 日，MoonBit 首次在海外发布后，迅速引起了国际技术社区的广泛关注，<span><strong>并登上了 HackerNews 的头条</strong></span><span>。</span>HackerNews 作为硅谷最具影响力的科技社区之一，对 MoonBit 的每一次重大特性更新都给予了高度关注。</p>
+<p>此外，MoonBit 还在全球 DevOps 领域权威媒体平台 The News Stack、日本顶尖科技社区 Zenn 等知科技媒体上频频出现，进一步巩固了其全球影响力。</p>
+<p>同时，<span><strong>MoonBit 在工业应用方面进展迅速</strong>，</span>包括多家海外创业公司的应用、在国内拥有数据库领域的商业合作伙伴等。这一过程中，MoonBit 一直致力于发挥其在语言速度、代码精简和数据处理等方面的卓越优势。</p>
+<p>MoonBit 致力于实现全栈性能的卓越表现，<span>包括编译性能和运行时性能。</span></p>
+<p>通过专为多级中间表示（IR）定制的全局优化，不仅改善了内存布局，减少了缓存未命中率，还为数据和控制流分析提供了一个优越的环境，从而确保了编译和运行时的高性能。<span><span>从编译速度来看，MoonBit 编译 626 个包（package）只需 1.06 秒</span></span><span><span>，</span></span><span><strong><span>比 Rust 快了近 9 倍，运行时间仅为Go的 35分之一。</span></strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cd8b5fb5f.jpg"></p>
+<p><span><strong>小</strong></span></p>
+<p><span><strong>MoonBit 在输出 Wasm 代码体积上相较于传统语言有显著优势</strong>。</span>MoonBit 通过 WebAssembly（Wasm）组件模型，在生成代码时实现了显著的体积优化。相比其他编程语言，MoonBit 编写的 Wasm 组件代码体积大幅减少。</p>
+<p>例如，在编译一个简单的“Hello World” HTTP 服务器时，MoonBit 的输出文件大小仅为 27KB，而 WasmCloud 提供的 http-hello-world 模板中 Rust 的输出为 100KB，TypeScript 为 8.7MB，Python 更是高达 17MB。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-68a4bb1887.jpg">借助前文提到的创新错误处理机制，MoonBit 有效解决了传统编译技术在错误处理机制转换中遇到的适用范围有限和内存开销大的问题。通过静态分析源程序中的错误处理代码，并根据目标编程语言的特性进行转换，<span><strong>MoonBit 扩大了适用语言范围，减少了内存开销，同时提升了代码的安全性和稳定性。</strong></span></p>
+<p>健壮的类型系统是 MoonBit 保障其安全的重要设计之一。MoonBit 采用了强大的类型系统，并内置静态检测工具，在编译期检查类型错误，从而提高代码的正确性和可靠性。</p>
+<p><span><strong><span>MoonBit 的安全保障得益于其对 WebAssembly 的原生支持</span></strong></span><span>，这一特性使得 MoonBit 能够深度挖掘 Wasm 在沙箱环境、内存隔离以及默认的无权限机制（deny-by-default）等方面的安全架构优势。通过这些先进的安全特性，<span>释放其在云计算和边缘计算安全问题上的潜力。<span>同时结合语言自身类型系统安全，删减无用代码（DCE）、编译为经过验证的 Wasm 指令等三层保障，确保代码可信与数据隐私安全。</span></span></span></p>
+<p>MoonBit 作为一门多范式编程语言，在保持语言简单性的同时，也侧重于提供数据处理的最佳体验。MoonBit 通过原生支持 JSON 处理、Iter 类型和模式匹配实现高效数据处理，在语法设计上兼具动态语言的灵活性和静态语言的安全高效，<span><strong>直观而简洁地进行对数据的解析和转换</strong>。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b2559ab289.jpg"></p>
+<p><em>JSON处理</em></p>
+<p>MoonBit 在数据处理上的语法设计旨在优化常见的数据处理场景，解决传统方法中由于生成多个中间数组而导致的性能问题。<span><strong>在 Iter 性能对比中，MoonBit 的数据处理速度达到了 JavaScript 的 25 倍之多。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26de1cfb3f.jpg"></p>
+<p><strong><span>一站式解决方案</span></strong></p>
+<p>相较于传统的编程语言设计路线，MoonBit 从一开始就提供全套开发、调试、部署的一站式解决方案。MoonBit 不仅提供多后端支持、通用程序语言设计，还涵盖了编译器、构建系统、集成开发环境（IDE）、调试器，部署工具等。</p>
+<p>这个全面的设计使得 MoonBit 能够实现高度垂直整合，<span><strong>而且</strong><strong>可以同时在云端和边缘端执行，更好地与各种资源进行交互</strong>，</span>从而为用户提供极致的开发体验和性能。</p>
+<p><span>与其他云 IDE 不同，</span>MoonBit 对 IDE 的支持不仅包含了现代 IDE 的所有功能，<span>且MoonBit 无需依赖容器。快速语义分析技术可处理大量的代码库，</span><span><strong>并且在更大规模的代码库中也能在百毫秒级别完成 IDE 响应</strong>。</span></p>
+<p>现今大多数编程语言的 IDE 是为桌面操作系统设计的，未能很好地适应云原生环境和边缘端的需求。MoonBit 则通过采用高度并行化的架构和对分离编译的原生支持，使得云IDE 可以直接在边缘端运行。<span><strong>这在现今大多数语言的云 IDE 中是首次。</strong></span></p>
+<p>除了传统 IDE 的功能以外，<span><strong>MoonBit AI 助手现已内置于 MoonBit IDE</strong></span>，并实现了自动化测试生成、文档生成，以及代码解释功能，为应用的开发、测试和文档编写提供了全方位的支持，<span><strong>使得开发者能够更加专注于业务逻辑的实现</strong></span>，而不必担心底层的复杂性和维护工作。</p>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+MoonBit 在初始阶段已经提供其他语言通常在成熟阶段才拥有的调试工具。MoonBit 目前已提供 sourcemap 支持，支持源码映射、基于源码设置断点、输出 sourcemap 等，可以在浏览器中进行源码调试。
+<span><strong>这项功能的推出不仅减轻了开发者在代码调试方面的负担，还显著提升了开发和调试的流畅性。</strong></span>
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>对于 JavaScript 后端，用户仅需在 JavaScript Debug Terminal 上执行 moon run --target js --debug，即可立刻进入调试。MoonBit的sourcemap和调试支持显著优化开发者的调试体验，确保 JavaScript 代码的生成尽可能贴近源码，变量名和字段名保持一致，便于使用浏览器的 DevTools 进行源码检查和调试。</p>
+<p>MoonBit 作为一门从 0 到 1 的编程语言，对于生态建设尤为重视，其中一个关键在于构建高效且功能丰富的包管理系统。我们搭建了一个中心化的 MoonBit 包管理平台 mooncakes.io，<span><strong>提升包的获取速度和编译效率，从而为开发者提供一个高效的工作环境。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-781d41a547.png"></p>
+<p>此外，我们注重文档的管理和维护。为了让第三方包更加易于开发者理解和使用，我们提供了文档生成工具 moondoc，并在 mooncakes.io 集成了每个包的文档，以帮助开发者编写和分发包的文档、帮助包的使用者创造高质量的应用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5719f494fa.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4d22594d0d.png"></p>
+<p><span><strong>AI时代下的编程语言</strong></span></p>
+<p><span><strong>这个世界是否还需要一门新的编程语言？答案是，是。</strong></span></p>
+<p>编程语言的发展经历了60年代时，结构化编程的兴起。到70年代，则是面向对象编程与C语言。90年代，是脚本语言与互联网 。而00年代，是语言的统一与多样性。到了10年代，是现代语言与大数据。编程语言在不断进步，同时也有大量的编程语言渐渐销声匿迹。</p>
+<p>大模型时代浩浩荡荡的浪潮卷席了万事万物。编程语言作为计算机核心组件、<span><strong>且是软件开发者创造技术世界最重要的工具</strong></span>，自然被顶上风口浪尖。整个技术行业都对编程语言提出了更高的要求。</p>
+<p><span>在大模型时代，工具重塑了开发者的工作方式，</span><span><strong>同时也降低了学习新语言的门槛。</strong></span>开发者将更专注于创意和设计，代码的实现和优化则由编程工具完成。这一转变推动编程工具从简单的代码生成器进化为复杂问题解决平台。</p>
+<p>MoonBit AI 云原生开发者平台——MoonBit 编程语言及工具链，就在这个机遇与挑战并存的时代应运而生。<span><strong>MoonBit 的目标，是重塑软件开发生态。</strong></span></p>
+<p><span><strong>MoonBit 的未来路线</strong></span></p>
+<p>MoonBit AI 云原生开发者平台是一个“道阻且长，行则将至”的系统工程。MoonBit 正在马不停蹄地扩大 MoonBit 的社区力量、培养社区人才。2 年的时间里 ，MoonBit 工具链已有几百名社区贡献者和近万人的全球的用户，<span><strong>增长速度遥遥领先。</strong></span></p>
+<p>目前，MoonBit 已支持 Wasm 与 JS 后端。未来，MoonBit 计划支持 native 后端。这意味着无论是 UI、客户端、边缘计算还是系统编程，用户都能在 MoonBit 平台上找到适合自己的使用场景，<span><strong>从而使生态能够覆盖所有可能的应用场景。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1e392e1013.jpg"></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span>MoonBit beta 预览版比大部分主流语言更早推出现代化泛型、精准错误处理和高效迭代器等重要特性，在云计算、边缘计算、人工智能和教育等领域快速实现落地应用。Beta 预览版标志着 MoonBit 生态进入全新阶段，为用户提供更稳定、流畅的创新操作体验。</span></p>
+<p>MoonBit自去年发布 alpha 版后，反响热烈。经过一年的高速迭代，MoonBit 到达了 beta 预览版的里程碑：在核心语言特性上，MoonBit媲美、甚至超越了大部分主流语言的1.0版本；语言特性的开发稳定，开发者可以更广泛地参与到生态建设中来。这里列举几个 MoonBit 的核心特性：</p>
+<ul>
+<li> <p><span><strong>现代化的泛型系统</strong></span></p> </li>
+</ul>
+<p>现代语言复杂性的很大一部分在于类型系统的设计，很多主流工业语言，<span><strong>比如 Java，Go在 1.0 版本推出很多年以后才会渐渐完善泛型的支持</strong></span>，但是这会对生态造成撕裂。MoonBit 在 beta预览版本已经完成了泛型和 ad-hoc polymoprhism，而且 MoonBit 在保持极快的编译速度的同时，提供了零开销的泛型支持。</p>
+<ul>
+<li> <p><span><strong>准确的错误处理</strong></span></p> </li>
+</ul>
+<p>错误处理是现代语言设计中的重要组成部分，大部分编程语言在静态分析中，彻底放弃错误处理的支持，<span><strong>这意味着任何函数都可以抛出异常，很难写出高可靠性的代码。</strong></span>MoonBit 通过准确的控制流分析，可以完全在编译时期跟踪函数的错误。这一过程几乎完全由编译器自行推导，且不像 Java checked exception 那样过于繁琐，降低用户的心智负担。</p>
+<ul>
+<li> <p><strong>高效的迭代器</strong></p> </li>
+</ul>
+<p>传统的编程语言的迭代器会产生频繁的装箱操作，导致其性能比普通的循环要糟糕很多。MoonBit 创新地使用了零开销的迭代器设计，<span><strong>可以让用户写出优雅代码的同时保持程序的性能。</strong></span></p>
+<p><span><strong>多应用场景</strong></span></p>
+<p>MoonBit 是一个全场景覆盖的开发者平台，紧跟科技前沿和行业趋势，侧重于云计算、边缘计算、人工智能以及教学领域的发展，并在每个领域做到极致，确保在性能上领先其他语言至少一个数量级。</p>
+<p>在云计算领域，MoonBit 近期已支持 Wasm 组件模型，并有海外用户实现了与 Spin 框架集成的 MoonBit SDK。</p>
+<p>通过将应用程序拆分成独立的、可重用的组件，MoonBit 可以在云计算开发中更好地利用模块化开发、灵活的部署和更新、资源优化、防止单点故障提高安全性、易于扩展和集成等特性，实现云计算应用场景中的突出优势，提高系统的灵活性和安全性，简化扩展和集成过程，<span><strong>从而显著提高云计算开发效率并降低运营成本。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-862e75c295.jpg"></p>
+<p>在边缘计算领域，目前已有 MoonBit PDK 插件，<span>并被 Extism 收入官方 PDK 库。</span></p>
+<p>通过 PDK 的支持，MoonBit 能够在边缘计算应用中更高效地利用硬件资源，实现分布式计算和本地处理，<span><strong>提</strong><strong>升性能和响应速度，同时确保设备兼容性和数据安全性</strong>，</span>从而大大提升开发和部署效率，满足低延迟和高效能的需求。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a782ff838.jpg"></p>
+<p>在 MoonBit 的应用生态发展中，<span><strong>注重为学生群体以及编程语言初学者提供简单易学的入门环境</strong></span>，并以游戏的形式打造轻松愉悦的学习体验。</p>
+<p>MoonBit 现已支持使用 WebAssembly 开发小型复古游戏的 WASM-4 框架。凭借 MoonBit 的高效工具链和简洁设计，<span><strong>入门级开发者可以在官方教程的指导下轻松创作属于自己的第一款游戏</strong>。</span></p>
+<p>同时，框架内置的多玩家支持功能能够让至多四名玩家共同体验游戏的乐趣。无论是创作过程还是开发体验，MoonBit 都能让初学者体验前所未有的简单与高效。</p>
+<p>不仅如此，<span><strong>由于 MoonBit 支持实时可视化开发，同时编译速度极快，</strong></span>开发者还能够实时更改代码来灵活调整游戏参数。</p>
+<p>MoonBit 团队正在开发 MiniMoonBit 编译器教学项目。学生可以用 MoonBit 实现 MoonBit 语言的一个子集。由于 MoonBit 强大的表达力，相较传统的用 C/C++ 实现的编译器项目，学生可以更轻松地上手实现。</p>
+<p>同时，MiniMoonBit 项目采用了模块化的设计，多层 IR 都有对应的 JSON 文本表示，<span><strong>学生不再需要从头实现编译器的每个环节，而是可以选择感兴趣的模块来学习。</strong></span></p>
+<p><span><strong>快、小、安全、</strong></span></p>
+<p><span><strong>最佳数据处理体验</strong></span></p>
+<p>MoonBit 于 2022 年启动开发计划，凭借团队在 ReScript、OCaml、Flow 等工业编程语言研发中的十多年经验，迅速在两年内完成了整套工具链的开发，致力于成为第一个走向国际的中国编程语言。</p>
+<p>2023 年 8 月 18 日，MoonBit 首次在海外发布后，迅速引起了国际技术社区的广泛关注，<span><strong>并登上了 HackerNews 的头条</strong></span><span>。</span>HackerNews 作为硅谷最具影响力的科技社区之一，对 MoonBit 的每一次重大特性更新都给予了高度关注。</p>
+<p>此外，MoonBit 还在全球 DevOps 领域权威媒体平台 The News Stack、日本顶尖科技社区 Zenn 等知科技媒体上频频出现，进一步巩固了其全球影响力。</p>
+<p>同时，<span><strong>MoonBit 在工业应用方面进展迅速</strong>，</span>包括多家海外创业公司的应用、在国内拥有数据库领域的商业合作伙伴等。这一过程中，MoonBit 一直致力于发挥其在语言速度、代码精简和数据处理等方面的卓越优势。</p>
+<p>MoonBit 致力于实现全栈性能的卓越表现，<span>包括编译性能和运行时性能。</span></p>
+<p>通过专为多级中间表示（IR）定制的全局优化，不仅改善了内存布局，减少了缓存未命中率，还为数据和控制流分析提供了一个优越的环境，从而确保了编译和运行时的高性能。<span><span>从编译速度来看，MoonBit 编译 626 个包（package）只需 1.06 秒</span></span><span><span>，</span></span><span><strong><span>比 Rust 快了近 9 倍，运行时间仅为Go的 35分之一。</span></strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cd8b5fb5f.jpg"></p>
+<p><span><strong>小</strong></span></p>
+<p><span><strong>MoonBit 在输出 Wasm 代码体积上相较于传统语言有显著优势</strong>。</span>MoonBit 通过 WebAssembly（Wasm）组件模型，在生成代码时实现了显著的体积优化。相比其他编程语言，MoonBit 编写的 Wasm 组件代码体积大幅减少。</p>
+<p>例如，在编译一个简单的“Hello World” HTTP 服务器时，MoonBit 的输出文件大小仅为 27KB，而 WasmCloud 提供的 http-hello-world 模板中 Rust 的输出为 100KB，TypeScript 为 8.7MB，Python 更是高达 17MB。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-68a4bb1887.jpg">借助前文提到的创新错误处理机制，MoonBit 有效解决了传统编译技术在错误处理机制转换中遇到的适用范围有限和内存开销大的问题。通过静态分析源程序中的错误处理代码，并根据目标编程语言的特性进行转换，<span><strong>MoonBit 扩大了适用语言范围，减少了内存开销，同时提升了代码的安全性和稳定性。</strong></span></p>
+<p>健壮的类型系统是 MoonBit 保障其安全的重要设计之一。MoonBit 采用了强大的类型系统，并内置静态检测工具，在编译期检查类型错误，从而提高代码的正确性和可靠性。</p>
+<p><span><strong><span>MoonBit 的安全保障得益于其对 WebAssembly 的原生支持</span></strong></span><span>，这一特性使得 MoonBit 能够深度挖掘 Wasm 在沙箱环境、内存隔离以及默认的无权限机制（deny-by-default）等方面的安全架构优势。通过这些先进的安全特性，<span>释放其在云计算和边缘计算安全问题上的潜力。<span>同时结合语言自身类型系统安全，删减无用代码（DCE）、编译为经过验证的 Wasm 指令等三层保障，确保代码可信与数据隐私安全。</span></span></span></p>
+<p>MoonBit 作为一门多范式编程语言，在保持语言简单性的同时，也侧重于提供数据处理的最佳体验。MoonBit 通过原生支持 JSON 处理、Iter 类型和模式匹配实现高效数据处理，在语法设计上兼具动态语言的灵活性和静态语言的安全高效，<span><strong>直观而简洁地进行对数据的解析和转换</strong>。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b2559ab289.jpg"></p>
+<p><em>JSON处理</em></p>
+<p>MoonBit 在数据处理上的语法设计旨在优化常见的数据处理场景，解决传统方法中由于生成多个中间数组而导致的性能问题。<span><strong>在 Iter 性能对比中，MoonBit 的数据处理速度达到了 JavaScript 的 25 倍之多。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26de1cfb3f.jpg"></p>
+<p><strong><span>一站式解决方案</span></strong></p>
+<p>相较于传统的编程语言设计路线，MoonBit 从一开始就提供全套开发、调试、部署的一站式解决方案。MoonBit 不仅提供多后端支持、通用程序语言设计，还涵盖了编译器、构建系统、集成开发环境（IDE）、调试器，部署工具等。</p>
+<p>这个全面的设计使得 MoonBit 能够实现高度垂直整合，<span><strong>而且</strong><strong>可以同时在云端和边缘端执行，更好地与各种资源进行交互</strong>，</span>从而为用户提供极致的开发体验和性能。</p>
+<p><span>与其他云 IDE 不同，</span>MoonBit 对 IDE 的支持不仅包含了现代 IDE 的所有功能，<span>且MoonBit 无需依赖容器。快速语义分析技术可处理大量的代码库，</span><span><strong>并且在更大规模的代码库中也能在百毫秒级别完成 IDE 响应</strong>。</span></p>
+<p>现今大多数编程语言的 IDE 是为桌面操作系统设计的，未能很好地适应云原生环境和边缘端的需求。MoonBit 则通过采用高度并行化的架构和对分离编译的原生支持，使得云IDE 可以直接在边缘端运行。<span><strong>这在现今大多数语言的云 IDE 中是首次。</strong></span></p>
+<p>除了传统 IDE 的功能以外，<span><strong>MoonBit AI 助手现已内置于 MoonBit IDE</strong></span>，并实现了自动化测试生成、文档生成，以及代码解释功能，为应用的开发、测试和文档编写提供了全方位的支持，<span><strong>使得开发者能够更加专注于业务逻辑的实现</strong></span>，而不必担心底层的复杂性和维护工作。</p>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+MoonBit 在初始阶段已经提供其他语言通常在成熟阶段才拥有的调试工具。MoonBit 目前已提供 sourcemap 支持，支持源码映射、基于源码设置断点、输出 sourcemap 等，可以在浏览器中进行源码调试。
+<span><strong>这项功能的推出不仅减轻了开发者在代码调试方面的负担，还显著提升了开发和调试的流畅性。</strong></span>
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>对于 JavaScript 后端，用户仅需在 JavaScript Debug Terminal 上执行 moon run --target js --debug，即可立刻进入调试。MoonBit的sourcemap和调试支持显著优化开发者的调试体验，确保 JavaScript 代码的生成尽可能贴近源码，变量名和字段名保持一致，便于使用浏览器的 DevTools 进行源码检查和调试。</p>
+<p>MoonBit 作为一门从 0 到 1 的编程语言，对于生态建设尤为重视，其中一个关键在于构建高效且功能丰富的包管理系统。我们搭建了一个中心化的 MoonBit 包管理平台 mooncakes.io，<span><strong>提升包的获取速度和编译效率，从而为开发者提供一个高效的工作环境。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-781d41a547.png"></p>
+<p>此外，我们注重文档的管理和维护。为了让第三方包更加易于开发者理解和使用，我们提供了文档生成工具 moondoc，并在 mooncakes.io 集成了每个包的文档，以帮助开发者编写和分发包的文档、帮助包的使用者创造高质量的应用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5719f494fa.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4d22594d0d.png"></p>
+<p><span><strong>AI时代下的编程语言</strong></span></p>
+<p><span><strong>这个世界是否还需要一门新的编程语言？答案是，是。</strong></span></p>
+<p>编程语言的发展经历了60年代时，结构化编程的兴起。到70年代，则是面向对象编程与C语言。90年代，是脚本语言与互联网 。而00年代，是语言的统一与多样性。到了10年代，是现代语言与大数据。编程语言在不断进步，同时也有大量的编程语言渐渐销声匿迹。</p>
+<p>大模型时代浩浩荡荡的浪潮卷席了万事万物。编程语言作为计算机核心组件、<span><strong>且是软件开发者创造技术世界最重要的工具</strong></span>，自然被顶上风口浪尖。整个技术行业都对编程语言提出了更高的要求。</p>
+<p><span>在大模型时代，工具重塑了开发者的工作方式，</span><span><strong>同时也降低了学习新语言的门槛。</strong></span>开发者将更专注于创意和设计，代码的实现和优化则由编程工具完成。这一转变推动编程工具从简单的代码生成器进化为复杂问题解决平台。</p>
+<p>MoonBit AI 云原生开发者平台——MoonBit 编程语言及工具链，就在这个机遇与挑战并存的时代应运而生。<span><strong>MoonBit 的目标，是重塑软件开发生态。</strong></span></p>
+<p><span><strong>MoonBit 的未来路线</strong></span></p>
+<p>MoonBit AI 云原生开发者平台是一个“道阻且长，行则将至”的系统工程。MoonBit 正在马不停蹄地扩大 MoonBit 的社区力量、培养社区人才。2 年的时间里 ，MoonBit 工具链已有几百名社区贡献者和近万人的全球的用户，<span><strong>增长速度遥遥领先。</strong></span></p>
+<p>目前，MoonBit 已支持 Wasm 与 JS 后端。未来，MoonBit 计划支持 native 后端。这意味着无论是 UI、客户端、边缘计算还是系统编程，用户都能在 MoonBit 平台上找到适合自己的使用场景，<span><strong>从而使生态能够覆盖所有可能的应用场景。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1e392e1013.jpg"></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span>MoonBit beta 预览版比大部分主流语言更早推出现代化泛型、精准错误处理和高效迭代器等重要特性，在云计算、边缘计算、人工智能和教育等领域快速实现落地应用。Beta 预览版标志着 MoonBit 生态进入全新阶段，为用户提供更稳定、流畅的创新操作体验。</span></p>
+<p>MoonBit自去年发布 alpha 版后，反响热烈。经过一年的高速迭代，MoonBit 到达了 beta 预览版的里程碑：在核心语言特性上，MoonBit媲美、甚至超越了大部分主流语言的1.0版本；语言特性的开发稳定，开发者可以更广泛地参与到生态建设中来。这里列举几个 MoonBit 的核心特性：</p>
+<ul>
+<li> <p><span><strong>现代化的泛型系统</strong></span></p> </li>
+</ul>
+<p>现代语言复杂性的很大一部分在于类型系统的设计，很多主流工业语言，<span><strong>比如 Java，Go在 1.0 版本推出很多年以后才会渐渐完善泛型的支持</strong></span>，但是这会对生态造成撕裂。MoonBit 在 beta预览版本已经完成了泛型和 ad-hoc polymoprhism，而且 MoonBit 在保持极快的编译速度的同时，提供了零开销的泛型支持。</p>
+<ul>
+<li> <p><span><strong>准确的错误处理</strong></span></p> </li>
+</ul>
+<p>错误处理是现代语言设计中的重要组成部分，大部分编程语言在静态分析中，彻底放弃错误处理的支持，<span><strong>这意味着任何函数都可以抛出异常，很难写出高可靠性的代码。</strong></span>MoonBit 通过准确的控制流分析，可以完全在编译时期跟踪函数的错误。这一过程几乎完全由编译器自行推导，且不像 Java checked exception 那样过于繁琐，降低用户的心智负担。</p>
+<ul>
+<li> <p><strong>高效的迭代器</strong></p> </li>
+</ul>
+<p>传统的编程语言的迭代器会产生频繁的装箱操作，导致其性能比普通的循环要糟糕很多。MoonBit 创新地使用了零开销的迭代器设计，<span><strong>可以让用户写出优雅代码的同时保持程序的性能。</strong></span></p>
+<p><span><strong>多应用场景</strong></span></p>
+<p>MoonBit 是一个全场景覆盖的开发者平台，紧跟科技前沿和行业趋势，侧重于云计算、边缘计算、人工智能以及教学领域的发展，并在每个领域做到极致，确保在性能上领先其他语言至少一个数量级。</p>
+<p>在云计算领域，MoonBit 近期已支持 Wasm 组件模型，并有海外用户实现了与 Spin 框架集成的 MoonBit SDK。</p>
+<p>通过将应用程序拆分成独立的、可重用的组件，MoonBit 可以在云计算开发中更好地利用模块化开发、灵活的部署和更新、资源优化、防止单点故障提高安全性、易于扩展和集成等特性，实现云计算应用场景中的突出优势，提高系统的灵活性和安全性，简化扩展和集成过程，<span><strong>从而显著提高云计算开发效率并降低运营成本。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-862e75c295.jpg"></p>
+<p>在边缘计算领域，目前已有 MoonBit PDK 插件，<span>并被 Extism 收入官方 PDK 库。</span></p>
+<p>通过 PDK 的支持，MoonBit 能够在边缘计算应用中更高效地利用硬件资源，实现分布式计算和本地处理，<span><strong>提</strong><strong>升性能和响应速度，同时确保设备兼容性和数据安全性</strong>，</span>从而大大提升开发和部署效率，满足低延迟和高效能的需求。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8a782ff838.jpg"></p>
+<p>在 MoonBit 的应用生态发展中，<span><strong>注重为学生群体以及编程语言初学者提供简单易学的入门环境</strong></span>，并以游戏的形式打造轻松愉悦的学习体验。</p>
+<p>MoonBit 现已支持使用 WebAssembly 开发小型复古游戏的 WASM-4 框架。凭借 MoonBit 的高效工具链和简洁设计，<span><strong>入门级开发者可以在官方教程的指导下轻松创作属于自己的第一款游戏</strong>。</span></p>
+<p>同时，框架内置的多玩家支持功能能够让至多四名玩家共同体验游戏的乐趣。无论是创作过程还是开发体验，MoonBit 都能让初学者体验前所未有的简单与高效。</p>
+<p>不仅如此，<span><strong>由于 MoonBit 支持实时可视化开发，同时编译速度极快，</strong></span>开发者还能够实时更改代码来灵活调整游戏参数。</p>
+<p>MoonBit 团队正在开发 MiniMoonBit 编译器教学项目。学生可以用 MoonBit 实现 MoonBit 语言的一个子集。由于 MoonBit 强大的表达力，相较传统的用 C/C++ 实现的编译器项目，学生可以更轻松地上手实现。</p>
+<p>同时，MiniMoonBit 项目采用了模块化的设计，多层 IR 都有对应的 JSON 文本表示，<span><strong>学生不再需要从头实现编译器的每个环节，而是可以选择感兴趣的模块来学习。</strong></span></p>
+<p><span><strong>快、小、安全、</strong></span></p>
+<p><span><strong>最佳数据处理体验</strong></span></p>
+<p>MoonBit 于 2022 年启动开发计划，凭借团队在 ReScript、OCaml、Flow 等工业编程语言研发中的十多年经验，迅速在两年内完成了整套工具链的开发，致力于成为第一个走向国际的中国编程语言。</p>
+<p>2023 年 8 月 18 日，MoonBit 首次在海外发布后，迅速引起了国际技术社区的广泛关注，<span><strong>并登上了 HackerNews 的头条</strong></span><span>。</span>HackerNews 作为硅谷最具影响力的科技社区之一，对 MoonBit 的每一次重大特性更新都给予了高度关注。</p>
+<p>此外，MoonBit 还在全球 DevOps 领域权威媒体平台 The News Stack、日本顶尖科技社区 Zenn 等知科技媒体上频频出现，进一步巩固了其全球影响力。</p>
+<p>同时，<span><strong>MoonBit 在工业应用方面进展迅速</strong>，</span>包括多家海外创业公司的应用、在国内拥有数据库领域的商业合作伙伴等。这一过程中，MoonBit 一直致力于发挥其在语言速度、代码精简和数据处理等方面的卓越优势。</p>
+<p>MoonBit 致力于实现全栈性能的卓越表现，<span>包括编译性能和运行时性能。</span></p>
+<p>通过专为多级中间表示（IR）定制的全局优化，不仅改善了内存布局，减少了缓存未命中率，还为数据和控制流分析提供了一个优越的环境，从而确保了编译和运行时的高性能。<span><span>从编译速度来看，MoonBit 编译 626 个包（package）只需 1.06 秒</span></span><span><span>，</span></span><span><strong><span>比 Rust 快了近 9 倍，运行时间仅为Go的 35分之一。</span></strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2cd8b5fb5f.jpg"></p>
+<p><span><strong>小</strong></span></p>
+<p><span><strong>MoonBit 在输出 Wasm 代码体积上相较于传统语言有显著优势</strong>。</span>MoonBit 通过 WebAssembly（Wasm）组件模型，在生成代码时实现了显著的体积优化。相比其他编程语言，MoonBit 编写的 Wasm 组件代码体积大幅减少。</p>
+<p>例如，在编译一个简单的“Hello World” HTTP 服务器时，MoonBit 的输出文件大小仅为 27KB，而 WasmCloud 提供的 http-hello-world 模板中 Rust 的输出为 100KB，TypeScript 为 8.7MB，Python 更是高达 17MB。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-68a4bb1887.jpg">借助前文提到的创新错误处理机制，MoonBit 有效解决了传统编译技术在错误处理机制转换中遇到的适用范围有限和内存开销大的问题。通过静态分析源程序中的错误处理代码，并根据目标编程语言的特性进行转换，<span><strong>MoonBit 扩大了适用语言范围，减少了内存开销，同时提升了代码的安全性和稳定性。</strong></span></p>
+<p>健壮的类型系统是 MoonBit 保障其安全的重要设计之一。MoonBit 采用了强大的类型系统，并内置静态检测工具，在编译期检查类型错误，从而提高代码的正确性和可靠性。</p>
+<p><span><strong><span>MoonBit 的安全保障得益于其对 WebAssembly 的原生支持</span></strong></span><span>，这一特性使得 MoonBit 能够深度挖掘 Wasm 在沙箱环境、内存隔离以及默认的无权限机制（deny-by-default）等方面的安全架构优势。通过这些先进的安全特性，<span>释放其在云计算和边缘计算安全问题上的潜力。<span>同时结合语言自身类型系统安全，删减无用代码（DCE）、编译为经过验证的 Wasm 指令等三层保障，确保代码可信与数据隐私安全。</span></span></span></p>
+<p>MoonBit 作为一门多范式编程语言，在保持语言简单性的同时，也侧重于提供数据处理的最佳体验。MoonBit 通过原生支持 JSON 处理、Iter 类型和模式匹配实现高效数据处理，在语法设计上兼具动态语言的灵活性和静态语言的安全高效，<span><strong>直观而简洁地进行对数据的解析和转换</strong>。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b2559ab289.jpg"></p>
+<p><em>JSON处理</em></p>
+<p>MoonBit 在数据处理上的语法设计旨在优化常见的数据处理场景，解决传统方法中由于生成多个中间数组而导致的性能问题。<span><strong>在 Iter 性能对比中，MoonBit 的数据处理速度达到了 JavaScript 的 25 倍之多。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-26de1cfb3f.jpg"></p>
+<p><strong><span>一站式解决方案</span></strong></p>
+<p>相较于传统的编程语言设计路线，MoonBit 从一开始就提供全套开发、调试、部署的一站式解决方案。MoonBit 不仅提供多后端支持、通用程序语言设计，还涵盖了编译器、构建系统、集成开发环境（IDE）、调试器，部署工具等。</p>
+<p>这个全面的设计使得 MoonBit 能够实现高度垂直整合，<span><strong>而且</strong><strong>可以同时在云端和边缘端执行，更好地与各种资源进行交互</strong>，</span>从而为用户提供极致的开发体验和性能。</p>
+<p><span>与其他云 IDE 不同，</span>MoonBit 对 IDE 的支持不仅包含了现代 IDE 的所有功能，<span>且MoonBit 无需依赖容器。快速语义分析技术可处理大量的代码库，</span><span><strong>并且在更大规模的代码库中也能在百毫秒级别完成 IDE 响应</strong>。</span></p>
+<p>现今大多数编程语言的 IDE 是为桌面操作系统设计的，未能很好地适应云原生环境和边缘端的需求。MoonBit 则通过采用高度并行化的架构和对分离编译的原生支持，使得云IDE 可以直接在边缘端运行。<span><strong>这在现今大多数语言的云 IDE 中是首次。</strong></span></p>
+<p>除了传统 IDE 的功能以外，<span><strong>MoonBit AI 助手现已内置于 MoonBit IDE</strong></span>，并实现了自动化测试生成、文档生成，以及代码解释功能，为应用的开发、测试和文档编写提供了全方位的支持，<span><strong>使得开发者能够更加专注于业务逻辑的实现</strong></span>，而不必担心底层的复杂性和维护工作。</p>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+MoonBit 在初始阶段已经提供其他语言通常在成熟阶段才拥有的调试工具。MoonBit 目前已提供 sourcemap 支持，支持源码映射、基于源码设置断点、输出 sourcemap 等，可以在浏览器中进行源码调试。
+<span><strong>这项功能的推出不仅减轻了开发者在代码调试方面的负担，还显著提升了开发和调试的流畅性。</strong></span>
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>对于 JavaScript 后端，用户仅需在 JavaScript Debug Terminal 上执行 moon run --target js --debug，即可立刻进入调试。MoonBit的sourcemap和调试支持显著优化开发者的调试体验，确保 JavaScript 代码的生成尽可能贴近源码，变量名和字段名保持一致，便于使用浏览器的 DevTools 进行源码检查和调试。</p>
+<p>MoonBit 作为一门从 0 到 1 的编程语言，对于生态建设尤为重视，其中一个关键在于构建高效且功能丰富的包管理系统。我们搭建了一个中心化的 MoonBit 包管理平台 mooncakes.io，<span><strong>提升包的获取速度和编译效率，从而为开发者提供一个高效的工作环境。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-781d41a547.png"></p>
+<p>此外，我们注重文档的管理和维护。为了让第三方包更加易于开发者理解和使用，我们提供了文档生成工具 moondoc，并在 mooncakes.io 集成了每个包的文档，以帮助开发者编写和分发包的文档、帮助包的使用者创造高质量的应用。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5719f494fa.png"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4d22594d0d.png"></p>
+<p><span><strong>AI时代下的编程语言</strong></span></p>
+<p><span><strong>这个世界是否还需要一门新的编程语言？答案是，是。</strong></span></p>
+<p>编程语言的发展经历了60年代时，结构化编程的兴起。到70年代，则是面向对象编程与C语言。90年代，是脚本语言与互联网 。而00年代，是语言的统一与多样性。到了10年代，是现代语言与大数据。编程语言在不断进步，同时也有大量的编程语言渐渐销声匿迹。</p>
+<p>大模型时代浩浩荡荡的浪潮卷席了万事万物。编程语言作为计算机核心组件、<span><strong>且是软件开发者创造技术世界最重要的工具</strong></span>，自然被顶上风口浪尖。整个技术行业都对编程语言提出了更高的要求。</p>
+<p><span>在大模型时代，工具重塑了开发者的工作方式，</span><span><strong>同时也降低了学习新语言的门槛。</strong></span>开发者将更专注于创意和设计，代码的实现和优化则由编程工具完成。这一转变推动编程工具从简单的代码生成器进化为复杂问题解决平台。</p>
+<p>MoonBit AI 云原生开发者平台——MoonBit 编程语言及工具链，就在这个机遇与挑战并存的时代应运而生。<span><strong>MoonBit 的目标，是重塑软件开发生态。</strong></span></p>
+<p><span><strong>MoonBit 的未来路线</strong></span></p>
+<p>MoonBit AI 云原生开发者平台是一个“道阻且长，行则将至”的系统工程。MoonBit 正在马不停蹄地扩大 MoonBit 的社区力量、培养社区人才。2 年的时间里 ，MoonBit 工具链已有几百名社区贡献者和近万人的全球的用户，<span><strong>增长速度遥遥领先。</strong></span></p>
+<p>目前，MoonBit 已支持 Wasm 与 JS 后端。未来，MoonBit 计划支持 native 后端。这意味着无论是 UI、客户端、边缘计算还是系统编程，用户都能在 MoonBit 平台上找到适合自己的使用场景，<span><strong>从而使生态能够覆盖所有可能的应用场景。</strong></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1e392e1013.jpg"></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-862e75c295.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-862e75c295.jpg" medium="image"/>
+    <pubDate>Mon, 19 Aug 2024 10:37:41 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[GOGC 2024 | openKylin 首个园区站—浦东软件园站正式发布]]></title>
+    <link>https://www.oschina.net/news/307711</link>
+    <itunes:title><![CDATA[GOGC 2024 | openKylin 首个园区站—浦东软件园站正式发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span><span>8月15日至16日，由</span><span>开源中国</span><span><span>与上海浦东软件园联合举办的2024全球开源极客嘉年华GOGCxGOTC全球开源技术峰会于上海张江</span><span>科学会堂</span><span>举行。openKylin作为中国领先的开源操作系统根社区，受邀参加此次大会高峰论坛，并携openKylin 2.0亮相活动展区，同来自世界各地的顶尖开发者、开源爱好者、企业家和技术领袖，共同探讨开源技术的最新进展及其对未来的影响。</span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-27a598238d.jpg"></p>
+<p><span><strong><span>高峰论坛：openKylin全球首个园区站正式发布</span></strong></span></p>
+<p><span><span>大会高峰论坛环节，</span><strong><span>openKylin社区生态合作负责人马发俊</span></strong><span>带来</span><strong><span>《openKylin园区运营战略发布》</span></strong><span>主题分享，向大家展示openKylin园区站运营发展新蓝图。同时，在所有嘉宾的共同见证下，</span><strong><span>openKylin全球首个园区站-浦东软件园站正式发布</span></strong><span>，由openKylin社区生态合作负责人马发俊、上海浦东软件园股份有限公司总经理助理/董事会秘书郑赟、广东赛昉科技有限公司 软件副总裁赵向伟、飞腾信息技术有限公司上海行业拓展总监王婷共同上台揭幕。</span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf3ebc3b7c.jpg"></p>
+<p><span>openKylin园区站运营策略，旨在推进开源生态体系建设，以开源之力赋能产业园区价值重塑。此次浦东软件园站的发布不仅是对openKylin社区生态发展战略的深入实践，更是对技术创新与产业合作深度融合的积极探索。未来，openKylin将在更加广阔的舞台上，携手合作伙伴共绘生态发展新篇章。</span></p>
+<p><span><strong><span>展区互动：openKylin 2.0版本惊艳亮相</span></strong></span></p>
+<p><span>大会展区同样热闹非凡，openKylin携最新操作系统2.0版本亮相大会展区，吸引了众多对开源技术满怀热情的开发者、社区成员，以及来自各开源项目应用场景的产业精英与跨界才俊驻足交流。通过现场演示与互动，展示开源技术的独特魅力，激发了创新活力，共同见证开源技术的蓬勃生机。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-666e68446e.jpg"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-98603bb9e5.jpg"></p>
+<p><span>为期两天的盛会，不仅是一场技术的盛宴，更是一次思想的深刻碰撞。openKylin以开放、包容、创新的姿态，向世界展示了中国开源力量的崛起与担当。展望未来，openKylin将继续携手全球合作伙伴，共同推动开源技术的普及与发展，为构建一个更加开放、协同、创新的数字世界贡献自己的力量，让开源精神的光芒照亮前行的道路。</span></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span><span>8月15日至16日，由</span><span>开源中国</span><span><span>与上海浦东软件园联合举办的2024全球开源极客嘉年华GOGCxGOTC全球开源技术峰会于上海张江</span><span>科学会堂</span><span>举行。openKylin作为中国领先的开源操作系统根社区，受邀参加此次大会高峰论坛，并携openKylin 2.0亮相活动展区，同来自世界各地的顶尖开发者、开源爱好者、企业家和技术领袖，共同探讨开源技术的最新进展及其对未来的影响。</span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-27a598238d.jpg"></p>
+<p><span><strong><span>高峰论坛：openKylin全球首个园区站正式发布</span></strong></span></p>
+<p><span><span>大会高峰论坛环节，</span><strong><span>openKylin社区生态合作负责人马发俊</span></strong><span>带来</span><strong><span>《openKylin园区运营战略发布》</span></strong><span>主题分享，向大家展示openKylin园区站运营发展新蓝图。同时，在所有嘉宾的共同见证下，</span><strong><span>openKylin全球首个园区站-浦东软件园站正式发布</span></strong><span>，由openKylin社区生态合作负责人马发俊、上海浦东软件园股份有限公司总经理助理/董事会秘书郑赟、广东赛昉科技有限公司 软件副总裁赵向伟、飞腾信息技术有限公司上海行业拓展总监王婷共同上台揭幕。</span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf3ebc3b7c.jpg"></p>
+<p><span>openKylin园区站运营策略，旨在推进开源生态体系建设，以开源之力赋能产业园区价值重塑。此次浦东软件园站的发布不仅是对openKylin社区生态发展战略的深入实践，更是对技术创新与产业合作深度融合的积极探索。未来，openKylin将在更加广阔的舞台上，携手合作伙伴共绘生态发展新篇章。</span></p>
+<p><span><strong><span>展区互动：openKylin 2.0版本惊艳亮相</span></strong></span></p>
+<p><span>大会展区同样热闹非凡，openKylin携最新操作系统2.0版本亮相大会展区，吸引了众多对开源技术满怀热情的开发者、社区成员，以及来自各开源项目应用场景的产业精英与跨界才俊驻足交流。通过现场演示与互动，展示开源技术的独特魅力，激发了创新活力，共同见证开源技术的蓬勃生机。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-666e68446e.jpg"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-98603bb9e5.jpg"></p>
+<p><span>为期两天的盛会，不仅是一场技术的盛宴，更是一次思想的深刻碰撞。openKylin以开放、包容、创新的姿态，向世界展示了中国开源力量的崛起与担当。展望未来，openKylin将继续携手全球合作伙伴，共同推动开源技术的普及与发展，为构建一个更加开放、协同、创新的数字世界贡献自己的力量，让开源精神的光芒照亮前行的道路。</span></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span><span>8月15日至16日，由</span><span>开源中国</span><span><span>与上海浦东软件园联合举办的2024全球开源极客嘉年华GOGCxGOTC全球开源技术峰会于上海张江</span><span>科学会堂</span><span>举行。openKylin作为中国领先的开源操作系统根社区，受邀参加此次大会高峰论坛，并携openKylin 2.0亮相活动展区，同来自世界各地的顶尖开发者、开源爱好者、企业家和技术领袖，共同探讨开源技术的最新进展及其对未来的影响。</span></span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-27a598238d.jpg"></p>
+<p><span><strong><span>高峰论坛：openKylin全球首个园区站正式发布</span></strong></span></p>
+<p><span><span>大会高峰论坛环节，</span><strong><span>openKylin社区生态合作负责人马发俊</span></strong><span>带来</span><strong><span>《openKylin园区运营战略发布》</span></strong><span>主题分享，向大家展示openKylin园区站运营发展新蓝图。同时，在所有嘉宾的共同见证下，</span><strong><span>openKylin全球首个园区站-浦东软件园站正式发布</span></strong><span>，由openKylin社区生态合作负责人马发俊、上海浦东软件园股份有限公司总经理助理/董事会秘书郑赟、广东赛昉科技有限公司 软件副总裁赵向伟、飞腾信息技术有限公司上海行业拓展总监王婷共同上台揭幕。</span></span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cf3ebc3b7c.jpg"></p>
+<p><span>openKylin园区站运营策略，旨在推进开源生态体系建设，以开源之力赋能产业园区价值重塑。此次浦东软件园站的发布不仅是对openKylin社区生态发展战略的深入实践，更是对技术创新与产业合作深度融合的积极探索。未来，openKylin将在更加广阔的舞台上，携手合作伙伴共绘生态发展新篇章。</span></p>
+<p><span><strong><span>展区互动：openKylin 2.0版本惊艳亮相</span></strong></span></p>
+<p><span>大会展区同样热闹非凡，openKylin携最新操作系统2.0版本亮相大会展区，吸引了众多对开源技术满怀热情的开发者、社区成员，以及来自各开源项目应用场景的产业精英与跨界才俊驻足交流。通过现场演示与互动，展示开源技术的独特魅力，激发了创新活力，共同见证开源技术的蓬勃生机。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-666e68446e.jpg"></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-98603bb9e5.jpg"></p>
+<p><span>为期两天的盛会，不仅是一场技术的盛宴，更是一次思想的深刻碰撞。openKylin以开放、包容、创新的姿态，向世界展示了中国开源力量的崛起与担当。展望未来，openKylin将继续携手全球合作伙伴，共同推动开源技术的普及与发展，为构建一个更加开放、协同、创新的数字世界贡献自己的力量，让开源精神的光芒照亮前行的道路。</span></p>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-27a598238d.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-27a598238d.jpg" medium="image"/>
+    <pubDate>Mon, 19 Aug 2024 09:40:09 +0800</pubDate>
+  </item><item>
     <title><![CDATA[RISC-V 初创公司 Akeana 获 1 亿美元融资]]></title>
     <link>https://www.oschina.net/news/307613/risc-v-akeana-100m-funding</link>
     <itunes:title><![CDATA[RISC-V 初创公司 Akeana 获 1 亿美元融资]]></itunes:title>
@@ -10850,409 +11974,5 @@ curl --location "${yourUrl}/v1/chat/completions" \
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-554dd6d131.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-554dd6d131.png" medium="image"/>
     <pubDate>Tue, 13 Aug 2024 14:00:24 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[阿里通义开源音频语言模型 Qwen2-Audio]]></title>
-    <link>https://www.oschina.net/news/306796/qwen2-audio</link>
-    <itunes:title><![CDATA[阿里通义开源音频语言模型 Qwen2-Audio]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>通义千问团队开源音频语言模型 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fqwenlm.github.io%2Fzh%2Fblog%2Fqwen2-audio%2F" target="_blank">Qwen2-Audio</a>。这是 Qwen-Audio 的下一代版本，它能够接受音频和文本输入，并生成文本输出。具有以下特点：</span></p>
-<ul>
-<li><span>语音聊天：用户可以使用语音向音频语言模型发出指令，无需通过自动语音识别（ASR）模块。</span></li>
-<li><span>音频分析：该模型能够根据文本指令分析音频信息，包括语音、声音、音乐等。</span></li>
-<li><span>多语言支持：该模型支持超过8种语言和方言，例如中文、英语、粤语、法语、意大利语、西班牙语、德语和日语。</span></li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4fc6047a28.png"></p>
-<p><span>Qwen2-Audio的模型结构包含一个Qwen大语言模型和一个音频编码器。在预训练阶段，依次进行ASR、AAC等多任务预训练以实现音频与语言的对齐，接着通过SFT（监督微调） 强化模型处理下游任务的能力，再通过 DPO（直接偏好优化）方法加强模型与人类偏好的对齐。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b553dd2f2a.webp"></span></p>
-<p><span>目前通义团队同步开源了基础模型 Qwen2-Audio-7B 及其指令跟随版本 Qwen2-Audio-7B-Instruct。</span></p>
-<ul>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B</a></li>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B-Instruct" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B-Instruct</a></li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>通义千问团队开源音频语言模型 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fqwenlm.github.io%2Fzh%2Fblog%2Fqwen2-audio%2F" target="_blank">Qwen2-Audio</a>。这是 Qwen-Audio 的下一代版本，它能够接受音频和文本输入，并生成文本输出。具有以下特点：</span></p>
-<ul>
-<li><span>语音聊天：用户可以使用语音向音频语言模型发出指令，无需通过自动语音识别（ASR）模块。</span></li>
-<li><span>音频分析：该模型能够根据文本指令分析音频信息，包括语音、声音、音乐等。</span></li>
-<li><span>多语言支持：该模型支持超过8种语言和方言，例如中文、英语、粤语、法语、意大利语、西班牙语、德语和日语。</span></li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4fc6047a28.png"></p>
-<p><span>Qwen2-Audio的模型结构包含一个Qwen大语言模型和一个音频编码器。在预训练阶段，依次进行ASR、AAC等多任务预训练以实现音频与语言的对齐，接着通过SFT（监督微调） 强化模型处理下游任务的能力，再通过 DPO（直接偏好优化）方法加强模型与人类偏好的对齐。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b553dd2f2a.webp"></span></p>
-<p><span>目前通义团队同步开源了基础模型 Qwen2-Audio-7B 及其指令跟随版本 Qwen2-Audio-7B-Instruct。</span></p>
-<ul>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B</a></li>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B-Instruct" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B-Instruct</a></li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>通义千问团队开源音频语言模型 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fqwenlm.github.io%2Fzh%2Fblog%2Fqwen2-audio%2F" target="_blank">Qwen2-Audio</a>。这是 Qwen-Audio 的下一代版本，它能够接受音频和文本输入，并生成文本输出。具有以下特点：</span></p>
-<ul>
-<li><span>语音聊天：用户可以使用语音向音频语言模型发出指令，无需通过自动语音识别（ASR）模块。</span></li>
-<li><span>音频分析：该模型能够根据文本指令分析音频信息，包括语音、声音、音乐等。</span></li>
-<li><span>多语言支持：该模型支持超过8种语言和方言，例如中文、英语、粤语、法语、意大利语、西班牙语、德语和日语。</span></li>
-</ul>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4fc6047a28.png"></p>
-<p><span>Qwen2-Audio的模型结构包含一个Qwen大语言模型和一个音频编码器。在预训练阶段，依次进行ASR、AAC等多任务预训练以实现音频与语言的对齐，接着通过SFT（监督微调） 强化模型处理下游任务的能力，再通过 DPO（直接偏好优化）方法加强模型与人类偏好的对齐。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b553dd2f2a.webp"></span></p>
-<p><span>目前通义团队同步开源了基础模型 Qwen2-Audio-7B 及其指令跟随版本 Qwen2-Audio-7B-Instruct。</span></p>
-<ul>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B</a></li>
-<li><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fhuggingface.co%2FQwen%2FQwen2-Audio-7B-Instruct" target="_blank">https://huggingface.co/Qwen/Qwen2-Audio-7B-Instruct</a></li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4fc6047a28.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-4fc6047a28.png" medium="image"/>
-    <pubDate>Tue, 13 Aug 2024 13:58:41 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[首发！麒麟软件打造的跨平台通用 Linux 端间互联组件 Klink 正式开源]]></title>
-    <link>https://www.oschina.net/news/306757</link>
-    <itunes:title><![CDATA[首发！麒麟软件打造的跨平台通用 Linux 端间互联组件 Klink 正式开源]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>随着智能终端设备的普及，多个智能终端设备之间的互联互通应用场景日益丰富。多设备互联互通应用场景需要开发者单独实现通讯协议，为解决跨平台问题，麒麟软件打造了跨平台的通用Linux端间互联组件——Klink，并在开源社区openKylin（开放麒麟）发布。</p>
-<p>Klink是由麒麟软件在2021年开始打造的端间互联组件，也是通用Linux上最早兼容鸿蒙软总线的通信组件，支持在Linux上跨平台设备之间的发现、连接、组网、认证及数据安全传输。Klink解耦了软总线模块对多系统平台的应用，使包括openKylin桌面操作系统、银河麒麟桌面操作系统等在内的各种主流Linux发行版皆可跨平台互联互通，大幅扩展了生态边界，为我国基础软件健康开放发展做出了贡献。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-396c827e75.png"></p>
-<p>麒麟软件旗下星光麒麟万物智联操作系统，以“弹性扩展、智能互联、内生安全、统一框架”的产品特性，针对国家、行业、企业和个人数字化应用需求，开启了面向全场景的新一代操作系统创新之路。其中智能互联特性就是以Klink作为统一通信底座，实现了两大端间互联能力：</p>
-<p><strong>分布式硬件资源共享能力</strong></p>
-<p>抽象终端设备硬件能力为显示、摄像头、音频等基础能力，基于Klink技术实现设备间硬件资源即时协作、算力共享。</p>
-<p><strong>跨终端互联互通能力</strong></p>
-<p>支持多设备间设备发现、设备组网、设备认证、设备连接，实现图片、文件等数据在设备间快速传输，内容无缝流转，支持多设备间协作和屏幕共享。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bae4959716.png"></p>
-<p>Klink在openKylin社区的发布，是麒麟软件持续贡献开源的又一重要成果。未来，麒麟软件将不断完善Klink技术，在基于Klink技术研发更多智能互联应用场景的同时，为其赋予全栈AI属性。作为中国操作系统核心力量，麒麟软件将秉持开源开放理念，携手更多产业伙伴，构建安全、好用、易用的生态体系，打造世界级操作系统中国品牌！</p>
-<p><span>访问<a href="https://gitee.com/openkylin/klink"><em>https://gitee.com/openkylin/klink</em></a>，了解Klink更多信息！</span></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>随着智能终端设备的普及，多个智能终端设备之间的互联互通应用场景日益丰富。多设备互联互通应用场景需要开发者单独实现通讯协议，为解决跨平台问题，麒麟软件打造了跨平台的通用Linux端间互联组件——Klink，并在开源社区openKylin（开放麒麟）发布。</p>
-<p>Klink是由麒麟软件在2021年开始打造的端间互联组件，也是通用Linux上最早兼容鸿蒙软总线的通信组件，支持在Linux上跨平台设备之间的发现、连接、组网、认证及数据安全传输。Klink解耦了软总线模块对多系统平台的应用，使包括openKylin桌面操作系统、银河麒麟桌面操作系统等在内的各种主流Linux发行版皆可跨平台互联互通，大幅扩展了生态边界，为我国基础软件健康开放发展做出了贡献。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-396c827e75.png"></p>
-<p>麒麟软件旗下星光麒麟万物智联操作系统，以“弹性扩展、智能互联、内生安全、统一框架”的产品特性，针对国家、行业、企业和个人数字化应用需求，开启了面向全场景的新一代操作系统创新之路。其中智能互联特性就是以Klink作为统一通信底座，实现了两大端间互联能力：</p>
-<p><strong>分布式硬件资源共享能力</strong></p>
-<p>抽象终端设备硬件能力为显示、摄像头、音频等基础能力，基于Klink技术实现设备间硬件资源即时协作、算力共享。</p>
-<p><strong>跨终端互联互通能力</strong></p>
-<p>支持多设备间设备发现、设备组网、设备认证、设备连接，实现图片、文件等数据在设备间快速传输，内容无缝流转，支持多设备间协作和屏幕共享。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bae4959716.png"></p>
-<p>Klink在openKylin社区的发布，是麒麟软件持续贡献开源的又一重要成果。未来，麒麟软件将不断完善Klink技术，在基于Klink技术研发更多智能互联应用场景的同时，为其赋予全栈AI属性。作为中国操作系统核心力量，麒麟软件将秉持开源开放理念，携手更多产业伙伴，构建安全、好用、易用的生态体系，打造世界级操作系统中国品牌！</p>
-<p><span>访问<a href="https://gitee.com/openkylin/klink"><em>https://gitee.com/openkylin/klink</em></a>，了解Klink更多信息！</span></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>随着智能终端设备的普及，多个智能终端设备之间的互联互通应用场景日益丰富。多设备互联互通应用场景需要开发者单独实现通讯协议，为解决跨平台问题，麒麟软件打造了跨平台的通用Linux端间互联组件——Klink，并在开源社区openKylin（开放麒麟）发布。</p>
-<p>Klink是由麒麟软件在2021年开始打造的端间互联组件，也是通用Linux上最早兼容鸿蒙软总线的通信组件，支持在Linux上跨平台设备之间的发现、连接、组网、认证及数据安全传输。Klink解耦了软总线模块对多系统平台的应用，使包括openKylin桌面操作系统、银河麒麟桌面操作系统等在内的各种主流Linux发行版皆可跨平台互联互通，大幅扩展了生态边界，为我国基础软件健康开放发展做出了贡献。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-396c827e75.png"></p>
-<p>麒麟软件旗下星光麒麟万物智联操作系统，以“弹性扩展、智能互联、内生安全、统一框架”的产品特性，针对国家、行业、企业和个人数字化应用需求，开启了面向全场景的新一代操作系统创新之路。其中智能互联特性就是以Klink作为统一通信底座，实现了两大端间互联能力：</p>
-<p><strong>分布式硬件资源共享能力</strong></p>
-<p>抽象终端设备硬件能力为显示、摄像头、音频等基础能力，基于Klink技术实现设备间硬件资源即时协作、算力共享。</p>
-<p><strong>跨终端互联互通能力</strong></p>
-<p>支持多设备间设备发现、设备组网、设备认证、设备连接，实现图片、文件等数据在设备间快速传输，内容无缝流转，支持多设备间协作和屏幕共享。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-bae4959716.png"></p>
-<p>Klink在openKylin社区的发布，是麒麟软件持续贡献开源的又一重要成果。未来，麒麟软件将不断完善Klink技术，在基于Klink技术研发更多智能互联应用场景的同时，为其赋予全栈AI属性。作为中国操作系统核心力量，麒麟软件将秉持开源开放理念，携手更多产业伙伴，构建安全、好用、易用的生态体系，打造世界级操作系统中国品牌！</p>
-<p><span>访问<a href="https://gitee.com/openkylin/klink"><em>https://gitee.com/openkylin/klink</em></a>，了解Klink更多信息！</span></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-396c827e75.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-396c827e75.png" medium="image"/>
-    <pubDate>Tue, 13 Aug 2024 10:55:18 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[AI 专区上新啦！豆包、通义、360 AI、天工 AI、澜舟智库等入驻麒麟软件商店]]></title>
-    <link>https://www.oschina.net/news/306755</link>
-    <itunes:title><![CDATA[AI 专区上新啦！豆包、通义、360 AI、天工 AI、澜舟智库等入驻麒麟软件商店]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>继百度文心一言、讯飞星火、博思白板、雅意等AI产品上架后，麒麟软件商店再添新成员！近日，豆包、通义、360AI搜索、360智脑、360智绘、昆仑万维天工AI、澜舟智库等重磅AI产品登陆麒麟软件商店人工智能专区，涵盖了AI对话、AI写作、AI绘图、AI搜索等多个领域，为用户带来更加丰富、智能的应用体验。</p>
-<h3><strong>阿里通义</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-86b1cfd004.png"></p>
-<p>通义是一款超大规模与训练模型，为您提供全方位协助，包括知识问答、AI创作、文档作画、涂鸦绘画、AI搜索、千万字长文档解析、AI翻译、AI会议纪要等等，学习办公，效率翻倍。</p>
-<h3><strong>豆包</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a7c6d41b0d.png"></p>
-<p><span>抖音旗下的</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fso.csdn.net%2Fso%2Fsearch%3Fq%3D%25E4%25BA%25BA%25E5%25B7%25A5%25E6%2599%25BA%25E8%2583%25BD%26spm%3D1001.2101.3001.7020" target="_blank">人工智能</a><span>产品，基于字节跳动推出的自研豆包大模型。豆包电脑版以“豆包”主智能体为核心，集合AI搜索、写作、阅读总结、图像生成功能于一体，能够在工作、学习等各种场景为你提供帮助。</span></p>
-<h3><strong>360AI搜索</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cab8ae421a.png"></p>
-<p>智脑大模型与搜索结合，带来搜索引擎革命。这款搜索搜出来的不再是一条条的网页链接，而是通过自动选择、提炼、整合、重组信息，为用户直接呈现最终答案，大大提升搜索效率。同时还能根据答案生成脑图，便于用户结构化地理解内容。支持对网页、视频、图片等区域单独搜索，并提供内容朗读、改写和翻译功能，用户体验大幅提升。</p>
-<h3><strong>360智脑</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f2c4a53b1.png"></p>
-<p><span>360自研认知型通用大模型，依托360多年积累的大算力、大数据、工程化等关键优势，集成360GPT大模型、360CV大模型、360多模态大模型技术能力，具备生成创作、多轮对话、逻辑推理等十大核心能力、数百项细分功能，重塑人机协作新范式。</span></p>
-<h3><strong>360智绘</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1781882154.png"></p>
-<p>“全能、极简”的AI图片创作平台。基于360智脑大模型，提供多功能、多场景、多模型的智能生图、修图平台。它拥有全场景的AI工具、上千个风格模型，帮助用户实现各种绘画效果，满足用户多种需求。支持全中文的输入逻辑，降低了语言障碍，提高了用户使用软件的便捷性和舒适度。具有超简单的操作交互，可快速轻松上手，超低学习门槛。整体基于云端计算，无硬件门槛，用户无需部署复杂的软件环境。</p>
-<h3><strong>昆仑万维天工AI</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-329245ae45.png"></p>
-<p>昆仑万维天工AI是一款支持搜索、写作、文档分析、多模态生成的全能型AI助手，能随时为用户提供全网搜索、文件解读、文本创作、代码编程、AI画画、AI音乐生成等智能服务。</p>
-<h3><strong>澜舟智库</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2aeb8a3164.png"></p>
-<p>澜舟智库是澜舟科技利用大模型技术专为企业用户打造的一款集“读”“问”“搜”“写”一体化的企业知识全生命周期管理平台。以搜索问答为互动起点，提供精准的企业知识搜索、深度内容提炼、专业文档撰写等服务。助力企业快速搭建安全、可靠的专属知识中台；构建持续、高效的企业知识生态系统；打造 AI 2.0 企业知识生产力新范式。</p>
-<p>麒麟软件商店人工智能专区持续升级，目前上线应用近20款，为用户提供了更加丰富、智能的应用选择，也为麒麟软件生态建设注入了新的活力。未来，麒麟软件将继续与合作伙伴携手，不断创新，为用户带来更加极致的AI体验，共同打造高质量国产操作系统创新生态。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-670d9dfe53.jpg"></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>继百度文心一言、讯飞星火、博思白板、雅意等AI产品上架后，麒麟软件商店再添新成员！近日，豆包、通义、360AI搜索、360智脑、360智绘、昆仑万维天工AI、澜舟智库等重磅AI产品登陆麒麟软件商店人工智能专区，涵盖了AI对话、AI写作、AI绘图、AI搜索等多个领域，为用户带来更加丰富、智能的应用体验。</p>
-<h3><strong>阿里通义</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-86b1cfd004.png"></p>
-<p>通义是一款超大规模与训练模型，为您提供全方位协助，包括知识问答、AI创作、文档作画、涂鸦绘画、AI搜索、千万字长文档解析、AI翻译、AI会议纪要等等，学习办公，效率翻倍。</p>
-<h3><strong>豆包</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a7c6d41b0d.png"></p>
-<p><span>抖音旗下的</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fso.csdn.net%2Fso%2Fsearch%3Fq%3D%25E4%25BA%25BA%25E5%25B7%25A5%25E6%2599%25BA%25E8%2583%25BD%26spm%3D1001.2101.3001.7020" target="_blank">人工智能</a><span>产品，基于字节跳动推出的自研豆包大模型。豆包电脑版以“豆包”主智能体为核心，集合AI搜索、写作、阅读总结、图像生成功能于一体，能够在工作、学习等各种场景为你提供帮助。</span></p>
-<h3><strong>360AI搜索</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cab8ae421a.png"></p>
-<p>智脑大模型与搜索结合，带来搜索引擎革命。这款搜索搜出来的不再是一条条的网页链接，而是通过自动选择、提炼、整合、重组信息，为用户直接呈现最终答案，大大提升搜索效率。同时还能根据答案生成脑图，便于用户结构化地理解内容。支持对网页、视频、图片等区域单独搜索，并提供内容朗读、改写和翻译功能，用户体验大幅提升。</p>
-<h3><strong>360智脑</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f2c4a53b1.png"></p>
-<p><span>360自研认知型通用大模型，依托360多年积累的大算力、大数据、工程化等关键优势，集成360GPT大模型、360CV大模型、360多模态大模型技术能力，具备生成创作、多轮对话、逻辑推理等十大核心能力、数百项细分功能，重塑人机协作新范式。</span></p>
-<h3><strong>360智绘</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1781882154.png"></p>
-<p>“全能、极简”的AI图片创作平台。基于360智脑大模型，提供多功能、多场景、多模型的智能生图、修图平台。它拥有全场景的AI工具、上千个风格模型，帮助用户实现各种绘画效果，满足用户多种需求。支持全中文的输入逻辑，降低了语言障碍，提高了用户使用软件的便捷性和舒适度。具有超简单的操作交互，可快速轻松上手，超低学习门槛。整体基于云端计算，无硬件门槛，用户无需部署复杂的软件环境。</p>
-<h3><strong>昆仑万维天工AI</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-329245ae45.png"></p>
-<p>昆仑万维天工AI是一款支持搜索、写作、文档分析、多模态生成的全能型AI助手，能随时为用户提供全网搜索、文件解读、文本创作、代码编程、AI画画、AI音乐生成等智能服务。</p>
-<h3><strong>澜舟智库</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2aeb8a3164.png"></p>
-<p>澜舟智库是澜舟科技利用大模型技术专为企业用户打造的一款集“读”“问”“搜”“写”一体化的企业知识全生命周期管理平台。以搜索问答为互动起点，提供精准的企业知识搜索、深度内容提炼、专业文档撰写等服务。助力企业快速搭建安全、可靠的专属知识中台；构建持续、高效的企业知识生态系统；打造 AI 2.0 企业知识生产力新范式。</p>
-<p>麒麟软件商店人工智能专区持续升级，目前上线应用近20款，为用户提供了更加丰富、智能的应用选择，也为麒麟软件生态建设注入了新的活力。未来，麒麟软件将继续与合作伙伴携手，不断创新，为用户带来更加极致的AI体验，共同打造高质量国产操作系统创新生态。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-670d9dfe53.jpg"></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>继百度文心一言、讯飞星火、博思白板、雅意等AI产品上架后，麒麟软件商店再添新成员！近日，豆包、通义、360AI搜索、360智脑、360智绘、昆仑万维天工AI、澜舟智库等重磅AI产品登陆麒麟软件商店人工智能专区，涵盖了AI对话、AI写作、AI绘图、AI搜索等多个领域，为用户带来更加丰富、智能的应用体验。</p>
-<h3><strong>阿里通义</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-86b1cfd004.png"></p>
-<p>通义是一款超大规模与训练模型，为您提供全方位协助，包括知识问答、AI创作、文档作画、涂鸦绘画、AI搜索、千万字长文档解析、AI翻译、AI会议纪要等等，学习办公，效率翻倍。</p>
-<h3><strong>豆包</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-a7c6d41b0d.png"></p>
-<p><span>抖音旗下的</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fso.csdn.net%2Fso%2Fsearch%3Fq%3D%25E4%25BA%25BA%25E5%25B7%25A5%25E6%2599%25BA%25E8%2583%25BD%26spm%3D1001.2101.3001.7020" target="_blank">人工智能</a><span>产品，基于字节跳动推出的自研豆包大模型。豆包电脑版以“豆包”主智能体为核心，集合AI搜索、写作、阅读总结、图像生成功能于一体，能够在工作、学习等各种场景为你提供帮助。</span></p>
-<h3><strong>360AI搜索</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cab8ae421a.png"></p>
-<p>智脑大模型与搜索结合，带来搜索引擎革命。这款搜索搜出来的不再是一条条的网页链接，而是通过自动选择、提炼、整合、重组信息，为用户直接呈现最终答案，大大提升搜索效率。同时还能根据答案生成脑图，便于用户结构化地理解内容。支持对网页、视频、图片等区域单独搜索，并提供内容朗读、改写和翻译功能，用户体验大幅提升。</p>
-<h3><strong>360智脑</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0f2c4a53b1.png"></p>
-<p><span>360自研认知型通用大模型，依托360多年积累的大算力、大数据、工程化等关键优势，集成360GPT大模型、360CV大模型、360多模态大模型技术能力，具备生成创作、多轮对话、逻辑推理等十大核心能力、数百项细分功能，重塑人机协作新范式。</span></p>
-<h3><strong>360智绘</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-1781882154.png"></p>
-<p>“全能、极简”的AI图片创作平台。基于360智脑大模型，提供多功能、多场景、多模型的智能生图、修图平台。它拥有全场景的AI工具、上千个风格模型，帮助用户实现各种绘画效果，满足用户多种需求。支持全中文的输入逻辑，降低了语言障碍，提高了用户使用软件的便捷性和舒适度。具有超简单的操作交互，可快速轻松上手，超低学习门槛。整体基于云端计算，无硬件门槛，用户无需部署复杂的软件环境。</p>
-<h3><strong>昆仑万维天工AI</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-329245ae45.png"></p>
-<p>昆仑万维天工AI是一款支持搜索、写作、文档分析、多模态生成的全能型AI助手，能随时为用户提供全网搜索、文件解读、文本创作、代码编程、AI画画、AI音乐生成等智能服务。</p>
-<h3><strong>澜舟智库</strong></h3>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2aeb8a3164.png"></p>
-<p>澜舟智库是澜舟科技利用大模型技术专为企业用户打造的一款集“读”“问”“搜”“写”一体化的企业知识全生命周期管理平台。以搜索问答为互动起点，提供精准的企业知识搜索、深度内容提炼、专业文档撰写等服务。助力企业快速搭建安全、可靠的专属知识中台；构建持续、高效的企业知识生态系统；打造 AI 2.0 企业知识生产力新范式。</p>
-<p>麒麟软件商店人工智能专区持续升级，目前上线应用近20款，为用户提供了更加丰富、智能的应用选择，也为麒麟软件生态建设注入了新的活力。未来，麒麟软件将继续与合作伙伴携手，不断创新，为用户带来更加极致的AI体验，共同打造高质量国产操作系统创新生态。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-670d9dfe53.jpg"></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-86b1cfd004.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-86b1cfd004.png" medium="image"/>
-    <pubDate>Tue, 13 Aug 2024 10:48:57 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[OMI 加入 Linux 基金会，推进开源 AI 模型发展]]></title>
-    <link>https://www.oschina.net/news/306746/linux-foundation-open-model-initiative</link>
-    <itunes:title><![CDATA[OMI 加入 Linux 基金会，推进开源 AI 模型发展]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>OMI（开放模型倡议，Open Model Initiative）正式加入 Linux 基金会社区。OMI 由 Invoke、Comfy Org 和 Civitai 三家公司共同发起成立，旨在促进用于图像、视频和音频生成的开放许可 AI 模型的开发和采用，推进开源 AI 模型的发展。</p>
-<blockquote>
-<p>“OMI 成立是为了应对那些为企业采用设置障碍的许可决策，专注于在不可撤销的开放许可下培训和开发 AI 模型，避免删除条款或访问的重复费用。OMI 由发起组织 Invoke、CivitAI 和 Comfy Org 共同努力形成，并得到了 Wand 和 Sentient Foundation 等社区参与者的广泛支持。现在，OMI 成为 Linux 基金会主办的正式开源基金会，并将由一个社区主导的指导委员会管理。”</p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-330d236e80.png"></p>
-<p>作为 Linux 基金会的一部分，OMI 将致力于：</p>
-<ul>
-<li>建立治理框架和工作组，促进社区协作开发。</li>
-<li>进行调查，收集开源社区对未来模型研究和培训的反馈。</li>
-<li>制定共享标准，以增强模型互操作性和元数据实践。</li>
-<li>开发透明的数据集用于培训，并开始标注。</li>
-<li>完成针对性红队测试的 Alpha 测试模型。</li>
-<li>在年底之前向社区发布带有微调脚本的模型 Alpha 版本。</li>
-</ul>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxfoundation.org%2Fpress%2Flinux-foundation-welcomes-the-open-model-initiative-to-promote-openly-licensed-ai-models" target="_blank">查看官方公告</a>。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>OMI（开放模型倡议，Open Model Initiative）正式加入 Linux 基金会社区。OMI 由 Invoke、Comfy Org 和 Civitai 三家公司共同发起成立，旨在促进用于图像、视频和音频生成的开放许可 AI 模型的开发和采用，推进开源 AI 模型的发展。</p>
-<blockquote>
-<p>“OMI 成立是为了应对那些为企业采用设置障碍的许可决策，专注于在不可撤销的开放许可下培训和开发 AI 模型，避免删除条款或访问的重复费用。OMI 由发起组织 Invoke、CivitAI 和 Comfy Org 共同努力形成，并得到了 Wand 和 Sentient Foundation 等社区参与者的广泛支持。现在，OMI 成为 Linux 基金会主办的正式开源基金会，并将由一个社区主导的指导委员会管理。”</p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-330d236e80.png"></p>
-<p>作为 Linux 基金会的一部分，OMI 将致力于：</p>
-<ul>
-<li>建立治理框架和工作组，促进社区协作开发。</li>
-<li>进行调查，收集开源社区对未来模型研究和培训的反馈。</li>
-<li>制定共享标准，以增强模型互操作性和元数据实践。</li>
-<li>开发透明的数据集用于培训，并开始标注。</li>
-<li>完成针对性红队测试的 Alpha 测试模型。</li>
-<li>在年底之前向社区发布带有微调脚本的模型 Alpha 版本。</li>
-</ul>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxfoundation.org%2Fpress%2Flinux-foundation-welcomes-the-open-model-initiative-to-promote-openly-licensed-ai-models" target="_blank">查看官方公告</a>。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>OMI（开放模型倡议，Open Model Initiative）正式加入 Linux 基金会社区。OMI 由 Invoke、Comfy Org 和 Civitai 三家公司共同发起成立，旨在促进用于图像、视频和音频生成的开放许可 AI 模型的开发和采用，推进开源 AI 模型的发展。</p>
-<blockquote>
-<p>“OMI 成立是为了应对那些为企业采用设置障碍的许可决策，专注于在不可撤销的开放许可下培训和开发 AI 模型，避免删除条款或访问的重复费用。OMI 由发起组织 Invoke、CivitAI 和 Comfy Org 共同努力形成，并得到了 Wand 和 Sentient Foundation 等社区参与者的广泛支持。现在，OMI 成为 Linux 基金会主办的正式开源基金会，并将由一个社区主导的指导委员会管理。”</p>
-</blockquote>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-330d236e80.png"></p>
-<p>作为 Linux 基金会的一部分，OMI 将致力于：</p>
-<ul>
-<li>建立治理框架和工作组，促进社区协作开发。</li>
-<li>进行调查，收集开源社区对未来模型研究和培训的反馈。</li>
-<li>制定共享标准，以增强模型互操作性和元数据实践。</li>
-<li>开发透明的数据集用于培训，并开始标注。</li>
-<li>完成针对性红队测试的 Alpha 测试模型。</li>
-<li>在年底之前向社区发布带有微调脚本的模型 Alpha 版本。</li>
-</ul>
-<p>更多详情可<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.linuxfoundation.org%2Fpress%2Flinux-foundation-welcomes-the-open-model-initiative-to-promote-openly-licensed-ai-models" target="_blank">查看官方公告</a>。</p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-330d236e80.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-330d236e80.png" medium="image"/>
-    <pubDate>Tue, 13 Aug 2024 10:24:03 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[云原生周刊：Score 成为 CNCF 沙箱项目]]></title>
-    <link>https://my.oschina.net/u/4197945/blog/15282482</link>
-    <itunes:title><![CDATA[云原生周刊：Score 成为 CNCF 沙箱项目]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<h2>开源项目推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubermatic%2Fkubeone" target="_blank">KubeOne</a></h3>
-<p>Kubermatic KubeOne 自动化管理您所有云环境、本地环境、边缘计算和物联网环境中的集群操作。KubeOne 可以安装高可用（HA）的主集群，也可以安装单主集群。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FNCCloud%2Fmayfly" target="_blank">Mayfly</a></h3>
-<p>Mayfly 是一个 Kubernetes operator，使您可以使用基于时间的资源。它会在指定时间创建或删除资源。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FGoogleContainerTools%2Fkaniko" target="_blank">kaniko</a></h3>
-<p>kaniko 是一个工具，用于在容器或 Kubernetes 集群中从 Dockerfile 构建容器镜像。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubernetes-sigs%2Fcluster-api-addon-provider-helm" target="_blank">Cluster API Add-on Provider for Helm</a></h3>
-<p>Cluster API Add-on Provider for Helm（CAAPH）通过使用 Helm charts 来管理集群附加组件的安装、配置、升级和删除，从而扩展了 Cluster API。CAAPH 基于 Cluster API Add-on Orchestration Proposal（集群 API 附加组件编排提案），这是一个通过使用现有的包管理工具，将附加组件编排引入 CAPI 的更大努力。</p>
-<h2>文章推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2F%40alruwayti%2Fk8s-etcd-dr-solution-bc8d9e43dadf" target="_blank">[K8s] etcd— 灾难恢复解决方案</a></h3>
-<p>这篇文章介绍了在 Kubernetes 集群中实现 etcd 灾难恢复（DR）解决方案的策略。作者详细描述了如何通过备份和恢复等步骤，确保 etcd 数据的高可用性和持久性。文章重点讨论了创建 etcd 快照、使用工具进行数据恢复以及在灾难情况下恢复集群的最佳实践。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fadil.medium.com%2Fhow-to-fix-conntrack-table-full-dropping-packets-in-kubernetes-07f561a432aa" target="_blank">如何修复 Kubernetes 中 conntrack 表满、丢包的问题？</a></h3>
-<p>这篇文章讨论了如何解决 Kubernetes 中 conntrack 表满的问题，这会导致丢包和连接问题。文章解释了 conntrack 在跟踪网络连接中的重要性，并提供了防止表满的解决方案。内容涵盖了调整 conntrack 设置、增加表大小和优化 Kubernetes 网络配置等技术，以缓解和解决这些问题。</p>
-<h2>云原生动态</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cncf.io%2Fblog%2F2024%2F08%2F08%2Fscore-accepted-as-a-cncf-sandbox-project%2F" target="_blank">Score 成为 CNCF 沙箱项目</a></h3>
-<p>日前，Score 正式成为 CNCF 沙箱项目。自 18 个月前在 GitHub 上发布以来，Score 的成长速度非常迅猛。Score 最近推出了两个新的参考实现，分别用于 Docker Compose 和 Kubernetes，提供了用户友好且可扩展的解决方案，帮助用户快速上手 Score。这一势头为 Score 与 CNCF 的互动奠定了良好的基础，并进一步推动了 Score 的发展和应用。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenfga.dev%2Fblog%2Fquery-consistency-options-announcement" target="_blank">OpenFGA 推出更强的一致性查询选项</a></h3>
-<p>OpenFGA 查询 API 现在允许用户指定查询结果的期望一致性。默认情况下，OpenFGA 不使用缓存。然而，当启用缓存时，它适用于所有请求。这意味着在缓存的有效期内，权限的任何更改都不会反映在授权检查中。</p>
-<p>社区表达了在每个请求中灵活使用缓存的需求。作为回应，从 OpenFGA v1.5.7 开始，所有查询 API 都可以接受一致性参数。 &gt; 本文由博客一文多发平台 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenwrite.cn%3Ffrom%3Darticle_bottom" target="_blank">OpenWrite</a> 发布！</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<h2>开源项目推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubermatic%2Fkubeone" target="_blank">KubeOne</a></h3>
-<p>Kubermatic KubeOne 自动化管理您所有云环境、本地环境、边缘计算和物联网环境中的集群操作。KubeOne 可以安装高可用（HA）的主集群，也可以安装单主集群。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FNCCloud%2Fmayfly" target="_blank">Mayfly</a></h3>
-<p>Mayfly 是一个 Kubernetes operator，使您可以使用基于时间的资源。它会在指定时间创建或删除资源。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FGoogleContainerTools%2Fkaniko" target="_blank">kaniko</a></h3>
-<p>kaniko 是一个工具，用于在容器或 Kubernetes 集群中从 Dockerfile 构建容器镜像。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubernetes-sigs%2Fcluster-api-addon-provider-helm" target="_blank">Cluster API Add-on Provider for Helm</a></h3>
-<p>Cluster API Add-on Provider for Helm（CAAPH）通过使用 Helm charts 来管理集群附加组件的安装、配置、升级和删除，从而扩展了 Cluster API。CAAPH 基于 Cluster API Add-on Orchestration Proposal（集群 API 附加组件编排提案），这是一个通过使用现有的包管理工具，将附加组件编排引入 CAPI 的更大努力。</p>
-<h2>文章推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2F%40alruwayti%2Fk8s-etcd-dr-solution-bc8d9e43dadf" target="_blank">[K8s] etcd— 灾难恢复解决方案</a></h3>
-<p>这篇文章介绍了在 Kubernetes 集群中实现 etcd 灾难恢复（DR）解决方案的策略。作者详细描述了如何通过备份和恢复等步骤，确保 etcd 数据的高可用性和持久性。文章重点讨论了创建 etcd 快照、使用工具进行数据恢复以及在灾难情况下恢复集群的最佳实践。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fadil.medium.com%2Fhow-to-fix-conntrack-table-full-dropping-packets-in-kubernetes-07f561a432aa" target="_blank">如何修复 Kubernetes 中 conntrack 表满、丢包的问题？</a></h3>
-<p>这篇文章讨论了如何解决 Kubernetes 中 conntrack 表满的问题，这会导致丢包和连接问题。文章解释了 conntrack 在跟踪网络连接中的重要性，并提供了防止表满的解决方案。内容涵盖了调整 conntrack 设置、增加表大小和优化 Kubernetes 网络配置等技术，以缓解和解决这些问题。</p>
-<h2>云原生动态</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cncf.io%2Fblog%2F2024%2F08%2F08%2Fscore-accepted-as-a-cncf-sandbox-project%2F" target="_blank">Score 成为 CNCF 沙箱项目</a></h3>
-<p>日前，Score 正式成为 CNCF 沙箱项目。自 18 个月前在 GitHub 上发布以来，Score 的成长速度非常迅猛。Score 最近推出了两个新的参考实现，分别用于 Docker Compose 和 Kubernetes，提供了用户友好且可扩展的解决方案，帮助用户快速上手 Score。这一势头为 Score 与 CNCF 的互动奠定了良好的基础，并进一步推动了 Score 的发展和应用。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenfga.dev%2Fblog%2Fquery-consistency-options-announcement" target="_blank">OpenFGA 推出更强的一致性查询选项</a></h3>
-<p>OpenFGA 查询 API 现在允许用户指定查询结果的期望一致性。默认情况下，OpenFGA 不使用缓存。然而，当启用缓存时，它适用于所有请求。这意味着在缓存的有效期内，权限的任何更改都不会反映在授权检查中。</p>
-<p>社区表达了在每个请求中灵活使用缓存的需求。作为回应，从 OpenFGA v1.5.7 开始，所有查询 API 都可以接受一致性参数。 &gt; 本文由博客一文多发平台 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenwrite.cn%3Ffrom%3Darticle_bottom" target="_blank">OpenWrite</a> 发布！</p>]]>
-    </description>
-    <content:encoded><![CDATA[<h2>开源项目推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubermatic%2Fkubeone" target="_blank">KubeOne</a></h3>
-<p>Kubermatic KubeOne 自动化管理您所有云环境、本地环境、边缘计算和物联网环境中的集群操作。KubeOne 可以安装高可用（HA）的主集群，也可以安装单主集群。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FNCCloud%2Fmayfly" target="_blank">Mayfly</a></h3>
-<p>Mayfly 是一个 Kubernetes operator，使您可以使用基于时间的资源。它会在指定时间创建或删除资源。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2FGoogleContainerTools%2Fkaniko" target="_blank">kaniko</a></h3>
-<p>kaniko 是一个工具，用于在容器或 Kubernetes 集群中从 Dockerfile 构建容器镜像。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fkubernetes-sigs%2Fcluster-api-addon-provider-helm" target="_blank">Cluster API Add-on Provider for Helm</a></h3>
-<p>Cluster API Add-on Provider for Helm（CAAPH）通过使用 Helm charts 来管理集群附加组件的安装、配置、升级和删除，从而扩展了 Cluster API。CAAPH 基于 Cluster API Add-on Orchestration Proposal（集群 API 附加组件编排提案），这是一个通过使用现有的包管理工具，将附加组件编排引入 CAPI 的更大努力。</p>
-<h2>文章推荐</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmedium.com%2F%40alruwayti%2Fk8s-etcd-dr-solution-bc8d9e43dadf" target="_blank">[K8s] etcd— 灾难恢复解决方案</a></h3>
-<p>这篇文章介绍了在 Kubernetes 集群中实现 etcd 灾难恢复（DR）解决方案的策略。作者详细描述了如何通过备份和恢复等步骤，确保 etcd 数据的高可用性和持久性。文章重点讨论了创建 etcd 快照、使用工具进行数据恢复以及在灾难情况下恢复集群的最佳实践。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fadil.medium.com%2Fhow-to-fix-conntrack-table-full-dropping-packets-in-kubernetes-07f561a432aa" target="_blank">如何修复 Kubernetes 中 conntrack 表满、丢包的问题？</a></h3>
-<p>这篇文章讨论了如何解决 Kubernetes 中 conntrack 表满的问题，这会导致丢包和连接问题。文章解释了 conntrack 在跟踪网络连接中的重要性，并提供了防止表满的解决方案。内容涵盖了调整 conntrack 设置、增加表大小和优化 Kubernetes 网络配置等技术，以缓解和解决这些问题。</p>
-<h2>云原生动态</h2>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.cncf.io%2Fblog%2F2024%2F08%2F08%2Fscore-accepted-as-a-cncf-sandbox-project%2F" target="_blank">Score 成为 CNCF 沙箱项目</a></h3>
-<p>日前，Score 正式成为 CNCF 沙箱项目。自 18 个月前在 GitHub 上发布以来，Score 的成长速度非常迅猛。Score 最近推出了两个新的参考实现，分别用于 Docker Compose 和 Kubernetes，提供了用户友好且可扩展的解决方案，帮助用户快速上手 Score。这一势头为 Score 与 CNCF 的互动奠定了良好的基础，并进一步推动了 Score 的发展和应用。</p>
-<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenfga.dev%2Fblog%2Fquery-consistency-options-announcement" target="_blank">OpenFGA 推出更强的一致性查询选项</a></h3>
-<p>OpenFGA 查询 API 现在允许用户指定查询结果的期望一致性。默认情况下，OpenFGA 不使用缓存。然而，当启用缓存时，它适用于所有请求。这意味着在缓存的有效期内，权限的任何更改都不会反映在授权检查中。</p>
-<p>社区表达了在每个请求中灵活使用缓存的需求。作为回应，从 OpenFGA v1.5.7 开始，所有查询 API 都可以接受一致性参数。 &gt; 本文由博客一文多发平台 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fopenwrite.cn%3Ffrom%3Darticle_bottom" target="_blank">OpenWrite</a> 发布！</p>]]></content:encoded>
-    
-    <pubDate>Tue, 13 Aug 2024 10:11:26 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[GOTC 2024 携手钻石赞助商百度， 共同促进开源技术发展与创新]]></title>
-    <link>https://my.oschina.net/u/3859945/blog/15285242</link>
-    <itunes:title><![CDATA[GOTC 2024 携手钻石赞助商百度， 共同促进开源技术发展与创新]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span><span><span><span><span><span>2024 年 8 月 15 日至 16 日，全球开源技术峰会 GOTC 2024 将于上海张江科学会堂盛大开启。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 与上海浦东软件园联合举办，结合了 “GOTC（全球开源技术峰会）” 与 “GOGC（全球开源极客嘉年华）” 两大活动品牌。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>大会由一个主论坛领航，两大高峰论坛以及六大专题论坛并行，全面深入探讨开源生态与商业化、AIGC 产业前沿、全球开源人才及教育等热门话题，以及 LLMOps 最佳实践、硬核 AI 技术创新与实践、开源数据库与 AI 协同创新、云原生与微服务架构、数据基础与 GenAI 开发范式等前沿技术领域。</span></span></span></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cb70cdc44c.jpg"></p>
-<p><span><span><span><span><span><span>届时，大会将集结全球范围内对开源技术充满热情的开发者、社区成员、创业者、企业领袖、媒体人，以及各开源项目应用场景的产业精英、跨界才俊与年轻力量。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会成功吸引了多家业内领先企业及组织的倾情支持和鼎力赞助。</span></span></span><span><span><span>其中</span></span></span><strong><span><span><span><strong>百度</strong></span></span></span></strong><strong><span><span><span><strong>作为</strong></span></span></span></strong><strong><span><span><span><strong>本次大会的钻石赞助商，彰显了其在</strong></span></span></span></strong><strong><span><span><span><strong>开源</strong></span></span></span></strong><strong><span><span><span><strong>行业中的</strong></span></span></span></strong><strong><span><span><span><strong>引领</strong></span></span></span></strong><strong><span><span><span><strong>地位。</strong></span></span></span></strong><span><span><span>作为全球互联网领军企业，百度始终</span></span></span><span><span><span>积极拥抱开源，</span></span></span><span><span><span>持续</span></span></span><span><span><span>推动技术进步。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>在开源领域，百度已经取得了令人瞩目的</span></span></span><span><span><span>成就，先后推出了 <a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a>、Apollo、</span></span></span><span><span><span>XuperChain</span></span></span><span><span><span>、</span></span></span><span><span><span>ECharts 等知名开源项目，不仅为全球开发者提供了丰富的技术资源，更推动了整个行业的技术进步和创新浪潮。其中，<a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a> 成为我国首个开源深度学习平台，助力开发者快速实现人工智能应用；Apollo 则是全球领先的自动驾驶</span></span></span><span><span><span>开放</span></span></span><span><span><span>平台，推动自动驾驶技术的发展。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会上，百度专家团队将与业界共同探讨开源技术的未来发展方向，促进国内外开源技术的交流与合作，为我国科技产业注入新的活力。</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>百度专家团队会议日程如下：</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日，主论坛：主题演讲</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型时代<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>平台的技术演进和开源实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span><strong>演讲嘉宾：</strong></span></span></span></strong><span><span><span>于佃海 | 百度<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>深度学习平台总架构师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日上午，高峰论坛：开源生态与商业化</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>百度区块链的开源进展与项目实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>荆博 | 百度区块链副总经理</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，高峰论坛：AIGC 产业前沿</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span><a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>大模型核心技术架构与应用</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>陈秋良 | 百度资深研发工程师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日下午，专题论坛：硬核 AI 技术创新与实践</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>构建卓越开发体验，共创自动驾驶新生态</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>王方浩 | Apollo 资深技术布道师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，专题论坛：数据基础与 GenAI 开发范式 —— 开源生态的机遇与探索</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型智能开发助力效能提升-百度文心快码最佳实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>张立理 | 百度前端架构师</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>百度的鼎力支持，无疑将为大会增添更多的行业视角和技术深度。百度此番携手 GOTC 2024，期待能够促进开源技术在中国乃至全球范围内的更广泛应用和深入发展，共同开启产业创新的新篇章。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 报名通道现已开启，诚邀全球开源技术爱好者齐聚上海共襄盛举。报名参会请点击：</span></span></span><a href="https://www.oschina.net/action/GoToLink?url=https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh"><span><span><span>https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh</span></span></span></a></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-89c4c00e85.png"></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span><span><span><span><span><span>2024 年 8 月 15 日至 16 日，全球开源技术峰会 GOTC 2024 将于上海张江科学会堂盛大开启。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 与上海浦东软件园联合举办，结合了 “GOTC（全球开源技术峰会）” 与 “GOGC（全球开源极客嘉年华）” 两大活动品牌。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>大会由一个主论坛领航，两大高峰论坛以及六大专题论坛并行，全面深入探讨开源生态与商业化、AIGC 产业前沿、全球开源人才及教育等热门话题，以及 LLMOps 最佳实践、硬核 AI 技术创新与实践、开源数据库与 AI 协同创新、云原生与微服务架构、数据基础与 GenAI 开发范式等前沿技术领域。</span></span></span></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cb70cdc44c.jpg"></p>
-<p><span><span><span><span><span><span>届时，大会将集结全球范围内对开源技术充满热情的开发者、社区成员、创业者、企业领袖、媒体人，以及各开源项目应用场景的产业精英、跨界才俊与年轻力量。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会成功吸引了多家业内领先企业及组织的倾情支持和鼎力赞助。</span></span></span><span><span><span>其中</span></span></span><strong><span><span><span><strong>百度</strong></span></span></span></strong><strong><span><span><span><strong>作为</strong></span></span></span></strong><strong><span><span><span><strong>本次大会的钻石赞助商，彰显了其在</strong></span></span></span></strong><strong><span><span><span><strong>开源</strong></span></span></span></strong><strong><span><span><span><strong>行业中的</strong></span></span></span></strong><strong><span><span><span><strong>引领</strong></span></span></span></strong><strong><span><span><span><strong>地位。</strong></span></span></span></strong><span><span><span>作为全球互联网领军企业，百度始终</span></span></span><span><span><span>积极拥抱开源，</span></span></span><span><span><span>持续</span></span></span><span><span><span>推动技术进步。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>在开源领域，百度已经取得了令人瞩目的</span></span></span><span><span><span>成就，先后推出了 <a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a>、Apollo、</span></span></span><span><span><span>XuperChain</span></span></span><span><span><span>、</span></span></span><span><span><span>ECharts 等知名开源项目，不仅为全球开发者提供了丰富的技术资源，更推动了整个行业的技术进步和创新浪潮。其中，<a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a> 成为我国首个开源深度学习平台，助力开发者快速实现人工智能应用；Apollo 则是全球领先的自动驾驶</span></span></span><span><span><span>开放</span></span></span><span><span><span>平台，推动自动驾驶技术的发展。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会上，百度专家团队将与业界共同探讨开源技术的未来发展方向，促进国内外开源技术的交流与合作，为我国科技产业注入新的活力。</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>百度专家团队会议日程如下：</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日，主论坛：主题演讲</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型时代<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>平台的技术演进和开源实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span><strong>演讲嘉宾：</strong></span></span></span></strong><span><span><span>于佃海 | 百度<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>深度学习平台总架构师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日上午，高峰论坛：开源生态与商业化</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>百度区块链的开源进展与项目实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>荆博 | 百度区块链副总经理</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，高峰论坛：AIGC 产业前沿</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span><a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>大模型核心技术架构与应用</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>陈秋良 | 百度资深研发工程师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日下午，专题论坛：硬核 AI 技术创新与实践</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>构建卓越开发体验，共创自动驾驶新生态</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>王方浩 | Apollo 资深技术布道师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，专题论坛：数据基础与 GenAI 开发范式 —— 开源生态的机遇与探索</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型智能开发助力效能提升-百度文心快码最佳实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>张立理 | 百度前端架构师</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>百度的鼎力支持，无疑将为大会增添更多的行业视角和技术深度。百度此番携手 GOTC 2024，期待能够促进开源技术在中国乃至全球范围内的更广泛应用和深入发展，共同开启产业创新的新篇章。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 报名通道现已开启，诚邀全球开源技术爱好者齐聚上海共襄盛举。报名参会请点击：</span></span></span><a href="https://www.oschina.net/action/GoToLink?url=https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh"><span><span><span>https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh</span></span></span></a></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-89c4c00e85.png"></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span><span><span><span><span><span>2024 年 8 月 15 日至 16 日，全球开源技术峰会 GOTC 2024 将于上海张江科学会堂盛大开启。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 与上海浦东软件园联合举办，结合了 “GOTC（全球开源技术峰会）” 与 “GOGC（全球开源极客嘉年华）” 两大活动品牌。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>大会由一个主论坛领航，两大高峰论坛以及六大专题论坛并行，全面深入探讨开源生态与商业化、AIGC 产业前沿、全球开源人才及教育等热门话题，以及 LLMOps 最佳实践、硬核 AI 技术创新与实践、开源数据库与 AI 协同创新、云原生与微服务架构、数据基础与 GenAI 开发范式等前沿技术领域。</span></span></span></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cb70cdc44c.jpg"></p>
-<p><span><span><span><span><span><span>届时，大会将集结全球范围内对开源技术充满热情的开发者、社区成员、创业者、企业领袖、媒体人，以及各开源项目应用场景的产业精英、跨界才俊与年轻力量。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会成功吸引了多家业内领先企业及组织的倾情支持和鼎力赞助。</span></span></span><span><span><span>其中</span></span></span><strong><span><span><span><strong>百度</strong></span></span></span></strong><strong><span><span><span><strong>作为</strong></span></span></span></strong><strong><span><span><span><strong>本次大会的钻石赞助商，彰显了其在</strong></span></span></span></strong><strong><span><span><span><strong>开源</strong></span></span></span></strong><strong><span><span><span><strong>行业中的</strong></span></span></span></strong><strong><span><span><span><strong>引领</strong></span></span></span></strong><strong><span><span><span><strong>地位。</strong></span></span></span></strong><span><span><span>作为全球互联网领军企业，百度始终</span></span></span><span><span><span>积极拥抱开源，</span></span></span><span><span><span>持续</span></span></span><span><span><span>推动技术进步。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>在开源领域，百度已经取得了令人瞩目的</span></span></span><span><span><span>成就，先后推出了 <a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a>、Apollo、</span></span></span><span><span><span>XuperChain</span></span></span><span><span><span>、</span></span></span><span><span><span>ECharts 等知名开源项目，不仅为全球开发者提供了丰富的技术资源，更推动了整个行业的技术进步和创新浪潮。其中，<a href="https://www.oschina.net/action/visit/ad?id=1185">PaddlePaddle</a> 成为我国首个开源深度学习平台，助力开发者快速实现人工智能应用；Apollo 则是全球领先的自动驾驶</span></span></span><span><span><span>开放</span></span></span><span><span><span>平台，推动自动驾驶技术的发展。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>本次大会上，百度专家团队将与业界共同探讨开源技术的未来发展方向，促进国内外开源技术的交流与合作，为我国科技产业注入新的活力。</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>百度专家团队会议日程如下：</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日，主论坛：主题演讲</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型时代<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>平台的技术演进和开源实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span><strong>演讲嘉宾：</strong></span></span></span></strong><span><span><span>于佃海 | 百度<a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>深度学习平台总架构师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日上午，高峰论坛：开源生态与商业化</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>百度区块链的开源进展与项目实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>荆博 | 百度区块链副总经理</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，高峰论坛：AIGC 产业前沿</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span><a href="https://www.oschina.net/action/visit/ad?id=1185">飞桨</a>大模型核心技术架构与应用</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>陈秋良 | 百度资深研发工程师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月15日下午，专题论坛：硬核 AI 技术创新与实践</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>构建卓越开发体验，共创自动驾驶新生态</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>王方浩 | Apollo 资深技术布道师</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>8月16日下午，专题论坛：数据基础与 GenAI 开发范式 —— 开源生态的机遇与探索</span></span></span></strong></span></span></span></p>
-<p><span><span><span><strong><span><span><span>议题：</span></span></span></strong><span><span><span>大模型智能开发助力效能提升-百度文心快码最佳实践</span></span></span></span></span></span></p>
-<p><span><span><span><strong><span><span><span>演讲嘉宾：</span></span></span></strong><span><span><span>张立理 | 百度前端架构师</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>百度的鼎力支持，无疑将为大会增添更多的行业视角和技术深度。百度此番携手 GOTC 2024，期待能够促进开源技术在中国乃至全球范围内的更广泛应用和深入发展，共同开启产业创新的新篇章。</span></span></span></span></span></span></p>
-<p><span><span><span><span><span><span>GOTC 2024 报名通道现已开启，诚邀全球开源技术爱好者齐聚上海共襄盛举。报名参会请点击：</span></span></span><a href="https://www.oschina.net/action/GoToLink?url=https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh"><span><span><span>https://qaxb95n3g50.feishu.cn/share/base/form/shrcntXjImLZ2L4HsDtd976XXmh</span></span></span></a></span></span></span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-89c4c00e85.png"></p>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cb70cdc44c.jpg"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-cb70cdc44c.jpg" medium="image"/>
-    <pubDate>Mon, 12 Aug 2024 20:42:45 +0800</pubDate>
   </item></channel>
 </rss>
