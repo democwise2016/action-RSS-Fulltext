@@ -30,6 +30,276 @@
     </itunes:owner>
     <itunes:image href="https://i0.wp.com/walker-a.com/wp-content/uploads/2017/02/988cf43a2f652a9c1a8b61dc6b5f7245.png?fit=32%2C32&ssl=1"/>
 <item>
+    <title><![CDATA[vSphere ESXi 使用VMware OVF Tool來匯出匯OVF/OVA虛擬機器]]></title>
+    <link>https://walker-a.com/archives/12676</link>
+    <itunes:title><![CDATA[vSphere ESXi 使用VMware OVF Tool來匯出匯OVF/OVA虛擬機器]]></itunes:title>
+    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>VMware ESXi是VMware開發的企業級類型Hypervisor，用於硬體虛擬化， 可說是目前市面上簡單快速且免費的虛擬化方案之一，只要一部電腦就可運行多台虛擬機，也就是執行多個作業系統。挨踢路人甲已使用VMware ESXi也有一陣子，從ESXi 3.5 至 ESXi 8.x 一路走來算相當順利。不過6.0以上使用vSphere Client採用Web介面，當使用匯出或匯入VM時常常下載一半就自動中斷，不管ie和chrome都一樣，山不轉路轉，利用 VMware OVF Tool ，輕鬆跨VMware ESXi Hypervisor Host間的虛擬主機複製與備份。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-01.jpg" alt="VMware OVF Tool"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>一直覺得VMware Workstation功能越來越強大，速度更是虛擬軟體的佼佼者。挨踢路人甲都使用VMware來玩Widnows、Mac OS與Linux虛擬機器。由於PC硬體越來越強，原本專屬的VMware ESXi Server 6.x 機器也搬到VMware Workstation上運行，虛擬中的虛擬是多麼的神奇啊！</p>
+<p>早在ESXi 5.x時代，使用vSphere Client應用程式來登錄，匯出匯入虛擬機相當可靠。自從改成採用Web介面後，匯出虛擬機器時，遇到大檔案就出現網路異常中斷，一直找不出原因，儼然形成免費版的夢魘。不過還好有官方推出的 VMware OVF Tool 工具，利用靈活的命令列，輕鬆實作各種VMware 產品中匯入和匯出OVF/OVA 軟體包。</p>
+<h3>從VMware官方網站取得ovftool</h3>
+<p>開放虛擬化格式 (OVF) 是一種業界標準，以 XML 格式描述有關虛擬機器映像的元資料。 VMware OVF Tool 是一個命令列實用工具，可協助使用者在各種 VMware 產品中匯入和匯出 OVF 套件。</p>
+<div>OVF Tool下載網址：請點選<a href="https://developer.broadcom.com/tools/open-virtualization-format-ovf-tool/latest" target="_blank">這裡</a></div>
+<p>目前的最新版本是 4.6.3，主要適用vSphere 8.0以上，支援Linux、MacOS、 Windows，筆者的工作機是Windows，所以選擇Windows的安裝檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-02.jpg" alt="VMware OVF Tool"></p>
+<p>OVF Tool雖然往下相容，若vSphere 7.0及以下，建議選擇4.4.3版來下載。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-03.jpg" alt="VMware OVF Tool"></p>
+<p>下載後安裝，如同Windows的標準安裝方式，下一步即可安裝完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-04.gif" alt="VMware OVF Tool"></p>
+<p>安裝的路徑在C:\Program Files\VMware\VMware OVF Tool，裡面有個ovftools.exe就是主要的執行工具程式。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-05.jpg" alt="VMware OVF Tool"></p>
+<p>VMware OVF Tool沒有視窗使用這介面，僅能使用命令列的方式來運作，所以先進入命令提示字元視窗。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-06.jpg" alt="VMware OVF Tool"></p>
+<p>進入必須切換到安裝的路徑下，這樣才能正常的執行運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-08.jpg" alt="VMware OVF Tool"></p>
+<h3>匯出OVF/OVA虛擬機器</h3>
+<p>在匯出時，請先進入Client Web介面上，確認虛擬機是否shutdown狀態，沒有的話請閉關機。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-09.jpg" alt="VMware OVF Tool"></p>
+<p>OVF 是一種開放式標準，它以套件的形式包含多個檔，例如，<span>.ovf</span>、<span>.vmdk</span>、<span>.nvram</span> 等。OVA 是封裝 OVF 檔案套件的單一檔案，換句話說，就是把整個OVF的資料夾壓縮起來，所以 OVA 一個檔案方便保存、備份與移轉。想要匯出的語法如下列指令：</p>
+<pre><code><span>ovftool vi</span><span>:</span><span>//root:p@password@192.168.8.224/test E:\backup\test.ova</span></code></pre>
+<ul>
+<li>vi://&nbsp;&nbsp;–&gt;&nbsp;ESXi / vCenter特有的路徑</li>
+<li>root:p 用戶名稱與密碼</li>
+<li>192.168.8.224 虛擬主機位置</li>
+<li>test 虛擬機器名稱</li>
+<li>E:\backup\test.ova 匯出的ova檔位置</li>
+</ul>
+<p>實例來測試一下，例如像要將eivcap2虛擬機備份匯出，請先關閉虛擬機的運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-10.jpg" alt="VMware OVF Tool"></p>
+<p>進入切換到命令提示字元視窗並切換到ovftool安裝的路徑下，輸入如下ovftool vi://root@192.168.8.225/eivcap2 e:\kill\eivcap2.ova按下【Enter】，出現密碼的等待輸入訊息。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-12.jpg" alt="VMware OVF Tool"></p>
+<p>待輸入密碼後即可發現已經開始匯出，你可以難到匯出的百分比進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-13.jpg" alt="VMware OVF Tool"></p>
+<p>當看到完成後，指定的路徑內即發現已經匯出了ova檔了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-15.jpg" alt="VMware OVF Tool"></p>
+<p>匯出後如同一個備份的虛擬機，想要匯入就輕而易舉。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-16.jpg" alt="VMware OVF Tool"></p>
+<h3>匯入OVA虛擬機</h3>
+<p>例如筆者有另一個虛擬主機，就將剛剛匯出的ova檔來匯入看看。再匯入之前，記得確定之前匯出的虛擬機器沒有啟動，不然兩個虛擬機IP一樣可是會打架哦！下圖是比這另一台ESXi 8的主機，</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-21.jpg" alt="VMware OVF Tool"></p>
+<p>選擇從OVF或OVA檔案來部署虛擬機器。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-22.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以脫抑或點選來帶入之前匯出的OVA檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23-1.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以指定新的虛擬機器名稱，不過不要以為新名稱虛擬機器後，就可以變更內部的設定，切記！之前匯出的虛擬機器不能啟動。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23.jpg" alt="VMware OVF Tool"></p>
+<p>假如你的虛擬主機內有兩個以上的儲存區，會出現選擇部署的儲存區的畫面，筆者選擇較大的空間儲存區來部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-24.jpg" alt="VMware OVF Tool"></p>
+<p>部署的選項，如網路對應、磁碟佈建型態與自動開機等選項。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-25.jpg" alt="VMware OVF Tool"></p>
+<p>再次確認後按下【完成】即開始部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-26.jpg" alt="VMware OVF Tool"></p>
+<p>部署時你可以在工作的清單上看到運作的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-27.jpg" alt="VMware OVF Tool"></p>
+<p>部署完後就自動啟動，運作正常。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-29.jpg" alt="VMware OVF Tool"></p>
+<h3>搬移部署虛擬機器</h3>
+<p>不想使用 Web Client介面來部署，也可以使用ovftool來部署，下面與web就面部署雷同，只不過使用命令列方式來執行。</p>
+<p>ovftool -ds=M2SSD -dm=thin -n=eivcap2_new e:\kill\eivcap2.ova&nbsp; &nbsp;vi://root:@192.168.8.226</p>
+<p>不過先來熟悉一下常用的參數</p>
+<ul>
+<li>-ds是部署的儲存區名稱</li>
+<li>-dm=thin是精簡置備的意思</li>
+<li>-n是部署的新虛擬機器名稱</li>
+<li>e:\kill\eivcap2.ova是來源的ovf路徑與檔名</li>
+<li>vi://root:@192.168.8.226是想要部署的虛擬主機</li>
+</ul>
+<p>ovftool不僅可以備份，也可以移轉。語法只要指定來源與目的即可，如果虛擬主機上有兩個以上的儲存區，一定有使用-ds來指定部署地的儲存區。</p>
+<p>ovftool -ds=M2SSD&nbsp; &nbsp;vi://root@192.168.8.225/eivcap2&nbsp; vi://root:@192.168.8.226</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-31.jpg" alt="&quot;VMware"></p>
+<p>部署中也可以到Web Client介面上查看部署的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-32.jpg" alt="&quot;VMware"></p>
+<p>詳細的指令可使用ovftool –help來查看。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-33.jpg" alt="&quot;VMware"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a></li>
+<li><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></li>
+<li><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a></li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>VMware ESXi是VMware開發的企業級類型Hypervisor，用於硬體虛擬化， 可說是目前市面上簡單快速且免費的虛擬化方案之一，只要一部電腦就可運行多台虛擬機，也就是執行多個作業系統。挨踢路人甲已使用VMware ESXi也有一陣子，從ESXi 3.5 至 ESXi 8.x 一路走來算相當順利。不過6.0以上使用vSphere Client採用Web介面，當使用匯出或匯入VM時常常下載一半就自動中斷，不管ie和chrome都一樣，山不轉路轉，利用 VMware OVF Tool ，輕鬆跨VMware ESXi Hypervisor Host間的虛擬主機複製與備份。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-01.jpg" alt="VMware OVF Tool"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>一直覺得VMware Workstation功能越來越強大，速度更是虛擬軟體的佼佼者。挨踢路人甲都使用VMware來玩Widnows、Mac OS與Linux虛擬機器。由於PC硬體越來越強，原本專屬的VMware ESXi Server 6.x 機器也搬到VMware Workstation上運行，虛擬中的虛擬是多麼的神奇啊！</p>
+<p>早在ESXi 5.x時代，使用vSphere Client應用程式來登錄，匯出匯入虛擬機相當可靠。自從改成採用Web介面後，匯出虛擬機器時，遇到大檔案就出現網路異常中斷，一直找不出原因，儼然形成免費版的夢魘。不過還好有官方推出的 VMware OVF Tool 工具，利用靈活的命令列，輕鬆實作各種VMware 產品中匯入和匯出OVF/OVA 軟體包。</p>
+<h3>從VMware官方網站取得ovftool</h3>
+<p>開放虛擬化格式 (OVF) 是一種業界標準，以 XML 格式描述有關虛擬機器映像的元資料。 VMware OVF Tool 是一個命令列實用工具，可協助使用者在各種 VMware 產品中匯入和匯出 OVF 套件。</p>
+<div>OVF Tool下載網址：請點選<a href="https://developer.broadcom.com/tools/open-virtualization-format-ovf-tool/latest" target="_blank">這裡</a></div>
+<p>目前的最新版本是 4.6.3，主要適用vSphere 8.0以上，支援Linux、MacOS、 Windows，筆者的工作機是Windows，所以選擇Windows的安裝檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-02.jpg" alt="VMware OVF Tool"></p>
+<p>OVF Tool雖然往下相容，若vSphere 7.0及以下，建議選擇4.4.3版來下載。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-03.jpg" alt="VMware OVF Tool"></p>
+<p>下載後安裝，如同Windows的標準安裝方式，下一步即可安裝完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-04.gif" alt="VMware OVF Tool"></p>
+<p>安裝的路徑在C:\Program Files\VMware\VMware OVF Tool，裡面有個ovftools.exe就是主要的執行工具程式。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-05.jpg" alt="VMware OVF Tool"></p>
+<p>VMware OVF Tool沒有視窗使用這介面，僅能使用命令列的方式來運作，所以先進入命令提示字元視窗。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-06.jpg" alt="VMware OVF Tool"></p>
+<p>進入必須切換到安裝的路徑下，這樣才能正常的執行運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-08.jpg" alt="VMware OVF Tool"></p>
+<h3>匯出OVF/OVA虛擬機器</h3>
+<p>在匯出時，請先進入Client Web介面上，確認虛擬機是否shutdown狀態，沒有的話請閉關機。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-09.jpg" alt="VMware OVF Tool"></p>
+<p>OVF 是一種開放式標準，它以套件的形式包含多個檔，例如，<span>.ovf</span>、<span>.vmdk</span>、<span>.nvram</span> 等。OVA 是封裝 OVF 檔案套件的單一檔案，換句話說，就是把整個OVF的資料夾壓縮起來，所以 OVA 一個檔案方便保存、備份與移轉。想要匯出的語法如下列指令：</p>
+<pre><code><span>ovftool vi</span><span>:</span><span>//root:p@password@192.168.8.224/test E:\backup\test.ova</span></code></pre>
+<ul>
+<li>vi://&nbsp;&nbsp;–&gt;&nbsp;ESXi / vCenter特有的路徑</li>
+<li>root:p 用戶名稱與密碼</li>
+<li>192.168.8.224 虛擬主機位置</li>
+<li>test 虛擬機器名稱</li>
+<li>E:\backup\test.ova 匯出的ova檔位置</li>
+</ul>
+<p>實例來測試一下，例如像要將eivcap2虛擬機備份匯出，請先關閉虛擬機的運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-10.jpg" alt="VMware OVF Tool"></p>
+<p>進入切換到命令提示字元視窗並切換到ovftool安裝的路徑下，輸入如下ovftool vi://root@192.168.8.225/eivcap2 e:\kill\eivcap2.ova按下【Enter】，出現密碼的等待輸入訊息。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-12.jpg" alt="VMware OVF Tool"></p>
+<p>待輸入密碼後即可發現已經開始匯出，你可以難到匯出的百分比進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-13.jpg" alt="VMware OVF Tool"></p>
+<p>當看到完成後，指定的路徑內即發現已經匯出了ova檔了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-15.jpg" alt="VMware OVF Tool"></p>
+<p>匯出後如同一個備份的虛擬機，想要匯入就輕而易舉。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-16.jpg" alt="VMware OVF Tool"></p>
+<h3>匯入OVA虛擬機</h3>
+<p>例如筆者有另一個虛擬主機，就將剛剛匯出的ova檔來匯入看看。再匯入之前，記得確定之前匯出的虛擬機器沒有啟動，不然兩個虛擬機IP一樣可是會打架哦！下圖是比這另一台ESXi 8的主機，</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-21.jpg" alt="VMware OVF Tool"></p>
+<p>選擇從OVF或OVA檔案來部署虛擬機器。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-22.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以脫抑或點選來帶入之前匯出的OVA檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23-1.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以指定新的虛擬機器名稱，不過不要以為新名稱虛擬機器後，就可以變更內部的設定，切記！之前匯出的虛擬機器不能啟動。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23.jpg" alt="VMware OVF Tool"></p>
+<p>假如你的虛擬主機內有兩個以上的儲存區，會出現選擇部署的儲存區的畫面，筆者選擇較大的空間儲存區來部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-24.jpg" alt="VMware OVF Tool"></p>
+<p>部署的選項，如網路對應、磁碟佈建型態與自動開機等選項。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-25.jpg" alt="VMware OVF Tool"></p>
+<p>再次確認後按下【完成】即開始部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-26.jpg" alt="VMware OVF Tool"></p>
+<p>部署時你可以在工作的清單上看到運作的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-27.jpg" alt="VMware OVF Tool"></p>
+<p>部署完後就自動啟動，運作正常。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-29.jpg" alt="VMware OVF Tool"></p>
+<h3>搬移部署虛擬機器</h3>
+<p>不想使用 Web Client介面來部署，也可以使用ovftool來部署，下面與web就面部署雷同，只不過使用命令列方式來執行。</p>
+<p>ovftool -ds=M2SSD -dm=thin -n=eivcap2_new e:\kill\eivcap2.ova&nbsp; &nbsp;vi://root:@192.168.8.226</p>
+<p>不過先來熟悉一下常用的參數</p>
+<ul>
+<li>-ds是部署的儲存區名稱</li>
+<li>-dm=thin是精簡置備的意思</li>
+<li>-n是部署的新虛擬機器名稱</li>
+<li>e:\kill\eivcap2.ova是來源的ovf路徑與檔名</li>
+<li>vi://root:@192.168.8.226是想要部署的虛擬主機</li>
+</ul>
+<p>ovftool不僅可以備份，也可以移轉。語法只要指定來源與目的即可，如果虛擬主機上有兩個以上的儲存區，一定有使用-ds來指定部署地的儲存區。</p>
+<p>ovftool -ds=M2SSD&nbsp; &nbsp;vi://root@192.168.8.225/eivcap2&nbsp; vi://root:@192.168.8.226</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-31.jpg" alt="&quot;VMware"></p>
+<p>部署中也可以到Web Client介面上查看部署的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-32.jpg" alt="&quot;VMware"></p>
+<p>詳細的指令可使用ovftool –help來查看。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-33.jpg" alt="&quot;VMware"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a></li>
+<li><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></li>
+<li><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a></li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>VMware ESXi是VMware開發的企業級類型Hypervisor，用於硬體虛擬化， 可說是目前市面上簡單快速且免費的虛擬化方案之一，只要一部電腦就可運行多台虛擬機，也就是執行多個作業系統。挨踢路人甲已使用VMware ESXi也有一陣子，從ESXi 3.5 至 ESXi 8.x 一路走來算相當順利。不過6.0以上使用vSphere Client採用Web介面，當使用匯出或匯入VM時常常下載一半就自動中斷，不管ie和chrome都一樣，山不轉路轉，利用 VMware OVF Tool ，輕鬆跨VMware ESXi Hypervisor Host間的虛擬主機複製與備份。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-01.jpg" alt="VMware OVF Tool"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>一直覺得VMware Workstation功能越來越強大，速度更是虛擬軟體的佼佼者。挨踢路人甲都使用VMware來玩Widnows、Mac OS與Linux虛擬機器。由於PC硬體越來越強，原本專屬的VMware ESXi Server 6.x 機器也搬到VMware Workstation上運行，虛擬中的虛擬是多麼的神奇啊！</p>
+<p>早在ESXi 5.x時代，使用vSphere Client應用程式來登錄，匯出匯入虛擬機相當可靠。自從改成採用Web介面後，匯出虛擬機器時，遇到大檔案就出現網路異常中斷，一直找不出原因，儼然形成免費版的夢魘。不過還好有官方推出的 VMware OVF Tool 工具，利用靈活的命令列，輕鬆實作各種VMware 產品中匯入和匯出OVF/OVA 軟體包。</p>
+<h3>從VMware官方網站取得ovftool</h3>
+<p>開放虛擬化格式 (OVF) 是一種業界標準，以 XML 格式描述有關虛擬機器映像的元資料。 VMware OVF Tool 是一個命令列實用工具，可協助使用者在各種 VMware 產品中匯入和匯出 OVF 套件。</p>
+<div>OVF Tool下載網址：請點選<a href="https://developer.broadcom.com/tools/open-virtualization-format-ovf-tool/latest" target="_blank">這裡</a></div>
+<p>目前的最新版本是 4.6.3，主要適用vSphere 8.0以上，支援Linux、MacOS、 Windows，筆者的工作機是Windows，所以選擇Windows的安裝檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-02.jpg" alt="VMware OVF Tool"></p>
+<p>OVF Tool雖然往下相容，若vSphere 7.0及以下，建議選擇4.4.3版來下載。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-03.jpg" alt="VMware OVF Tool"></p>
+<p>下載後安裝，如同Windows的標準安裝方式，下一步即可安裝完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-04.gif" alt="VMware OVF Tool"></p>
+<p>安裝的路徑在C:\Program Files\VMware\VMware OVF Tool，裡面有個ovftools.exe就是主要的執行工具程式。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-05.jpg" alt="VMware OVF Tool"></p>
+<p>VMware OVF Tool沒有視窗使用這介面，僅能使用命令列的方式來運作，所以先進入命令提示字元視窗。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-06.jpg" alt="VMware OVF Tool"></p>
+<p>進入必須切換到安裝的路徑下，這樣才能正常的執行運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-08.jpg" alt="VMware OVF Tool"></p>
+<h3>匯出OVF/OVA虛擬機器</h3>
+<p>在匯出時，請先進入Client Web介面上，確認虛擬機是否shutdown狀態，沒有的話請閉關機。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-09.jpg" alt="VMware OVF Tool"></p>
+<p>OVF 是一種開放式標準，它以套件的形式包含多個檔，例如，<span>.ovf</span>、<span>.vmdk</span>、<span>.nvram</span> 等。OVA 是封裝 OVF 檔案套件的單一檔案，換句話說，就是把整個OVF的資料夾壓縮起來，所以 OVA 一個檔案方便保存、備份與移轉。想要匯出的語法如下列指令：</p>
+<pre><code><span>ovftool vi</span><span>:</span><span>//root:p@password@192.168.8.224/test E:\backup\test.ova</span></code></pre>
+<ul>
+<li>vi://&nbsp;&nbsp;–&gt;&nbsp;ESXi / vCenter特有的路徑</li>
+<li>root:p 用戶名稱與密碼</li>
+<li>192.168.8.224 虛擬主機位置</li>
+<li>test 虛擬機器名稱</li>
+<li>E:\backup\test.ova 匯出的ova檔位置</li>
+</ul>
+<p>實例來測試一下，例如像要將eivcap2虛擬機備份匯出，請先關閉虛擬機的運作。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-10.jpg" alt="VMware OVF Tool"></p>
+<p>進入切換到命令提示字元視窗並切換到ovftool安裝的路徑下，輸入如下ovftool vi://root@192.168.8.225/eivcap2 e:\kill\eivcap2.ova按下【Enter】，出現密碼的等待輸入訊息。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-12.jpg" alt="VMware OVF Tool"></p>
+<p>待輸入密碼後即可發現已經開始匯出，你可以難到匯出的百分比進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-13.jpg" alt="VMware OVF Tool"></p>
+<p>當看到完成後，指定的路徑內即發現已經匯出了ova檔了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-15.jpg" alt="VMware OVF Tool"></p>
+<p>匯出後如同一個備份的虛擬機，想要匯入就輕而易舉。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-16.jpg" alt="VMware OVF Tool"></p>
+<h3>匯入OVA虛擬機</h3>
+<p>例如筆者有另一個虛擬主機，就將剛剛匯出的ova檔來匯入看看。再匯入之前，記得確定之前匯出的虛擬機器沒有啟動，不然兩個虛擬機IP一樣可是會打架哦！下圖是比這另一台ESXi 8的主機，</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-21.jpg" alt="VMware OVF Tool"></p>
+<p>選擇從OVF或OVA檔案來部署虛擬機器。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-22.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以脫抑或點選來帶入之前匯出的OVA檔。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23-1.jpg" alt="VMware OVF Tool"></p>
+<p>部署時可以指定新的虛擬機器名稱，不過不要以為新名稱虛擬機器後，就可以變更內部的設定，切記！之前匯出的虛擬機器不能啟動。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-23.jpg" alt="VMware OVF Tool"></p>
+<p>假如你的虛擬主機內有兩個以上的儲存區，會出現選擇部署的儲存區的畫面，筆者選擇較大的空間儲存區來部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-24.jpg" alt="VMware OVF Tool"></p>
+<p>部署的選項，如網路對應、磁碟佈建型態與自動開機等選項。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-25.jpg" alt="VMware OVF Tool"></p>
+<p>再次確認後按下【完成】即開始部署。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-26.jpg" alt="VMware OVF Tool"></p>
+<p>部署時你可以在工作的清單上看到運作的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-27.jpg" alt="VMware OVF Tool"></p>
+<p>部署完後就自動啟動，運作正常。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-29.jpg" alt="VMware OVF Tool"></p>
+<h3>搬移部署虛擬機器</h3>
+<p>不想使用 Web Client介面來部署，也可以使用ovftool來部署，下面與web就面部署雷同，只不過使用命令列方式來執行。</p>
+<p>ovftool -ds=M2SSD -dm=thin -n=eivcap2_new e:\kill\eivcap2.ova&nbsp; &nbsp;vi://root:@192.168.8.226</p>
+<p>不過先來熟悉一下常用的參數</p>
+<ul>
+<li>-ds是部署的儲存區名稱</li>
+<li>-dm=thin是精簡置備的意思</li>
+<li>-n是部署的新虛擬機器名稱</li>
+<li>e:\kill\eivcap2.ova是來源的ovf路徑與檔名</li>
+<li>vi://root:@192.168.8.226是想要部署的虛擬主機</li>
+</ul>
+<p>ovftool不僅可以備份，也可以移轉。語法只要指定來源與目的即可，如果虛擬主機上有兩個以上的儲存區，一定有使用-ds來指定部署地的儲存區。</p>
+<p>ovftool -ds=M2SSD&nbsp; &nbsp;vi://root@192.168.8.225/eivcap2&nbsp; vi://root:@192.168.8.226</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-31.jpg" alt="&quot;VMware"></p>
+<p>部署中也可以到Web Client介面上查看部署的進度。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-32.jpg" alt="&quot;VMware"></p>
+<p>詳細的指令可使用ovftool –help來查看。</p>
+<p><img src="https://image.walker-a.com/2024/11/ovf/ovf-33.jpg" alt="&quot;VMware"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a></li>
+<li><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></li>
+<li><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a></li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://image.walker-a.com/2024/11/ovf/ovf-01.jpg"/>
+          <media:content url="https://image.walker-a.com/2024/11/ovf/ovf-01.jpg" medium="image"/>
+    <pubDate>Sun, 17 Nov 2024 23:55:12 +0000</pubDate>
+  </item><item>
     <title><![CDATA[終身免費 WinX MediaTrans 輕鬆管理 iPhone 資料與備份]]></title>
     <link>https://walker-a.com/archives/11225</link>
     <itunes:title><![CDATA[終身免費 WinX MediaTrans 輕鬆管理 iPhone 資料與備份]]></itunes:title>
@@ -836,128 +1106,5 @@ Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.
     <itunes:image href="https://image.walker-a.com/2022/11/akey/akey-01.jpg"/>
           <media:content url="https://image.walker-a.com/2022/11/akey/akey-01.jpg" medium="image"/>
     <pubDate>Wed, 23 Oct 2024 00:03:38 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Tipard Video Converter 影片轉檔工具，限時免費中~]]></title>
-    <link>https://walker-a.com/archives/10546</link>
-    <itunes:title><![CDATA[Tipard Video Converter 影片轉檔工具，限時免費中~]]></itunes:title>
-    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>周休二日帶動了假日旅遊的風潮，因此出外旅遊一定會拍拍照照，尤其目前的智慧型手機大部分都支援錄影功能，然而各種不同的格式實在相當擾民。 Tipard Video Converter Platinum 是一款功能強大的影片轉換工具，可讓您轉換任何視頻，可以快速換為 MP4、MKV、FLV、AVI、MOV、WMV、3GP 和 250 多種格式。此外，您還可以從任何視頻中提取音樂將其轉換為 MP3、AAC、WMA 等格式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-01.jpg" alt="Tipard Video Converter"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>到活動網頁上看到27.53美元的Tipard Video Converter 限時免費（文末有活動網頁網址）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02.jpg" alt="Tipard Video Converter"></p>
-<p>往下捲動即可紅色框的連結，點選來進入取得序號網頁。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02-1.jpg" alt="Tipard Video Converter"></p>
-<p>輸入名稱、郵件帳號、勾選「Agree with our Privacy Poilcy」，並確認我不是機器人後點擊〔Get Now〕。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-03.jpg" alt="Tipard Video Converter"></p>
-<p>到郵件信箱上收信(如果沒看到請到垃圾郵件上找)，記住紅色框內的註冊序號。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-04.jpg" alt="Tipard Video Converter"></p>
-<p>回到活動網頁上找到Step 3.步驟，點選「Click here」來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-05.jpg" alt="Tipard Video Converter"></p>
-<p>下載後安裝，在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-06.jpg" alt="Tipard Video Converter"></p>
-<p>雖然不是英文，大視窗的安裝只要滑鼠點一點即可。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-07.jpg" alt="Tipard Video Converter"></p>
-<p>Windows的招牌安裝輕鬆完成。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-08.gif" alt="Tipard Video Converter"></p>
-<p>安裝完後啟動，自動顯示註冊的畫面，輸入之前記下的序號來啟動。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-09.jpg" alt="Tipard Video Converter"></p>
-<p>啟動後的介面不是英文，實在看不懂，不用緊張。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-10.jpg" alt="Tipard Video Converter"></p>
-<p>Tipard Video Converter&nbsp; 以高速影片轉換為 2D/3D 格式，對影片可切割、浮水印和剪輯，也可批次轉檔。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-11.jpg" alt="Tipard Video Converter"></p>
-<p>支援轉換為 MP4 / AVI / MPEG / WMV / MOV 等眾多格式，目前限時免費1年，來試試吧！</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-12.jpg" alt="Tipard Video Converter"></p>
-<div>【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/get-free-key-tipard-video-converter/" target="_blank">這裡</a></div>
-<div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a href="https://walker-a.com/archives/8305" target="_blank">限時免費 4DDiG File Repair 輕鬆修復你的照片與影片</a></li>
-<li><a href="https://walker-a.com/archives/9474" target="_blank">照片美化工具 SoftOrbits Photo Retoucher 限時終身免費</a></li>
-<li><a href="https://walker-a.com/archives/9467" target="_blank">限時免費 Aiseesoft AnyCoord 輕鬆更改你的 iPhone 上GPS位置</a></li>
-</ul>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>周休二日帶動了假日旅遊的風潮，因此出外旅遊一定會拍拍照照，尤其目前的智慧型手機大部分都支援錄影功能，然而各種不同的格式實在相當擾民。 Tipard Video Converter Platinum 是一款功能強大的影片轉換工具，可讓您轉換任何視頻，可以快速換為 MP4、MKV、FLV、AVI、MOV、WMV、3GP 和 250 多種格式。此外，您還可以從任何視頻中提取音樂將其轉換為 MP3、AAC、WMA 等格式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-01.jpg" alt="Tipard Video Converter"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>到活動網頁上看到27.53美元的Tipard Video Converter 限時免費（文末有活動網頁網址）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02.jpg" alt="Tipard Video Converter"></p>
-<p>往下捲動即可紅色框的連結，點選來進入取得序號網頁。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02-1.jpg" alt="Tipard Video Converter"></p>
-<p>輸入名稱、郵件帳號、勾選「Agree with our Privacy Poilcy」，並確認我不是機器人後點擊〔Get Now〕。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-03.jpg" alt="Tipard Video Converter"></p>
-<p>到郵件信箱上收信(如果沒看到請到垃圾郵件上找)，記住紅色框內的註冊序號。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-04.jpg" alt="Tipard Video Converter"></p>
-<p>回到活動網頁上找到Step 3.步驟，點選「Click here」來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-05.jpg" alt="Tipard Video Converter"></p>
-<p>下載後安裝，在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-06.jpg" alt="Tipard Video Converter"></p>
-<p>雖然不是英文，大視窗的安裝只要滑鼠點一點即可。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-07.jpg" alt="Tipard Video Converter"></p>
-<p>Windows的招牌安裝輕鬆完成。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-08.gif" alt="Tipard Video Converter"></p>
-<p>安裝完後啟動，自動顯示註冊的畫面，輸入之前記下的序號來啟動。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-09.jpg" alt="Tipard Video Converter"></p>
-<p>啟動後的介面不是英文，實在看不懂，不用緊張。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-10.jpg" alt="Tipard Video Converter"></p>
-<p>Tipard Video Converter&nbsp; 以高速影片轉換為 2D/3D 格式，對影片可切割、浮水印和剪輯，也可批次轉檔。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-11.jpg" alt="Tipard Video Converter"></p>
-<p>支援轉換為 MP4 / AVI / MPEG / WMV / MOV 等眾多格式，目前限時免費1年，來試試吧！</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-12.jpg" alt="Tipard Video Converter"></p>
-<div>【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/get-free-key-tipard-video-converter/" target="_blank">這裡</a></div>
-<div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a href="https://walker-a.com/archives/8305" target="_blank">限時免費 4DDiG File Repair 輕鬆修復你的照片與影片</a></li>
-<li><a href="https://walker-a.com/archives/9474" target="_blank">照片美化工具 SoftOrbits Photo Retoucher 限時終身免費</a></li>
-<li><a href="https://walker-a.com/archives/9467" target="_blank">限時免費 Aiseesoft AnyCoord 輕鬆更改你的 iPhone 上GPS位置</a></li>
-</ul>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p>周休二日帶動了假日旅遊的風潮，因此出外旅遊一定會拍拍照照，尤其目前的智慧型手機大部分都支援錄影功能，然而各種不同的格式實在相當擾民。 Tipard Video Converter Platinum 是一款功能強大的影片轉換工具，可讓您轉換任何視頻，可以快速換為 MP4、MKV、FLV、AVI、MOV、WMV、3GP 和 250 多種格式。此外，您還可以從任何視頻中提取音樂將其轉換為 MP3、AAC、WMA 等格式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-01.jpg" alt="Tipard Video Converter"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>到活動網頁上看到27.53美元的Tipard Video Converter 限時免費（文末有活動網頁網址）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02.jpg" alt="Tipard Video Converter"></p>
-<p>往下捲動即可紅色框的連結，點選來進入取得序號網頁。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-02-1.jpg" alt="Tipard Video Converter"></p>
-<p>輸入名稱、郵件帳號、勾選「Agree with our Privacy Poilcy」，並確認我不是機器人後點擊〔Get Now〕。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-03.jpg" alt="Tipard Video Converter"></p>
-<p>到郵件信箱上收信(如果沒看到請到垃圾郵件上找)，記住紅色框內的註冊序號。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-04.jpg" alt="Tipard Video Converter"></p>
-<p>回到活動網頁上找到Step 3.步驟，點選「Click here」來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-05.jpg" alt="Tipard Video Converter"></p>
-<p>下載後安裝，在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-06.jpg" alt="Tipard Video Converter"></p>
-<p>雖然不是英文，大視窗的安裝只要滑鼠點一點即可。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-07.jpg" alt="Tipard Video Converter"></p>
-<p>Windows的招牌安裝輕鬆完成。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-08.gif" alt="Tipard Video Converter"></p>
-<p>安裝完後啟動，自動顯示註冊的畫面，輸入之前記下的序號來啟動。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-09.jpg" alt="Tipard Video Converter"></p>
-<p>啟動後的介面不是英文，實在看不懂，不用緊張。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-10.jpg" alt="Tipard Video Converter"></p>
-<p>Tipard Video Converter&nbsp; 以高速影片轉換為 2D/3D 格式，對影片可切割、浮水印和剪輯，也可批次轉檔。</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-11.jpg" alt="Tipard Video Converter"></p>
-<p>支援轉換為 MP4 / AVI / MPEG / WMV / MOV 等眾多格式，目前限時免費1年，來試試吧！</p>
-<p><img src="https://image.walker-a.com/2023/08/tvc/tvc-12.jpg" alt="Tipard Video Converter"></p>
-<div>【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/get-free-key-tipard-video-converter/" target="_blank">這裡</a></div>
-<div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a href="https://walker-a.com/archives/8305" target="_blank">限時免費 4DDiG File Repair 輕鬆修復你的照片與影片</a></li>
-<li><a href="https://walker-a.com/archives/9474" target="_blank">照片美化工具 SoftOrbits Photo Retoucher 限時終身免費</a></li>
-<li><a href="https://walker-a.com/archives/9467" target="_blank">限時免費 Aiseesoft AnyCoord 輕鬆更改你的 iPhone 上GPS位置</a></li>
-</ul>
-</div>]]></content:encoded>
-    <itunes:image href="https://image.walker-a.com/2023/08/tvc/tvc-01.jpg"/>
-          <media:content url="https://image.walker-a.com/2023/08/tvc/tvc-01.jpg" medium="image"/>
-    <pubDate>Sun, 20 Oct 2024 23:55:19 +0000</pubDate>
   </item></channel>
 </rss>
