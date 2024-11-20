@@ -30,6 +30,1683 @@
     </itunes:owner>
     <itunes:image href="https://www.oschina.net/img/logo.gif"/>
 <item>
+    <title><![CDATA[Vert.x 发布 5.0 首个 RC 版本，正式版计划在 12 月发布]]></title>
+    <link>https://www.oschina.net/news/321339/vertx-5-0-rc1-released</link>
+    <itunes:title><![CDATA[Vert.x 发布 5.0 首个 RC 版本，正式版计划在 12 月发布]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Eclipse Vert.x 5的第一个候选版本发布了！！！</p>
+<p>Vert.x 5是Vert.x 4.x系列的演进版本，它将为Vert.x带来关键新特性。这个版本的目标是为想要尝试它并提供反馈的人们提供即将到来的Vert.x 5的候选构建。</p>
+<p>以下是这个新主要版本的亮点。</p>
+<h2>拥抱基于未来的模型</h2>
+<p>Vert.x 4将3.x的回调异步模型扩展到基于 Future 和回调<span>混合模型，以便于从Vert.x 3迁移。</span></p>
+<p>Vert.x 5只保留了 Future 模型，因此移除了回调模型。</p>
+<p>由于经典的<code>AbstractVerticle</code>类生命周期API不太适合基于未来的模型，因此提供了一个新的<code>VerticleBase</code>基类：</p>
+<pre><code>public class MyVerticle extends VerticleBase {
+private HttpServer server;
+@Override
+public Future&lt;?&gt; start() {
+server = vertx.createHttpServer().requestHandler(req -&gt;
+req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"));
+// 现在绑定服务器：
+return server.listen(8080);
+}
+}
+</code></pre>
+<p><code>VerticleBase</code>和<code>Verticle</code>都扩展了一个新的<code>Deployable</code>接口，由于该接口是功能性的，你甚至可以编写一行verticle：</p>
+<pre><code>Deployable verticle = context -&gt; vertx
+.createHttpServer()
+.requestHandler(req -&gt; req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"))
+.listen(8080);
+</code></pre>
+<p>注意：<code>AbstractVerticle</code>仍然可以使用，并没有被弃用，我们只是推荐使用最适合你需求的基类。</p>
+<h2>Java模块</h2>
+<p>Vert.x 5支持Java平台模块系统（JPMS）与显式模块（Vert.x 4只支持自动模块）。</p>
+<p>大多数Vert.x组件都支持模块（尽管由于依赖关系，一些组件无法支持），即将发布的模块化Vert.x指南将提供更多信息，同时你可以查看我们的JPMS示例。</p>
+<h2>gRPC改进</h2>
+<p>Vert.x gRPC在这个主要版本中有了一些很棒的新增功能，使Vert.x gRPC成为实现gRPC服务的首选。</p>
+<h3>gRPC Web</h3>
+<p>Vert.x gRPC服务器默认支持gRPC Web协议（即不需要中间代理）。</p>
+<p>在Vert.x方面，启用gRPC Web协议支持只是一个选项开关。 在不久的将来，我们将提供一个教程，解释如何使用<code>protoc</code>生成浏览器客户端并与服务器通信。</p>
+<h3>gRPC截止时间</h3>
+<p>Vert.x gRPC 支持在客户端和服务器上处理超时和截止时间。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23timeout-and-deadlines" target="_blank">简单的例子</a>。</p>
+<h3>JSON 线格式</h3>
+<p>gRPC隐式假设使用Protobuf线格式，Vert.x gRPC客户端也支持JSON线格式。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23json-wire-format" target="_blank">简单的例子</a>。</p>
+<h2>OpenAPI &amp; Vert.x OpenAPI路由器</h2>
+<p>随着Vert.x 5的发布，OpenAPI模块现在还支持二进制数据。</p>
+<p>你可以在这里找到Vert.x OpenAPI的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fopenapi-examples" target="_blank">简单示例</a>。</p>
+<p>你可以在这里找到Vert.x OpenAPI路由器的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fweb-examples%2Fsrc%2Fmain%2Fjava%2Fio%2Fvertx%2Fexample%2Fweb%2Fopenapi_router" target="_blank">简单示例</a>。</p>
+<h2>io_uring支持</h2>
+<p>Vert.x 4已经在孵化中支持io_uring一段时间了，并且有一个单独的jar。</p>
+<p>Netty 4.2将io_uring从孵化中提升出来，因此Vert.x核心支持它开箱即用。</p>
+<h2>客户端负载均衡</h2>
+<p>基于HTTP的客户端的客户端负载均衡，有多种策略。</p>
+<p>这里有一个简单的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Fblob%2F5.x%2Fcore-examples%2FREADME.adoc%23load-balancing" target="_blank">HTTP客户端示例</a> 以及一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23load-balancing" target="_blank">gRPC HTTP客户端示例</a>。</p>
+<h2>服务解析器</h2>
+<p>Vert.x服务解析器是Vert.x堆栈的新成员，旨在为客户端提供动态地址解析，它将Vert.x核心客户端负载均衡扩展到一组新的服务解析器。</p>
+<p>启用的客户端，如HTTP/Web/gRPC客户端，可以使用服务解析器动态地将服务地址映射到网络地址列表。</p>
+<p>你可以在这里找到一些<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fservice-resolver-examples" target="_blank">示例</a>。</p>
+<h2>HTTP代理</h2>
+<p>我们的HTTP代理拦截端已经通过开箱即用的转换和WebSocket升级中的拦截器进行了改进。</p>
+<p>此外，缓存部分得到了适当的缓存服务提供接口（SPI）以及对缓存规范的扩展支持。</p>
+<h2>其他改进</h2>
+<h3>Unix域套接字</h3>
+<p>Unix域套接字历来只由本地传输支持，现在对于JDK 16或更高版本可用。</p>
+<h3>连接选项</h3>
+<p>TCP和HTTP客户端具有更细粒度的连接能力，提供每个连接的SSL和代理选项。以前这样的配置只可能在客户端范围内进行。</p>
+<h3>非池化HTTP连接</h3>
+<p>与HTTP服务器的默认交互涉及提供请求对象，让Vert.x HTTP客户端建立到实际服务器的连接，然后将其池化以供后续使用。</p>
+<p>有时，你可能希望管理这样的连接而不是重用池化的连接，对于这个用例，你现在可以使用Vert.x HTTP客户端的连接能力。</p>
+<h3>Micrometer指标性能改进</h3>
+<p>我们集成的Micrometer指标开销已经减少，你可以在这个博客文章中了解更多。</p>
+<h3>TCP关闭</h3>
+<p>HTTP服务器和客户端支持优雅关闭。</p>
+<p>你可以关闭服务器或客户端。</p>
+<p>调用<code>shutdown</code>会启动关闭阶段，服务器或客户端有机会执行清理操作。</p>
+<ul>
+<li>独立的HTTP服务器取消绑定</li>
+<li>共享的HTTP服务器从接受服务器集合中移除</li>
+<li>HTTP客户端拒绝发送任何新请求</li>
+</ul>
+<p>当所有连接的飞行请求处理完毕后，服务器或客户端然后被关闭。</p>
+<h3>应用程序启动器</h3>
+<p>应用程序启动器是一个新工具，它解决了以far jar打包的Vert.x应用程序的启动问题。它取代了Vert.x 4的<code>io.vertx.core.Launcher</code>。</p>
+<h2>即将废弃的特性</h2>
+<p>一些组件在5.0中正在慢慢被废弃，这意味着它们在5.x系列的生命周期内仍然受到支持，但我们不再鼓励使用它们，因为我们为它们提供了替代品。这些组件计划在下一个主要版本（Vert.x 6）中消失。</p>
+<p>以下是我们在5.x中标识为废弃的组件列表</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>替代品</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gRPC Netty</td>
+<td>Vert.x gRPC客户端和服务器</td>
+</tr>
+<tr>
+<td>JDBC API</td>
+<td>JDBC的SQL客户端API实现</td>
+</tr>
+<tr>
+<td>服务发现</td>
+<td>Vert.x服务解析器</td>
+</tr>
+<tr>
+<td>RxJava 1</td>
+<td>Mutiny或RxJava 3</td>
+</tr>
+<tr>
+<td>OpenTracing</td>
+<td>OpenTelemetry</td>
+</tr>
+<tr>
+<td>Vert.x Unit</td>
+<td>Vert.x JUnit 5</td>
+</tr>
+</tbody>
+</table>
+<p>以下是在5.x中被移除的组件列表，它们在4.x系列中已经废弃。</p>
+<ul>
+<li>Vert.x Sync，被Vert.x虚拟线程替代</li>
+<li>服务工厂/Maven服务工厂/HTTP服务工厂</li>
+</ul>
+<h2>接下来是什么？</h2>
+<p>Vert.x 5计划在12月发布，直到发布之前，你可以期待几个候选版本。</p>
+<h2>最后</h2>
+<p>弃用和重大更改可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fwiki%2Fwiki%2F5.0.0-Deprecations-and-breaking-changes" target="_blank">wiki</a>上找到。</p>
+<p>发布工件已经部署到Maven Central，你可以在Maven Central上获得发行版。</p>
+<p>最重要的是，文档已经部署在这个预览网站上 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fvertx.io%2Fdocs%2F5.0.0-SNAPSHOT%2F" target="_blank">https://vertx.io/docs/5.0.0-SNAPSHOT/</a></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Eclipse Vert.x 5的第一个候选版本发布了！！！</p>
+<p>Vert.x 5是Vert.x 4.x系列的演进版本，它将为Vert.x带来关键新特性。这个版本的目标是为想要尝试它并提供反馈的人们提供即将到来的Vert.x 5的候选构建。</p>
+<p>以下是这个新主要版本的亮点。</p>
+<h2>拥抱基于未来的模型</h2>
+<p>Vert.x 4将3.x的回调异步模型扩展到基于 Future 和回调<span>混合模型，以便于从Vert.x 3迁移。</span></p>
+<p>Vert.x 5只保留了 Future 模型，因此移除了回调模型。</p>
+<p>由于经典的<code>AbstractVerticle</code>类生命周期API不太适合基于未来的模型，因此提供了一个新的<code>VerticleBase</code>基类：</p>
+<pre><code>public class MyVerticle extends VerticleBase {
+private HttpServer server;
+@Override
+public Future&lt;?&gt; start() {
+server = vertx.createHttpServer().requestHandler(req -&gt;
+req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"));
+// 现在绑定服务器：
+return server.listen(8080);
+}
+}
+</code></pre>
+<p><code>VerticleBase</code>和<code>Verticle</code>都扩展了一个新的<code>Deployable</code>接口，由于该接口是功能性的，你甚至可以编写一行verticle：</p>
+<pre><code>Deployable verticle = context -&gt; vertx
+.createHttpServer()
+.requestHandler(req -&gt; req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"))
+.listen(8080);
+</code></pre>
+<p>注意：<code>AbstractVerticle</code>仍然可以使用，并没有被弃用，我们只是推荐使用最适合你需求的基类。</p>
+<h2>Java模块</h2>
+<p>Vert.x 5支持Java平台模块系统（JPMS）与显式模块（Vert.x 4只支持自动模块）。</p>
+<p>大多数Vert.x组件都支持模块（尽管由于依赖关系，一些组件无法支持），即将发布的模块化Vert.x指南将提供更多信息，同时你可以查看我们的JPMS示例。</p>
+<h2>gRPC改进</h2>
+<p>Vert.x gRPC在这个主要版本中有了一些很棒的新增功能，使Vert.x gRPC成为实现gRPC服务的首选。</p>
+<h3>gRPC Web</h3>
+<p>Vert.x gRPC服务器默认支持gRPC Web协议（即不需要中间代理）。</p>
+<p>在Vert.x方面，启用gRPC Web协议支持只是一个选项开关。 在不久的将来，我们将提供一个教程，解释如何使用<code>protoc</code>生成浏览器客户端并与服务器通信。</p>
+<h3>gRPC截止时间</h3>
+<p>Vert.x gRPC 支持在客户端和服务器上处理超时和截止时间。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23timeout-and-deadlines" target="_blank">简单的例子</a>。</p>
+<h3>JSON 线格式</h3>
+<p>gRPC隐式假设使用Protobuf线格式，Vert.x gRPC客户端也支持JSON线格式。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23json-wire-format" target="_blank">简单的例子</a>。</p>
+<h2>OpenAPI &amp; Vert.x OpenAPI路由器</h2>
+<p>随着Vert.x 5的发布，OpenAPI模块现在还支持二进制数据。</p>
+<p>你可以在这里找到Vert.x OpenAPI的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fopenapi-examples" target="_blank">简单示例</a>。</p>
+<p>你可以在这里找到Vert.x OpenAPI路由器的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fweb-examples%2Fsrc%2Fmain%2Fjava%2Fio%2Fvertx%2Fexample%2Fweb%2Fopenapi_router" target="_blank">简单示例</a>。</p>
+<h2>io_uring支持</h2>
+<p>Vert.x 4已经在孵化中支持io_uring一段时间了，并且有一个单独的jar。</p>
+<p>Netty 4.2将io_uring从孵化中提升出来，因此Vert.x核心支持它开箱即用。</p>
+<h2>客户端负载均衡</h2>
+<p>基于HTTP的客户端的客户端负载均衡，有多种策略。</p>
+<p>这里有一个简单的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Fblob%2F5.x%2Fcore-examples%2FREADME.adoc%23load-balancing" target="_blank">HTTP客户端示例</a> 以及一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23load-balancing" target="_blank">gRPC HTTP客户端示例</a>。</p>
+<h2>服务解析器</h2>
+<p>Vert.x服务解析器是Vert.x堆栈的新成员，旨在为客户端提供动态地址解析，它将Vert.x核心客户端负载均衡扩展到一组新的服务解析器。</p>
+<p>启用的客户端，如HTTP/Web/gRPC客户端，可以使用服务解析器动态地将服务地址映射到网络地址列表。</p>
+<p>你可以在这里找到一些<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fservice-resolver-examples" target="_blank">示例</a>。</p>
+<h2>HTTP代理</h2>
+<p>我们的HTTP代理拦截端已经通过开箱即用的转换和WebSocket升级中的拦截器进行了改进。</p>
+<p>此外，缓存部分得到了适当的缓存服务提供接口（SPI）以及对缓存规范的扩展支持。</p>
+<h2>其他改进</h2>
+<h3>Unix域套接字</h3>
+<p>Unix域套接字历来只由本地传输支持，现在对于JDK 16或更高版本可用。</p>
+<h3>连接选项</h3>
+<p>TCP和HTTP客户端具有更细粒度的连接能力，提供每个连接的SSL和代理选项。以前这样的配置只可能在客户端范围内进行。</p>
+<h3>非池化HTTP连接</h3>
+<p>与HTTP服务器的默认交互涉及提供请求对象，让Vert.x HTTP客户端建立到实际服务器的连接，然后将其池化以供后续使用。</p>
+<p>有时，你可能希望管理这样的连接而不是重用池化的连接，对于这个用例，你现在可以使用Vert.x HTTP客户端的连接能力。</p>
+<h3>Micrometer指标性能改进</h3>
+<p>我们集成的Micrometer指标开销已经减少，你可以在这个博客文章中了解更多。</p>
+<h3>TCP关闭</h3>
+<p>HTTP服务器和客户端支持优雅关闭。</p>
+<p>你可以关闭服务器或客户端。</p>
+<p>调用<code>shutdown</code>会启动关闭阶段，服务器或客户端有机会执行清理操作。</p>
+<ul>
+<li>独立的HTTP服务器取消绑定</li>
+<li>共享的HTTP服务器从接受服务器集合中移除</li>
+<li>HTTP客户端拒绝发送任何新请求</li>
+</ul>
+<p>当所有连接的飞行请求处理完毕后，服务器或客户端然后被关闭。</p>
+<h3>应用程序启动器</h3>
+<p>应用程序启动器是一个新工具，它解决了以far jar打包的Vert.x应用程序的启动问题。它取代了Vert.x 4的<code>io.vertx.core.Launcher</code>。</p>
+<h2>即将废弃的特性</h2>
+<p>一些组件在5.0中正在慢慢被废弃，这意味着它们在5.x系列的生命周期内仍然受到支持，但我们不再鼓励使用它们，因为我们为它们提供了替代品。这些组件计划在下一个主要版本（Vert.x 6）中消失。</p>
+<p>以下是我们在5.x中标识为废弃的组件列表</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>替代品</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gRPC Netty</td>
+<td>Vert.x gRPC客户端和服务器</td>
+</tr>
+<tr>
+<td>JDBC API</td>
+<td>JDBC的SQL客户端API实现</td>
+</tr>
+<tr>
+<td>服务发现</td>
+<td>Vert.x服务解析器</td>
+</tr>
+<tr>
+<td>RxJava 1</td>
+<td>Mutiny或RxJava 3</td>
+</tr>
+<tr>
+<td>OpenTracing</td>
+<td>OpenTelemetry</td>
+</tr>
+<tr>
+<td>Vert.x Unit</td>
+<td>Vert.x JUnit 5</td>
+</tr>
+</tbody>
+</table>
+<p>以下是在5.x中被移除的组件列表，它们在4.x系列中已经废弃。</p>
+<ul>
+<li>Vert.x Sync，被Vert.x虚拟线程替代</li>
+<li>服务工厂/Maven服务工厂/HTTP服务工厂</li>
+</ul>
+<h2>接下来是什么？</h2>
+<p>Vert.x 5计划在12月发布，直到发布之前，你可以期待几个候选版本。</p>
+<h2>最后</h2>
+<p>弃用和重大更改可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fwiki%2Fwiki%2F5.0.0-Deprecations-and-breaking-changes" target="_blank">wiki</a>上找到。</p>
+<p>发布工件已经部署到Maven Central，你可以在Maven Central上获得发行版。</p>
+<p>最重要的是，文档已经部署在这个预览网站上 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fvertx.io%2Fdocs%2F5.0.0-SNAPSHOT%2F" target="_blank">https://vertx.io/docs/5.0.0-SNAPSHOT/</a></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Eclipse Vert.x 5的第一个候选版本发布了！！！</p>
+<p>Vert.x 5是Vert.x 4.x系列的演进版本，它将为Vert.x带来关键新特性。这个版本的目标是为想要尝试它并提供反馈的人们提供即将到来的Vert.x 5的候选构建。</p>
+<p>以下是这个新主要版本的亮点。</p>
+<h2>拥抱基于未来的模型</h2>
+<p>Vert.x 4将3.x的回调异步模型扩展到基于 Future 和回调<span>混合模型，以便于从Vert.x 3迁移。</span></p>
+<p>Vert.x 5只保留了 Future 模型，因此移除了回调模型。</p>
+<p>由于经典的<code>AbstractVerticle</code>类生命周期API不太适合基于未来的模型，因此提供了一个新的<code>VerticleBase</code>基类：</p>
+<pre><code>public class MyVerticle extends VerticleBase {
+private HttpServer server;
+@Override
+public Future&lt;?&gt; start() {
+server = vertx.createHttpServer().requestHandler(req -&gt;
+req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"));
+// 现在绑定服务器：
+return server.listen(8080);
+}
+}
+</code></pre>
+<p><code>VerticleBase</code>和<code>Verticle</code>都扩展了一个新的<code>Deployable</code>接口，由于该接口是功能性的，你甚至可以编写一行verticle：</p>
+<pre><code>Deployable verticle = context -&gt; vertx
+.createHttpServer()
+.requestHandler(req -&gt; req.response()
+.putHeader("content-type", "text/plain")
+.end("Hello from Vert.x!"))
+.listen(8080);
+</code></pre>
+<p>注意：<code>AbstractVerticle</code>仍然可以使用，并没有被弃用，我们只是推荐使用最适合你需求的基类。</p>
+<h2>Java模块</h2>
+<p>Vert.x 5支持Java平台模块系统（JPMS）与显式模块（Vert.x 4只支持自动模块）。</p>
+<p>大多数Vert.x组件都支持模块（尽管由于依赖关系，一些组件无法支持），即将发布的模块化Vert.x指南将提供更多信息，同时你可以查看我们的JPMS示例。</p>
+<h2>gRPC改进</h2>
+<p>Vert.x gRPC在这个主要版本中有了一些很棒的新增功能，使Vert.x gRPC成为实现gRPC服务的首选。</p>
+<h3>gRPC Web</h3>
+<p>Vert.x gRPC服务器默认支持gRPC Web协议（即不需要中间代理）。</p>
+<p>在Vert.x方面，启用gRPC Web协议支持只是一个选项开关。 在不久的将来，我们将提供一个教程，解释如何使用<code>protoc</code>生成浏览器客户端并与服务器通信。</p>
+<h3>gRPC截止时间</h3>
+<p>Vert.x gRPC 支持在客户端和服务器上处理超时和截止时间。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23timeout-and-deadlines" target="_blank">简单的例子</a>。</p>
+<h3>JSON 线格式</h3>
+<p>gRPC隐式假设使用Protobuf线格式，Vert.x gRPC客户端也支持JSON线格式。</p>
+<p>这里有一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23json-wire-format" target="_blank">简单的例子</a>。</p>
+<h2>OpenAPI &amp; Vert.x OpenAPI路由器</h2>
+<p>随着Vert.x 5的发布，OpenAPI模块现在还支持二进制数据。</p>
+<p>你可以在这里找到Vert.x OpenAPI的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fopenapi-examples" target="_blank">简单示例</a>。</p>
+<p>你可以在这里找到Vert.x OpenAPI路由器的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fweb-examples%2Fsrc%2Fmain%2Fjava%2Fio%2Fvertx%2Fexample%2Fweb%2Fopenapi_router" target="_blank">简单示例</a>。</p>
+<h2>io_uring支持</h2>
+<p>Vert.x 4已经在孵化中支持io_uring一段时间了，并且有一个单独的jar。</p>
+<p>Netty 4.2将io_uring从孵化中提升出来，因此Vert.x核心支持它开箱即用。</p>
+<h2>客户端负载均衡</h2>
+<p>基于HTTP的客户端的客户端负载均衡，有多种策略。</p>
+<p>这里有一个简单的<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Fblob%2F5.x%2Fcore-examples%2FREADME.adoc%23load-balancing" target="_blank">HTTP客户端示例</a> 以及一个<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fgrpc-examples%23load-balancing" target="_blank">gRPC HTTP客户端示例</a>。</p>
+<h2>服务解析器</h2>
+<p>Vert.x服务解析器是Vert.x堆栈的新成员，旨在为客户端提供动态地址解析，它将Vert.x核心客户端负载均衡扩展到一组新的服务解析器。</p>
+<p>启用的客户端，如HTTP/Web/gRPC客户端，可以使用服务解析器动态地将服务地址映射到网络地址列表。</p>
+<p>你可以在这里找到一些<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fvertx-examples%2Ftree%2F5.x%2Fservice-resolver-examples" target="_blank">示例</a>。</p>
+<h2>HTTP代理</h2>
+<p>我们的HTTP代理拦截端已经通过开箱即用的转换和WebSocket升级中的拦截器进行了改进。</p>
+<p>此外，缓存部分得到了适当的缓存服务提供接口（SPI）以及对缓存规范的扩展支持。</p>
+<h2>其他改进</h2>
+<h3>Unix域套接字</h3>
+<p>Unix域套接字历来只由本地传输支持，现在对于JDK 16或更高版本可用。</p>
+<h3>连接选项</h3>
+<p>TCP和HTTP客户端具有更细粒度的连接能力，提供每个连接的SSL和代理选项。以前这样的配置只可能在客户端范围内进行。</p>
+<h3>非池化HTTP连接</h3>
+<p>与HTTP服务器的默认交互涉及提供请求对象，让Vert.x HTTP客户端建立到实际服务器的连接，然后将其池化以供后续使用。</p>
+<p>有时，你可能希望管理这样的连接而不是重用池化的连接，对于这个用例，你现在可以使用Vert.x HTTP客户端的连接能力。</p>
+<h3>Micrometer指标性能改进</h3>
+<p>我们集成的Micrometer指标开销已经减少，你可以在这个博客文章中了解更多。</p>
+<h3>TCP关闭</h3>
+<p>HTTP服务器和客户端支持优雅关闭。</p>
+<p>你可以关闭服务器或客户端。</p>
+<p>调用<code>shutdown</code>会启动关闭阶段，服务器或客户端有机会执行清理操作。</p>
+<ul>
+<li>独立的HTTP服务器取消绑定</li>
+<li>共享的HTTP服务器从接受服务器集合中移除</li>
+<li>HTTP客户端拒绝发送任何新请求</li>
+</ul>
+<p>当所有连接的飞行请求处理完毕后，服务器或客户端然后被关闭。</p>
+<h3>应用程序启动器</h3>
+<p>应用程序启动器是一个新工具，它解决了以far jar打包的Vert.x应用程序的启动问题。它取代了Vert.x 4的<code>io.vertx.core.Launcher</code>。</p>
+<h2>即将废弃的特性</h2>
+<p>一些组件在5.0中正在慢慢被废弃，这意味着它们在5.x系列的生命周期内仍然受到支持，但我们不再鼓励使用它们，因为我们为它们提供了替代品。这些组件计划在下一个主要版本（Vert.x 6）中消失。</p>
+<p>以下是我们在5.x中标识为废弃的组件列表</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>替代品</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gRPC Netty</td>
+<td>Vert.x gRPC客户端和服务器</td>
+</tr>
+<tr>
+<td>JDBC API</td>
+<td>JDBC的SQL客户端API实现</td>
+</tr>
+<tr>
+<td>服务发现</td>
+<td>Vert.x服务解析器</td>
+</tr>
+<tr>
+<td>RxJava 1</td>
+<td>Mutiny或RxJava 3</td>
+</tr>
+<tr>
+<td>OpenTracing</td>
+<td>OpenTelemetry</td>
+</tr>
+<tr>
+<td>Vert.x Unit</td>
+<td>Vert.x JUnit 5</td>
+</tr>
+</tbody>
+</table>
+<p>以下是在5.x中被移除的组件列表，它们在4.x系列中已经废弃。</p>
+<ul>
+<li>Vert.x Sync，被Vert.x虚拟线程替代</li>
+<li>服务工厂/Maven服务工厂/HTTP服务工厂</li>
+</ul>
+<h2>接下来是什么？</h2>
+<p>Vert.x 5计划在12月发布，直到发布之前，你可以期待几个候选版本。</p>
+<h2>最后</h2>
+<p>弃用和重大更改可以在<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fvert-x3%2Fwiki%2Fwiki%2F5.0.0-Deprecations-and-breaking-changes" target="_blank">wiki</a>上找到。</p>
+<p>发布工件已经部署到Maven Central，你可以在Maven Central上获得发行版。</p>
+<p>最重要的是，文档已经部署在这个预览网站上 <a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fvertx.io%2Fdocs%2F5.0.0-SNAPSHOT%2F" target="_blank">https://vertx.io/docs/5.0.0-SNAPSHOT/</a></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png" medium="image"/>
+    <pubDate>Thu, 21 Nov 2024 02:37:45 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[开源日报 | FreeCAD 1.0；“天才少年”创业国产GPU；传奇程序员Dijkstra；姚期智和他的“姚班”；“一人AI公司”实现年入百万]]></title>
+    <link>https://www.oschina.net/news/321318</link>
+    <itunes:title><![CDATA[开源日报 | FreeCAD 1.0；“天才少年”创业国产GPU；传奇程序员Dijkstra；姚期智和他的“姚班”；“一人AI公司”实现年入百万]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.11.20</strong></span></h3>
+<h2><span>今日要闻</span></h2>
+<h3><span><a href="https://www.oschina.net/news/321213/freecad-1-0-released">FreeCAD 1.0 正式发布</a></span></h3>
+<div>
+<div>
+<div>
+<div>
+<div>
+在持续开发 22 年后 FreeCAD 项目正式发布 1.0 版本。开发者称，1.0 版本通常代表着软件已经成熟，可用于真正的工作。FreeCAD 早已为真正的工作做好了准备，已经用于生产多年。之前的版本之所以没有称为 1.0 版本，是为了解决两大问题：修正 Toponaming 问题和内置组装模块。这两大问题如今已经基本解决。开发者建议第一次接触 FreeCAD 的用户先阅读文档和教程。FreeCAD 是一款通用参数化 3D CAD 建模器，支持有限元素法（FEM）的建筑信息模型（BIM）软件，既适用于机械工程产品设计，也可以扩展到其他工程领域如建筑或电气工程。
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-39aae2d3ce.png">
+</div>
+</div>
+</div>
+</div>
+</div>
+<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fw%2F300215" target="_blank">360准备发布一款基于360 AI搜索的AI应用</a></h3>
+<div>
+<p>据周鸿祎微博消息，360计划在本月内发布一款全新的AI产品，并向全网募集产品名称。</p>
+<p>这款新产品基于360 AI搜索打造，是一款AI搜索产品。周鸿祎表示，他希望为新产品找到一个以字母 “N” 开头的名称，原因是他几年前购买了一个以“N”开头的域名，并希望能够利用起来。他还表示，如果网友的命名建议被采纳，将会邀请这位网友在发布会上担任重要角色，以感谢他们的贡献。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-04c8f63967.png"></p>
+</div>
+<h3><span><a href="https://www.oschina.net/news/321217/angular-v19">Angular 19 正式发布</a></span></h3>
+<div>
+<p>Angular 19 更新亮点：</p>
+<ul>
+<li> <p>性能优化</p>
+<ul>
+<li> <p><strong>增量水合</strong>：引入了开发者预览版的增量水合功能，允许延迟加载和水合特定模板部分，从而减少初始加载时的 JavaScript 体积。</p> </li>
+<li> <p><strong>事件重放</strong>：默认启用了事件重放功能，以解决服务端渲染应用中的用户事件处理延迟问题。</p> </li>
+<li> <p><strong>路由级别的渲染模式</strong>：提供了新的<span>&nbsp;</span><code>ServerRoute</code><span>&nbsp;</span>接口，允许配置特定路由是在服务器端渲染、预渲染还是客户端渲染。</p> </li>
+<li> <p><strong>Zoneless Angular</strong>：继续实验无 zone 支持，减少对 zone.js 的依赖，并改善服务端渲染。</p> </li>
+</ul> </li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c830445c.png"></p>
+</div>
+<h3><span><a href="https://my.oschina.net/u/4894014/blog/16522742">Rocky Linux 9.5 发布</a></span></h3>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/rockylinux.org-38f234a2b7.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6974787068%2FOFOqPyOV1%3Fpagetype%3Dprofilefeed" target="_blank">用 [金，木，水，火，土] 向量乘积造字</a></h4>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-99c3bc396d.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>硅谷陈源博士</strong></span>
+</div>
+</div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1648544895%2FP0ZrJ27RH" target="_blank">他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝</a></h4>
+<div>
+<div>
+<p>“1957 年，他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝，因为当时荷兰没有这个职业。”</p>
+<p>“Djikstra 的眼科医生一直不知道他是做什么的，有一天突然问他：「是你发明了 GPS 导航的算法吗？」”</p>
+<p>“Dijkstra 后来在采访中说，他的最短路径算法之所以能如此简洁，是因为当时在咖啡店里没有纸和笔，这强迫他在思考时避免复杂度，尽可能追求简单。在他的访谈和文章中，经常能发现一个主题，就是资源的匮乏往往最能激发创造性。”</p>
+<p>『 他是几位影响力最大的计算科学的奠基人之一，也是少数#同时从工程和理论的角度塑造这个新学科#的人。</p>
+<p>他的根本性贡献覆盖了很多领域，包括：编译器、操作系统、分布式系统、程序设计、编程语言、程序验证、软件工程、图论等等。他的很多论文为后人开拓了整个新的研究领域。我们现在熟悉的一些标准概念，比如互斥、死锁、信号量等，都是 Dijkstra 发明和定义的。1994 年时有人对约 1000 名计算机科学家进行了问卷调查，选出了 38 篇这个领域最有影响力的论文，其中有五篇是 Dijkstra 写的。</p>
+</div>
+</div>
+<p><span>- 微博&nbsp;<strong>出版人周筠</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6045441276%2FP1aJ7o6lh" target="_blank">Windows 11 允许管理员远程修复存在启动问题的 PC</a></h4>
+<div>
+<div>
+<div>
+<p>在本周的 Ignite 开发者大会上，微软宣布了其 Windows 11 操作系统的一项新功能，该功能将允许管理员远程修复存在启动问题的 PC。</p>
+<p>该公司开发该功能是为了应对未来的类似事件，例如今年 7 月导致 850 多万台 PC 崩溃的CrowdStrike 事件。</p>
+<p>这项新功能名为“快速机器恢复”，允许公司的 IT 管理员利用 Windows 更新系统来修复通常需要物理访问机器才能解决的启动相关错误。</p>
+<p>Quick Machine Recovery 将于 2025 年初通过 Windows Insider 版本进行测试，然后在稍后进行更广泛地推出。</p>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>blackorbird</strong></span>
+</div>
+</div>
+</div>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3044480009816707" target="_blank">教育初尝AI红利</a></strong></h4>
+<div>
+<p><span>一边是互联网巨头在教育领域排兵布阵，百度、科大讯飞等企业相继发布AI+教育产品；另一边，教育行业大公司独角兽们也大举布局，猿辅导、精准学等玩家纷纷“开卷”大模型。</span></p>
+<p><span>人工智能无疑将在许多方面改变教育，一个积极的信号是，AI的加码正在为当下的教育科技赛道，提供正向反馈。</span></p>
+</div>
+<p><span>-</span><strong><span>&nbsp;猎云网</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FfNJ4yVvLKLiPTWr3XU3uAA" target="_blank">4块钱的蜜雪冰城进军AI，会背刺打工人吗？</a></strong></h4>
+<p>这是奶茶生意太“卷”“雪王”开始不务正业了?还是准备用AI代替员工，最终提高价格被刺万千打工人呢?</p>
+<p><span>-</span><strong><span>&nbsp;</span><span>科技旋涡</span></strong></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1816151789860334576%26wfr%3Dspider%26for%3Dpc" target="_blank">“天才少年”创业国产GPU，一众明星资本投了</a></strong></h4>
+<p><span>如此多明星资本出手行云，与公司创始人季宇，联合创始人、CTO余洪敏不无关系。《科创板日报》记者从行云创始团队处了解到，公司创始人季宇为清华大学计算机系博士，是“华为天才少年”，主攻体系结构、AI芯片方向。</span></p>
+</div>
+<p><span>-<strong>&nbsp;科创板日报</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FKh7ib_GG7jN90pXhgemENw" target="_blank">姚期智和他的“姚班”：人生只为一大事而来</a></strong></h4>
+<p><span>姚班之“姚”指的是世界著名计算机科学家姚期智院士，唯一一位获得图灵奖的华人。姚期智在其57岁“高龄”放弃美籍高薪回国创办“姚班”，在他的带领下，姚班计算机专业在全国几乎无可匹敌。2018年，它更是取代了麻省理工学院，成为全球计算机科学的NO.1！姚班也就成为了全球最顶尖专业里的精英班，好比皇冠上的一颗明珠。</span></p>
+<p><span>- </span><strong><span>第一新声</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftech.ifeng.com%2Fc%2F8ef5R26bOQ5" target="_blank">“一人AI公司”已实现年入百万</a></strong></h4>
+<div>
+<p><span>大模型亦或者AI，并不是要来取代你，而是为了拓展你的能力，让你成为一个“一体五面”型的多面手。</span></p>
+<p><span>它延展的是我们的机会，而不是缩小我们活跃的空间。这或许是AI人才与IT人才之间的区别。</span></p>
+</div>
+<p><span>- <strong>真故研究室</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3037025055584520" target="_blank">人工智能的生产力悖论：为什么没有更多的员工使用 ChatGPT？</a></strong></h4>
+<p><span>大多数高管都明白，今天的这股AI浪潮已经不仅仅是炒作——他们迫切希望让自己的公司走在AI前沿，因为今日之AI已经比以往任何时候都更强大、更易于使用。可是，尽管AI潜力巨大且获得了广泛关注，但普及度依然滞后。真正的障碍在于企业如何对待工作本身。系统性的问题阻碍了这些工具成为我们日常工作的组成部分。</span></p>
+<p><span>-<strong>&nbsp;</strong></span><strong><span>36氪</span></strong></p>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">mkdocs/mkdocs</a></strong></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9a65fa85a3.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">https://github.com/mkdocs/mkdocs/</a></u></em></p>
+<p>MkDocs 是一款快速、简单且华丽的静态网站生成器，专门用于构建项目文档。文档源文件以 Markdown 编写，并使用单个 YAML 配置文件进行配置。它易于使用，并且可以使用第三方主题、插件和 Markdown 扩展进行扩展。</p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/5783135/blog/16519932" target="_blank">得物彩虹桥架构演进之路 - 负载均衡篇</a></strong></h4>
+<p><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg"><span><span>&nbsp;</span></span></p>
+<hr>
+<div>
+<h2><span><strong>开源之声</strong></span></h2>
+</div>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FZUznZrgzbxpsOsCj9xN1MQ" target="_blank">B站知名up主何同学被指盗用开源项目<span>——</span>网友锐评「移源丁真：鉴定为自研」</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：别去污染issues了，还不嫌丢人么</span>
+<ul>
+<li><span>观点 2：确实，我只觉得这些提issue真小丑，issue不是用来干这个的。你可以给作者发邮件！这些小屁孩他们并不是想维护开源社区，只是单纯的找存在感以及告诉全世界，我发现个秘密一样的心理，以及想让别人死。</span></li>
+</ul> </li>
+<li><span>观点 3：不谈利益什么的，我觉得稍微过头了，口语化的描述经常出口就是我们专门什么什么的，是意指为某事专门搞了个方法，不等于就是说这一切都是我们原创的嘛！如果这么纠结几个字，呵呵全国的大中小软件公司it公司岂不是都得死吗？警察审讯还经常用可能，大概，你再想想是不是...&nbsp;这些不仅模糊还很危险！也没听网友说点什么啊</span>
+<ul>
+<li><span>观点 4：没听网友说什么？那是没人发现用的开源，开源协议很清楚，引用开源要注明，作为公众up这样做？不是寒了开源的心吗？</span></li>
+</ul> </li>
+<li><span>观点 5：何同学还得恰饭，人家厂商给钱了，在视频里说用的开源，厂商下次就砍价了</span></li>
+<li><span>观点 6：我有一计（上上策）：建议何同学把这个视频的商单收入全部捐赠给开源项目。</span></li>
+<li><span>观点 7：何武器到现在还有这么多粉丝量，也说明了我们臭写代码的确是不会营销。当然了，不要族谱的流量大家还是不要乱吃的好。</span></li>
+<li><span>观点 8：5G受益最大的何同学</span></li>
+<li><span>观点 9：一个个作业工作代码都是抄的&nbsp;跑这里顶真来了</span>
+<ul>
+<li><span>观点 10：一看就不懂，开源就是特地让你用的，爱怎么抄就怎么抄，但是得承认是别人的成果，尊重作者产出。受人唾弃的是抹掉作者自称自研的行为，算了跟个不懂的说啥</span></li>
+</ul> </li>
+<li><span>观点 11：那个路径还是带-master，说明是直接下载的压缩包，都不是git&nbsp;clone拉的</span></li>
+<li><span>观点 12：开源改动：指把作者改了</span></li>
+<li><span>观点 13：刷到过一次，pcb直角走线给我看懵了</span></li>
+<li><span>观点 14：巧了，正好看了这个视频，还对里边那句“我们专门写了一个软件”印象深刻，当时还挺佩服。感情是拿人开源的说是自己开发，这就无耻了</span></li>
+<li><span>观点 15：遵循开源协议，合规使用才不会出岔子，现在很多软件如剪映等会有开源软件清单，这一点让开源作者们也能感到最起码的尊重</span></li>
+<li><span>观点 16：视频评论区回应中提到何某优化了字符生成比例、图片裁切方式和传参方式，PyCharm&nbsp;底部路径中的&nbsp;ASCII&nbsp;generator-master&nbsp;说明他是下载的，何某确实不会&nbsp;git&nbsp;clone。也没打算贡献他所谓的优化</span></li>
+<li><span>观点 17：几年前的何语言同样在代码上翻了车，那次是c语言，这次是python</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FB2QocjgMYVul05I8Jc57Og" target="_blank">谷歌被强制出售Chrome</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：上策：给Mozilla无偿捐一堆钱。中策，捐给linux&nbsp;foundation后遥控开发。下策：直接拆分。</span></li>
+<li><span>观点 2：火狐粉狂喜</span></li>
+<li><span>观点 3：用ungoogled&nbsp;chromium</span></li>
+<li><span>观点 4：谷歌同时掌握最大搜索引擎，最流行浏览器和最流行操作系统，对公平竞争和互联网开放性伤害太大了。将&nbsp;Chrome&nbsp;拆分出去至少可以让&nbsp;Chrome&nbsp;更中立，Google&nbsp;也不会对&nbsp;Firefox&nbsp;搞负优化了</span>
+<ul>
+<li><span>观点 5：这个看起来真是算挺好的消息了</span></li>
+</ul> </li>
+<li><span>观点 6：好好好，强推&nbsp;Manifest&nbsp;V3&nbsp;怨声载道，来个人治治&nbsp;Google</span></li>
+<li><span>观点 7：无论出售给谁也是继续垄断，像这种对于互联网自由有着生杀大权的产品，就应该强制完全开源并采用GNU&nbsp;AGPL-3.0许可证，削弱其中心化控制权，省得以后谷歌再搞出诸如隐私沙箱、Manifest&nbsp;V3、网络环境完整性验证等有损互联网自由的下三滥招数</span></li>
+<li><span>观点 8：最大的原因还是广告业务吧，浏览器对谷歌来说不过是广告的载体罢了，技术上的事对这种公司来说都只是小打小闹。</span>
+<ul>
+<li><span>观点 9：对，广告业务剥离，营收直接腰斩，国内阿里拆分1+6的时候，阿里妈妈的归属也决定哪个子公司可以更加稳定</span></li>
+</ul> </li>
+</ul>
+</blockquote>
+</div>
+<p><em><strong>---END---</strong></em></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c151218d5d.png"><span>&nbsp;</span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.11.20</strong></span></h3>
+<h2><span>今日要闻</span></h2>
+<h3><span><a href="https://www.oschina.net/news/321213/freecad-1-0-released">FreeCAD 1.0 正式发布</a></span></h3>
+<div>
+<div>
+<div>
+<div>
+<div>
+在持续开发 22 年后 FreeCAD 项目正式发布 1.0 版本。开发者称，1.0 版本通常代表着软件已经成熟，可用于真正的工作。FreeCAD 早已为真正的工作做好了准备，已经用于生产多年。之前的版本之所以没有称为 1.0 版本，是为了解决两大问题：修正 Toponaming 问题和内置组装模块。这两大问题如今已经基本解决。开发者建议第一次接触 FreeCAD 的用户先阅读文档和教程。FreeCAD 是一款通用参数化 3D CAD 建模器，支持有限元素法（FEM）的建筑信息模型（BIM）软件，既适用于机械工程产品设计，也可以扩展到其他工程领域如建筑或电气工程。
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-39aae2d3ce.png">
+</div>
+</div>
+</div>
+</div>
+</div>
+<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fw%2F300215" target="_blank">360准备发布一款基于360 AI搜索的AI应用</a></h3>
+<div>
+<p>据周鸿祎微博消息，360计划在本月内发布一款全新的AI产品，并向全网募集产品名称。</p>
+<p>这款新产品基于360 AI搜索打造，是一款AI搜索产品。周鸿祎表示，他希望为新产品找到一个以字母 “N” 开头的名称，原因是他几年前购买了一个以“N”开头的域名，并希望能够利用起来。他还表示，如果网友的命名建议被采纳，将会邀请这位网友在发布会上担任重要角色，以感谢他们的贡献。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-04c8f63967.png"></p>
+</div>
+<h3><span><a href="https://www.oschina.net/news/321217/angular-v19">Angular 19 正式发布</a></span></h3>
+<div>
+<p>Angular 19 更新亮点：</p>
+<ul>
+<li> <p>性能优化</p>
+<ul>
+<li> <p><strong>增量水合</strong>：引入了开发者预览版的增量水合功能，允许延迟加载和水合特定模板部分，从而减少初始加载时的 JavaScript 体积。</p> </li>
+<li> <p><strong>事件重放</strong>：默认启用了事件重放功能，以解决服务端渲染应用中的用户事件处理延迟问题。</p> </li>
+<li> <p><strong>路由级别的渲染模式</strong>：提供了新的<span>&nbsp;</span><code>ServerRoute</code><span>&nbsp;</span>接口，允许配置特定路由是在服务器端渲染、预渲染还是客户端渲染。</p> </li>
+<li> <p><strong>Zoneless Angular</strong>：继续实验无 zone 支持，减少对 zone.js 的依赖，并改善服务端渲染。</p> </li>
+</ul> </li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c830445c.png"></p>
+</div>
+<h3><span><a href="https://my.oschina.net/u/4894014/blog/16522742">Rocky Linux 9.5 发布</a></span></h3>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/rockylinux.org-38f234a2b7.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6974787068%2FOFOqPyOV1%3Fpagetype%3Dprofilefeed" target="_blank">用 [金，木，水，火，土] 向量乘积造字</a></h4>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-99c3bc396d.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>硅谷陈源博士</strong></span>
+</div>
+</div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1648544895%2FP0ZrJ27RH" target="_blank">他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝</a></h4>
+<div>
+<div>
+<p>“1957 年，他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝，因为当时荷兰没有这个职业。”</p>
+<p>“Djikstra 的眼科医生一直不知道他是做什么的，有一天突然问他：「是你发明了 GPS 导航的算法吗？」”</p>
+<p>“Dijkstra 后来在采访中说，他的最短路径算法之所以能如此简洁，是因为当时在咖啡店里没有纸和笔，这强迫他在思考时避免复杂度，尽可能追求简单。在他的访谈和文章中，经常能发现一个主题，就是资源的匮乏往往最能激发创造性。”</p>
+<p>『 他是几位影响力最大的计算科学的奠基人之一，也是少数#同时从工程和理论的角度塑造这个新学科#的人。</p>
+<p>他的根本性贡献覆盖了很多领域，包括：编译器、操作系统、分布式系统、程序设计、编程语言、程序验证、软件工程、图论等等。他的很多论文为后人开拓了整个新的研究领域。我们现在熟悉的一些标准概念，比如互斥、死锁、信号量等，都是 Dijkstra 发明和定义的。1994 年时有人对约 1000 名计算机科学家进行了问卷调查，选出了 38 篇这个领域最有影响力的论文，其中有五篇是 Dijkstra 写的。</p>
+</div>
+</div>
+<p><span>- 微博&nbsp;<strong>出版人周筠</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6045441276%2FP1aJ7o6lh" target="_blank">Windows 11 允许管理员远程修复存在启动问题的 PC</a></h4>
+<div>
+<div>
+<div>
+<p>在本周的 Ignite 开发者大会上，微软宣布了其 Windows 11 操作系统的一项新功能，该功能将允许管理员远程修复存在启动问题的 PC。</p>
+<p>该公司开发该功能是为了应对未来的类似事件，例如今年 7 月导致 850 多万台 PC 崩溃的CrowdStrike 事件。</p>
+<p>这项新功能名为“快速机器恢复”，允许公司的 IT 管理员利用 Windows 更新系统来修复通常需要物理访问机器才能解决的启动相关错误。</p>
+<p>Quick Machine Recovery 将于 2025 年初通过 Windows Insider 版本进行测试，然后在稍后进行更广泛地推出。</p>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>blackorbird</strong></span>
+</div>
+</div>
+</div>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3044480009816707" target="_blank">教育初尝AI红利</a></strong></h4>
+<div>
+<p><span>一边是互联网巨头在教育领域排兵布阵，百度、科大讯飞等企业相继发布AI+教育产品；另一边，教育行业大公司独角兽们也大举布局，猿辅导、精准学等玩家纷纷“开卷”大模型。</span></p>
+<p><span>人工智能无疑将在许多方面改变教育，一个积极的信号是，AI的加码正在为当下的教育科技赛道，提供正向反馈。</span></p>
+</div>
+<p><span>-</span><strong><span>&nbsp;猎云网</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FfNJ4yVvLKLiPTWr3XU3uAA" target="_blank">4块钱的蜜雪冰城进军AI，会背刺打工人吗？</a></strong></h4>
+<p>这是奶茶生意太“卷”“雪王”开始不务正业了?还是准备用AI代替员工，最终提高价格被刺万千打工人呢?</p>
+<p><span>-</span><strong><span>&nbsp;</span><span>科技旋涡</span></strong></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1816151789860334576%26wfr%3Dspider%26for%3Dpc" target="_blank">“天才少年”创业国产GPU，一众明星资本投了</a></strong></h4>
+<p><span>如此多明星资本出手行云，与公司创始人季宇，联合创始人、CTO余洪敏不无关系。《科创板日报》记者从行云创始团队处了解到，公司创始人季宇为清华大学计算机系博士，是“华为天才少年”，主攻体系结构、AI芯片方向。</span></p>
+</div>
+<p><span>-<strong>&nbsp;科创板日报</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FKh7ib_GG7jN90pXhgemENw" target="_blank">姚期智和他的“姚班”：人生只为一大事而来</a></strong></h4>
+<p><span>姚班之“姚”指的是世界著名计算机科学家姚期智院士，唯一一位获得图灵奖的华人。姚期智在其57岁“高龄”放弃美籍高薪回国创办“姚班”，在他的带领下，姚班计算机专业在全国几乎无可匹敌。2018年，它更是取代了麻省理工学院，成为全球计算机科学的NO.1！姚班也就成为了全球最顶尖专业里的精英班，好比皇冠上的一颗明珠。</span></p>
+<p><span>- </span><strong><span>第一新声</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftech.ifeng.com%2Fc%2F8ef5R26bOQ5" target="_blank">“一人AI公司”已实现年入百万</a></strong></h4>
+<div>
+<p><span>大模型亦或者AI，并不是要来取代你，而是为了拓展你的能力，让你成为一个“一体五面”型的多面手。</span></p>
+<p><span>它延展的是我们的机会，而不是缩小我们活跃的空间。这或许是AI人才与IT人才之间的区别。</span></p>
+</div>
+<p><span>- <strong>真故研究室</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3037025055584520" target="_blank">人工智能的生产力悖论：为什么没有更多的员工使用 ChatGPT？</a></strong></h4>
+<p><span>大多数高管都明白，今天的这股AI浪潮已经不仅仅是炒作——他们迫切希望让自己的公司走在AI前沿，因为今日之AI已经比以往任何时候都更强大、更易于使用。可是，尽管AI潜力巨大且获得了广泛关注，但普及度依然滞后。真正的障碍在于企业如何对待工作本身。系统性的问题阻碍了这些工具成为我们日常工作的组成部分。</span></p>
+<p><span>-<strong>&nbsp;</strong></span><strong><span>36氪</span></strong></p>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">mkdocs/mkdocs</a></strong></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9a65fa85a3.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">https://github.com/mkdocs/mkdocs/</a></u></em></p>
+<p>MkDocs 是一款快速、简单且华丽的静态网站生成器，专门用于构建项目文档。文档源文件以 Markdown 编写，并使用单个 YAML 配置文件进行配置。它易于使用，并且可以使用第三方主题、插件和 Markdown 扩展进行扩展。</p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/5783135/blog/16519932" target="_blank">得物彩虹桥架构演进之路 - 负载均衡篇</a></strong></h4>
+<p><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg"><span><span>&nbsp;</span></span></p>
+<hr>
+<div>
+<h2><span><strong>开源之声</strong></span></h2>
+</div>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FZUznZrgzbxpsOsCj9xN1MQ" target="_blank">B站知名up主何同学被指盗用开源项目<span>——</span>网友锐评「移源丁真：鉴定为自研」</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：别去污染issues了，还不嫌丢人么</span>
+<ul>
+<li><span>观点 2：确实，我只觉得这些提issue真小丑，issue不是用来干这个的。你可以给作者发邮件！这些小屁孩他们并不是想维护开源社区，只是单纯的找存在感以及告诉全世界，我发现个秘密一样的心理，以及想让别人死。</span></li>
+</ul> </li>
+<li><span>观点 3：不谈利益什么的，我觉得稍微过头了，口语化的描述经常出口就是我们专门什么什么的，是意指为某事专门搞了个方法，不等于就是说这一切都是我们原创的嘛！如果这么纠结几个字，呵呵全国的大中小软件公司it公司岂不是都得死吗？警察审讯还经常用可能，大概，你再想想是不是...&nbsp;这些不仅模糊还很危险！也没听网友说点什么啊</span>
+<ul>
+<li><span>观点 4：没听网友说什么？那是没人发现用的开源，开源协议很清楚，引用开源要注明，作为公众up这样做？不是寒了开源的心吗？</span></li>
+</ul> </li>
+<li><span>观点 5：何同学还得恰饭，人家厂商给钱了，在视频里说用的开源，厂商下次就砍价了</span></li>
+<li><span>观点 6：我有一计（上上策）：建议何同学把这个视频的商单收入全部捐赠给开源项目。</span></li>
+<li><span>观点 7：何武器到现在还有这么多粉丝量，也说明了我们臭写代码的确是不会营销。当然了，不要族谱的流量大家还是不要乱吃的好。</span></li>
+<li><span>观点 8：5G受益最大的何同学</span></li>
+<li><span>观点 9：一个个作业工作代码都是抄的&nbsp;跑这里顶真来了</span>
+<ul>
+<li><span>观点 10：一看就不懂，开源就是特地让你用的，爱怎么抄就怎么抄，但是得承认是别人的成果，尊重作者产出。受人唾弃的是抹掉作者自称自研的行为，算了跟个不懂的说啥</span></li>
+</ul> </li>
+<li><span>观点 11：那个路径还是带-master，说明是直接下载的压缩包，都不是git&nbsp;clone拉的</span></li>
+<li><span>观点 12：开源改动：指把作者改了</span></li>
+<li><span>观点 13：刷到过一次，pcb直角走线给我看懵了</span></li>
+<li><span>观点 14：巧了，正好看了这个视频，还对里边那句“我们专门写了一个软件”印象深刻，当时还挺佩服。感情是拿人开源的说是自己开发，这就无耻了</span></li>
+<li><span>观点 15：遵循开源协议，合规使用才不会出岔子，现在很多软件如剪映等会有开源软件清单，这一点让开源作者们也能感到最起码的尊重</span></li>
+<li><span>观点 16：视频评论区回应中提到何某优化了字符生成比例、图片裁切方式和传参方式，PyCharm&nbsp;底部路径中的&nbsp;ASCII&nbsp;generator-master&nbsp;说明他是下载的，何某确实不会&nbsp;git&nbsp;clone。也没打算贡献他所谓的优化</span></li>
+<li><span>观点 17：几年前的何语言同样在代码上翻了车，那次是c语言，这次是python</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FB2QocjgMYVul05I8Jc57Og" target="_blank">谷歌被强制出售Chrome</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：上策：给Mozilla无偿捐一堆钱。中策，捐给linux&nbsp;foundation后遥控开发。下策：直接拆分。</span></li>
+<li><span>观点 2：火狐粉狂喜</span></li>
+<li><span>观点 3：用ungoogled&nbsp;chromium</span></li>
+<li><span>观点 4：谷歌同时掌握最大搜索引擎，最流行浏览器和最流行操作系统，对公平竞争和互联网开放性伤害太大了。将&nbsp;Chrome&nbsp;拆分出去至少可以让&nbsp;Chrome&nbsp;更中立，Google&nbsp;也不会对&nbsp;Firefox&nbsp;搞负优化了</span>
+<ul>
+<li><span>观点 5：这个看起来真是算挺好的消息了</span></li>
+</ul> </li>
+<li><span>观点 6：好好好，强推&nbsp;Manifest&nbsp;V3&nbsp;怨声载道，来个人治治&nbsp;Google</span></li>
+<li><span>观点 7：无论出售给谁也是继续垄断，像这种对于互联网自由有着生杀大权的产品，就应该强制完全开源并采用GNU&nbsp;AGPL-3.0许可证，削弱其中心化控制权，省得以后谷歌再搞出诸如隐私沙箱、Manifest&nbsp;V3、网络环境完整性验证等有损互联网自由的下三滥招数</span></li>
+<li><span>观点 8：最大的原因还是广告业务吧，浏览器对谷歌来说不过是广告的载体罢了，技术上的事对这种公司来说都只是小打小闹。</span>
+<ul>
+<li><span>观点 9：对，广告业务剥离，营收直接腰斩，国内阿里拆分1+6的时候，阿里妈妈的归属也决定哪个子公司可以更加稳定</span></li>
+</ul> </li>
+</ul>
+</blockquote>
+</div>
+<p><em><strong>---END---</strong></em></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c151218d5d.png"><span>&nbsp;</span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p>欢迎阅读 OSCHINA 编辑部出品的开源日报，每天更新一期。</p>
+<h3><span><strong># 2024.11.20</strong></span></h3>
+<h2><span>今日要闻</span></h2>
+<h3><span><a href="https://www.oschina.net/news/321213/freecad-1-0-released">FreeCAD 1.0 正式发布</a></span></h3>
+<div>
+<div>
+<div>
+<div>
+<div>
+在持续开发 22 年后 FreeCAD 项目正式发布 1.0 版本。开发者称，1.0 版本通常代表着软件已经成熟，可用于真正的工作。FreeCAD 早已为真正的工作做好了准备，已经用于生产多年。之前的版本之所以没有称为 1.0 版本，是为了解决两大问题：修正 Toponaming 问题和内置组装模块。这两大问题如今已经基本解决。开发者建议第一次接触 FreeCAD 的用户先阅读文档和教程。FreeCAD 是一款通用参数化 3D CAD 建模器，支持有限元素法（FEM）的建筑信息模型（BIM）软件，既适用于机械工程产品设计，也可以扩展到其他工程领域如建筑或电气工程。
+</div>
+<div>
+&nbsp;
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-39aae2d3ce.png">
+</div>
+</div>
+</div>
+</div>
+</div>
+<h3><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.pingwest.com%2Fw%2F300215" target="_blank">360准备发布一款基于360 AI搜索的AI应用</a></h3>
+<div>
+<p>据周鸿祎微博消息，360计划在本月内发布一款全新的AI产品，并向全网募集产品名称。</p>
+<p>这款新产品基于360 AI搜索打造，是一款AI搜索产品。周鸿祎表示，他希望为新产品找到一个以字母 “N” 开头的名称，原因是他几年前购买了一个以“N”开头的域名，并希望能够利用起来。他还表示，如果网友的命名建议被采纳，将会邀请这位网友在发布会上担任重要角色，以感谢他们的贡献。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-04c8f63967.png"></p>
+</div>
+<h3><span><a href="https://www.oschina.net/news/321217/angular-v19">Angular 19 正式发布</a></span></h3>
+<div>
+<p>Angular 19 更新亮点：</p>
+<ul>
+<li> <p>性能优化</p>
+<ul>
+<li> <p><strong>增量水合</strong>：引入了开发者预览版的增量水合功能，允许延迟加载和水合特定模板部分，从而减少初始加载时的 JavaScript 体积。</p> </li>
+<li> <p><strong>事件重放</strong>：默认启用了事件重放功能，以解决服务端渲染应用中的用户事件处理延迟问题。</p> </li>
+<li> <p><strong>路由级别的渲染模式</strong>：提供了新的<span>&nbsp;</span><code>ServerRoute</code><span>&nbsp;</span>接口，允许配置特定路由是在服务器端渲染、预渲染还是客户端渲染。</p> </li>
+<li> <p><strong>Zoneless Angular</strong>：继续实验无 zone 支持，减少对 zone.js 的依赖，并改善服务端渲染。</p> </li>
+</ul> </li>
+</ul>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-37c830445c.png"></p>
+</div>
+<h3><span><a href="https://my.oschina.net/u/4894014/blog/16522742">Rocky Linux 9.5 发布</a></span></h3>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/rockylinux.org-38f234a2b7.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+<hr>
+<h2><span>今日观察</span></h2>
+<div>
+<h3><span><span>社交观察</span></span></h3>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6974787068%2FOFOqPyOV1%3Fpagetype%3Dprofilefeed" target="_blank">用 [金，木，水，火，土] 向量乘积造字</a></h4>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-99c3bc396d.png">
+</div>
+<div>
+&nbsp;
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>硅谷陈源博士</strong></span>
+</div>
+</div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F1648544895%2FP0ZrJ27RH" target="_blank">他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝</a></h4>
+<div>
+<div>
+<p>“1957 年，他结婚的时候在申请的职业一栏写上了「程序员」，结果被政府拒绝，因为当时荷兰没有这个职业。”</p>
+<p>“Djikstra 的眼科医生一直不知道他是做什么的，有一天突然问他：「是你发明了 GPS 导航的算法吗？」”</p>
+<p>“Dijkstra 后来在采访中说，他的最短路径算法之所以能如此简洁，是因为当时在咖啡店里没有纸和笔，这强迫他在思考时避免复杂度，尽可能追求简单。在他的访谈和文章中，经常能发现一个主题，就是资源的匮乏往往最能激发创造性。”</p>
+<p>『 他是几位影响力最大的计算科学的奠基人之一，也是少数#同时从工程和理论的角度塑造这个新学科#的人。</p>
+<p>他的根本性贡献覆盖了很多领域，包括：编译器、操作系统、分布式系统、程序设计、编程语言、程序验证、软件工程、图论等等。他的很多论文为后人开拓了整个新的研究领域。我们现在熟悉的一些标准概念，比如互斥、死锁、信号量等，都是 Dijkstra 发明和定义的。1994 年时有人对约 1000 名计算机科学家进行了问卷调查，选出了 38 篇这个领域最有影响力的论文，其中有五篇是 Dijkstra 写的。</p>
+</div>
+</div>
+<p><span>- 微博&nbsp;<strong>出版人周筠</strong></span></p>
+<div>
+<h4><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fweibo.com%2F6045441276%2FP1aJ7o6lh" target="_blank">Windows 11 允许管理员远程修复存在启动问题的 PC</a></h4>
+<div>
+<div>
+<div>
+<p>在本周的 Ignite 开发者大会上，微软宣布了其 Windows 11 操作系统的一项新功能，该功能将允许管理员远程修复存在启动问题的 PC。</p>
+<p>该公司开发该功能是为了应对未来的类似事件，例如今年 7 月导致 850 多万台 PC 崩溃的CrowdStrike 事件。</p>
+<p>这项新功能名为“快速机器恢复”，允许公司的 IT 管理员利用 Windows 更新系统来修复通常需要物理访问机器才能解决的启动相关错误。</p>
+<p>Quick Machine Recovery 将于 2025 年初通过 Windows Insider 版本进行测试，然后在稍后进行更广泛地推出。</p>
+</div>
+</div>
+</div>
+<div>
+<div>
+<span>- 微博&nbsp;<strong>blackorbird</strong></span>
+</div>
+</div>
+</div>
+</div>
+<h3><span><span>媒体观察</span></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3044480009816707" target="_blank">教育初尝AI红利</a></strong></h4>
+<div>
+<p><span>一边是互联网巨头在教育领域排兵布阵，百度、科大讯飞等企业相继发布AI+教育产品；另一边，教育行业大公司独角兽们也大举布局，猿辅导、精准学等玩家纷纷“开卷”大模型。</span></p>
+<p><span>人工智能无疑将在许多方面改变教育，一个积极的信号是，AI的加码正在为当下的教育科技赛道，提供正向反馈。</span></p>
+</div>
+<p><span>-</span><strong><span>&nbsp;猎云网</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FfNJ4yVvLKLiPTWr3XU3uAA" target="_blank">4块钱的蜜雪冰城进军AI，会背刺打工人吗？</a></strong></h4>
+<p>这是奶茶生意太“卷”“雪王”开始不务正业了?还是准备用AI代替员工，最终提高价格被刺万千打工人呢?</p>
+<p><span>-</span><strong><span>&nbsp;</span><span>科技旋涡</span></strong></p>
+<div>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fbaijiahao.baidu.com%2Fs%3Fid%3D1816151789860334576%26wfr%3Dspider%26for%3Dpc" target="_blank">“天才少年”创业国产GPU，一众明星资本投了</a></strong></h4>
+<p><span>如此多明星资本出手行云，与公司创始人季宇，联合创始人、CTO余洪敏不无关系。《科创板日报》记者从行云创始团队处了解到，公司创始人季宇为清华大学计算机系博士，是“华为天才少年”，主攻体系结构、AI芯片方向。</span></p>
+</div>
+<p><span>-<strong>&nbsp;科创板日报</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FKh7ib_GG7jN90pXhgemENw" target="_blank">姚期智和他的“姚班”：人生只为一大事而来</a></strong></h4>
+<p><span>姚班之“姚”指的是世界著名计算机科学家姚期智院士，唯一一位获得图灵奖的华人。姚期智在其57岁“高龄”放弃美籍高薪回国创办“姚班”，在他的带领下，姚班计算机专业在全国几乎无可匹敌。2018年，它更是取代了麻省理工学院，成为全球计算机科学的NO.1！姚班也就成为了全球最顶尖专业里的精英班，好比皇冠上的一颗明珠。</span></p>
+<p><span>- </span><strong><span>第一新声</span></strong></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Ftech.ifeng.com%2Fc%2F8ef5R26bOQ5" target="_blank">“一人AI公司”已实现年入百万</a></strong></h4>
+<div>
+<p><span>大模型亦或者AI，并不是要来取代你，而是为了拓展你的能力，让你成为一个“一体五面”型的多面手。</span></p>
+<p><span>它延展的是我们的机会，而不是缩小我们活跃的空间。这或许是AI人才与IT人才之间的区别。</span></p>
+</div>
+<p><span>- <strong>真故研究室</strong></span></p>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2F36kr.com%2Fp%2F3037025055584520" target="_blank">人工智能的生产力悖论：为什么没有更多的员工使用 ChatGPT？</a></strong></h4>
+<p><span>大多数高管都明白，今天的这股AI浪潮已经不仅仅是炒作——他们迫切希望让自己的公司走在AI前沿，因为今日之AI已经比以往任何时候都更强大、更易于使用。可是，尽管AI潜力巨大且获得了广泛关注，但普及度依然滞后。真正的障碍在于企业如何对待工作本身。系统性的问题阻碍了这些工具成为我们日常工作的组成部分。</span></p>
+<p><span>-<strong>&nbsp;</strong></span><strong><span>36氪</span></strong></p>
+<hr>
+<h2><span><strong>今日推荐</strong></span></h2>
+<h3><span><strong><span>开源项目</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">mkdocs/mkdocs</a></strong></h4>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9a65fa85a3.png"></p>
+<p><em><u><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fmkdocs%2Fmkdocs%2F" target="_blank">https://github.com/mkdocs/mkdocs/</a></u></em></p>
+<p>MkDocs 是一款快速、简单且华丽的静态网站生成器，专门用于构建项目文档。文档源文件以 Markdown 编写，并使用单个 YAML 配置文件进行配置。它易于使用，并且可以使用第三方主题、插件和 Markdown 扩展进行扩展。</p>
+<h3><span><strong><span>每日一博</span></strong></span></h3>
+<h4><strong><a href="https://my.oschina.net/u/5783135/blog/16519932" target="_blank">得物彩虹桥架构演进之路 - 负载均衡篇</a></strong></h4>
+<p><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。</span></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg"><span><span>&nbsp;</span></span></p>
+<hr>
+<div>
+<h2><span><strong>开源之声</strong></span></h2>
+</div>
+<h3><span><strong><span>用户观点</span></strong></span></h3>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FZUznZrgzbxpsOsCj9xN1MQ" target="_blank">B站知名up主何同学被指盗用开源项目<span>——</span>网友锐评「移源丁真：鉴定为自研」</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：别去污染issues了，还不嫌丢人么</span>
+<ul>
+<li><span>观点 2：确实，我只觉得这些提issue真小丑，issue不是用来干这个的。你可以给作者发邮件！这些小屁孩他们并不是想维护开源社区，只是单纯的找存在感以及告诉全世界，我发现个秘密一样的心理，以及想让别人死。</span></li>
+</ul> </li>
+<li><span>观点 3：不谈利益什么的，我觉得稍微过头了，口语化的描述经常出口就是我们专门什么什么的，是意指为某事专门搞了个方法，不等于就是说这一切都是我们原创的嘛！如果这么纠结几个字，呵呵全国的大中小软件公司it公司岂不是都得死吗？警察审讯还经常用可能，大概，你再想想是不是...&nbsp;这些不仅模糊还很危险！也没听网友说点什么啊</span>
+<ul>
+<li><span>观点 4：没听网友说什么？那是没人发现用的开源，开源协议很清楚，引用开源要注明，作为公众up这样做？不是寒了开源的心吗？</span></li>
+</ul> </li>
+<li><span>观点 5：何同学还得恰饭，人家厂商给钱了，在视频里说用的开源，厂商下次就砍价了</span></li>
+<li><span>观点 6：我有一计（上上策）：建议何同学把这个视频的商单收入全部捐赠给开源项目。</span></li>
+<li><span>观点 7：何武器到现在还有这么多粉丝量，也说明了我们臭写代码的确是不会营销。当然了，不要族谱的流量大家还是不要乱吃的好。</span></li>
+<li><span>观点 8：5G受益最大的何同学</span></li>
+<li><span>观点 9：一个个作业工作代码都是抄的&nbsp;跑这里顶真来了</span>
+<ul>
+<li><span>观点 10：一看就不懂，开源就是特地让你用的，爱怎么抄就怎么抄，但是得承认是别人的成果，尊重作者产出。受人唾弃的是抹掉作者自称自研的行为，算了跟个不懂的说啥</span></li>
+</ul> </li>
+<li><span>观点 11：那个路径还是带-master，说明是直接下载的压缩包，都不是git&nbsp;clone拉的</span></li>
+<li><span>观点 12：开源改动：指把作者改了</span></li>
+<li><span>观点 13：刷到过一次，pcb直角走线给我看懵了</span></li>
+<li><span>观点 14：巧了，正好看了这个视频，还对里边那句“我们专门写了一个软件”印象深刻，当时还挺佩服。感情是拿人开源的说是自己开发，这就无耻了</span></li>
+<li><span>观点 15：遵循开源协议，合规使用才不会出岔子，现在很多软件如剪映等会有开源软件清单，这一点让开源作者们也能感到最起码的尊重</span></li>
+<li><span>观点 16：视频评论区回应中提到何某优化了字符生成比例、图片裁切方式和传参方式，PyCharm&nbsp;底部路径中的&nbsp;ASCII&nbsp;generator-master&nbsp;说明他是下载的，何某确实不会&nbsp;git&nbsp;clone。也没打算贡献他所谓的优化</span></li>
+<li><span>观点 17：几年前的何语言同样在代码上翻了车，那次是c语言，这次是python</span></li>
+</ul>
+</blockquote>
+<h4><strong><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FB2QocjgMYVul05I8Jc57Og" target="_blank">谷歌被强制出售Chrome</a></strong></h4>
+<blockquote>
+<ul>
+<li><span>观点 1：上策：给Mozilla无偿捐一堆钱。中策，捐给linux&nbsp;foundation后遥控开发。下策：直接拆分。</span></li>
+<li><span>观点 2：火狐粉狂喜</span></li>
+<li><span>观点 3：用ungoogled&nbsp;chromium</span></li>
+<li><span>观点 4：谷歌同时掌握最大搜索引擎，最流行浏览器和最流行操作系统，对公平竞争和互联网开放性伤害太大了。将&nbsp;Chrome&nbsp;拆分出去至少可以让&nbsp;Chrome&nbsp;更中立，Google&nbsp;也不会对&nbsp;Firefox&nbsp;搞负优化了</span>
+<ul>
+<li><span>观点 5：这个看起来真是算挺好的消息了</span></li>
+</ul> </li>
+<li><span>观点 6：好好好，强推&nbsp;Manifest&nbsp;V3&nbsp;怨声载道，来个人治治&nbsp;Google</span></li>
+<li><span>观点 7：无论出售给谁也是继续垄断，像这种对于互联网自由有着生杀大权的产品，就应该强制完全开源并采用GNU&nbsp;AGPL-3.0许可证，削弱其中心化控制权，省得以后谷歌再搞出诸如隐私沙箱、Manifest&nbsp;V3、网络环境完整性验证等有损互联网自由的下三滥招数</span></li>
+<li><span>观点 8：最大的原因还是广告业务吧，浏览器对谷歌来说不过是广告的载体罢了，技术上的事对这种公司来说都只是小打小闹。</span>
+<ul>
+<li><span>观点 9：对，广告业务剥离，营收直接腰斩，国内阿里拆分1+6的时候，阿里妈妈的归属也决定哪个子公司可以更加稳定</span></li>
+</ul> </li>
+</ul>
+</blockquote>
+</div>
+<p><em><strong>---END---</strong></em></p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-c151218d5d.png"><span>&nbsp;</span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-39aae2d3ce.png"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-39aae2d3ce.png" medium="image"/>
+    <pubDate>Wed, 20 Nov 2024 21:16:48 +0800</pubDate>
+  </item><item>
+    <title><![CDATA[得物彩虹桥架构演进之路 - 负载均衡篇]]></title>
+    <link>https://my.oschina.net/u/5783135/blog/16519932</link>
+    <itunes:title><![CDATA[得物彩虹桥架构演进之路 - 负载均衡篇]]></itunes:title>
+    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><span><span>文 / 得物技术-新一</span></span></p>
+<p><br> <span><strong>一、<span><span>前言</span></span></strong></span></p>
+<p><span><span>一年一更的彩虹桥系列又来了，在前面两期我们分享了在稳定性和性能2个层面的一些演进&amp;优化思路。近期我们针对彩虹桥 Proxy 负载均衡层面的架构做了一次升级，目前新架构已经部署完成，生产环境正在逐步升级中，借此机会更新一下彩虹桥架构演进之路系列的第三篇。</span></span></p>
+<p><span><span>阅读本文预计需要20～30分钟，建议不熟悉彩虹桥的同学在阅读本文前，可以先看一下前两篇彩虹桥架构演进的文章：</span></span></p>
+<p><span><span>得物数据库中间件平台“彩虹桥”演进之路</span></span></p>
+<p><span><span>彩虹桥架构演进之路-性能篇｜得物技术</span></span></p>
+<p><span><strong>二、<span><span>背景</span></span></strong></span></p>
+<p><span><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。下面会详细介绍一下彩虹桥元数据中心以及 SDK 相关能力的相关细节。</span></span></p>
+<p><span><strong>三、<span><span>核心名称解释</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3dbbcdb359.jpg">
+</div>
+<p><span><strong>四、<span><span>现有架构回顾</span></span></strong></span></p>
+<p><span><span>在开始介绍彩虹桥元数据中心之前，我们先来回顾一下彩虹桥目前架构，以及存在的一些痛点。</span></span></p>
+<p><span><strong><span>现有架构</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg">
+</div>
+<ul>
+<li><span><span>业务服务集成 SDK 通过域名访问，请求经过 SLB 转发到具体的 Proxy 节点。</span></span></li>
+<li><span><span>每个集群挂载双 SLB，SDK 通过 DNS 解析轮训路由到2个 SLB，2个 SLB 挂载不同的后端节点。</span></span></li>
+<li><span><span>每个集群部署的 Proxy 节点均为一个可用区，双活架构为集群维度多可用区部署。</span></span></li>
+<li><span><span>业务侧大多数为多可用区混布，单同一个逻辑库只会连接一个彩虹桥集群，由于彩虹桥一个集群内的节点均为同一可用区，所以业务服务-彩虹桥这条链路必然会出现一半节点跨区访问。</span></span></li>
+<li><span><span>彩虹桥集群按照业务域划分，彩虹桥集群所属业务域的 RDS 大多数都会跟彩虹桥集群同区。比如彩虹桥交易集群为i区，归属交易集群的逻辑库挂载的 RDS 大多数也都是i区。</span></span></li>
+</ul>
+<p><span><strong><span>主要痛点</span></strong></span></p>
+<ul>
+<li><span><span>SLB 带宽已达瓶颈（5Gb/s，历史上出现过多次 SLB 带宽达到 100%的情况），目前彩虹桥单集群挂载了双 SLB 暂时解决带宽瓶颈但仍存在痛点：</span></span></li>
+<li><span><span>1. SLB 扩容流程较复杂（配置监听、配置虚拟服务器组、监听绑定虚拟服务组，配置调度算法、更新域名解析的等），基于目前发布系统能力无法实现全自动化。根据之前混沌工程演练结果，SLB 扩容流程需要30分钟左右。</span></span></li>
+<li><span><span>2. SLB 扩容后，需要改域名解析，DNS 解析生效需要一段时间（域名 TTL 1 分钟，本地缓存10分钟），新 SLB 需要10分钟左右才开始逐渐承载流量，无法实现 SLB 快速扩容。</span></span></li>
+<li><span><span>单可用区故障时，需要人工操作切流到其他可用区集群，SLA 难以保证（目前无法自动化判定单可用区故障，且集群级别流量调度需要人工预估集群负载，难以实现自动化切流）。</span></span></li>
+<li><span><span>SLB 目前支持最低权重为1/100，粒度较粗，无法支撑发布过程中的更小流量灰度需求。</span></span></li>
+<li><span><span>Proxy 单个集群所有节点均为同一个 AZ，需要与下游 RDS 保证同 AZ，跨集群流量调度灵活性差，很难实现多可用区流量均衡（目前由于大部分 RDS 为 I 区，Proxy 多可用区流量非常不均衡：i区 90%/k 区流量 10%）。</span></span></li>
+</ul>
+<p><span><strong>五、<span><span>自建元数据中心&amp;SDK 增强</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9b71f513.jpg">
+</div>
+<p><em><span><span>元数据中心独立部署</span></span></em></p>
+<ul>
+<li><span><span>新增 Metadata 数据库，多可用区部署（需要跟集群中的 Proxy 同区）。</span></span></li>
+<li><span><span>新增 MetaCenter 服务，多可用区部署。</span></span></li>
+<li><span><span>Proxy 连接所有 Metadata 数据库，注册&amp;心跳都会写入到所有数据库。</span></span></li>
+<li><span><span>MetaCenter 服务定时查询所有 metadata 数据库，基于心跳版本号和多个数据库的并集筛选出健康的节点列表存储到内存中。</span></span></li>
+<li><span><span>MetaCenter 服务提供 API，查询 MetaCenter 内存中的可用节点列表数据。</span></span></li>
+<li><span><span>SDK 启动时会去通过7层 SLB 访问 MetaCenter 提供的 API 拉取节点列表并存储到内存，运行中每隔 5s 更新一次。</span></span></li>
+<li><span><span>MetaCenter 每次计算时如果有节点下线，通过 ARK 实时下发拉取事件给 SDK，SDK 会立刻重新拉取一次节点列表。</span></span></li>
+<li><span><span>SDK 通过下发的节点列表做负载均衡，优先路由到同可用区的 Proxy 节点，其次按照节点权重轮训。</span></span></li>
+<li><span><span>SDK 轮训间隔时间和节点变更事件下发开关均为可配置，实时生效。</span></span></li>
+</ul>
+<p><span><strong><span>架构详解</span></strong></span></p>
+<p><span><strong><span>Metadata 数据库</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed605f517f.jpg">
+</div>
+<p><em><span><span>节点表结构设计</span></span></em></p>
+<ul>
+<li><span><span>beat_version：心跳版本号，只有上报心跳时会更新。</span></span></li>
+<li><span><span>config_version：配置版本号，更新权重&amp;状态时会更新。</span></span></li>
+<li><span><span>enabled：是否启用</span></span></li>
+</ul>
+<p><span><strong><span>Proxy</span></strong></span></p>
+<p><span><strong><span>节点启动时</span></strong></span></p>
+<ul>
+<li><span><span>注册：启动时会去所有 metadata 数据库注册当前节点，如果 node_info 不存在对应节点记录，则新增，如果存在则修改权重为初始权重。</span></span></li>
+<li><span><span>启动完成后需要调用 bifrost-admin 提供的调用节点启用 API（发布脚本）</span></span></li>
+</ul>
+<pre><code>update node_info
+set weight = 1, config_version = #{config_version}
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点运行时</span></strong></span></p>
+<ul>
+<li><span><span>心跳：定时更新所有 metadata 数据库节点记录的 beat_version 字段</span></span></li>
+</ul>
+<pre><code>update node_info set beat_version = beat_version + 1
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点下线</span></strong></span></p>
+<ul>
+<li><span><span>调用 bifrost-admin 提供的下线 OPEN API（发布脚本）</span></span></li>
+</ul>
+<p><span><strong><span>MetaCenter( Heimdall)</span></strong></span></p>
+<ul>
+<li><span><span>启动时</span></span></li>
+</ul>
+<p><span><span>初始化心跳版本号：记录所有 metadata 数据库每个节点最新 beat_version 和初始化心跳丢失次数到内存</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-40d6503bb1.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed41a7f675.jpg">
+</div>
+<ul>
+<li><span><span>运行时</span></span></li>
+</ul>
+<p><span><span>定时查询节点信息（3s 一次），筛选可用节点并写入到内存中，提供 OpenAPI 给 SDK 调用，每个库均执行以下操作，最终会得到每个库的可用节点列表，最后把多个 list 求并集，得到最终的可用列表，写入到内存中。</span></span></p>
+<p><span><span>查出所有列表数据后，对比内存中的 beat_version 与数据库中的 beat_version，如不相同则更新内存，如果相同说明对应节点心跳有丢失，如果丢失次数超过阈值，则剔除此节点。</span></span></p>
+<p><span><span>节点列表中除了 ip、端口信息外，还有权重，启用状态属性， 这些属性都属于控制流变更，如果出现2边数据库不一致场景，以 config_version 最大的为准。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-db14ee2c2c.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点与K区网络断开</span></span></em></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5e3e513d1.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点宕机</span></span></em></p>
+<p><span><span>如果本次计算时有节点列表变化，会下发一个变更事件到 ARK（value 为时间戳-秒），SDK 在收到次配置变更后会立刻到 MetaCenter 拉取一次节点列表，以弥补定时轮训的延时。</span></span></p>
+<ul>
+<li><span><span>兜底配置</span></span></li>
+</ul>
+<p><span><span>MetaCenter 提供的 OpenAPI 是通过计算后存入内存的数据，为了可以人工干预节点列表，需要支持开关一键切换至人工配置的节点列表数据。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6dc9dc764d.jpg">
+</div>
+<p><span><strong><span>SDK( Rainbow) </span></strong></span></p>
+<ul>
+<li><span><span>SDK 启动时会去通过7层 SLB 拉取节点列表并存储到内存，运行中每隔5s更新一次。</span></span></li>
+<li><span><span>如果拉取失败，启动时报错，运行中不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>如果拉取的可用节点列表为空，启动时报错，运行时兜底不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>拉取的可用节点列表与内存中做对比，如果有节点被移除，需要优雅关闭对应的存量连接（如果被移除节点超过1个，则不做驱逐）。</span></span></li>
+<li><span><span>当可用节点数量/所有节点数量 &lt; X%时，忽略本次变更，不更新内存中的可用节点列表。</span></span></li>
+<li><span><span>拉取的节点数据会按照可用区进行分组，分为同可用区&amp;跨可用区2个队列</span></span></li>
+<li><span><span>负载均衡时优先从同 AZ 节点队列中进行加权轮训。</span></span></li>
+<li><span><span>当同AZ节点权重总和/所有节点权重总和 &lt; Y%时，同 AZ 节点优先策略失效，退化为所有节点加权轮训。</span></span></li>
+<li><span><span>当</span><span>同AZ可用节点 &lt; Z</span>时，同 AZ 节点优先策略失效，退化为所有节点加权轮训 。</span></li>
+<li><span><span>需要新增查询节点列表的监控埋点&amp;以上三种计算结果的埋点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-629fa384a4.jpg">
+</div>
+<p><span><span>另外 SDK 支持一键动态切换至走老架构方式（4层 SLB）</span></span></p>
+<p><span><strong><span>管理后台</span></strong></span></p>
+<ul>
+<li><span><span>新增页面【节点管理】，用于查询&amp;管理节点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-127476e73e.jpg">
+</div>
+<ul>
+<li><span><span>新增页面【兜底节点管理】，用于管理兜底节点列表。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74f7951f81.jpg">
+</div>
+<ul>
+<li><span><span>提供节点上下线 API，给发布系统调用。</span></span></li>
+</ul>
+<p><span><span>修改状态会去所有 metadata 数据库执行，只有一个库成功就返回成功，如所有库都修改失败，则返回失败。</span></span></p>
+<pre><code>update node_info
+set enabled = 0, config_version = #{config_version}
+where ip = ? and port = ?</code></pre>
+<p><span><strong><span>容灾能力</span></strong></span></p>
+<p><span><span>表格中的是否有影响和故障恢复时间均指 SDK-Proxy 的访问链路，Proxy-DB 链路不在范围内。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5ff3d50d4a.jpg">
+</div>
+<ul>
+<li><span><span>可用区i全部宕机举例</span></span></li>
+</ul>
+<p><span><span>参考以下时间线，可在30s左右完成恢复。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c80ef65159.jpg">
+</div>
+<ul>
+<li><span><span>i区 Metadata 数据库故障，无影响。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3befd34156.jpg">
+</div>
+<p><span><strong><span>一些思考</span></strong></span></p>
+<p><span><strong><span>Q：为什么不用 sylas（得物注册中心产品）做注册中心，而是要自建元数据中心做服务发现？</span></strong></span></p>
+<p><span><span>彩虹桥和 sylas 均为 P0 级别服务，对稳定性要求极高，在架构设计之初需要充分考虑到互相依赖可能带来的级联故障，在与注册中心相关同学沟通后，决定自建彩虹桥元数据中心，实现自闭环。</span></span></p>
+<p><span><strong><span>Q：为什么不是传统的基于 Raft 协议的三节点来实现服务发现，而是用多套数据源做 merge？</span></strong></span></p>
+<p><span><span>Raft 是工程上使用较为广泛的强一致性、去中心化、高可用的共识算法，在分布式系统中，适用于高一致性、容错性要求高的场景。但 Raft 协议需要维护领导者选举和日志复制等机制，性能开销较大，其次 Raft 协议相对复杂，在开发、维护、排障等方面会非常困难，反之采用多数据源求并集的方式更简单，同时也具备单节点故障、整个可用区故障以及跨区网络中断等多种复杂故障下的容灾能力。</span></span></p>
+<p><span><strong><span>Q：如何在 SLB 切换到新架构的过程中保障稳定性？</span></strong></span></p>
+<p><span><span>可灰度：支持单个上游节点粒度的灰度</span></span></p>
+<p><span><span>可回滚：支持一键动态切换至 SLB 架构</span></span></p>
+<p><span><span>可观测：大量埋点数据可实时进行观测，有问题可快速回滚。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c540b57d9.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-971f8396b4.jpg">
+</div>
+<p><span><strong>六、<span><span>总结</span></span></strong></span></p>
+<p><span><span>自建元数据中心后，将给彩虹桥带来一系列收益：</span></span></p>
+<ul>
+<li><span><span>应用服务通过 SDK 直接连接 Proxy 节点，摆脱了对 SLB 的依赖，解决了带宽瓶颈和额外网络开销问题，并提高了流量灰度控制的精细度。</span></span></li>
+<li><span><span>简化了扩容流程，扩容时只需增加 Proxy 节点大大缩短整个扩容时间。</span></span></li>
+<li><span><span>多可用区容灾实现自动故障转移，无需人工干预。</span></span></li>
+<li><span><span>SDK 具备了同 AZ 路由能力，更好适配双活架构。</span></span></li>
+</ul>
+<p><span><strong><span><span>往期回顾</span></span></strong></span></p>
+<p><span><span><span>1.解析Go切片：为何按值传递时会发生改变？｜得物技术</span></span></span></p>
+<p><span><span><span>2.得物精准测试平台设计与实现</span></span></span></p>
+<p><span><span><span>3.基于IM场景下的Wasm初探：提升Web应用性能｜得物技术</span></span></span></p>
+<p><span><span><span>4.实时特征框架的生产实践｜得物技术</span></span></span></p>
+<p><span><span><span>5.增长在流量规则巡检的探索实践｜得物技术</span></span></span></p>
+<p><span><span>文 / 新一</span></span></p>
+<p><span><span>关注得物技术，每周一、三更新技术干货</span></span></p>
+<p><span><span>要是觉得文章对你有帮助的话，欢迎评论转发点赞～</span></span></p>
+<p><span><span>未经得物技术许可严禁转载，否则依法追究法律责任。</span></span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><span><span>文 / 得物技术-新一</span></span></p>
+<p><br> <span><strong>一、<span><span>前言</span></span></strong></span></p>
+<p><span><span>一年一更的彩虹桥系列又来了，在前面两期我们分享了在稳定性和性能2个层面的一些演进&amp;优化思路。近期我们针对彩虹桥 Proxy 负载均衡层面的架构做了一次升级，目前新架构已经部署完成，生产环境正在逐步升级中，借此机会更新一下彩虹桥架构演进之路系列的第三篇。</span></span></p>
+<p><span><span>阅读本文预计需要20～30分钟，建议不熟悉彩虹桥的同学在阅读本文前，可以先看一下前两篇彩虹桥架构演进的文章：</span></span></p>
+<p><span><span>得物数据库中间件平台“彩虹桥”演进之路</span></span></p>
+<p><span><span>彩虹桥架构演进之路-性能篇｜得物技术</span></span></p>
+<p><span><strong>二、<span><span>背景</span></span></strong></span></p>
+<p><span><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。下面会详细介绍一下彩虹桥元数据中心以及 SDK 相关能力的相关细节。</span></span></p>
+<p><span><strong>三、<span><span>核心名称解释</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3dbbcdb359.jpg">
+</div>
+<p><span><strong>四、<span><span>现有架构回顾</span></span></strong></span></p>
+<p><span><span>在开始介绍彩虹桥元数据中心之前，我们先来回顾一下彩虹桥目前架构，以及存在的一些痛点。</span></span></p>
+<p><span><strong><span>现有架构</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg">
+</div>
+<ul>
+<li><span><span>业务服务集成 SDK 通过域名访问，请求经过 SLB 转发到具体的 Proxy 节点。</span></span></li>
+<li><span><span>每个集群挂载双 SLB，SDK 通过 DNS 解析轮训路由到2个 SLB，2个 SLB 挂载不同的后端节点。</span></span></li>
+<li><span><span>每个集群部署的 Proxy 节点均为一个可用区，双活架构为集群维度多可用区部署。</span></span></li>
+<li><span><span>业务侧大多数为多可用区混布，单同一个逻辑库只会连接一个彩虹桥集群，由于彩虹桥一个集群内的节点均为同一可用区，所以业务服务-彩虹桥这条链路必然会出现一半节点跨区访问。</span></span></li>
+<li><span><span>彩虹桥集群按照业务域划分，彩虹桥集群所属业务域的 RDS 大多数都会跟彩虹桥集群同区。比如彩虹桥交易集群为i区，归属交易集群的逻辑库挂载的 RDS 大多数也都是i区。</span></span></li>
+</ul>
+<p><span><strong><span>主要痛点</span></strong></span></p>
+<ul>
+<li><span><span>SLB 带宽已达瓶颈（5Gb/s，历史上出现过多次 SLB 带宽达到 100%的情况），目前彩虹桥单集群挂载了双 SLB 暂时解决带宽瓶颈但仍存在痛点：</span></span></li>
+<li><span><span>1. SLB 扩容流程较复杂（配置监听、配置虚拟服务器组、监听绑定虚拟服务组，配置调度算法、更新域名解析的等），基于目前发布系统能力无法实现全自动化。根据之前混沌工程演练结果，SLB 扩容流程需要30分钟左右。</span></span></li>
+<li><span><span>2. SLB 扩容后，需要改域名解析，DNS 解析生效需要一段时间（域名 TTL 1 分钟，本地缓存10分钟），新 SLB 需要10分钟左右才开始逐渐承载流量，无法实现 SLB 快速扩容。</span></span></li>
+<li><span><span>单可用区故障时，需要人工操作切流到其他可用区集群，SLA 难以保证（目前无法自动化判定单可用区故障，且集群级别流量调度需要人工预估集群负载，难以实现自动化切流）。</span></span></li>
+<li><span><span>SLB 目前支持最低权重为1/100，粒度较粗，无法支撑发布过程中的更小流量灰度需求。</span></span></li>
+<li><span><span>Proxy 单个集群所有节点均为同一个 AZ，需要与下游 RDS 保证同 AZ，跨集群流量调度灵活性差，很难实现多可用区流量均衡（目前由于大部分 RDS 为 I 区，Proxy 多可用区流量非常不均衡：i区 90%/k 区流量 10%）。</span></span></li>
+</ul>
+<p><span><strong>五、<span><span>自建元数据中心&amp;SDK 增强</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9b71f513.jpg">
+</div>
+<p><em><span><span>元数据中心独立部署</span></span></em></p>
+<ul>
+<li><span><span>新增 Metadata 数据库，多可用区部署（需要跟集群中的 Proxy 同区）。</span></span></li>
+<li><span><span>新增 MetaCenter 服务，多可用区部署。</span></span></li>
+<li><span><span>Proxy 连接所有 Metadata 数据库，注册&amp;心跳都会写入到所有数据库。</span></span></li>
+<li><span><span>MetaCenter 服务定时查询所有 metadata 数据库，基于心跳版本号和多个数据库的并集筛选出健康的节点列表存储到内存中。</span></span></li>
+<li><span><span>MetaCenter 服务提供 API，查询 MetaCenter 内存中的可用节点列表数据。</span></span></li>
+<li><span><span>SDK 启动时会去通过7层 SLB 访问 MetaCenter 提供的 API 拉取节点列表并存储到内存，运行中每隔 5s 更新一次。</span></span></li>
+<li><span><span>MetaCenter 每次计算时如果有节点下线，通过 ARK 实时下发拉取事件给 SDK，SDK 会立刻重新拉取一次节点列表。</span></span></li>
+<li><span><span>SDK 通过下发的节点列表做负载均衡，优先路由到同可用区的 Proxy 节点，其次按照节点权重轮训。</span></span></li>
+<li><span><span>SDK 轮训间隔时间和节点变更事件下发开关均为可配置，实时生效。</span></span></li>
+</ul>
+<p><span><strong><span>架构详解</span></strong></span></p>
+<p><span><strong><span>Metadata 数据库</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed605f517f.jpg">
+</div>
+<p><em><span><span>节点表结构设计</span></span></em></p>
+<ul>
+<li><span><span>beat_version：心跳版本号，只有上报心跳时会更新。</span></span></li>
+<li><span><span>config_version：配置版本号，更新权重&amp;状态时会更新。</span></span></li>
+<li><span><span>enabled：是否启用</span></span></li>
+</ul>
+<p><span><strong><span>Proxy</span></strong></span></p>
+<p><span><strong><span>节点启动时</span></strong></span></p>
+<ul>
+<li><span><span>注册：启动时会去所有 metadata 数据库注册当前节点，如果 node_info 不存在对应节点记录，则新增，如果存在则修改权重为初始权重。</span></span></li>
+<li><span><span>启动完成后需要调用 bifrost-admin 提供的调用节点启用 API（发布脚本）</span></span></li>
+</ul>
+<pre><code>update node_info
+set weight = 1, config_version = #{config_version}
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点运行时</span></strong></span></p>
+<ul>
+<li><span><span>心跳：定时更新所有 metadata 数据库节点记录的 beat_version 字段</span></span></li>
+</ul>
+<pre><code>update node_info set beat_version = beat_version + 1
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点下线</span></strong></span></p>
+<ul>
+<li><span><span>调用 bifrost-admin 提供的下线 OPEN API（发布脚本）</span></span></li>
+</ul>
+<p><span><strong><span>MetaCenter( Heimdall)</span></strong></span></p>
+<ul>
+<li><span><span>启动时</span></span></li>
+</ul>
+<p><span><span>初始化心跳版本号：记录所有 metadata 数据库每个节点最新 beat_version 和初始化心跳丢失次数到内存</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-40d6503bb1.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed41a7f675.jpg">
+</div>
+<ul>
+<li><span><span>运行时</span></span></li>
+</ul>
+<p><span><span>定时查询节点信息（3s 一次），筛选可用节点并写入到内存中，提供 OpenAPI 给 SDK 调用，每个库均执行以下操作，最终会得到每个库的可用节点列表，最后把多个 list 求并集，得到最终的可用列表，写入到内存中。</span></span></p>
+<p><span><span>查出所有列表数据后，对比内存中的 beat_version 与数据库中的 beat_version，如不相同则更新内存，如果相同说明对应节点心跳有丢失，如果丢失次数超过阈值，则剔除此节点。</span></span></p>
+<p><span><span>节点列表中除了 ip、端口信息外，还有权重，启用状态属性， 这些属性都属于控制流变更，如果出现2边数据库不一致场景，以 config_version 最大的为准。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-db14ee2c2c.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点与K区网络断开</span></span></em></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5e3e513d1.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点宕机</span></span></em></p>
+<p><span><span>如果本次计算时有节点列表变化，会下发一个变更事件到 ARK（value 为时间戳-秒），SDK 在收到次配置变更后会立刻到 MetaCenter 拉取一次节点列表，以弥补定时轮训的延时。</span></span></p>
+<ul>
+<li><span><span>兜底配置</span></span></li>
+</ul>
+<p><span><span>MetaCenter 提供的 OpenAPI 是通过计算后存入内存的数据，为了可以人工干预节点列表，需要支持开关一键切换至人工配置的节点列表数据。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6dc9dc764d.jpg">
+</div>
+<p><span><strong><span>SDK( Rainbow) </span></strong></span></p>
+<ul>
+<li><span><span>SDK 启动时会去通过7层 SLB 拉取节点列表并存储到内存，运行中每隔5s更新一次。</span></span></li>
+<li><span><span>如果拉取失败，启动时报错，运行中不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>如果拉取的可用节点列表为空，启动时报错，运行时兜底不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>拉取的可用节点列表与内存中做对比，如果有节点被移除，需要优雅关闭对应的存量连接（如果被移除节点超过1个，则不做驱逐）。</span></span></li>
+<li><span><span>当可用节点数量/所有节点数量 &lt; X%时，忽略本次变更，不更新内存中的可用节点列表。</span></span></li>
+<li><span><span>拉取的节点数据会按照可用区进行分组，分为同可用区&amp;跨可用区2个队列</span></span></li>
+<li><span><span>负载均衡时优先从同 AZ 节点队列中进行加权轮训。</span></span></li>
+<li><span><span>当同AZ节点权重总和/所有节点权重总和 &lt; Y%时，同 AZ 节点优先策略失效，退化为所有节点加权轮训。</span></span></li>
+<li><span><span>当</span><span>同AZ可用节点 &lt; Z</span>时，同 AZ 节点优先策略失效，退化为所有节点加权轮训 。</span></li>
+<li><span><span>需要新增查询节点列表的监控埋点&amp;以上三种计算结果的埋点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-629fa384a4.jpg">
+</div>
+<p><span><span>另外 SDK 支持一键动态切换至走老架构方式（4层 SLB）</span></span></p>
+<p><span><strong><span>管理后台</span></strong></span></p>
+<ul>
+<li><span><span>新增页面【节点管理】，用于查询&amp;管理节点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-127476e73e.jpg">
+</div>
+<ul>
+<li><span><span>新增页面【兜底节点管理】，用于管理兜底节点列表。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74f7951f81.jpg">
+</div>
+<ul>
+<li><span><span>提供节点上下线 API，给发布系统调用。</span></span></li>
+</ul>
+<p><span><span>修改状态会去所有 metadata 数据库执行，只有一个库成功就返回成功，如所有库都修改失败，则返回失败。</span></span></p>
+<pre><code>update node_info
+set enabled = 0, config_version = #{config_version}
+where ip = ? and port = ?</code></pre>
+<p><span><strong><span>容灾能力</span></strong></span></p>
+<p><span><span>表格中的是否有影响和故障恢复时间均指 SDK-Proxy 的访问链路，Proxy-DB 链路不在范围内。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5ff3d50d4a.jpg">
+</div>
+<ul>
+<li><span><span>可用区i全部宕机举例</span></span></li>
+</ul>
+<p><span><span>参考以下时间线，可在30s左右完成恢复。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c80ef65159.jpg">
+</div>
+<ul>
+<li><span><span>i区 Metadata 数据库故障，无影响。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3befd34156.jpg">
+</div>
+<p><span><strong><span>一些思考</span></strong></span></p>
+<p><span><strong><span>Q：为什么不用 sylas（得物注册中心产品）做注册中心，而是要自建元数据中心做服务发现？</span></strong></span></p>
+<p><span><span>彩虹桥和 sylas 均为 P0 级别服务，对稳定性要求极高，在架构设计之初需要充分考虑到互相依赖可能带来的级联故障，在与注册中心相关同学沟通后，决定自建彩虹桥元数据中心，实现自闭环。</span></span></p>
+<p><span><strong><span>Q：为什么不是传统的基于 Raft 协议的三节点来实现服务发现，而是用多套数据源做 merge？</span></strong></span></p>
+<p><span><span>Raft 是工程上使用较为广泛的强一致性、去中心化、高可用的共识算法，在分布式系统中，适用于高一致性、容错性要求高的场景。但 Raft 协议需要维护领导者选举和日志复制等机制，性能开销较大，其次 Raft 协议相对复杂，在开发、维护、排障等方面会非常困难，反之采用多数据源求并集的方式更简单，同时也具备单节点故障、整个可用区故障以及跨区网络中断等多种复杂故障下的容灾能力。</span></span></p>
+<p><span><strong><span>Q：如何在 SLB 切换到新架构的过程中保障稳定性？</span></strong></span></p>
+<p><span><span>可灰度：支持单个上游节点粒度的灰度</span></span></p>
+<p><span><span>可回滚：支持一键动态切换至 SLB 架构</span></span></p>
+<p><span><span>可观测：大量埋点数据可实时进行观测，有问题可快速回滚。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c540b57d9.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-971f8396b4.jpg">
+</div>
+<p><span><strong>六、<span><span>总结</span></span></strong></span></p>
+<p><span><span>自建元数据中心后，将给彩虹桥带来一系列收益：</span></span></p>
+<ul>
+<li><span><span>应用服务通过 SDK 直接连接 Proxy 节点，摆脱了对 SLB 的依赖，解决了带宽瓶颈和额外网络开销问题，并提高了流量灰度控制的精细度。</span></span></li>
+<li><span><span>简化了扩容流程，扩容时只需增加 Proxy 节点大大缩短整个扩容时间。</span></span></li>
+<li><span><span>多可用区容灾实现自动故障转移，无需人工干预。</span></span></li>
+<li><span><span>SDK 具备了同 AZ 路由能力，更好适配双活架构。</span></span></li>
+</ul>
+<p><span><strong><span><span>往期回顾</span></span></strong></span></p>
+<p><span><span><span>1.解析Go切片：为何按值传递时会发生改变？｜得物技术</span></span></span></p>
+<p><span><span><span>2.得物精准测试平台设计与实现</span></span></span></p>
+<p><span><span><span>3.基于IM场景下的Wasm初探：提升Web应用性能｜得物技术</span></span></span></p>
+<p><span><span><span>4.实时特征框架的生产实践｜得物技术</span></span></span></p>
+<p><span><span><span>5.增长在流量规则巡检的探索实践｜得物技术</span></span></span></p>
+<p><span><span>文 / 新一</span></span></p>
+<p><span><span>关注得物技术，每周一、三更新技术干货</span></span></p>
+<p><span><span>要是觉得文章对你有帮助的话，欢迎评论转发点赞～</span></span></p>
+<p><span><span>未经得物技术许可严禁转载，否则依法追究法律责任。</span></span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p><span><span>文 / 得物技术-新一</span></span></p>
+<p><br> <span><strong>一、<span><span>前言</span></span></strong></span></p>
+<p><span><span>一年一更的彩虹桥系列又来了，在前面两期我们分享了在稳定性和性能2个层面的一些演进&amp;优化思路。近期我们针对彩虹桥 Proxy 负载均衡层面的架构做了一次升级，目前新架构已经部署完成，生产环境正在逐步升级中，借此机会更新一下彩虹桥架构演进之路系列的第三篇。</span></span></p>
+<p><span><span>阅读本文预计需要20～30分钟，建议不熟悉彩虹桥的同学在阅读本文前，可以先看一下前两篇彩虹桥架构演进的文章：</span></span></p>
+<p><span><span>得物数据库中间件平台“彩虹桥”演进之路</span></span></p>
+<p><span><span>彩虹桥架构演进之路-性能篇｜得物技术</span></span></p>
+<p><span><strong>二、<span><span>背景</span></span></strong></span></p>
+<p><span><span>彩虹桥目前依赖 SLB 做负载均衡和节点发现，随着业务发展流量越来越高，SLB 带宽瓶颈逐渐暴露，虽然在半年前做过一次双 SLB 改造临时解决了带宽瓶颈，但运维成本也随之变高。除了带宽瓶颈外，SLB 无法支持同区优先访问，导致难以适配双活架构。所以准备去除彩虹桥对 SLB 的强依赖，自建彩虹桥元数据中心，提供负载均衡和节点发现等能力，同时支持同区访问等能力来更好的适配双活架构。下面会详细介绍一下彩虹桥元数据中心以及 SDK 相关能力的相关细节。</span></span></p>
+<p><span><strong>三、<span><span>核心名称解释</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3dbbcdb359.jpg">
+</div>
+<p><span><strong>四、<span><span>现有架构回顾</span></span></strong></span></p>
+<p><span><span>在开始介绍彩虹桥元数据中心之前，我们先来回顾一下彩虹桥目前架构，以及存在的一些痛点。</span></span></p>
+<p><span><strong><span>现有架构</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-0c81fac792.jpg">
+</div>
+<ul>
+<li><span><span>业务服务集成 SDK 通过域名访问，请求经过 SLB 转发到具体的 Proxy 节点。</span></span></li>
+<li><span><span>每个集群挂载双 SLB，SDK 通过 DNS 解析轮训路由到2个 SLB，2个 SLB 挂载不同的后端节点。</span></span></li>
+<li><span><span>每个集群部署的 Proxy 节点均为一个可用区，双活架构为集群维度多可用区部署。</span></span></li>
+<li><span><span>业务侧大多数为多可用区混布，单同一个逻辑库只会连接一个彩虹桥集群，由于彩虹桥一个集群内的节点均为同一可用区，所以业务服务-彩虹桥这条链路必然会出现一半节点跨区访问。</span></span></li>
+<li><span><span>彩虹桥集群按照业务域划分，彩虹桥集群所属业务域的 RDS 大多数都会跟彩虹桥集群同区。比如彩虹桥交易集群为i区，归属交易集群的逻辑库挂载的 RDS 大多数也都是i区。</span></span></li>
+</ul>
+<p><span><strong><span>主要痛点</span></strong></span></p>
+<ul>
+<li><span><span>SLB 带宽已达瓶颈（5Gb/s，历史上出现过多次 SLB 带宽达到 100%的情况），目前彩虹桥单集群挂载了双 SLB 暂时解决带宽瓶颈但仍存在痛点：</span></span></li>
+<li><span><span>1. SLB 扩容流程较复杂（配置监听、配置虚拟服务器组、监听绑定虚拟服务组，配置调度算法、更新域名解析的等），基于目前发布系统能力无法实现全自动化。根据之前混沌工程演练结果，SLB 扩容流程需要30分钟左右。</span></span></li>
+<li><span><span>2. SLB 扩容后，需要改域名解析，DNS 解析生效需要一段时间（域名 TTL 1 分钟，本地缓存10分钟），新 SLB 需要10分钟左右才开始逐渐承载流量，无法实现 SLB 快速扩容。</span></span></li>
+<li><span><span>单可用区故障时，需要人工操作切流到其他可用区集群，SLA 难以保证（目前无法自动化判定单可用区故障，且集群级别流量调度需要人工预估集群负载，难以实现自动化切流）。</span></span></li>
+<li><span><span>SLB 目前支持最低权重为1/100，粒度较粗，无法支撑发布过程中的更小流量灰度需求。</span></span></li>
+<li><span><span>Proxy 单个集群所有节点均为同一个 AZ，需要与下游 RDS 保证同 AZ，跨集群流量调度灵活性差，很难实现多可用区流量均衡（目前由于大部分 RDS 为 I 区，Proxy 多可用区流量非常不均衡：i区 90%/k 区流量 10%）。</span></span></li>
+</ul>
+<p><span><strong>五、<span><span>自建元数据中心&amp;SDK 增强</span></span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9c9b71f513.jpg">
+</div>
+<p><em><span><span>元数据中心独立部署</span></span></em></p>
+<ul>
+<li><span><span>新增 Metadata 数据库，多可用区部署（需要跟集群中的 Proxy 同区）。</span></span></li>
+<li><span><span>新增 MetaCenter 服务，多可用区部署。</span></span></li>
+<li><span><span>Proxy 连接所有 Metadata 数据库，注册&amp;心跳都会写入到所有数据库。</span></span></li>
+<li><span><span>MetaCenter 服务定时查询所有 metadata 数据库，基于心跳版本号和多个数据库的并集筛选出健康的节点列表存储到内存中。</span></span></li>
+<li><span><span>MetaCenter 服务提供 API，查询 MetaCenter 内存中的可用节点列表数据。</span></span></li>
+<li><span><span>SDK 启动时会去通过7层 SLB 访问 MetaCenter 提供的 API 拉取节点列表并存储到内存，运行中每隔 5s 更新一次。</span></span></li>
+<li><span><span>MetaCenter 每次计算时如果有节点下线，通过 ARK 实时下发拉取事件给 SDK，SDK 会立刻重新拉取一次节点列表。</span></span></li>
+<li><span><span>SDK 通过下发的节点列表做负载均衡，优先路由到同可用区的 Proxy 节点，其次按照节点权重轮训。</span></span></li>
+<li><span><span>SDK 轮训间隔时间和节点变更事件下发开关均为可配置，实时生效。</span></span></li>
+</ul>
+<p><span><strong><span>架构详解</span></strong></span></p>
+<p><span><strong><span>Metadata 数据库</span></strong></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed605f517f.jpg">
+</div>
+<p><em><span><span>节点表结构设计</span></span></em></p>
+<ul>
+<li><span><span>beat_version：心跳版本号，只有上报心跳时会更新。</span></span></li>
+<li><span><span>config_version：配置版本号，更新权重&amp;状态时会更新。</span></span></li>
+<li><span><span>enabled：是否启用</span></span></li>
+</ul>
+<p><span><strong><span>Proxy</span></strong></span></p>
+<p><span><strong><span>节点启动时</span></strong></span></p>
+<ul>
+<li><span><span>注册：启动时会去所有 metadata 数据库注册当前节点，如果 node_info 不存在对应节点记录，则新增，如果存在则修改权重为初始权重。</span></span></li>
+<li><span><span>启动完成后需要调用 bifrost-admin 提供的调用节点启用 API（发布脚本）</span></span></li>
+</ul>
+<pre><code>update node_info
+set weight = 1, config_version = #{config_version}
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点运行时</span></strong></span></p>
+<ul>
+<li><span><span>心跳：定时更新所有 metadata 数据库节点记录的 beat_version 字段</span></span></li>
+</ul>
+<pre><code>update node_info set beat_version = beat_version + 1
+where cluster_name = ? and address = ?</code></pre>
+<p><span><strong><span>节点下线</span></strong></span></p>
+<ul>
+<li><span><span>调用 bifrost-admin 提供的下线 OPEN API（发布脚本）</span></span></li>
+</ul>
+<p><span><strong><span>MetaCenter( Heimdall)</span></strong></span></p>
+<ul>
+<li><span><span>启动时</span></span></li>
+</ul>
+<p><span><span>初始化心跳版本号：记录所有 metadata 数据库每个节点最新 beat_version 和初始化心跳丢失次数到内存</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-40d6503bb1.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-ed41a7f675.jpg">
+</div>
+<ul>
+<li><span><span>运行时</span></span></li>
+</ul>
+<p><span><span>定时查询节点信息（3s 一次），筛选可用节点并写入到内存中，提供 OpenAPI 给 SDK 调用，每个库均执行以下操作，最终会得到每个库的可用节点列表，最后把多个 list 求并集，得到最终的可用列表，写入到内存中。</span></span></p>
+<p><span><span>查出所有列表数据后，对比内存中的 beat_version 与数据库中的 beat_version，如不相同则更新内存，如果相同说明对应节点心跳有丢失，如果丢失次数超过阈值，则剔除此节点。</span></span></p>
+<p><span><span>节点列表中除了 ip、端口信息外，还有权重，启用状态属性， 这些属性都属于控制流变更，如果出现2边数据库不一致场景，以 config_version 最大的为准。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-db14ee2c2c.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点与K区网络断开</span></span></em></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f5e3e513d1.jpg">
+</div>
+<p><em><span><span>1.2.3.20节点宕机</span></span></em></p>
+<p><span><span>如果本次计算时有节点列表变化，会下发一个变更事件到 ARK（value 为时间戳-秒），SDK 在收到次配置变更后会立刻到 MetaCenter 拉取一次节点列表，以弥补定时轮训的延时。</span></span></p>
+<ul>
+<li><span><span>兜底配置</span></span></li>
+</ul>
+<p><span><span>MetaCenter 提供的 OpenAPI 是通过计算后存入内存的数据，为了可以人工干预节点列表，需要支持开关一键切换至人工配置的节点列表数据。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6dc9dc764d.jpg">
+</div>
+<p><span><strong><span>SDK( Rainbow) </span></strong></span></p>
+<ul>
+<li><span><span>SDK 启动时会去通过7层 SLB 拉取节点列表并存储到内存，运行中每隔5s更新一次。</span></span></li>
+<li><span><span>如果拉取失败，启动时报错，运行中不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>如果拉取的可用节点列表为空，启动时报错，运行时兜底不做任何处理，等待下次拉取。</span></span></li>
+<li><span><span>拉取的可用节点列表与内存中做对比，如果有节点被移除，需要优雅关闭对应的存量连接（如果被移除节点超过1个，则不做驱逐）。</span></span></li>
+<li><span><span>当可用节点数量/所有节点数量 &lt; X%时，忽略本次变更，不更新内存中的可用节点列表。</span></span></li>
+<li><span><span>拉取的节点数据会按照可用区进行分组，分为同可用区&amp;跨可用区2个队列</span></span></li>
+<li><span><span>负载均衡时优先从同 AZ 节点队列中进行加权轮训。</span></span></li>
+<li><span><span>当同AZ节点权重总和/所有节点权重总和 &lt; Y%时，同 AZ 节点优先策略失效，退化为所有节点加权轮训。</span></span></li>
+<li><span><span>当</span><span>同AZ可用节点 &lt; Z</span>时，同 AZ 节点优先策略失效，退化为所有节点加权轮训 。</span></li>
+<li><span><span>需要新增查询节点列表的监控埋点&amp;以上三种计算结果的埋点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-629fa384a4.jpg">
+</div>
+<p><span><span>另外 SDK 支持一键动态切换至走老架构方式（4层 SLB）</span></span></p>
+<p><span><strong><span>管理后台</span></strong></span></p>
+<ul>
+<li><span><span>新增页面【节点管理】，用于查询&amp;管理节点</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-127476e73e.jpg">
+</div>
+<ul>
+<li><span><span>新增页面【兜底节点管理】，用于管理兜底节点列表。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-74f7951f81.jpg">
+</div>
+<ul>
+<li><span><span>提供节点上下线 API，给发布系统调用。</span></span></li>
+</ul>
+<p><span><span>修改状态会去所有 metadata 数据库执行，只有一个库成功就返回成功，如所有库都修改失败，则返回失败。</span></span></p>
+<pre><code>update node_info
+set enabled = 0, config_version = #{config_version}
+where ip = ? and port = ?</code></pre>
+<p><span><strong><span>容灾能力</span></strong></span></p>
+<p><span><span>表格中的是否有影响和故障恢复时间均指 SDK-Proxy 的访问链路，Proxy-DB 链路不在范围内。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-5ff3d50d4a.jpg">
+</div>
+<ul>
+<li><span><span>可用区i全部宕机举例</span></span></li>
+</ul>
+<p><span><span>参考以下时间线，可在30s左右完成恢复。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-c80ef65159.jpg">
+</div>
+<ul>
+<li><span><span>i区 Metadata 数据库故障，无影响。</span></span></li>
+</ul>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3befd34156.jpg">
+</div>
+<p><span><strong><span>一些思考</span></strong></span></p>
+<p><span><strong><span>Q：为什么不用 sylas（得物注册中心产品）做注册中心，而是要自建元数据中心做服务发现？</span></strong></span></p>
+<p><span><span>彩虹桥和 sylas 均为 P0 级别服务，对稳定性要求极高，在架构设计之初需要充分考虑到互相依赖可能带来的级联故障，在与注册中心相关同学沟通后，决定自建彩虹桥元数据中心，实现自闭环。</span></span></p>
+<p><span><strong><span>Q：为什么不是传统的基于 Raft 协议的三节点来实现服务发现，而是用多套数据源做 merge？</span></strong></span></p>
+<p><span><span>Raft 是工程上使用较为广泛的强一致性、去中心化、高可用的共识算法，在分布式系统中，适用于高一致性、容错性要求高的场景。但 Raft 协议需要维护领导者选举和日志复制等机制，性能开销较大，其次 Raft 协议相对复杂，在开发、维护、排障等方面会非常困难，反之采用多数据源求并集的方式更简单，同时也具备单节点故障、整个可用区故障以及跨区网络中断等多种复杂故障下的容灾能力。</span></span></p>
+<p><span><strong><span>Q：如何在 SLB 切换到新架构的过程中保障稳定性？</span></strong></span></p>
+<p><span><span>可灰度：支持单个上游节点粒度的灰度</span></span></p>
+<p><span><span>可回滚：支持一键动态切换至 SLB 架构</span></span></p>
+<p><span><span>可观测：大量埋点数据可实时进行观测，有问题可快速回滚。</span></span></p>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-8c540b57d9.jpg">
+</div>
+<div>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-971f8396b4.jpg">
+</div>
+<p><span><strong>六、<span><span>总结</span></span></strong></span></p>
+<p><span><span>自建元数据中心后，将给彩虹桥带来一系列收益：</span></span></p>
+<ul>
+<li><span><span>应用服务通过 SDK 直接连接 Proxy 节点，摆脱了对 SLB 的依赖，解决了带宽瓶颈和额外网络开销问题，并提高了流量灰度控制的精细度。</span></span></li>
+<li><span><span>简化了扩容流程，扩容时只需增加 Proxy 节点大大缩短整个扩容时间。</span></span></li>
+<li><span><span>多可用区容灾实现自动故障转移，无需人工干预。</span></span></li>
+<li><span><span>SDK 具备了同 AZ 路由能力，更好适配双活架构。</span></span></li>
+</ul>
+<p><span><strong><span><span>往期回顾</span></span></strong></span></p>
+<p><span><span><span>1.解析Go切片：为何按值传递时会发生改变？｜得物技术</span></span></span></p>
+<p><span><span><span>2.得物精准测试平台设计与实现</span></span></span></p>
+<p><span><span><span>3.基于IM场景下的Wasm初探：提升Web应用性能｜得物技术</span></span></span></p>
+<p><span><span><span>4.实时特征框架的生产实践｜得物技术</span></span></span></p>
+<p><span><span><span>5.增长在流量规则巡检的探索实践｜得物技术</span></span></span></p>
+<p><span><span>文 / 新一</span></span></p>
+<p><span><span>关注得物技术，每周一、三更新技术干货</span></span></p>
+<p><span><span>要是觉得文章对你有帮助的话，欢迎评论转发点赞～</span></span></p>
+<p><span><span>未经得物技术许可严禁转载，否则依法追究法律责任。</span></span></p>
+<div>
+<div>
+<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
+</div>
+</div>]]></content:encoded>
+    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3dbbcdb359.jpg"/>
+          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-3dbbcdb359.jpg" medium="image"/>
+    <pubDate>Wed, 20 Nov 2024 16:52:36 +0800</pubDate>
+  </item><item>
     <title><![CDATA[微软将 Entra ID 扩展至 WSL、WinGet]]></title>
     <link>https://www.oschina.net/news/321264/microsoft-entra-id-wsl-winget</link>
     <itunes:title><![CDATA[微软将 Entra ID 扩展至 WSL、WinGet]]></itunes:title>
@@ -8786,1586 +10463,5 @@ Sam Altman 回应了彭博社的报道《OpenAI、Google 和 Anthropic 在构建
     <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91f495900f.png"/>
           <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91f495900f.png" medium="image"/>
     <pubDate>Thu, 14 Nov 2024 18:50:40 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[glibc 内存分配与释放机制详解]]></title>
-    <link>https://my.oschina.net/vivotech/blog/16510054</link>
-    <itunes:title><![CDATA[glibc 内存分配与释放机制详解]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<div>
-<section>
-<section>
-<section>
-<section>
-<p>作者：来自 vivo 互联网存储团队- Wang Yuzhi</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<p>本文以一次线上故障为基础介绍了使用 glibc 进行内存管理可能碰到问题，进而对库中内存分配与释放机制进行分析，最后提供了相应问题的解决方案。</p>
-</section>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<p>一、引言</p>
-</section>
-</section>
-<p><br></p>
-<p>内存对象的分配与释放一直是后端开发人员代码设计中需要考虑的问题，考虑不周极易造成内存泄漏、内存访问越界等问题。在发生内存异常后，开发人员往往花费大量时间排查用户管理层代码，而忽视了C运行时，库层和操作系统层本身的实现也可能会带来内存问题。本文先以一次线上内存事故引出问题，再逐步介绍 glibc 库的内存布局设计、内存分配、释放逻辑，最后给出相应的解决方案。</p>
-<p><br></p>
-<section>
-<section>
-<p>二、内存告警事件</p>
-</section>
-</section>
-<p><br></p>
-<p>在一次线上运维过程中发现服务出现内存告警。</p>
-<section>
-<section>
-<section>
-<p>【监控系统-自定义监控-告警-持续告警】</p>
-<p>检测规则: xxx内存使用率监测:一般异常(&gt;4096)<br>集群id:xxx<br>集群名称: xxxxxx<br>异常对象(当前值): xx.xx.xx.xx-xxxxxxx(11335)<br>开始时间: 2023-08-10 17:10:30<br>告警时间: 2023-08-10 18:20:32<br>持续时间: 1h10m2s<br>异常比例: 2.1918 (8/365)<br>异常级别: 一般<br>备注：-</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>随即查看服务相关监控，判断是业务流量激增带来的内存短时间增高，或是发生了内存泄漏。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015857" data-ratio="0.4361111111111111" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8b746a5e9.jpg" data-w="1080"></p>
-<p><img data-imgfileid="100015858" data-ratio="0.40925925925925927" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-490e089837.jpg" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>通过查看 OPS 和服务自身统计的内存监控，发现在告警时间内存在业务流量突增现象，但是内存已经下降到正常值了。然而告警持续到了18:20依然没有恢复，跟监控表现不符，登录机器后发现实例的内存并没有恢复，随即怀疑用户层发生内存泄漏。</p>
-<p><br></p>
-<p>经过分析，由于内存统计代码每次调用 new、delete 之后才会对统计值进行增减，而监控中服务统计内存已经下降，说明已经正常调用 delete 进行内存释放，而操作系统层面发现内存依然居高不下，怀疑使用的c运行库 glibc 存在内存释放问题。</p>
-<p><br></p>
-</section>
-<section>
-<section>
-<p>三、glibc 内存管理机制</p>
-</section>
-</section>
-<p><br></p>
-<p><span>3.1 glibc 简介</span></p>
-<p><span><br></span></p>
-<p>glibc 全称为 GUN C Library，是一个开源的标准C库，其对操作系统相关调用进行了封装，提供包括数学、字符串、文件 I/O、内存管理、多线程等方面标准函数和系统调用接口供用户使用。</p>
-<p><br></p>
-<p><span>3.2 内存管理布局</span></p>
-<p><span><br></span></p>
-<p>以 Linux 内核 v2.6.7 之后的32位模式下的虚拟内存布局方式为例：</p>
-<p><br></p>
-<p><img data-imgfileid="100015859" data-ratio="1.1722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21dc0223dc.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>Kernel Space（内核空间）— 存储内核和驱动程序的代码和数据；</p></li>
-<li><p>Stack（栈区）— 存储程序执行期间的本地变量和函数的参数，从高地址向低地址生长；</p></li>
-<li><p>Memory Mapping Segment（内存映射区）— 简称为 mmap，用来文件或其他对象映射进内存；</p></li>
-<li><p>Heap（堆区）— 动态内存分配区域，通过 malloc、new、free 和 delete 等函数管理；</p></li>
-<li><p>BSS segment（未初始化变量区）— 存储未被初始化的全局变量和静态变量；</p></li>
-<li><p>DATA segment（数据区）— 存储在源代码中有预定义值的全局变量和静态变量；</p></li>
-<li><p>TEXT segment（代码区）— 存储只读的程序执行代码，即机器指令。</p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><br></p>
-<p>其中 Heap 和 Mmap 区域是可以提供给用户程序使用的虚拟内存空间。</p>
-<p><br></p>
-<p><strong>Heap 操作</strong></p>
-<p>操作系统提供了 brk() 函数，c运行时库提供了 sbrk() 函数从 Heap 中申请内存，函数声明如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>int</span> <span>brk</span><span>(<span>void</span> *addr)</span></span>;</span></code><code><span><span><span>void</span> *<span>sbrk</span><span>(<span>intptr_t</span> increment)</span></span>;</span></code></pre>
-</section>
-<section>
-<section>
-<ul>
-<li><p>brk() 通过设置进程堆的结束地址进行内存分配与释放，即可以一次性的分配或释放一整段连续的内存空间。比较适合于一次性分配大块内存的情况，如果设置的结束地址过大或过小会造成内存碎片或内存浪费的问题。</p></li>
-<li><p>sbrk 函数通过传入的 increment 参数决定增加或减少堆空间的大小，可以动态的多次分配或释放空间达到需要多少内存就申请多少内存的效果，有效避免了内存碎片和浪费问题。</p><p><br></p></li>
-</ul>
-</section>
-</section>
-<p><strong>Mmap 操作</strong></p>
-<p>在 Linux 中提供了 mmap() 和 munmap() 函数操作虚拟内存空间，函数声明如下：</p>
-<section>
-<pre data-lang="c"><code><span><span><span>void</span> *<span>mmap</span><span>(<span>void</span> *addr, <span>size_t</span> length, <span>int</span> prot, <span>int</span> flags, <span>int</span> fd, <span>off_t</span> offset)</span></span>;</span></code><code><span><span><span>int</span> <span>munmap</span><span>(<span>void</span> *addr, <span>size_t</span> length)</span></span>;</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<section>
-<p><br></p>
-<p>其中 mmap 能够将文件或者其他对象映射进内存，munmap 能够删除特定地址区域的内存映射。</p>
-</section>
-<p><br></p>
-<p><span>3.3 内存分配器</span></p>
-<p><span><br></span></p>
-<section>
-<p>开源社区公开了很多现成的内存分配器，包括 dlmalloc、ptmalloc、jemalloc、tcmalloc......，由于 glibc 用的是 ptmalloc 所以本文只对该内存分配器进行介绍。</p>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<p>3.3.1 Arena（分配区）</p>
-<p><br></p>
-</section>
-<section>
-<p>堆管理结构如下所示：</p>
-</section>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_state</span> {</span></span></code><code><span> <span>mutex_t</span> mutex; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Serialize access. */</span></span></code><code><span> <span>int</span> flags; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Flags (formerly in max_fast). */</span></span></code><code><span> <span>#<span>if</span> THREAD_STATS</span></span></code><code><span> <span>/* Statistics for locking. Only used if THREAD_STATS is defined. */</span></span></code><code><span> <span>long</span> stat_lock_direct, stat_lock_loop, stat_lock_wait;</span></code><code><span> <span>#<span>endif</span></span></span></code><code><span> mfastbinptr fastbins[NFASTBINS]; &nbsp; &nbsp;<span>/* Fastbins */</span></span></code><code><span> mchunkptr top;</span></code><code><span> mchunkptr last_remainder;</span></code><code><span> mchunkptr bins[NBINS * <span>2</span>];</span></code><code><span> <span>unsigned</span> <span>int</span> binmap[BINMAPSIZE]; &nbsp; <span>/* Bitmap of bins */</span></span></code><code><span> <span><span>struct</span> <span>malloc_state</span> *<span>next</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Linked list */</span></span></code><code><span> INTERNAL_SIZE_T system_mem;</span></code><code><span> INTERNAL_SIZE_T max_system_mem;</span></code><code><span> };</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<p>ptmalloc 对进程内存是通过一个个的分配区进行管理的，而分配区分为主分配区(arena)和非主分配区(narena)，两者区别在于主分配区中可以使用 sbrk 和 mmap 向操作系统申请内存，而非主分配区只能通过 mmap 申请内存。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015860" data-ratio="0.7722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f27ee34cf1.png" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>对于一个进程，只有一个主分配区和若干个非主分配区，主分配区只能由第一个线程来创建持有，其和非主分配区由环形链表的形式相互连接，整个分配区中通过变量互斥锁支持多线程访问。</p>
-<p><br></p>
-<p>当一个线程调用 malloc 申请内存时，该线程先查看线程私有变量中是否已经存在一个分配区。如果存在，则对该分配区加锁，加锁成功的话就用该分配区进行内存分配；失败的话则搜索环形链表找一个未加锁的分配区。如果所有分配区都已经加锁，那么 malloc 会开辟一个新的分配区加入环形链表并加锁，用它来分配内存。释放操作同样需要获得锁才能进行。</p>
-</section>
-<p><br></p>
-<p><span>3.3.2&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<p>ptmalloc 通过 malloc_chunk 来管理内存，定义如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_chunk</span> {</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;prev_size; &nbsp; &nbsp;<span>/* Size of previous chunk (if free). &nbsp;*/</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;size; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Size in bytes, including overhead. */</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk</span>;</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span>/* Only used for large blocks: pointer to next larger size. &nbsp;*/</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd_nextsize</span>;</span> &nbsp; &nbsp; &nbsp;<span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk_nextsize</span>;</span></span></code><code><span>};</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>prev_size：存储前一个 chunk 的大小。如果前一个 chunk 没有被使用，则 prev_size 的值表示前一个 chunk 的大小，如果前一 chunk 已被使用，则 prev_size 的值没有意义。</p></li>
-<li><p>size：表示当前 chunk 的大小，包括所请求的有效数据大小，以及堆块头部和尾部的管理信息等附加信息的大小。</p></li>
-<li><p>fd 和 bk：表示 chunk 在空闲链表中的前一个和后一个堆块的指针。如果该 chunk 被占用，则这两个指针没有意义。</p></li>
-<li><p>fd_nextsize 和 bk_nextsize：表示同一空闲链表上下一个堆块的指针。fd_nextsize 指向下一个比当前 chunk 大小大的第一个空闲 chunk ， bk_nextszie 指向前一个比当前 chunk 大小小的第一个空闲 chunk，增加这两个字段可以加快遍历空闲 chunk ，并查找满足需要的空闲 chunk 。</p></li>
-</ul>
-</section>
-</section>
-<p>使用该数据结构能够更快的在链表中查找到空闲 chunk 并分配。</p>
-<p><br></p>
-<p><span>3.3.3&nbsp;空闲链表(bins)</span></p>
-<p><span><br></span></p>
-<section>
-<p>在 ptmalloc 中，会将大小相似的 chunk 链接起来，叫做空闲链表(bins)，总共有128个 bin 供 ptmalloc 使用。用户调用 free 函数释放内存的时候，ptmalloc 并不会立即将其归还操作系统，而是将其放入 bins 中，这样下次再调用 malloc 函数申请内存的时候，就会从 bins 中取出一块返回，这样就避免了频繁调用系统调用函数，从而降低内存分配的开销。</p>
-<p><br></p>
-<p>在 ptmalloc 中，bin主要分为以下四种：</p>
-<ul>
-<li><p>fast bin</p></li>
-<li><p>unsorted bin</p></li>
-<li><p>small bin</p></li>
-<li><p>large bin</p></li>
-</ul>
-</section>
-<p><br></p>
-<p>其中根据 bin 的分类，可以分为 fast bin 和 bins，而 bins 又可以分为 unsorted bin、small bin 以及 large bin 。</p>
-<p><br></p>
-<p><br></p>
-<p><img data-imgfileid="100015861" data-ratio="0.5018518518518519" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b23035ddc.png" data-w="1080"></p>
-<p><br></p>
-<p><br></p>
-<p><strong>fast bin</strong></p>
-<section>
-<p>程序在运行时会经常需要申请和释放一些较小的内存空间。当分配器合并了相邻的几个小的 chunk 之后，也许马上就会有另一个小块内存的请求，这样分配器又需要从大的空闲内存中切分出一块,这样无疑是比较低效的，故而， malloc 中在分配过程中引入了 fast bins 。</p>
-<p><br></p>
-<p>fast bin 总共有10个，本质上就是10个单链表，每个 fast bin 中所包含的 chunk size 以8字节逐渐递增，即如果第一个 fast bin 中 chunk size 均为16个字节，第二个 fast bin 的 chunk size 为24字节，以此类推，最后一个 fast bin 的 chunk size 为80字节。值得注意的是 fast bin 中 chunk 释放并不会与相邻的空闲 chunk 合并，这是由于 fast bin 设计的初衷就是小内存的快速分配和释放，因此系统将属于 fast bin 的 chunk 的P(未使用标志位)总是设置为1，这样即使当 fast bin 中有某个 chunk 同一个 free chunk 相邻的时候，系统也不会进行自动合并操作。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>在 malloc 申请内存的时候，如果申请的内存大小范围在fast bin 以内，则先在 fast bin 中进行查找，如果 fast bin 中存在空闲 chunk 则返回。否则依次从 small bin、unsorted bin、large bin 中进行查找。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>先通过 chunksize 函数根据传入的地址指针获取该指针对应的 chunk 的大小；然后根据这个 chunk 大小获取该 chunk 所属的 fast bin，然后再将此 chunk 添加到该 fast bin 的链尾。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>unsorted bin</strong></p>
-</section>
-<section>
-<p>是 bins 的缓冲区，顾名思义，unsorted bin 中的 chunk 无序，这种设计能够让 glibc 的 malloc 机制有第二次机会重新利用最近释放的 chunk 从而加快内存分配的时间。</p>
-<p><br></p>
-<p>与 fast bin 不同，unsorted bin 采用的是 FIFO 的方式。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存大小大于 fast bin 的最大大小，则先在 unsorted 中寻找，如果找到了合适的 chunk 则直接返回，否则继续在 small bin 和l arge bin中搜索。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>当释放的内存大小大于fast bin的最大大小，则将释放的 chunk 写入 unsorted bin。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>small bin</strong></p>
-</section>
-<section>
-<p>大小小于512字节的 chunk 被称为 small chunk，而保存 small chunks 的 bin 被称为 small bin。62个 small bin 中，每个相邻的的 small bin 之间相差8字节，同一个 small bin 中的 chunk 拥有相同大小。</p>
-<p><br></p>
-<p>small bin 指向的是包含空闲区块的双向循环链表。内存分配和释放逻辑如下：</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存不存在于 fast bin 和 unsorted bin 中，并且大小小于512字节，则在 small bin 中进行查找，如果找到了合适的 chunk 则直接返回。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>free 一个 chunk 时会检查该 chunk 相邻的 chunk 是否空闲，如果空闲则需要先合并，然后将合并的 chunk 先从所属的链表中删除然后合并成一个新的 chunk，新的 chunk 会被添加在 unsorted bin 链表的前端。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>large bin</strong></p>
-</section>
-<section>
-<p>大小大于等于512字节的 chunk 被称为 large chunk，而保存 large chunks 的 bin 被称为 large bin。large bins 中每一个 bin 分别包含了一个给定范围内的 chunk，其中的 chunk 按大小递减排序，大小相同则按照最近使用时间排列。63 large bin 中的每一个都与 small bin 的操作方式大致相同，但不是存储固定大小的块，而是存储大小范围内的块。每个 large bin 的大小范围都设计为不与 small bin &nbsp;的块大小或其他large bin 的范围重叠。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>首先确定用户请求的大小属于哪一个 large bin，然后判断该 large bin 中最大的 chunk 的 size 是否大于用户请求的 size。如果大于，就从尾开始遍历该 large bin，找到第一个 size 相等或接近的 chunk，分配给用户。如果该 chunk 大于用户请求的 size 的话，就将该 chunk 拆分为两个 chunk：前者返回给用户，且 size 等同于用户请求的 size；剩余的部分做为一个新的 chunk 添加到 unsorted bin 中。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>large bin 的 fee 操作与 small bin 一致，此处不再赘述。</p>
-<p><br></p>
-</section>
-<p><span>3.3.4 特殊&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<section>
-<p><strong>top chunk</strong></p>
-<p>top chunk 是堆最上面的一段空间，它不属于任何 bin，当所有的 bin 都无法满足分配要求时，就要从这块区域里来分配，分配的空间返回给用户，剩余部分形成新的 top chunk，如果 top chunk 的空间也不满足用户的请求，就要使用 brk 或者 mmap 来向系统申请更多的堆空间（主分配区使用 brk、sbrk，非主分配区使用 mmap）。</p>
-<p><br></p>
-<p><strong>mmaped chunk</strong></p>
-<p>当分配的内存非常大（大于分配阀值，默认128K）的时候需要被 mmap 映射，则会放到 mmaped chunk 上，释放 mmaped chunk 上的内存的时候会将内存直接交还给操作系统。（chunk 中的M标志位置1）</p>
-<p><br></p>
-<p><strong>last remainder chunk</strong></p>
-<p>如果用户申请的 size 属于 small bin 的，但是又不能精确匹配的情况下，这时候采用最佳匹配（比如申请128字节，但是对应的bin是空，只有256字节的 bin 非空，这时候就要从256字节的 bin 上分配），这样会 split chunk 成两部分，一部分返给用户，另一部分形成 last remainder chunk，插入到 unsorted bin 中。</p>
-<p><br></p>
-</section>
-<p><span>3.3.5&nbsp;hunk 的合并与切分</span></p>
-<p><br></p>
-<section>
-<p><strong>合并</strong></p>
-<p>当 chunk 释放时，如果前后两个相邻的 chunk 均空闲，则会与前后两个相邻 chunk 合并，随后将合并结果放入 unsorted bin 中。</p>
-<p><br></p>
-<p><strong>切分</strong></p>
-<p>当需要分配的内存小于待分配的 chunk 块，则会将待分配 chunk 块切割成两个 chunk 块，其中一个 chunk 块大小等同于用户需要分配内存的大小。需要注意的是分裂后的两个 chunk 必须均大于 chunk 的最小大小，否则不会进行拆分。</p>
-</section>
-<p><br></p>
-<p><span>3.4 内存分配</span></p>
-<p>内存分配流程可以分为三步：</p>
-<section>
-<section>
-<section>
-<section>
-<p>第一步：根据用户请求大小转换为实际需要分配 chunk 空间的大小；</p>
-<p>第二步：在 bins 中搜索还没有归还给操作系统的 chunk 块，具体流程如下图所示。</p>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015879" data-ratio="0.5435185185185185" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7b56af4066.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>如果所需分配的 chunk 大小小于等于 max_fast （fast bins 中要求的最大 chunk 大小，默认为64B），则尝试在 fast bins 中获取 chunk，如果获取 chunk 则返回。否则进入下一步。</p></li>
-<li><p>判断所需大小是否可能处于 small bins 中，即判断 chunk_size &lt; 512B是否成立。如果 chunk 大小处在 small bins 中则在 small bins 中搜索合适的 chunk，即找到合适的 small bin，然后从该 bin 的尾部摘取一个满足大小要求的 chunk 返回。如果 small bins 中无法找到合适的 chunk 则进入下一步。</p></li>
-<li><p>到这一步说明待分配的内存块要么是一个大的 chunk，要么只是没有在 small bin 中找到。分配器先在 fast bin 中尝试合并 chunk，并将 chunk 写入 unsorted chunk 中，此时再遍历 unsorted chunk 如果能够找到合适的 chunk 则按需将该 chunk 切分（可能不需要），将生成的 chunk 中其中一个放入 small bins 或者 large bins 中，另一个与待分配内存块相同大小的 chunk 则返回。</p></li>
-<li><p>在 large bins 中搜索合适的 chunk，如果能够找到则将该 chunk 切分成需要分配的内存大小，另一部分则继续写入 bins 中。如果无法找到合适的 chunk，则进入下一步。</p></li>
-<li><p>尝试从 top chunk 中分配一块内存给用户，剩下一部分生成新的 top chunk 。</p></li>
-</ul>
-</section>
-</section>
-<section>
-<section>
-<p>第三步：如果 top chunk 依然无法满足分配请求，通过 sbrk 或 mmap 增加 top chunk 的大小并分配内存给用户。</p>
-</section>
-</section>
-<p><br></p>
-<section>
-<p>3.5 内存释放</p>
-<p><br></p>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015880" data-ratio="0.5092592592592593" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2f57035cf.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>判断当前 chunk 是否是 mmap 映射区域映射的内存，如果是则直接使用 munmap 释放这块内存映射（内存映射的内存能够通过标记进行识别）；</p></li>
-<li><p>判断 chunk 是否与 top chunk 相邻，如果相邻则直接与 top chunk 合并；</p></li>
-<li><p>如果 chunk 的大小大于 max_fast（64B），则将其放入 unsorted bin，</p><p>并检查是否有合并，如果能够合并则将 chunk 合并后根据大小加入合适的 bin 中；</p></li>
-<li><p>如果 chunk 的大小小于</p><p>max_fast（64B），则直接放入 fast bin 中，如果没有合并情况则 free 内存。如果在当前 chunk 相邻的 chunk 空闲，则触发合并，并将合并后的结果写入 unsorted bin 中，此时如果合并后的结果大于 max_fast（64B），则触发整个 fast bins 的合并操作，此时 fast bins 将会被遍历，将所有相邻的空闲 chunk 进行合并，然后将合并后的 chunk 写入 unsorted bin 中，fast bin 此时会变为空。如果合并后的 chunk 与 top chunk 相邻则会合并到 top chunk 中；</p></li>
-<li><p>如果 top chunk 大小大于 mmap 收缩阈值（默认128KB），如果是，则对于主分配区则会试图归还 top chunk 中一部分给操作系统，此时 free 结束。<br></p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-</section>
-<section>
-<p><br></p>
-<p>3.6 内存碎片</p>
-<p><br></p>
-</section>
-<p><img data-imgfileid="100015864" data-ratio="1.1453703703703704" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8f69bc2b0.png" data-w="1080"></p>
-<p><br></p>
-<p>按照 glibc 的内存分配策略，我们考虑下如下场景：</p>
-<p><br></p>
-<section>
-<section>
-<section>
-<p>1.假设 brk 起始地址为512k</p>
-<p>2.malloc 40k 内存，即 chunk A，brk = 512k + 40k = 552k</p>
-<p>3.malloc 50k 内存，即 chunk B，brk = 552k + 50k = 602k</p>
-<p>4.malloc 60k 内存，即 chunk C，brk = 602k + 60k = 662k</p>
-<p>5.free chunk A。</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>此时 chunk A 为空闲块，但是如果 chunk C 和 chunk B 一直不释放无法直接通过移动brk指针来释放 chunk A 的内存，必须等待 chunk B 和 chunk C 释放才能和 top chunk 合并并将内存归还给操作系统。</p>
-<p><br></p>
-<section>
-<section>
-<p>四、问题分析与解决</p>
-</section>
-</section>
-<p><br></p>
-<p>通过前面的内存分配器运行原理能够很容易得出原因，由于程序中连续调用 free/delete 释放内存仅仅只是将内存写入内存分配器的 bins 中，并没有将其归还给操作系统，所以会出现疑似内存未回收的情况。并且如果每次 delete 的内存都不与 top chunk 相邻，会导致 chunk 块长时间留在空闲链表中无法合并到 top chunk，从而出现内存无法释放给操作系统的现象。</p>
-<p><br></p>
-<section>
-<p>4.1 优化办法</p>
-<p><br></p>
-</section>
-<section>
-<ol>
-<li><p>通过限制服务端内存最大大小能够有效避免内存被c运行库撑的太高，导致服务器 OOM 的情况。</p></li>
-<li><p>c运行库替换成 jemalloc，jemalloc 与 glibc 的实现方式不同，能够更快将内存归还给操作系统。</p></li>
-</ol>
-<p><br></p>
-</section>
-<section>
-<p>4.2 效果对比测试</p>
-<p><br></p>
-</section>
-<p>为了验证优化后的内存使用效果，编写测试代码，模拟线上 pipline 模式下的3000万次连续请求，对比请求过程中的内存峰值、连接断开后的内存使用状况：</p>
-<p><br></p>
-<section>
-<p><strong>glibc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015865" data-ratio="0.07246376811594203" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6ee0d6bcc9.png" data-w="966"></p>
-<p><br></p>
-<section>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015866" data-ratio="0.06475583864118896" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6cca89566e.png" data-w="942"></p>
-<p><br></p>
-</section>
-<section>
-<p><strong>jemalloc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015867" data-ratio="0.05726405090137858" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af8dd02579.png" data-w="943"></p>
-<p><br></p>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015868" data-ratio="0.06611570247933884" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a7f0ebbe9.png" data-w="968"></p>
-<p><br></p>
-<section>
-<p>根据测试结果，jemalloc 相较于 glibc 释放空闲内存速度快12%。</p>
-<p><br></p>
-<p><span>参考链接</span></p>
-<ol>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gnu.org%2Fsoftware%2Flibc%2Fmanual%2Fhtml_node%2F" textvalue="https://www.gnu.org/software/libc/manual/html_node/" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://www.gnu.org/software/libc/manual/html_node/</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fhustfisher%2Fptmalloc%2Fblob%2Fmaster%2FREADME" textvalue="https://github.com/hustfisher/ptmalloc/blob/master/README" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://github.com/hustfisher/ptmalloc/blob/master/README</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F13480235%2Flibc-memory-management" textvalue="https://stackoverflow.com/questions/13480235/libc-memory-management" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://stackoverflow.com/questions/13480235/libc-memory-management</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F637659294" textvalue="https://zhuanlan.zhihu.com/p/637659294" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://zhuanlan.zhihu.com/p/637659294</span></a></p></li>
-</ol>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-<section>
-<section>
-<p>END</p>
-</section>
-</section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-</section>
-<section>
-<section>
-<span opera-tn-ra-cell="_$.pages:0.layers:0.comps:145.title1"><p>猜你喜欢</p></span>
-</section>
-<section>
-<section>
-<p>1.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499502%26idx%3D1%26sn%3D38c0b986c39b171c3370ab6c39c75da8%26chksm%3Debdb8e7cdcac076a7bda101051b967702395aa75884b3e386d0d85f2a8840e5844e93a406497%26scene%3D21%23wechat_redirect" textvalue="浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题</a></p>
-<p>2.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499108%26idx%3D1%26sn%3D6904feec20d690a2f102795f22c7bc65%26chksm%3Debdb8df6dcac04e039af9a47569217b2bbc87bb5b68c8f668baed8a8cd1e12e5fb7e03c395fa%26scene%3D21%23wechat_redirect" textvalue="MySQL 5.7 DDL 与 GH-OST 对比分析" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">MySQL 5.7 DDL 与 GH-OST 对比分析</a></p>
-<p>3.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499353%26idx%3D2%26sn%3D3b0d7ac6dbe8c1b5ad87effa0df9d87f%26chksm%3Debdb8ecbdcac07dd7371f570cd73c12d11627e923cedf900400bb4386f50c4e5b8dd8e0100c2%26scene%3D21%23wechat_redirect" textvalue="一次基于AST的大规模代码迁移实践" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">一次基于AST的大规模代码迁移实践</a></p>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-<section>
-<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/4g5IMGibSxt45QXJZicZ9gaNU2mRSlvqhQd94MJ7oQh4QFj1ibPV66xnUiaKoicSatwaGXepL5sBDSDLEckicX1ttibHg/0?wx_fmt=png" data-nickname="vivo互联网技术" data-alias="vivoVMIC" data-signature="分享 vivo 互联网技术干货与沙龙活动，推荐最新行业动态与热门会议。" data-from="0" data-is_biz_ban="0"></mp-common-profile>
-</section>
-<p><br></p>
-</section>
-<p>
-<mp-style-type data-value="3"></mp-style-type></p>
-</div>
-<p>本文分享自微信公众号 - vivo互联网技术（vivoVMIC）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<div>
-<section>
-<section>
-<section>
-<section>
-<p>作者：来自 vivo 互联网存储团队- Wang Yuzhi</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<p>本文以一次线上故障为基础介绍了使用 glibc 进行内存管理可能碰到问题，进而对库中内存分配与释放机制进行分析，最后提供了相应问题的解决方案。</p>
-</section>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<p>一、引言</p>
-</section>
-</section>
-<p><br></p>
-<p>内存对象的分配与释放一直是后端开发人员代码设计中需要考虑的问题，考虑不周极易造成内存泄漏、内存访问越界等问题。在发生内存异常后，开发人员往往花费大量时间排查用户管理层代码，而忽视了C运行时，库层和操作系统层本身的实现也可能会带来内存问题。本文先以一次线上内存事故引出问题，再逐步介绍 glibc 库的内存布局设计、内存分配、释放逻辑，最后给出相应的解决方案。</p>
-<p><br></p>
-<section>
-<section>
-<p>二、内存告警事件</p>
-</section>
-</section>
-<p><br></p>
-<p>在一次线上运维过程中发现服务出现内存告警。</p>
-<section>
-<section>
-<section>
-<p>【监控系统-自定义监控-告警-持续告警】</p>
-<p>检测规则: xxx内存使用率监测:一般异常(&gt;4096)<br>集群id:xxx<br>集群名称: xxxxxx<br>异常对象(当前值): xx.xx.xx.xx-xxxxxxx(11335)<br>开始时间: 2023-08-10 17:10:30<br>告警时间: 2023-08-10 18:20:32<br>持续时间: 1h10m2s<br>异常比例: 2.1918 (8/365)<br>异常级别: 一般<br>备注：-</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>随即查看服务相关监控，判断是业务流量激增带来的内存短时间增高，或是发生了内存泄漏。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015857" data-ratio="0.4361111111111111" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8b746a5e9.jpg" data-w="1080"></p>
-<p><img data-imgfileid="100015858" data-ratio="0.40925925925925927" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-490e089837.jpg" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>通过查看 OPS 和服务自身统计的内存监控，发现在告警时间内存在业务流量突增现象，但是内存已经下降到正常值了。然而告警持续到了18:20依然没有恢复，跟监控表现不符，登录机器后发现实例的内存并没有恢复，随即怀疑用户层发生内存泄漏。</p>
-<p><br></p>
-<p>经过分析，由于内存统计代码每次调用 new、delete 之后才会对统计值进行增减，而监控中服务统计内存已经下降，说明已经正常调用 delete 进行内存释放，而操作系统层面发现内存依然居高不下，怀疑使用的c运行库 glibc 存在内存释放问题。</p>
-<p><br></p>
-</section>
-<section>
-<section>
-<p>三、glibc 内存管理机制</p>
-</section>
-</section>
-<p><br></p>
-<p><span>3.1 glibc 简介</span></p>
-<p><span><br></span></p>
-<p>glibc 全称为 GUN C Library，是一个开源的标准C库，其对操作系统相关调用进行了封装，提供包括数学、字符串、文件 I/O、内存管理、多线程等方面标准函数和系统调用接口供用户使用。</p>
-<p><br></p>
-<p><span>3.2 内存管理布局</span></p>
-<p><span><br></span></p>
-<p>以 Linux 内核 v2.6.7 之后的32位模式下的虚拟内存布局方式为例：</p>
-<p><br></p>
-<p><img data-imgfileid="100015859" data-ratio="1.1722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21dc0223dc.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>Kernel Space（内核空间）— 存储内核和驱动程序的代码和数据；</p></li>
-<li><p>Stack（栈区）— 存储程序执行期间的本地变量和函数的参数，从高地址向低地址生长；</p></li>
-<li><p>Memory Mapping Segment（内存映射区）— 简称为 mmap，用来文件或其他对象映射进内存；</p></li>
-<li><p>Heap（堆区）— 动态内存分配区域，通过 malloc、new、free 和 delete 等函数管理；</p></li>
-<li><p>BSS segment（未初始化变量区）— 存储未被初始化的全局变量和静态变量；</p></li>
-<li><p>DATA segment（数据区）— 存储在源代码中有预定义值的全局变量和静态变量；</p></li>
-<li><p>TEXT segment（代码区）— 存储只读的程序执行代码，即机器指令。</p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><br></p>
-<p>其中 Heap 和 Mmap 区域是可以提供给用户程序使用的虚拟内存空间。</p>
-<p><br></p>
-<p><strong>Heap 操作</strong></p>
-<p>操作系统提供了 brk() 函数，c运行时库提供了 sbrk() 函数从 Heap 中申请内存，函数声明如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>int</span> <span>brk</span><span>(<span>void</span> *addr)</span></span>;</span></code><code><span><span><span>void</span> *<span>sbrk</span><span>(<span>intptr_t</span> increment)</span></span>;</span></code></pre>
-</section>
-<section>
-<section>
-<ul>
-<li><p>brk() 通过设置进程堆的结束地址进行内存分配与释放，即可以一次性的分配或释放一整段连续的内存空间。比较适合于一次性分配大块内存的情况，如果设置的结束地址过大或过小会造成内存碎片或内存浪费的问题。</p></li>
-<li><p>sbrk 函数通过传入的 increment 参数决定增加或减少堆空间的大小，可以动态的多次分配或释放空间达到需要多少内存就申请多少内存的效果，有效避免了内存碎片和浪费问题。</p><p><br></p></li>
-</ul>
-</section>
-</section>
-<p><strong>Mmap 操作</strong></p>
-<p>在 Linux 中提供了 mmap() 和 munmap() 函数操作虚拟内存空间，函数声明如下：</p>
-<section>
-<pre data-lang="c"><code><span><span><span>void</span> *<span>mmap</span><span>(<span>void</span> *addr, <span>size_t</span> length, <span>int</span> prot, <span>int</span> flags, <span>int</span> fd, <span>off_t</span> offset)</span></span>;</span></code><code><span><span><span>int</span> <span>munmap</span><span>(<span>void</span> *addr, <span>size_t</span> length)</span></span>;</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<section>
-<p><br></p>
-<p>其中 mmap 能够将文件或者其他对象映射进内存，munmap 能够删除特定地址区域的内存映射。</p>
-</section>
-<p><br></p>
-<p><span>3.3 内存分配器</span></p>
-<p><span><br></span></p>
-<section>
-<p>开源社区公开了很多现成的内存分配器，包括 dlmalloc、ptmalloc、jemalloc、tcmalloc......，由于 glibc 用的是 ptmalloc 所以本文只对该内存分配器进行介绍。</p>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<p>3.3.1 Arena（分配区）</p>
-<p><br></p>
-</section>
-<section>
-<p>堆管理结构如下所示：</p>
-</section>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_state</span> {</span></span></code><code><span> <span>mutex_t</span> mutex; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Serialize access. */</span></span></code><code><span> <span>int</span> flags; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Flags (formerly in max_fast). */</span></span></code><code><span> <span>#<span>if</span> THREAD_STATS</span></span></code><code><span> <span>/* Statistics for locking. Only used if THREAD_STATS is defined. */</span></span></code><code><span> <span>long</span> stat_lock_direct, stat_lock_loop, stat_lock_wait;</span></code><code><span> <span>#<span>endif</span></span></span></code><code><span> mfastbinptr fastbins[NFASTBINS]; &nbsp; &nbsp;<span>/* Fastbins */</span></span></code><code><span> mchunkptr top;</span></code><code><span> mchunkptr last_remainder;</span></code><code><span> mchunkptr bins[NBINS * <span>2</span>];</span></code><code><span> <span>unsigned</span> <span>int</span> binmap[BINMAPSIZE]; &nbsp; <span>/* Bitmap of bins */</span></span></code><code><span> <span><span>struct</span> <span>malloc_state</span> *<span>next</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Linked list */</span></span></code><code><span> INTERNAL_SIZE_T system_mem;</span></code><code><span> INTERNAL_SIZE_T max_system_mem;</span></code><code><span> };</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<p>ptmalloc 对进程内存是通过一个个的分配区进行管理的，而分配区分为主分配区(arena)和非主分配区(narena)，两者区别在于主分配区中可以使用 sbrk 和 mmap 向操作系统申请内存，而非主分配区只能通过 mmap 申请内存。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015860" data-ratio="0.7722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f27ee34cf1.png" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>对于一个进程，只有一个主分配区和若干个非主分配区，主分配区只能由第一个线程来创建持有，其和非主分配区由环形链表的形式相互连接，整个分配区中通过变量互斥锁支持多线程访问。</p>
-<p><br></p>
-<p>当一个线程调用 malloc 申请内存时，该线程先查看线程私有变量中是否已经存在一个分配区。如果存在，则对该分配区加锁，加锁成功的话就用该分配区进行内存分配；失败的话则搜索环形链表找一个未加锁的分配区。如果所有分配区都已经加锁，那么 malloc 会开辟一个新的分配区加入环形链表并加锁，用它来分配内存。释放操作同样需要获得锁才能进行。</p>
-</section>
-<p><br></p>
-<p><span>3.3.2&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<p>ptmalloc 通过 malloc_chunk 来管理内存，定义如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_chunk</span> {</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;prev_size; &nbsp; &nbsp;<span>/* Size of previous chunk (if free). &nbsp;*/</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;size; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Size in bytes, including overhead. */</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk</span>;</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span>/* Only used for large blocks: pointer to next larger size. &nbsp;*/</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd_nextsize</span>;</span> &nbsp; &nbsp; &nbsp;<span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk_nextsize</span>;</span></span></code><code><span>};</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>prev_size：存储前一个 chunk 的大小。如果前一个 chunk 没有被使用，则 prev_size 的值表示前一个 chunk 的大小，如果前一 chunk 已被使用，则 prev_size 的值没有意义。</p></li>
-<li><p>size：表示当前 chunk 的大小，包括所请求的有效数据大小，以及堆块头部和尾部的管理信息等附加信息的大小。</p></li>
-<li><p>fd 和 bk：表示 chunk 在空闲链表中的前一个和后一个堆块的指针。如果该 chunk 被占用，则这两个指针没有意义。</p></li>
-<li><p>fd_nextsize 和 bk_nextsize：表示同一空闲链表上下一个堆块的指针。fd_nextsize 指向下一个比当前 chunk 大小大的第一个空闲 chunk ， bk_nextszie 指向前一个比当前 chunk 大小小的第一个空闲 chunk，增加这两个字段可以加快遍历空闲 chunk ，并查找满足需要的空闲 chunk 。</p></li>
-</ul>
-</section>
-</section>
-<p>使用该数据结构能够更快的在链表中查找到空闲 chunk 并分配。</p>
-<p><br></p>
-<p><span>3.3.3&nbsp;空闲链表(bins)</span></p>
-<p><span><br></span></p>
-<section>
-<p>在 ptmalloc 中，会将大小相似的 chunk 链接起来，叫做空闲链表(bins)，总共有128个 bin 供 ptmalloc 使用。用户调用 free 函数释放内存的时候，ptmalloc 并不会立即将其归还操作系统，而是将其放入 bins 中，这样下次再调用 malloc 函数申请内存的时候，就会从 bins 中取出一块返回，这样就避免了频繁调用系统调用函数，从而降低内存分配的开销。</p>
-<p><br></p>
-<p>在 ptmalloc 中，bin主要分为以下四种：</p>
-<ul>
-<li><p>fast bin</p></li>
-<li><p>unsorted bin</p></li>
-<li><p>small bin</p></li>
-<li><p>large bin</p></li>
-</ul>
-</section>
-<p><br></p>
-<p>其中根据 bin 的分类，可以分为 fast bin 和 bins，而 bins 又可以分为 unsorted bin、small bin 以及 large bin 。</p>
-<p><br></p>
-<p><br></p>
-<p><img data-imgfileid="100015861" data-ratio="0.5018518518518519" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b23035ddc.png" data-w="1080"></p>
-<p><br></p>
-<p><br></p>
-<p><strong>fast bin</strong></p>
-<section>
-<p>程序在运行时会经常需要申请和释放一些较小的内存空间。当分配器合并了相邻的几个小的 chunk 之后，也许马上就会有另一个小块内存的请求，这样分配器又需要从大的空闲内存中切分出一块,这样无疑是比较低效的，故而， malloc 中在分配过程中引入了 fast bins 。</p>
-<p><br></p>
-<p>fast bin 总共有10个，本质上就是10个单链表，每个 fast bin 中所包含的 chunk size 以8字节逐渐递增，即如果第一个 fast bin 中 chunk size 均为16个字节，第二个 fast bin 的 chunk size 为24字节，以此类推，最后一个 fast bin 的 chunk size 为80字节。值得注意的是 fast bin 中 chunk 释放并不会与相邻的空闲 chunk 合并，这是由于 fast bin 设计的初衷就是小内存的快速分配和释放，因此系统将属于 fast bin 的 chunk 的P(未使用标志位)总是设置为1，这样即使当 fast bin 中有某个 chunk 同一个 free chunk 相邻的时候，系统也不会进行自动合并操作。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>在 malloc 申请内存的时候，如果申请的内存大小范围在fast bin 以内，则先在 fast bin 中进行查找，如果 fast bin 中存在空闲 chunk 则返回。否则依次从 small bin、unsorted bin、large bin 中进行查找。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>先通过 chunksize 函数根据传入的地址指针获取该指针对应的 chunk 的大小；然后根据这个 chunk 大小获取该 chunk 所属的 fast bin，然后再将此 chunk 添加到该 fast bin 的链尾。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>unsorted bin</strong></p>
-</section>
-<section>
-<p>是 bins 的缓冲区，顾名思义，unsorted bin 中的 chunk 无序，这种设计能够让 glibc 的 malloc 机制有第二次机会重新利用最近释放的 chunk 从而加快内存分配的时间。</p>
-<p><br></p>
-<p>与 fast bin 不同，unsorted bin 采用的是 FIFO 的方式。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存大小大于 fast bin 的最大大小，则先在 unsorted 中寻找，如果找到了合适的 chunk 则直接返回，否则继续在 small bin 和l arge bin中搜索。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>当释放的内存大小大于fast bin的最大大小，则将释放的 chunk 写入 unsorted bin。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>small bin</strong></p>
-</section>
-<section>
-<p>大小小于512字节的 chunk 被称为 small chunk，而保存 small chunks 的 bin 被称为 small bin。62个 small bin 中，每个相邻的的 small bin 之间相差8字节，同一个 small bin 中的 chunk 拥有相同大小。</p>
-<p><br></p>
-<p>small bin 指向的是包含空闲区块的双向循环链表。内存分配和释放逻辑如下：</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存不存在于 fast bin 和 unsorted bin 中，并且大小小于512字节，则在 small bin 中进行查找，如果找到了合适的 chunk 则直接返回。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>free 一个 chunk 时会检查该 chunk 相邻的 chunk 是否空闲，如果空闲则需要先合并，然后将合并的 chunk 先从所属的链表中删除然后合并成一个新的 chunk，新的 chunk 会被添加在 unsorted bin 链表的前端。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>large bin</strong></p>
-</section>
-<section>
-<p>大小大于等于512字节的 chunk 被称为 large chunk，而保存 large chunks 的 bin 被称为 large bin。large bins 中每一个 bin 分别包含了一个给定范围内的 chunk，其中的 chunk 按大小递减排序，大小相同则按照最近使用时间排列。63 large bin 中的每一个都与 small bin 的操作方式大致相同，但不是存储固定大小的块，而是存储大小范围内的块。每个 large bin 的大小范围都设计为不与 small bin &nbsp;的块大小或其他large bin 的范围重叠。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>首先确定用户请求的大小属于哪一个 large bin，然后判断该 large bin 中最大的 chunk 的 size 是否大于用户请求的 size。如果大于，就从尾开始遍历该 large bin，找到第一个 size 相等或接近的 chunk，分配给用户。如果该 chunk 大于用户请求的 size 的话，就将该 chunk 拆分为两个 chunk：前者返回给用户，且 size 等同于用户请求的 size；剩余的部分做为一个新的 chunk 添加到 unsorted bin 中。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>large bin 的 fee 操作与 small bin 一致，此处不再赘述。</p>
-<p><br></p>
-</section>
-<p><span>3.3.4 特殊&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<section>
-<p><strong>top chunk</strong></p>
-<p>top chunk 是堆最上面的一段空间，它不属于任何 bin，当所有的 bin 都无法满足分配要求时，就要从这块区域里来分配，分配的空间返回给用户，剩余部分形成新的 top chunk，如果 top chunk 的空间也不满足用户的请求，就要使用 brk 或者 mmap 来向系统申请更多的堆空间（主分配区使用 brk、sbrk，非主分配区使用 mmap）。</p>
-<p><br></p>
-<p><strong>mmaped chunk</strong></p>
-<p>当分配的内存非常大（大于分配阀值，默认128K）的时候需要被 mmap 映射，则会放到 mmaped chunk 上，释放 mmaped chunk 上的内存的时候会将内存直接交还给操作系统。（chunk 中的M标志位置1）</p>
-<p><br></p>
-<p><strong>last remainder chunk</strong></p>
-<p>如果用户申请的 size 属于 small bin 的，但是又不能精确匹配的情况下，这时候采用最佳匹配（比如申请128字节，但是对应的bin是空，只有256字节的 bin 非空，这时候就要从256字节的 bin 上分配），这样会 split chunk 成两部分，一部分返给用户，另一部分形成 last remainder chunk，插入到 unsorted bin 中。</p>
-<p><br></p>
-</section>
-<p><span>3.3.5&nbsp;hunk 的合并与切分</span></p>
-<p><br></p>
-<section>
-<p><strong>合并</strong></p>
-<p>当 chunk 释放时，如果前后两个相邻的 chunk 均空闲，则会与前后两个相邻 chunk 合并，随后将合并结果放入 unsorted bin 中。</p>
-<p><br></p>
-<p><strong>切分</strong></p>
-<p>当需要分配的内存小于待分配的 chunk 块，则会将待分配 chunk 块切割成两个 chunk 块，其中一个 chunk 块大小等同于用户需要分配内存的大小。需要注意的是分裂后的两个 chunk 必须均大于 chunk 的最小大小，否则不会进行拆分。</p>
-</section>
-<p><br></p>
-<p><span>3.4 内存分配</span></p>
-<p>内存分配流程可以分为三步：</p>
-<section>
-<section>
-<section>
-<section>
-<p>第一步：根据用户请求大小转换为实际需要分配 chunk 空间的大小；</p>
-<p>第二步：在 bins 中搜索还没有归还给操作系统的 chunk 块，具体流程如下图所示。</p>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015879" data-ratio="0.5435185185185185" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7b56af4066.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>如果所需分配的 chunk 大小小于等于 max_fast （fast bins 中要求的最大 chunk 大小，默认为64B），则尝试在 fast bins 中获取 chunk，如果获取 chunk 则返回。否则进入下一步。</p></li>
-<li><p>判断所需大小是否可能处于 small bins 中，即判断 chunk_size &lt; 512B是否成立。如果 chunk 大小处在 small bins 中则在 small bins 中搜索合适的 chunk，即找到合适的 small bin，然后从该 bin 的尾部摘取一个满足大小要求的 chunk 返回。如果 small bins 中无法找到合适的 chunk 则进入下一步。</p></li>
-<li><p>到这一步说明待分配的内存块要么是一个大的 chunk，要么只是没有在 small bin 中找到。分配器先在 fast bin 中尝试合并 chunk，并将 chunk 写入 unsorted chunk 中，此时再遍历 unsorted chunk 如果能够找到合适的 chunk 则按需将该 chunk 切分（可能不需要），将生成的 chunk 中其中一个放入 small bins 或者 large bins 中，另一个与待分配内存块相同大小的 chunk 则返回。</p></li>
-<li><p>在 large bins 中搜索合适的 chunk，如果能够找到则将该 chunk 切分成需要分配的内存大小，另一部分则继续写入 bins 中。如果无法找到合适的 chunk，则进入下一步。</p></li>
-<li><p>尝试从 top chunk 中分配一块内存给用户，剩下一部分生成新的 top chunk 。</p></li>
-</ul>
-</section>
-</section>
-<section>
-<section>
-<p>第三步：如果 top chunk 依然无法满足分配请求，通过 sbrk 或 mmap 增加 top chunk 的大小并分配内存给用户。</p>
-</section>
-</section>
-<p><br></p>
-<section>
-<p>3.5 内存释放</p>
-<p><br></p>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015880" data-ratio="0.5092592592592593" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2f57035cf.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>判断当前 chunk 是否是 mmap 映射区域映射的内存，如果是则直接使用 munmap 释放这块内存映射（内存映射的内存能够通过标记进行识别）；</p></li>
-<li><p>判断 chunk 是否与 top chunk 相邻，如果相邻则直接与 top chunk 合并；</p></li>
-<li><p>如果 chunk 的大小大于 max_fast（64B），则将其放入 unsorted bin，</p><p>并检查是否有合并，如果能够合并则将 chunk 合并后根据大小加入合适的 bin 中；</p></li>
-<li><p>如果 chunk 的大小小于</p><p>max_fast（64B），则直接放入 fast bin 中，如果没有合并情况则 free 内存。如果在当前 chunk 相邻的 chunk 空闲，则触发合并，并将合并后的结果写入 unsorted bin 中，此时如果合并后的结果大于 max_fast（64B），则触发整个 fast bins 的合并操作，此时 fast bins 将会被遍历，将所有相邻的空闲 chunk 进行合并，然后将合并后的 chunk 写入 unsorted bin 中，fast bin 此时会变为空。如果合并后的 chunk 与 top chunk 相邻则会合并到 top chunk 中；</p></li>
-<li><p>如果 top chunk 大小大于 mmap 收缩阈值（默认128KB），如果是，则对于主分配区则会试图归还 top chunk 中一部分给操作系统，此时 free 结束。<br></p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-</section>
-<section>
-<p><br></p>
-<p>3.6 内存碎片</p>
-<p><br></p>
-</section>
-<p><img data-imgfileid="100015864" data-ratio="1.1453703703703704" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8f69bc2b0.png" data-w="1080"></p>
-<p><br></p>
-<p>按照 glibc 的内存分配策略，我们考虑下如下场景：</p>
-<p><br></p>
-<section>
-<section>
-<section>
-<p>1.假设 brk 起始地址为512k</p>
-<p>2.malloc 40k 内存，即 chunk A，brk = 512k + 40k = 552k</p>
-<p>3.malloc 50k 内存，即 chunk B，brk = 552k + 50k = 602k</p>
-<p>4.malloc 60k 内存，即 chunk C，brk = 602k + 60k = 662k</p>
-<p>5.free chunk A。</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>此时 chunk A 为空闲块，但是如果 chunk C 和 chunk B 一直不释放无法直接通过移动brk指针来释放 chunk A 的内存，必须等待 chunk B 和 chunk C 释放才能和 top chunk 合并并将内存归还给操作系统。</p>
-<p><br></p>
-<section>
-<section>
-<p>四、问题分析与解决</p>
-</section>
-</section>
-<p><br></p>
-<p>通过前面的内存分配器运行原理能够很容易得出原因，由于程序中连续调用 free/delete 释放内存仅仅只是将内存写入内存分配器的 bins 中，并没有将其归还给操作系统，所以会出现疑似内存未回收的情况。并且如果每次 delete 的内存都不与 top chunk 相邻，会导致 chunk 块长时间留在空闲链表中无法合并到 top chunk，从而出现内存无法释放给操作系统的现象。</p>
-<p><br></p>
-<section>
-<p>4.1 优化办法</p>
-<p><br></p>
-</section>
-<section>
-<ol>
-<li><p>通过限制服务端内存最大大小能够有效避免内存被c运行库撑的太高，导致服务器 OOM 的情况。</p></li>
-<li><p>c运行库替换成 jemalloc，jemalloc 与 glibc 的实现方式不同，能够更快将内存归还给操作系统。</p></li>
-</ol>
-<p><br></p>
-</section>
-<section>
-<p>4.2 效果对比测试</p>
-<p><br></p>
-</section>
-<p>为了验证优化后的内存使用效果，编写测试代码，模拟线上 pipline 模式下的3000万次连续请求，对比请求过程中的内存峰值、连接断开后的内存使用状况：</p>
-<p><br></p>
-<section>
-<p><strong>glibc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015865" data-ratio="0.07246376811594203" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6ee0d6bcc9.png" data-w="966"></p>
-<p><br></p>
-<section>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015866" data-ratio="0.06475583864118896" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6cca89566e.png" data-w="942"></p>
-<p><br></p>
-</section>
-<section>
-<p><strong>jemalloc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015867" data-ratio="0.05726405090137858" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af8dd02579.png" data-w="943"></p>
-<p><br></p>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015868" data-ratio="0.06611570247933884" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a7f0ebbe9.png" data-w="968"></p>
-<p><br></p>
-<section>
-<p>根据测试结果，jemalloc 相较于 glibc 释放空闲内存速度快12%。</p>
-<p><br></p>
-<p><span>参考链接</span></p>
-<ol>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gnu.org%2Fsoftware%2Flibc%2Fmanual%2Fhtml_node%2F" textvalue="https://www.gnu.org/software/libc/manual/html_node/" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://www.gnu.org/software/libc/manual/html_node/</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fhustfisher%2Fptmalloc%2Fblob%2Fmaster%2FREADME" textvalue="https://github.com/hustfisher/ptmalloc/blob/master/README" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://github.com/hustfisher/ptmalloc/blob/master/README</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F13480235%2Flibc-memory-management" textvalue="https://stackoverflow.com/questions/13480235/libc-memory-management" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://stackoverflow.com/questions/13480235/libc-memory-management</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F637659294" textvalue="https://zhuanlan.zhihu.com/p/637659294" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://zhuanlan.zhihu.com/p/637659294</span></a></p></li>
-</ol>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-<section>
-<section>
-<p>END</p>
-</section>
-</section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-</section>
-<section>
-<section>
-<span opera-tn-ra-cell="_$.pages:0.layers:0.comps:145.title1"><p>猜你喜欢</p></span>
-</section>
-<section>
-<section>
-<p>1.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499502%26idx%3D1%26sn%3D38c0b986c39b171c3370ab6c39c75da8%26chksm%3Debdb8e7cdcac076a7bda101051b967702395aa75884b3e386d0d85f2a8840e5844e93a406497%26scene%3D21%23wechat_redirect" textvalue="浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题</a></p>
-<p>2.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499108%26idx%3D1%26sn%3D6904feec20d690a2f102795f22c7bc65%26chksm%3Debdb8df6dcac04e039af9a47569217b2bbc87bb5b68c8f668baed8a8cd1e12e5fb7e03c395fa%26scene%3D21%23wechat_redirect" textvalue="MySQL 5.7 DDL 与 GH-OST 对比分析" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">MySQL 5.7 DDL 与 GH-OST 对比分析</a></p>
-<p>3.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499353%26idx%3D2%26sn%3D3b0d7ac6dbe8c1b5ad87effa0df9d87f%26chksm%3Debdb8ecbdcac07dd7371f570cd73c12d11627e923cedf900400bb4386f50c4e5b8dd8e0100c2%26scene%3D21%23wechat_redirect" textvalue="一次基于AST的大规模代码迁移实践" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">一次基于AST的大规模代码迁移实践</a></p>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-<section>
-<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/4g5IMGibSxt45QXJZicZ9gaNU2mRSlvqhQd94MJ7oQh4QFj1ibPV66xnUiaKoicSatwaGXepL5sBDSDLEckicX1ttibHg/0?wx_fmt=png" data-nickname="vivo互联网技术" data-alias="vivoVMIC" data-signature="分享 vivo 互联网技术干货与沙龙活动，推荐最新行业动态与热门会议。" data-from="0" data-is_biz_ban="0"></mp-common-profile>
-</section>
-<p><br></p>
-</section>
-<p>
-<mp-style-type data-value="3"></mp-style-type></p>
-</div>
-<p>本文分享自微信公众号 - vivo互联网技术（vivoVMIC）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<div>
-<section>
-<section>
-<section>
-<section>
-<p>作者：来自 vivo 互联网存储团队- Wang Yuzhi</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<p>本文以一次线上故障为基础介绍了使用 glibc 进行内存管理可能碰到问题，进而对库中内存分配与释放机制进行分析，最后提供了相应问题的解决方案。</p>
-</section>
-</section>
-</section>
-</section>
-<p><br></p>
-<section>
-<section>
-<p>一、引言</p>
-</section>
-</section>
-<p><br></p>
-<p>内存对象的分配与释放一直是后端开发人员代码设计中需要考虑的问题，考虑不周极易造成内存泄漏、内存访问越界等问题。在发生内存异常后，开发人员往往花费大量时间排查用户管理层代码，而忽视了C运行时，库层和操作系统层本身的实现也可能会带来内存问题。本文先以一次线上内存事故引出问题，再逐步介绍 glibc 库的内存布局设计、内存分配、释放逻辑，最后给出相应的解决方案。</p>
-<p><br></p>
-<section>
-<section>
-<p>二、内存告警事件</p>
-</section>
-</section>
-<p><br></p>
-<p>在一次线上运维过程中发现服务出现内存告警。</p>
-<section>
-<section>
-<section>
-<p>【监控系统-自定义监控-告警-持续告警】</p>
-<p>检测规则: xxx内存使用率监测:一般异常(&gt;4096)<br>集群id:xxx<br>集群名称: xxxxxx<br>异常对象(当前值): xx.xx.xx.xx-xxxxxxx(11335)<br>开始时间: 2023-08-10 17:10:30<br>告警时间: 2023-08-10 18:20:32<br>持续时间: 1h10m2s<br>异常比例: 2.1918 (8/365)<br>异常级别: 一般<br>备注：-</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>随即查看服务相关监控，判断是业务流量激增带来的内存短时间增高，或是发生了内存泄漏。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015857" data-ratio="0.4361111111111111" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8b746a5e9.jpg" data-w="1080"></p>
-<p><img data-imgfileid="100015858" data-ratio="0.40925925925925927" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-490e089837.jpg" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>通过查看 OPS 和服务自身统计的内存监控，发现在告警时间内存在业务流量突增现象，但是内存已经下降到正常值了。然而告警持续到了18:20依然没有恢复，跟监控表现不符，登录机器后发现实例的内存并没有恢复，随即怀疑用户层发生内存泄漏。</p>
-<p><br></p>
-<p>经过分析，由于内存统计代码每次调用 new、delete 之后才会对统计值进行增减，而监控中服务统计内存已经下降，说明已经正常调用 delete 进行内存释放，而操作系统层面发现内存依然居高不下，怀疑使用的c运行库 glibc 存在内存释放问题。</p>
-<p><br></p>
-</section>
-<section>
-<section>
-<p>三、glibc 内存管理机制</p>
-</section>
-</section>
-<p><br></p>
-<p><span>3.1 glibc 简介</span></p>
-<p><span><br></span></p>
-<p>glibc 全称为 GUN C Library，是一个开源的标准C库，其对操作系统相关调用进行了封装，提供包括数学、字符串、文件 I/O、内存管理、多线程等方面标准函数和系统调用接口供用户使用。</p>
-<p><br></p>
-<p><span>3.2 内存管理布局</span></p>
-<p><span><br></span></p>
-<p>以 Linux 内核 v2.6.7 之后的32位模式下的虚拟内存布局方式为例：</p>
-<p><br></p>
-<p><img data-imgfileid="100015859" data-ratio="1.1722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-21dc0223dc.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>Kernel Space（内核空间）— 存储内核和驱动程序的代码和数据；</p></li>
-<li><p>Stack（栈区）— 存储程序执行期间的本地变量和函数的参数，从高地址向低地址生长；</p></li>
-<li><p>Memory Mapping Segment（内存映射区）— 简称为 mmap，用来文件或其他对象映射进内存；</p></li>
-<li><p>Heap（堆区）— 动态内存分配区域，通过 malloc、new、free 和 delete 等函数管理；</p></li>
-<li><p>BSS segment（未初始化变量区）— 存储未被初始化的全局变量和静态变量；</p></li>
-<li><p>DATA segment（数据区）— 存储在源代码中有预定义值的全局变量和静态变量；</p></li>
-<li><p>TEXT segment（代码区）— 存储只读的程序执行代码，即机器指令。</p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><br></p>
-<p>其中 Heap 和 Mmap 区域是可以提供给用户程序使用的虚拟内存空间。</p>
-<p><br></p>
-<p><strong>Heap 操作</strong></p>
-<p>操作系统提供了 brk() 函数，c运行时库提供了 sbrk() 函数从 Heap 中申请内存，函数声明如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>int</span> <span>brk</span><span>(<span>void</span> *addr)</span></span>;</span></code><code><span><span><span>void</span> *<span>sbrk</span><span>(<span>intptr_t</span> increment)</span></span>;</span></code></pre>
-</section>
-<section>
-<section>
-<ul>
-<li><p>brk() 通过设置进程堆的结束地址进行内存分配与释放，即可以一次性的分配或释放一整段连续的内存空间。比较适合于一次性分配大块内存的情况，如果设置的结束地址过大或过小会造成内存碎片或内存浪费的问题。</p></li>
-<li><p>sbrk 函数通过传入的 increment 参数决定增加或减少堆空间的大小，可以动态的多次分配或释放空间达到需要多少内存就申请多少内存的效果，有效避免了内存碎片和浪费问题。</p><p><br></p></li>
-</ul>
-</section>
-</section>
-<p><strong>Mmap 操作</strong></p>
-<p>在 Linux 中提供了 mmap() 和 munmap() 函数操作虚拟内存空间，函数声明如下：</p>
-<section>
-<pre data-lang="c"><code><span><span><span>void</span> *<span>mmap</span><span>(<span>void</span> *addr, <span>size_t</span> length, <span>int</span> prot, <span>int</span> flags, <span>int</span> fd, <span>off_t</span> offset)</span></span>;</span></code><code><span><span><span>int</span> <span>munmap</span><span>(<span>void</span> *addr, <span>size_t</span> length)</span></span>;</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<section>
-<p><br></p>
-<p>其中 mmap 能够将文件或者其他对象映射进内存，munmap 能够删除特定地址区域的内存映射。</p>
-</section>
-<p><br></p>
-<p><span>3.3 内存分配器</span></p>
-<p><span><br></span></p>
-<section>
-<p>开源社区公开了很多现成的内存分配器，包括 dlmalloc、ptmalloc、jemalloc、tcmalloc......，由于 glibc 用的是 ptmalloc 所以本文只对该内存分配器进行介绍。</p>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<p>3.3.1 Arena（分配区）</p>
-<p><br></p>
-</section>
-<section>
-<p>堆管理结构如下所示：</p>
-</section>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_state</span> {</span></span></code><code><span> <span>mutex_t</span> mutex; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Serialize access. */</span></span></code><code><span> <span>int</span> flags; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Flags (formerly in max_fast). */</span></span></code><code><span> <span>#<span>if</span> THREAD_STATS</span></span></code><code><span> <span>/* Statistics for locking. Only used if THREAD_STATS is defined. */</span></span></code><code><span> <span>long</span> stat_lock_direct, stat_lock_loop, stat_lock_wait;</span></code><code><span> <span>#<span>endif</span></span></span></code><code><span> mfastbinptr fastbins[NFASTBINS]; &nbsp; &nbsp;<span>/* Fastbins */</span></span></code><code><span> mchunkptr top;</span></code><code><span> mchunkptr last_remainder;</span></code><code><span> mchunkptr bins[NBINS * <span>2</span>];</span></code><code><span> <span>unsigned</span> <span>int</span> binmap[BINMAPSIZE]; &nbsp; <span>/* Bitmap of bins */</span></span></code><code><span> <span><span>struct</span> <span>malloc_state</span> *<span>next</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Linked list */</span></span></code><code><span> INTERNAL_SIZE_T system_mem;</span></code><code><span> INTERNAL_SIZE_T max_system_mem;</span></code><code><span> };</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<p>ptmalloc 对进程内存是通过一个个的分配区进行管理的，而分配区分为主分配区(arena)和非主分配区(narena)，两者区别在于主分配区中可以使用 sbrk 和 mmap 向操作系统申请内存，而非主分配区只能通过 mmap 申请内存。</p>
-<section>
-<p><br></p>
-<p><img data-imgfileid="100015860" data-ratio="0.7722222222222223" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f27ee34cf1.png" data-w="1080"></p>
-<p><br></p>
-</section>
-<section>
-<p>对于一个进程，只有一个主分配区和若干个非主分配区，主分配区只能由第一个线程来创建持有，其和非主分配区由环形链表的形式相互连接，整个分配区中通过变量互斥锁支持多线程访问。</p>
-<p><br></p>
-<p>当一个线程调用 malloc 申请内存时，该线程先查看线程私有变量中是否已经存在一个分配区。如果存在，则对该分配区加锁，加锁成功的话就用该分配区进行内存分配；失败的话则搜索环形链表找一个未加锁的分配区。如果所有分配区都已经加锁，那么 malloc 会开辟一个新的分配区加入环形链表并加锁，用它来分配内存。释放操作同样需要获得锁才能进行。</p>
-</section>
-<p><br></p>
-<p><span>3.3.2&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<p>ptmalloc 通过 malloc_chunk 来管理内存，定义如下：</p>
-<p><br></p>
-<section>
-<pre data-lang="c"><code><span><span><span>struct</span> <span>malloc_chunk</span> {</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;prev_size; &nbsp; &nbsp;<span>/* Size of previous chunk (if free). &nbsp;*/</span> </span></code><code><span> &nbsp;INTERNAL_SIZE_T &nbsp; &nbsp; &nbsp;size; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* Size in bytes, including overhead. */</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd</span>;</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk</span>;</span> </span></code><code><span> &nbsp; </span></code><code><span> &nbsp;<span>/* Only used for large blocks: pointer to next larger size. &nbsp;*/</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>fd_nextsize</span>;</span> &nbsp; &nbsp; &nbsp;<span>/* double links -- used only if free. */</span> </span></code><code><span> &nbsp;<span><span>struct</span> <span>malloc_chunk</span>* <span>bk_nextsize</span>;</span></span></code><code><span>};</span></code></pre>
-</section>
-<section>
-<p>左右滑动查看完整代码</p>
-</section>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>prev_size：存储前一个 chunk 的大小。如果前一个 chunk 没有被使用，则 prev_size 的值表示前一个 chunk 的大小，如果前一 chunk 已被使用，则 prev_size 的值没有意义。</p></li>
-<li><p>size：表示当前 chunk 的大小，包括所请求的有效数据大小，以及堆块头部和尾部的管理信息等附加信息的大小。</p></li>
-<li><p>fd 和 bk：表示 chunk 在空闲链表中的前一个和后一个堆块的指针。如果该 chunk 被占用，则这两个指针没有意义。</p></li>
-<li><p>fd_nextsize 和 bk_nextsize：表示同一空闲链表上下一个堆块的指针。fd_nextsize 指向下一个比当前 chunk 大小大的第一个空闲 chunk ， bk_nextszie 指向前一个比当前 chunk 大小小的第一个空闲 chunk，增加这两个字段可以加快遍历空闲 chunk ，并查找满足需要的空闲 chunk 。</p></li>
-</ul>
-</section>
-</section>
-<p>使用该数据结构能够更快的在链表中查找到空闲 chunk 并分配。</p>
-<p><br></p>
-<p><span>3.3.3&nbsp;空闲链表(bins)</span></p>
-<p><span><br></span></p>
-<section>
-<p>在 ptmalloc 中，会将大小相似的 chunk 链接起来，叫做空闲链表(bins)，总共有128个 bin 供 ptmalloc 使用。用户调用 free 函数释放内存的时候，ptmalloc 并不会立即将其归还操作系统，而是将其放入 bins 中，这样下次再调用 malloc 函数申请内存的时候，就会从 bins 中取出一块返回，这样就避免了频繁调用系统调用函数，从而降低内存分配的开销。</p>
-<p><br></p>
-<p>在 ptmalloc 中，bin主要分为以下四种：</p>
-<ul>
-<li><p>fast bin</p></li>
-<li><p>unsorted bin</p></li>
-<li><p>small bin</p></li>
-<li><p>large bin</p></li>
-</ul>
-</section>
-<p><br></p>
-<p>其中根据 bin 的分类，可以分为 fast bin 和 bins，而 bins 又可以分为 unsorted bin、small bin 以及 large bin 。</p>
-<p><br></p>
-<p><br></p>
-<p><img data-imgfileid="100015861" data-ratio="0.5018518518518519" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2b23035ddc.png" data-w="1080"></p>
-<p><br></p>
-<p><br></p>
-<p><strong>fast bin</strong></p>
-<section>
-<p>程序在运行时会经常需要申请和释放一些较小的内存空间。当分配器合并了相邻的几个小的 chunk 之后，也许马上就会有另一个小块内存的请求，这样分配器又需要从大的空闲内存中切分出一块,这样无疑是比较低效的，故而， malloc 中在分配过程中引入了 fast bins 。</p>
-<p><br></p>
-<p>fast bin 总共有10个，本质上就是10个单链表，每个 fast bin 中所包含的 chunk size 以8字节逐渐递增，即如果第一个 fast bin 中 chunk size 均为16个字节，第二个 fast bin 的 chunk size 为24字节，以此类推，最后一个 fast bin 的 chunk size 为80字节。值得注意的是 fast bin 中 chunk 释放并不会与相邻的空闲 chunk 合并，这是由于 fast bin 设计的初衷就是小内存的快速分配和释放，因此系统将属于 fast bin 的 chunk 的P(未使用标志位)总是设置为1，这样即使当 fast bin 中有某个 chunk 同一个 free chunk 相邻的时候，系统也不会进行自动合并操作。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>在 malloc 申请内存的时候，如果申请的内存大小范围在fast bin 以内，则先在 fast bin 中进行查找，如果 fast bin 中存在空闲 chunk 则返回。否则依次从 small bin、unsorted bin、large bin 中进行查找。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>先通过 chunksize 函数根据传入的地址指针获取该指针对应的 chunk 的大小；然后根据这个 chunk 大小获取该 chunk 所属的 fast bin，然后再将此 chunk 添加到该 fast bin 的链尾。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>unsorted bin</strong></p>
-</section>
-<section>
-<p>是 bins 的缓冲区，顾名思义，unsorted bin 中的 chunk 无序，这种设计能够让 glibc 的 malloc 机制有第二次机会重新利用最近释放的 chunk 从而加快内存分配的时间。</p>
-<p><br></p>
-<p>与 fast bin 不同，unsorted bin 采用的是 FIFO 的方式。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存大小大于 fast bin 的最大大小，则先在 unsorted 中寻找，如果找到了合适的 chunk 则直接返回，否则继续在 small bin 和l arge bin中搜索。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>当释放的内存大小大于fast bin的最大大小，则将释放的 chunk 写入 unsorted bin。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>small bin</strong></p>
-</section>
-<section>
-<p>大小小于512字节的 chunk 被称为 small chunk，而保存 small chunks 的 bin 被称为 small bin。62个 small bin 中，每个相邻的的 small bin 之间相差8字节，同一个 small bin 中的 chunk 拥有相同大小。</p>
-<p><br></p>
-<p>small bin 指向的是包含空闲区块的双向循环链表。内存分配和释放逻辑如下：</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>当需要的内存不存在于 fast bin 和 unsorted bin 中，并且大小小于512字节，则在 small bin 中进行查找，如果找到了合适的 chunk 则直接返回。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>free 一个 chunk 时会检查该 chunk 相邻的 chunk 是否空闲，如果空闲则需要先合并，然后将合并的 chunk 先从所属的链表中删除然后合并成一个新的 chunk，新的 chunk 会被添加在 unsorted bin 链表的前端。</p>
-<p><br></p>
-</section>
-<section>
-<p><strong>large bin</strong></p>
-</section>
-<section>
-<p>大小大于等于512字节的 chunk 被称为 large chunk，而保存 large chunks 的 bin 被称为 large bin。large bins 中每一个 bin 分别包含了一个给定范围内的 chunk，其中的 chunk 按大小递减排序，大小相同则按照最近使用时间排列。63 large bin 中的每一个都与 small bin 的操作方式大致相同，但不是存储固定大小的块，而是存储大小范围内的块。每个 large bin 的大小范围都设计为不与 small bin &nbsp;的块大小或其他large bin 的范围重叠。</p>
-<p><br></p>
-<p>malloc 操作：</p>
-<p>首先确定用户请求的大小属于哪一个 large bin，然后判断该 large bin 中最大的 chunk 的 size 是否大于用户请求的 size。如果大于，就从尾开始遍历该 large bin，找到第一个 size 相等或接近的 chunk，分配给用户。如果该 chunk 大于用户请求的 size 的话，就将该 chunk 拆分为两个 chunk：前者返回给用户，且 size 等同于用户请求的 size；剩余的部分做为一个新的 chunk 添加到 unsorted bin 中。</p>
-<p><br></p>
-<p>free 操作：</p>
-<p>large bin 的 fee 操作与 small bin 一致，此处不再赘述。</p>
-<p><br></p>
-</section>
-<p><span>3.3.4 特殊&nbsp;chunk</span></p>
-<p><span><br></span></p>
-<section>
-<p><strong>top chunk</strong></p>
-<p>top chunk 是堆最上面的一段空间，它不属于任何 bin，当所有的 bin 都无法满足分配要求时，就要从这块区域里来分配，分配的空间返回给用户，剩余部分形成新的 top chunk，如果 top chunk 的空间也不满足用户的请求，就要使用 brk 或者 mmap 来向系统申请更多的堆空间（主分配区使用 brk、sbrk，非主分配区使用 mmap）。</p>
-<p><br></p>
-<p><strong>mmaped chunk</strong></p>
-<p>当分配的内存非常大（大于分配阀值，默认128K）的时候需要被 mmap 映射，则会放到 mmaped chunk 上，释放 mmaped chunk 上的内存的时候会将内存直接交还给操作系统。（chunk 中的M标志位置1）</p>
-<p><br></p>
-<p><strong>last remainder chunk</strong></p>
-<p>如果用户申请的 size 属于 small bin 的，但是又不能精确匹配的情况下，这时候采用最佳匹配（比如申请128字节，但是对应的bin是空，只有256字节的 bin 非空，这时候就要从256字节的 bin 上分配），这样会 split chunk 成两部分，一部分返给用户，另一部分形成 last remainder chunk，插入到 unsorted bin 中。</p>
-<p><br></p>
-</section>
-<p><span>3.3.5&nbsp;hunk 的合并与切分</span></p>
-<p><br></p>
-<section>
-<p><strong>合并</strong></p>
-<p>当 chunk 释放时，如果前后两个相邻的 chunk 均空闲，则会与前后两个相邻 chunk 合并，随后将合并结果放入 unsorted bin 中。</p>
-<p><br></p>
-<p><strong>切分</strong></p>
-<p>当需要分配的内存小于待分配的 chunk 块，则会将待分配 chunk 块切割成两个 chunk 块，其中一个 chunk 块大小等同于用户需要分配内存的大小。需要注意的是分裂后的两个 chunk 必须均大于 chunk 的最小大小，否则不会进行拆分。</p>
-</section>
-<p><br></p>
-<p><span>3.4 内存分配</span></p>
-<p>内存分配流程可以分为三步：</p>
-<section>
-<section>
-<section>
-<section>
-<p>第一步：根据用户请求大小转换为实际需要分配 chunk 空间的大小；</p>
-<p>第二步：在 bins 中搜索还没有归还给操作系统的 chunk 块，具体流程如下图所示。</p>
-</section>
-</section>
-</section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015879" data-ratio="0.5435185185185185" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-7b56af4066.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<ul>
-<li><p>如果所需分配的 chunk 大小小于等于 max_fast （fast bins 中要求的最大 chunk 大小，默认为64B），则尝试在 fast bins 中获取 chunk，如果获取 chunk 则返回。否则进入下一步。</p></li>
-<li><p>判断所需大小是否可能处于 small bins 中，即判断 chunk_size &lt; 512B是否成立。如果 chunk 大小处在 small bins 中则在 small bins 中搜索合适的 chunk，即找到合适的 small bin，然后从该 bin 的尾部摘取一个满足大小要求的 chunk 返回。如果 small bins 中无法找到合适的 chunk 则进入下一步。</p></li>
-<li><p>到这一步说明待分配的内存块要么是一个大的 chunk，要么只是没有在 small bin 中找到。分配器先在 fast bin 中尝试合并 chunk，并将 chunk 写入 unsorted chunk 中，此时再遍历 unsorted chunk 如果能够找到合适的 chunk 则按需将该 chunk 切分（可能不需要），将生成的 chunk 中其中一个放入 small bins 或者 large bins 中，另一个与待分配内存块相同大小的 chunk 则返回。</p></li>
-<li><p>在 large bins 中搜索合适的 chunk，如果能够找到则将该 chunk 切分成需要分配的内存大小，另一部分则继续写入 bins 中。如果无法找到合适的 chunk，则进入下一步。</p></li>
-<li><p>尝试从 top chunk 中分配一块内存给用户，剩下一部分生成新的 top chunk 。</p></li>
-</ul>
-</section>
-</section>
-<section>
-<section>
-<p>第三步：如果 top chunk 依然无法满足分配请求，通过 sbrk 或 mmap 增加 top chunk 的大小并分配内存给用户。</p>
-</section>
-</section>
-<p><br></p>
-<section>
-<p>3.5 内存释放</p>
-<p><br></p>
-</section>
-<p><img data-galleryid="" data-imgfileid="100015880" data-ratio="0.5092592592592593" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-f2f57035cf.png" data-w="1080"></p>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<ol>
-<li><p>判断当前 chunk 是否是 mmap 映射区域映射的内存，如果是则直接使用 munmap 释放这块内存映射（内存映射的内存能够通过标记进行识别）；</p></li>
-<li><p>判断 chunk 是否与 top chunk 相邻，如果相邻则直接与 top chunk 合并；</p></li>
-<li><p>如果 chunk 的大小大于 max_fast（64B），则将其放入 unsorted bin，</p><p>并检查是否有合并，如果能够合并则将 chunk 合并后根据大小加入合适的 bin 中；</p></li>
-<li><p>如果 chunk 的大小小于</p><p>max_fast（64B），则直接放入 fast bin 中，如果没有合并情况则 free 内存。如果在当前 chunk 相邻的 chunk 空闲，则触发合并，并将合并后的结果写入 unsorted bin 中，此时如果合并后的结果大于 max_fast（64B），则触发整个 fast bins 的合并操作，此时 fast bins 将会被遍历，将所有相邻的空闲 chunk 进行合并，然后将合并后的 chunk 写入 unsorted bin 中，fast bin 此时会变为空。如果合并后的 chunk 与 top chunk 相邻则会合并到 top chunk 中；</p></li>
-<li><p>如果 top chunk 大小大于 mmap 收缩阈值（默认128KB），如果是，则对于主分配区则会试图归还 top chunk 中一部分给操作系统，此时 free 结束。<br></p></li>
-</ol>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-</section>
-<section>
-<p><br></p>
-<p>3.6 内存碎片</p>
-<p><br></p>
-</section>
-<p><img data-imgfileid="100015864" data-ratio="1.1453703703703704" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8f69bc2b0.png" data-w="1080"></p>
-<p><br></p>
-<p>按照 glibc 的内存分配策略，我们考虑下如下场景：</p>
-<p><br></p>
-<section>
-<section>
-<section>
-<p>1.假设 brk 起始地址为512k</p>
-<p>2.malloc 40k 内存，即 chunk A，brk = 512k + 40k = 552k</p>
-<p>3.malloc 50k 内存，即 chunk B，brk = 552k + 50k = 602k</p>
-<p>4.malloc 60k 内存，即 chunk C，brk = 602k + 60k = 662k</p>
-<p>5.free chunk A。</p>
-</section>
-</section>
-</section>
-<p><br></p>
-<p>此时 chunk A 为空闲块，但是如果 chunk C 和 chunk B 一直不释放无法直接通过移动brk指针来释放 chunk A 的内存，必须等待 chunk B 和 chunk C 释放才能和 top chunk 合并并将内存归还给操作系统。</p>
-<p><br></p>
-<section>
-<section>
-<p>四、问题分析与解决</p>
-</section>
-</section>
-<p><br></p>
-<p>通过前面的内存分配器运行原理能够很容易得出原因，由于程序中连续调用 free/delete 释放内存仅仅只是将内存写入内存分配器的 bins 中，并没有将其归还给操作系统，所以会出现疑似内存未回收的情况。并且如果每次 delete 的内存都不与 top chunk 相邻，会导致 chunk 块长时间留在空闲链表中无法合并到 top chunk，从而出现内存无法释放给操作系统的现象。</p>
-<p><br></p>
-<section>
-<p>4.1 优化办法</p>
-<p><br></p>
-</section>
-<section>
-<ol>
-<li><p>通过限制服务端内存最大大小能够有效避免内存被c运行库撑的太高，导致服务器 OOM 的情况。</p></li>
-<li><p>c运行库替换成 jemalloc，jemalloc 与 glibc 的实现方式不同，能够更快将内存归还给操作系统。</p></li>
-</ol>
-<p><br></p>
-</section>
-<section>
-<p>4.2 效果对比测试</p>
-<p><br></p>
-</section>
-<p>为了验证优化后的内存使用效果，编写测试代码，模拟线上 pipline 模式下的3000万次连续请求，对比请求过程中的内存峰值、连接断开后的内存使用状况：</p>
-<p><br></p>
-<section>
-<p><strong>glibc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015865" data-ratio="0.07246376811594203" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6ee0d6bcc9.png" data-w="966"></p>
-<p><br></p>
-<section>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015866" data-ratio="0.06475583864118896" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-6cca89566e.png" data-w="942"></p>
-<p><br></p>
-</section>
-<section>
-<p><strong>jemalloc内存分配器</strong></p>
-<p>内存峰值</p>
-</section>
-<p><img data-imgfileid="100015867" data-ratio="0.05726405090137858" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-af8dd02579.png" data-w="943"></p>
-<p><br></p>
-<p>连接断开后内存占用</p>
-<p><img data-imgfileid="100015868" data-ratio="0.06611570247933884" data-s="300,640" src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-2a7f0ebbe9.png" data-w="968"></p>
-<p><br></p>
-<section>
-<p>根据测试结果，jemalloc 相较于 glibc 释放空闲内存速度快12%。</p>
-<p><br></p>
-<p><span>参考链接</span></p>
-<ol>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fwww.gnu.org%2Fsoftware%2Flibc%2Fmanual%2Fhtml_node%2F" textvalue="https://www.gnu.org/software/libc/manual/html_node/" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://www.gnu.org/software/libc/manual/html_node/</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fgithub.com%2Fhustfisher%2Fptmalloc%2Fblob%2Fmaster%2FREADME" textvalue="https://github.com/hustfisher/ptmalloc/blob/master/README" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://github.com/hustfisher/ptmalloc/blob/master/README</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F13480235%2Flibc-memory-management" textvalue="https://stackoverflow.com/questions/13480235/libc-memory-management" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://stackoverflow.com/questions/13480235/libc-memory-management</span></a></p></li>
-<li><p><a target="_blank" href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fzhuanlan.zhihu.com%2Fp%2F637659294" textvalue="https://zhuanlan.zhihu.com/p/637659294" linktype="text" imgurl="" tab="outerlink" data-linktype="2"><span>https://zhuanlan.zhihu.com/p/637659294</span></a></p></li>
-</ol>
-<p><br></p>
-</section>
-<p><br></p>
-<section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-<section>
-<section>
-<p>END</p>
-</section>
-</section>
-<section>
-<section>
-<section>
-<svg viewBox="0 0 1 1"></svg>
-</section>
-</section>
-</section>
-</section>
-<section>
-<section>
-<span opera-tn-ra-cell="_$.pages:0.layers:0.comps:145.title1"><p>猜你喜欢</p></span>
-</section>
-<section>
-<section>
-<p>1.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499502%26idx%3D1%26sn%3D38c0b986c39b171c3370ab6c39c75da8%26chksm%3Debdb8e7cdcac076a7bda101051b967702395aa75884b3e386d0d85f2a8840e5844e93a406497%26scene%3D21%23wechat_redirect" textvalue="浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">浅谈TiKV集群运维问题排查与修复——磁盘空间占用问题</a></p>
-<p>2.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499108%26idx%3D1%26sn%3D6904feec20d690a2f102795f22c7bc65%26chksm%3Debdb8df6dcac04e039af9a47569217b2bbc87bb5b68c8f668baed8a8cd1e12e5fb7e03c395fa%26scene%3D21%23wechat_redirect" textvalue="MySQL 5.7 DDL 与 GH-OST 对比分析" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">MySQL 5.7 DDL 与 GH-OST 对比分析</a></p>
-<p>3.<a target="_blank" href="https://www.oschina.net/action/GoToLink?url=http%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzI4NjY4MTU5Nw%3D%3D%26mid%3D2247499353%26idx%3D2%26sn%3D3b0d7ac6dbe8c1b5ad87effa0df9d87f%26chksm%3Debdb8ecbdcac07dd7371f570cd73c12d11627e923cedf900400bb4386f50c4e5b8dd8e0100c2%26scene%3D21%23wechat_redirect" textvalue="一次基于AST的大规模代码迁移实践" linktype="text" imgurl="" imgdata="null" data-itemshowtype="0" tab="innerlink" data-linktype="2">一次基于AST的大规模代码迁移实践</a></p>
-</section>
-</section>
-</section>
-<section>
-<br>
-</section>
-<section>
-<mp-common-profile data-pluginname="mpprofile" data-headimg="http://mmbiz.qpic.cn/mmbiz_png/4g5IMGibSxt45QXJZicZ9gaNU2mRSlvqhQd94MJ7oQh4QFj1ibPV66xnUiaKoicSatwaGXepL5sBDSDLEckicX1ttibHg/0?wx_fmt=png" data-nickname="vivo互联网技术" data-alias="vivoVMIC" data-signature="分享 vivo 互联网技术干货与沙龙活动，推荐最新行业动态与热门会议。" data-from="0" data-is_biz_ban="0"></mp-common-profile>
-</section>
-<p><br></p>
-</section>
-<p>
-<mp-style-type data-value="3"></mp-style-type></p>
-</div>
-<p>本文分享自微信公众号 - vivo互联网技术（vivoVMIC）。<br>如有侵权，请联系 support@oschina.cn 删除。<br>本文参与“<a href="https://www.oschina.net/sharing-plan" target="_blank">OSC源创计划</a>”，欢迎正在阅读的你也加入，一起分享。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8b746a5e9.jpg"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-b8b746a5e9.jpg" medium="image"/>
-    <pubDate>Thu, 14 Nov 2024 16:52:28 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[AMD 将裁员近 1000 人，占员工总数的 4%]]></title>
-    <link>https://www.oschina.net/news/320401/amd-will-lay-off-nearly-1000-staff</link>
-    <itunes:title><![CDATA[AMD 将裁员近 1000 人，占员工总数的 4%]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>AMD 表示，将裁掉全球 4% 的员工，也就是将裁掉其预计 26,000 名员工中的近 1,000 名。此次裁员正值 AMD 在 x86 处理器市场遥遥领先英特尔之际。但在从 GPU 向 AI 加速器转型的过程中，AMD 也一直落后于 AI 芯片市场巨头 Nvidia。</span></p>
-<p><span>AMD 发言人表示，“为了将我们的资源与最大的增长机会相结合，我们正在采取一系列有针对性的措施，不幸的是，这将导致我们全球员工人数减少约 4%。我们致力于尊重受影响的员工，并帮助他们度过这一过渡期。”</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91d22e3b9f.png"></p>
-<p><span>今年以来，AMD 的股价一直在下跌，而 Nvidia 的股价却上涨了约 200%，成为全球市值最高的上市公司，市值达到 3.6 万亿美元。AMD 的市值为 2270 亿美元。</span></p>
-<p><span>AMD 去年 10 月表示，预计今年 AI 芯片销售额将达到 50 亿美元，约占 257 亿美元销售额的五分之一。AMD 在游戏机处理器/GPU 领域占据主导地位，但这一市场在本世代的表现弱于预期，部分原因是 PlayStation 5 和 Xbox Series X/S 因疫情导致供应短缺。</span></p>
-<p><span>但 Mercury Research 报告称，AMD 处理器市场份额目前为 34%，远高于英特尔，相较几年前大幅增长。</span></p>
-<p><span>Jon Peddie Research 分析师 Jon Peddie 对裁员感到意外，他在给 GamesBeat 的一封邮件中表示：“AMD 本季度表现不错，但不如一些华尔街高手认为的那么好......AMD 似乎没有员工负担过重，现在裁员确实是一个糟糕的时机”。他的建议是可以再观望几个月。</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>AMD 表示，将裁掉全球 4% 的员工，也就是将裁掉其预计 26,000 名员工中的近 1,000 名。此次裁员正值 AMD 在 x86 处理器市场遥遥领先英特尔之际。但在从 GPU 向 AI 加速器转型的过程中，AMD 也一直落后于 AI 芯片市场巨头 Nvidia。</span></p>
-<p><span>AMD 发言人表示，“为了将我们的资源与最大的增长机会相结合，我们正在采取一系列有针对性的措施，不幸的是，这将导致我们全球员工人数减少约 4%。我们致力于尊重受影响的员工，并帮助他们度过这一过渡期。”</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91d22e3b9f.png"></p>
-<p><span>今年以来，AMD 的股价一直在下跌，而 Nvidia 的股价却上涨了约 200%，成为全球市值最高的上市公司，市值达到 3.6 万亿美元。AMD 的市值为 2270 亿美元。</span></p>
-<p><span>AMD 去年 10 月表示，预计今年 AI 芯片销售额将达到 50 亿美元，约占 257 亿美元销售额的五分之一。AMD 在游戏机处理器/GPU 领域占据主导地位，但这一市场在本世代的表现弱于预期，部分原因是 PlayStation 5 和 Xbox Series X/S 因疫情导致供应短缺。</span></p>
-<p><span>但 Mercury Research 报告称，AMD 处理器市场份额目前为 34%，远高于英特尔，相较几年前大幅增长。</span></p>
-<p><span>Jon Peddie Research 分析师 Jon Peddie 对裁员感到意外，他在给 GamesBeat 的一封邮件中表示：“AMD 本季度表现不错，但不如一些华尔街高手认为的那么好......AMD 似乎没有员工负担过重，现在裁员确实是一个糟糕的时机”。他的建议是可以再观望几个月。</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>AMD 表示，将裁掉全球 4% 的员工，也就是将裁掉其预计 26,000 名员工中的近 1,000 名。此次裁员正值 AMD 在 x86 处理器市场遥遥领先英特尔之际。但在从 GPU 向 AI 加速器转型的过程中，AMD 也一直落后于 AI 芯片市场巨头 Nvidia。</span></p>
-<p><span>AMD 发言人表示，“为了将我们的资源与最大的增长机会相结合，我们正在采取一系列有针对性的措施，不幸的是，这将导致我们全球员工人数减少约 4%。我们致力于尊重受影响的员工，并帮助他们度过这一过渡期。”</span></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91d22e3b9f.png"></p>
-<p><span>今年以来，AMD 的股价一直在下跌，而 Nvidia 的股价却上涨了约 200%，成为全球市值最高的上市公司，市值达到 3.6 万亿美元。AMD 的市值为 2270 亿美元。</span></p>
-<p><span>AMD 去年 10 月表示，预计今年 AI 芯片销售额将达到 50 亿美元，约占 257 亿美元销售额的五分之一。AMD 在游戏机处理器/GPU 领域占据主导地位，但这一市场在本世代的表现弱于预期，部分原因是 PlayStation 5 和 Xbox Series X/S 因疫情导致供应短缺。</span></p>
-<p><span>但 Mercury Research 报告称，AMD 处理器市场份额目前为 34%，远高于英特尔，相较几年前大幅增长。</span></p>
-<p><span>Jon Peddie Research 分析师 Jon Peddie 对裁员感到意外，他在给 GamesBeat 的一封邮件中表示：“AMD 本季度表现不错，但不如一些华尔街高手认为的那么好......AMD 似乎没有员工负担过重，现在裁员确实是一个糟糕的时机”。他的建议是可以再观望几个月。</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91d22e3b9f.png"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-91d22e3b9f.png" medium="image"/>
-    <pubDate>Thu, 14 Nov 2024 15:46:38 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[开源共创，你我同行  2024 openKylin社区贡献者荣耀征集]]></title>
-    <link>https://www.oschina.net/news/320397</link>
-    <itunes:title><![CDATA[开源共创，你我同行  2024 openKylin社区贡献者荣耀征集]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>为表彰于2024年度在openKylin做出杰出贡献的组织、团队和个人，并激励更多开发者参与进来共同促进社区繁荣与发展，openKylin社区现面向全球公开征集2024年度优秀贡献者案例。</p>
-<p>即日起至2024年11月30日，接受贡献者评选报名，评选结果将于12月6日在官网公布，颁奖典礼将在2024 openKylin伙伴暨开发者年度会议上进行。诚邀社区共建伙伴积极参与推荐，一起见证这一荣耀时刻！</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0a4077fc46.jpg"></p>
-<p>openKylin（开放麒麟）社区旨在以“共创”为核心，在开源、自愿、平等、协作的基础上，通过开源、开放的方式与企业构建合作伙伴生态体系，共同打造开源操作系统顶级社区，推动Linux开源技术及其软硬件生态繁荣发展。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>为表彰于2024年度在openKylin做出杰出贡献的组织、团队和个人，并激励更多开发者参与进来共同促进社区繁荣与发展，openKylin社区现面向全球公开征集2024年度优秀贡献者案例。</p>
-<p>即日起至2024年11月30日，接受贡献者评选报名，评选结果将于12月6日在官网公布，颁奖典礼将在2024 openKylin伙伴暨开发者年度会议上进行。诚邀社区共建伙伴积极参与推荐，一起见证这一荣耀时刻！</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0a4077fc46.jpg"></p>
-<p>openKylin（开放麒麟）社区旨在以“共创”为核心，在开源、自愿、平等、协作的基础上，通过开源、开放的方式与企业构建合作伙伴生态体系，共同打造开源操作系统顶级社区，推动Linux开源技术及其软硬件生态繁荣发展。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p>为表彰于2024年度在openKylin做出杰出贡献的组织、团队和个人，并激励更多开发者参与进来共同促进社区繁荣与发展，openKylin社区现面向全球公开征集2024年度优秀贡献者案例。</p>
-<p>即日起至2024年11月30日，接受贡献者评选报名，评选结果将于12月6日在官网公布，颁奖典礼将在2024 openKylin伙伴暨开发者年度会议上进行。诚邀社区共建伙伴积极参与推荐，一起见证这一荣耀时刻！</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0a4077fc46.jpg"></p>
-<p>openKylin（开放麒麟）社区旨在以“共创”为核心，在开源、自愿、平等、协作的基础上，通过开源、开放的方式与企业构建合作伙伴生态体系，共同打造开源操作系统顶级社区，推动Linux开源技术及其软硬件生态繁荣发展。</p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0a4077fc46.jpg"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/static.oschina.net-0a4077fc46.jpg" medium="image"/>
-    <pubDate>Thu, 14 Nov 2024 15:33:19 +0800</pubDate>
-  </item><item>
-    <title><![CDATA[IntelliJ IDEA 2024.3 发布]]></title>
-    <link>https://www.oschina.net/news/320395/intellij-idea-2024-3</link>
-    <itunes:title><![CDATA[IntelliJ IDEA 2024.3 发布]]></itunes:title>
-    <itunes:author><![CDATA[OSCHINA 社区最新新闻[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><span>IntelliJ IDEA 2024.3 现已<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">发布</a>，这是 2024 年的最后一个主要版本，此次更新为整个 IDE 带来了一系列新功能和增强功能。</span></p>
-<p><span>主要亮点包括 Structure 工具窗口中代码逻辑结构的直观表示、Kubernetes 应用程序更流畅的调试体验以及集群范围的 Kubernetes 日志访问，还将 K2 模式移出了 Beta 版。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efc7de57e2.webp"></span></p>
-<p><strong><span>Highlights</span></strong></p>
-<ul>
-<li><span>Structure 工具窗口现在除了熟悉的 Physical&nbsp;结构外，还包含逻辑代码结构。这样，用户不仅可以查看类、方法和字段，还可以查看项目中组件之间的链接和交互。</span></li>
-<li><span>让 Kubernetes 应用程序的调试变得更加简单。可以使用“Add Tunnel for Remote Debug&nbsp;”选项，让工作站成为 Kubernetes 集群的虚拟部分，这样就可以换入 pod 并使用喜欢的工具在本地调试微服务。</span></li>
-<li><span>IntelliJ IDEA 现在提供具有 streaming 和 pattern matching 的集群范围 Kubernetes 日志访问。此功能提供跨 pod、节点和服务的所有事件的集中视图，帮助快速识别问题，而无需手动检查每个日志。</span></li>
-<li><span>K2 模式已正式脱离测试阶段，现已稳定并可供普遍使用。</span></li>
-</ul>
-<p><strong><span>AI 助手</span></strong></p>
-<ul>
-<li><span>IntelliJ IDEA 2024.3 引入了上下文感知的内联 AI 提示，提供了一种在编辑器中直接与 AI 助手无缝交互的方式。此功能支持 Java、Kotlin、Scala、Groovy、JavaScript、TypeScript、Python、JSON 和 YAML 文件格式。</span></li>
-<li><span>AI 助手现在通过更新的 UI 提供简化的上下文管理，从而可以轻松查看、管理和自定义文件、代码选择和项目范围的指令。</span></li>
-<li><span>现在可以选择喜欢的 AI 聊天模型，从 Google Gemini、OpenAI 或机器上的本地模型中进行选择。</span></li>
-</ul>
-<p><span>更多详情可查看官方<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">博客</a>。</span></p>
-<p><span>有关更改的完整列表，可参阅</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyoutrack.jetbrains.com%2Farticles%2FIDEA-A-2100662289%2FIntelliJ-IDEA-2024.3-243.21565.193-build-Release-Notes" target="_blank">发行说明</a><span>。&nbsp;</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><span>IntelliJ IDEA 2024.3 现已<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">发布</a>，这是 2024 年的最后一个主要版本，此次更新为整个 IDE 带来了一系列新功能和增强功能。</span></p>
-<p><span>主要亮点包括 Structure 工具窗口中代码逻辑结构的直观表示、Kubernetes 应用程序更流畅的调试体验以及集群范围的 Kubernetes 日志访问，还将 K2 模式移出了 Beta 版。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efc7de57e2.webp"></span></p>
-<p><strong><span>Highlights</span></strong></p>
-<ul>
-<li><span>Structure 工具窗口现在除了熟悉的 Physical&nbsp;结构外，还包含逻辑代码结构。这样，用户不仅可以查看类、方法和字段，还可以查看项目中组件之间的链接和交互。</span></li>
-<li><span>让 Kubernetes 应用程序的调试变得更加简单。可以使用“Add Tunnel for Remote Debug&nbsp;”选项，让工作站成为 Kubernetes 集群的虚拟部分，这样就可以换入 pod 并使用喜欢的工具在本地调试微服务。</span></li>
-<li><span>IntelliJ IDEA 现在提供具有 streaming 和 pattern matching 的集群范围 Kubernetes 日志访问。此功能提供跨 pod、节点和服务的所有事件的集中视图，帮助快速识别问题，而无需手动检查每个日志。</span></li>
-<li><span>K2 模式已正式脱离测试阶段，现已稳定并可供普遍使用。</span></li>
-</ul>
-<p><strong><span>AI 助手</span></strong></p>
-<ul>
-<li><span>IntelliJ IDEA 2024.3 引入了上下文感知的内联 AI 提示，提供了一种在编辑器中直接与 AI 助手无缝交互的方式。此功能支持 Java、Kotlin、Scala、Groovy、JavaScript、TypeScript、Python、JSON 和 YAML 文件格式。</span></li>
-<li><span>AI 助手现在通过更新的 UI 提供简化的上下文管理，从而可以轻松查看、管理和自定义文件、代码选择和项目范围的指令。</span></li>
-<li><span>现在可以选择喜欢的 AI 聊天模型，从 Google Gemini、OpenAI 或机器上的本地模型中进行选择。</span></li>
-</ul>
-<p><span>更多详情可查看官方<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">博客</a>。</span></p>
-<p><span>有关更改的完整列表，可参阅</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyoutrack.jetbrains.com%2Farticles%2FIDEA-A-2100662289%2FIntelliJ-IDEA-2024.3-243.21565.193-build-Release-Notes" target="_blank">发行说明</a><span>。&nbsp;</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><span>IntelliJ IDEA 2024.3 现已<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">发布</a>，这是 2024 年的最后一个主要版本，此次更新为整个 IDE 带来了一系列新功能和增强功能。</span></p>
-<p><span>主要亮点包括 Structure 工具窗口中代码逻辑结构的直观表示、Kubernetes 应用程序更流畅的调试体验以及集群范围的 Kubernetes 日志访问，还将 K2 模式移出了 Beta 版。</span></p>
-<p><span><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efc7de57e2.webp"></span></p>
-<p><strong><span>Highlights</span></strong></p>
-<ul>
-<li><span>Structure 工具窗口现在除了熟悉的 Physical&nbsp;结构外，还包含逻辑代码结构。这样，用户不仅可以查看类、方法和字段，还可以查看项目中组件之间的链接和交互。</span></li>
-<li><span>让 Kubernetes 应用程序的调试变得更加简单。可以使用“Add Tunnel for Remote Debug&nbsp;”选项，让工作站成为 Kubernetes 集群的虚拟部分，这样就可以换入 pod 并使用喜欢的工具在本地调试微服务。</span></li>
-<li><span>IntelliJ IDEA 现在提供具有 streaming 和 pattern matching 的集群范围 Kubernetes 日志访问。此功能提供跨 pod、节点和服务的所有事件的集中视图，帮助快速识别问题，而无需手动检查每个日志。</span></li>
-<li><span>K2 模式已正式脱离测试阶段，现已稳定并可供普遍使用。</span></li>
-</ul>
-<p><strong><span>AI 助手</span></strong></p>
-<ul>
-<li><span>IntelliJ IDEA 2024.3 引入了上下文感知的内联 AI 提示，提供了一种在编辑器中直接与 AI 助手无缝交互的方式。此功能支持 Java、Kotlin、Scala、Groovy、JavaScript、TypeScript、Python、JSON 和 YAML 文件格式。</span></li>
-<li><span>AI 助手现在通过更新的 UI 提供简化的上下文管理，从而可以轻松查看、管理和自定义文件、代码选择和项目范围的指令。</span></li>
-<li><span>现在可以选择喜欢的 AI 聊天模型，从 Google Gemini、OpenAI 或机器上的本地模型中进行选择。</span></li>
-</ul>
-<p><span>更多详情可查看官方<a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fblog.jetbrains.com%2Fidea%2F2024%2F11%2Fintellij-idea-2024-3%2F" target="_blank">博客</a>。</span></p>
-<p><span>有关更改的完整列表，可参阅</span><a href="https://www.oschina.net/action/GoToLink?url=https%3A%2F%2Fyoutrack.jetbrains.com%2Farticles%2FIDEA-A-2100662289%2FIntelliJ-IDEA-2024.3-243.21565.193-build-Release-Notes" target="_blank">发行说明</a><span>。&nbsp;</span></p>
-<div>
-<div>
-<button> <img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-9e47cce6ae.png">询问AI</button>
-</div>
-</div>]]></content:encoded>
-    <itunes:image href="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efc7de57e2.webp"/>
-          <media:content url="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/oscimg.oschina.net-efc7de57e2.webp" medium="image"/>
-    <pubDate>Thu, 14 Nov 2024 15:29:59 +0800</pubDate>
   </item></channel>
 </rss>
