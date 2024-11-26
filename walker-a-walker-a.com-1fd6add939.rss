@@ -30,6 +30,303 @@
     </itunes:owner>
     <itunes:image href="https://i0.wp.com/walker-a.com/wp-content/uploads/2017/02/988cf43a2f652a9c1a8b61dc6b5f7245.png?fit=32%2C32&ssl=1"/>
 <item>
+    <title><![CDATA[Synology DiskStation DS923+ 使用非原廠 NVMe SSD 建儲存空間]]></title>
+    <link>https://walker-a.com/archives/12680</link>
+    <itunes:title><![CDATA[Synology DiskStation DS923+ 使用非原廠 NVMe SSD 建儲存空間]]></itunes:title>
+    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>使用過SSD固態硬碟就回不去了，因為傲人的讀取速度讓人難以忘懷，然而速度永遠不嫌慢，M.2 PCIe的固態硬碟又重新定義了傳統SSD的效能速度。M.2 NVMe&nbsp; SSD變成了下一代的新寵兒。對NAS這種存儲裝置來說，速度不是唯一考量，但正所謂天下武功是唯快不破，NAS已經不再是NAS了，除了需要大量的儲存空間外，同時也需要可靠且高效的資料傳輸和存取，於是利用一些技巧，終於讓 Synology DS923+ 使用非原廠NVMe SSD來建立儲存空間，或許安全性上打了些折扣，但在有限的經費上，是個另類的選擇。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-01.jpg" alt="DS923+"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>Synology NAS的功能眾多，已不是單純NAS那麼簡單，筆者的部落格備援站、郵件主機、私有雲空間與相簿、iSCSI、備份通通在NAS上，原因無他，就是Synology NAS有個令人愛不擇手的DSM系統與眾多的應用軟體。NAS想要好用，系統扮演著相當重要的角色，Synology DSM系統可是出了名，尤其是套件的運用更是讓NAS飛上天。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-8.jpg" alt="DS923+"></p>
+<p>網路無遠弗屆，速度的演變也非吳下阿蒙，對個人來說1Gb的網路頻寬應該還算OK，但面對一台多人存取的NAS而言，感覺似乎也慢慢不敷使用，低成本的Link Aggregation 802.3ad (稱為「網路聚合」)是不錯的解決方案，Synology DS923+ 內建 2 個 1Gb 網路埠，可&nbsp;<a href="https://walker-a.com/archives/4278" target="_blank">Link Aggregation 合併頻寬</a>，避免多人使用下造成的瓶頸，也提供10Gb網路升級套件，可說進可攻退可守，滿足要求網路速度的需求。裝上E10G22-T1-Mini套件後，就有兩個可 Link Aggregation 合併頻寬的1Gb 網路埠+一個10Gb網路埠，對於網路的配置靈活度更佳。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-2.jpg" alt="DS923+"></p>
+<p>筆者就以自己的角度來說，必須具備大容量與安全的儲存空間、快速的資料傳輸和存取速度、應用程式的支援、易於管理設定和一定的擴充能力。所以當時選擇了Synology&nbsp; DS923+ NAS，除了可以擴充10G網卡，又有內建兩個M.2插槽，可用於快取或儲存空間用。使用了一年多，家中的環境已經全部10G網路化，對於NAS的速度已經不是快取能滿足。看到原廠的NVMe SSD價格，真的下不了手，於是才有想要使用非原廠的念頭。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-35.jpg" alt="DS923+"></p>
+<p>由於PC一直升級，手上蠻多1TB的M.2 SSD，裝上只能當作快取用，無法直接當成儲存區，有些遺憾。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-03.jpg" alt="DS923+"></p>
+<p>DSM只要偵測不是原廠或認定NVMe SSD，都不會出現儲存區選項，所以要利用一些技巧，首先要啟用SSH功能。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-07.jpg" alt="DS923+"></p>
+<p>接下來使用終端機程式來登入DSM系統內，不用第三方工具，使用Windows 11的PowerShell就可以。找到PowerShell後按下滑鼠右鍵，選擇「以系統管理員身分」來執行</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-05.jpg" alt="DS923+"></p>
+<p>進入PowerShell後，使用「<span>ssh</span> <span>帳號</span>@<span>NAS IP位址</span>」來登入，登入前會詢問帳號密碼，輸入確認後即看到熟悉Linux的’$’提示字元。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-08.jpg" alt="DS923+"></p>
+<p>眾所周知，DSM系統其實就是以Linux為核心研發的，想要對磁碟分割與管理，必須取得root權限，有玩過Linux都知道下個<span>sudo -i</span>指令即可輕鬆取得root權限，當然執行後會要求再次輸入密碼來確認(就是你DSM帳號的密碼)，看到’＃’提示字元就是擁有最高權限的環境。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-09.jpg" alt="DS923+"></p>
+<p>想要讓NVMe SSD被DSM辨識到，需要動一些手腳。先來看看磁碟設備的清單，/dev這個目錄對所有的使用者都十分重要，因為在這個目錄中包含了所有Linux系統中所使用的外部設備。單純地列出NVMe可以使用”<span>ls /dev/nvme*</span>“指令，如下圖看到一大堆的NVMe裝置，是不是眼花撩亂。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-10.jpg" alt="DS923+"></p>
+<p>從/dev 下可以發現有一堆nvme 設備，NVMe固態硬碟的裝置名稱通常以”/dev/nvme<span>X</span>n<span>Y</span>“形式表示，其中X是裝置編號，Y是命名空間編號。這與之前的sda/sdb有些不同，因為NVMe 介面硬碟的出現，Linux 採用了新的命名規則，即nvme[<span>0-9</span>]n[<span>1-9</span>]，nvme 是固定的前綴，第一個數字表示控制器的編號， n 是固定字符，第二個數字表示該控制器下的命名空間編號。</p>
+<p>那明明只有插入兩塊NVMe SSD，怎麼跑出這麼多的裝置出來，主要是分割區的關係。例如nvme0設備裝置上，有3個分割區，分區表類型為GPT，如下所示：</p>
+<p>nvme0n1<br>
+├─nvme0n1p1<br>
+├─nvme0n1p2<br>
+└─nvme0n1p3</p>
+<p>會出現這種狀況，主要是筆者的NVMe SSD都是PC升級大容量汰換下來的，所以殘留下Windows的分割狀況。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-11.jpg" alt="DS923+"></p>
+<p>如果你是新的NVMe SSD就不會有這麼多的清單出現，如下找到<span>/dev/nvme0n1</span>及&nbsp;<span>/dev/nvme1n1</span>兩個主要的NVMe SSD硬碟。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-15.jpg" alt="DS923+"></p>
+<p>接著就是來分割這兩個NVMe SSD硬碟，不是使用Linux常見的fdisk，而是使用Synology的<span>synopartition</span>指令來分割，利用<span>–part 12</span>參數來做特定佈局的磁碟分割，<span>–part<span>後面為(1-16)，不同的值代表不同的佈局，筆者查不到細節，所以就照著輸入”<span><span>synopartition</span> –part /dev/nvme0n1 </span><span><span>12</span>“</span>就對了，當出現訊息時按下”Y”，即可完成。</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-20.jpg" alt="DS923+"></p>
+<p>可以使用”<span>fdisk -l /dev/nvme0n1<span>“</span></span>來查看剛剛分割的資訊，可以很清楚看到切出的3個分割區(nvme0n1p1、nvme0n1p2、nvme0n1p3)，nvme0n1p3擁有最大空間的分割區，待會就是要處理格式化分割區。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-21.jpg" alt="DS923+"></p>
+<p>一樣下”<span><span><span><span>synopartition</span> –part /dev/nvme1n1 </span><span><span>12</span>“指令將另一顆SSD進行分割配置，也再利用”<span>fdisk -l /dev/nvme1n1″<span>查看，如同第三個/dev/nvme1n1p3擁有最大空間的分割區。</span></span></span></span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-23.jpg" alt="DS923+"></p>
+<p>目前我的DS923+上有兩顆傳統硬碟的RAID佈局，兩個插槽是空的，雖然NVMe SSD品質已經相當成熟，為了安全起見，RAID 1還是不可避免。但手動做RAID，必須避免衝突，所以使用”cat /proc/mdstat”來查看RAID編號狀況。藍色匡內看到編號md0、md1、md2，所以只要編號md3以上即可。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-24.jpg" alt="DS923+"></p>
+<p>考慮到筆者還有兩個空的插槽要使用RAID，想說設定成md6應該足夠，所以利用Linux的mdadm指令來建立Raid。</p>
+<p><span>指令：mdadm –create /dev/md6 –level=1 –raid-devices=2 –force /dev/nvme0n1p3 /dev/nvme1n1p3</span></p>
+<p>–create /dev/md6&nbsp; <span># 建立一個RAID，名稱為md6</span><br>
+–level=1&nbsp; <span><span># RAID1</span>&nbsp;</span><br>
+–raid-device=2 <span># <span>使用2個分割區</span><br>
+</span>–force <span>#強制執行</span><br>
+–/dev/nvme0n1p3 /dev/nvme1n1p3 <span># 指定要建立Raid 1的兩個最大分割區</span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-27.jpg" alt="DS923+"></p>
+<p>建立RAID後，接下來就是格式化，檔案系統格式當然是選擇Synology首推的btrfs(若想使用mkfs.ext4 -f /dev/md6)。</p>
+<p><span>指令：<span>mkfs.btrfs -f /dev/md6</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-28.jpg" alt="DS923+"></p>
+<p>看到完成後退出ssh並離開PowerShell，回到NAS的DSM畫面上，請重新啟動NAS。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-29.jpg" alt="DS923+"></p>
+<p>重新啟動後再進入NAS，進入<strong>儲存空間管理員</strong>內，隨即看到一個可重組集區，點選「線上重組」。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-30.jpg" alt="DS923+"></p>
+<p>看到再次檢查設定視窗內，有RAID類型還有硬碟的型態，出現M.2硬碟就表示手動將非原廠SSD掛入成功。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-31.jpg" alt="DS923+"></p>
+<p>接下來就慢慢地等檢查完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-32.jpg" alt="DS923+"></p>
+<p>雖然有些繁複，但結果是令人振奮。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-34.jpg" alt="DS923+"></p>
+<p>筆者實作時的DSM版本是7.1.1，嘗試升級到7.2.2試試看(安全起見，若有資料要先備份)。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-37.jpg" alt="DS923+"></p>
+<p>升級後進入儲存空間管理員查看，手動建立Ｍ.2 SSD還健在，完全運作正常不受影響，暫時不用擔心小版本的升級。不過最好不要使用韌體自動升級，因為此方式未必是正常的管道，遇到大版本的升級，先備份在聽看聽一下再做決定哦！</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-38.jpg" alt="DS923+"></p>
+<h3>小結</h3>
+<p>有了10G網路後，剩下的就是硬碟效能的問題。傳統的磁碟I/O少於160MB/s，即使使用SATA SSD也只能有500MB/s多的實力，但使用10GbE的網路設備，理論上有每秒的1250MB的讀取，可見利用M.2 NVMe SSD插槽當成儲存區，才能讓NAS裝置瞬間享受高速的傳輸與讀寫效能。對NAS這種存儲裝置來說，MTBF(平均故障間隔)、TBW(寫入總量)、廠商保固、NAND Flash晶片類型更是重點。使用非原廠的NVMe SSD 當建儲存空間，就一定會有安全上的問題嗎？其實享受速度也不一定要妥協原廠的束縛，善用<a href="https://walker-a.com/archives/3376" target="_blank">快照</a>、<a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup</a>就可以迎刃而解。</p>
+<p>如筆者使用非原廠的NVMe SSD來做RAID 1，有了第一層保護。再利用NAS內建的快照功能儲到到傳統硬碟上，隨時依需求將檔案還原至特定時間點，確保資料萬無一失，則屬第二層防護。第三層使用Hyper Backup完善的備份策略儲存較安全的傳統硬碟上，最多有65,535份備份版本，讓重要的資訊隨時可還原與追蹤，且使用區塊層級增量備份與跨版本資料去重複技術，大幅地降低所需的儲存空間，所以享受速度也可以便宜又大碗。</p>
+<p><img src="https://image.walker-a.com/2017/06/hb/hb-01.jpg"></p>
+<h3>如何刪除修復磁碟分割區</h3>
+<p>如果你的是全新的SSD，可以不用理會以下的說明。筆者將汰換的PCIe Gen 3×4 NVMe SSD給NAS運用，對於10Gb網路速度綽綽有餘，但因Windows系統的分割，產生了微軟特有的修復磁碟分割區，此區主要是來恢復系統用的特殊分割區，有使用Windoiws RE(Windows Recovery Environment)大都了解。雖然此區站個空間不大，但總是覺得殘留無法讓NAS為所用。如果你想要釋放，也不一定要第三方工具，可以用內建的磁碟管理工具來清除，不過動作務必小心，別刪錯了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12.jpg" alt="DS923+"></p>
+<p>Windows系統有個修復磁碟分割區，使用磁碟管理工具的視窗介面無法刪除，你可以使用diskpart指令。</p>
+<ol>
+<li>C:\WINDOWS\system32&gt;diskpart</li>
+<li>DISKPART&gt; List Disk (列出所有磁碟)</li>
+<li>DISKPART&gt; Select Disk X (修復磁碟分割區所在的磁碟號碼)</li>
+<li>DISKPART&gt; list partition (列出該磁碟所有分割區)</li>
+<li>DISKPART&gt; select partition X (選擇修復磁碟分割區號碼)</li>
+<li>DISKPART&gt; delete partition override (刪除該分割區)</li>
+<li>DISKPART&gt; list partition (重複指令確認該復原磁碟分割 X 已刪除)</li>
+</ol>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-14.jpg" alt="DS923+"></p>
+<p>清除乾淨後就看到一個完整的未配置間。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12-1.jpg" alt="DS923+"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li>
+<ul>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup 為你的NAS建立多版本、遠端與雲端備份</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/3376">Synology NAS DSM 6.0系統的磁碟快照/複寫(Snapshot)功能</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/8474">Synology DS923+ 家庭和小企業的資料儲存與管理解決方案</a></li>
+</ul>
+</li>
+</ul>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>使用過SSD固態硬碟就回不去了，因為傲人的讀取速度讓人難以忘懷，然而速度永遠不嫌慢，M.2 PCIe的固態硬碟又重新定義了傳統SSD的效能速度。M.2 NVMe&nbsp; SSD變成了下一代的新寵兒。對NAS這種存儲裝置來說，速度不是唯一考量，但正所謂天下武功是唯快不破，NAS已經不再是NAS了，除了需要大量的儲存空間外，同時也需要可靠且高效的資料傳輸和存取，於是利用一些技巧，終於讓 Synology DS923+ 使用非原廠NVMe SSD來建立儲存空間，或許安全性上打了些折扣，但在有限的經費上，是個另類的選擇。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-01.jpg" alt="DS923+"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>Synology NAS的功能眾多，已不是單純NAS那麼簡單，筆者的部落格備援站、郵件主機、私有雲空間與相簿、iSCSI、備份通通在NAS上，原因無他，就是Synology NAS有個令人愛不擇手的DSM系統與眾多的應用軟體。NAS想要好用，系統扮演著相當重要的角色，Synology DSM系統可是出了名，尤其是套件的運用更是讓NAS飛上天。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-8.jpg" alt="DS923+"></p>
+<p>網路無遠弗屆，速度的演變也非吳下阿蒙，對個人來說1Gb的網路頻寬應該還算OK，但面對一台多人存取的NAS而言，感覺似乎也慢慢不敷使用，低成本的Link Aggregation 802.3ad (稱為「網路聚合」)是不錯的解決方案，Synology DS923+ 內建 2 個 1Gb 網路埠，可&nbsp;<a href="https://walker-a.com/archives/4278" target="_blank">Link Aggregation 合併頻寬</a>，避免多人使用下造成的瓶頸，也提供10Gb網路升級套件，可說進可攻退可守，滿足要求網路速度的需求。裝上E10G22-T1-Mini套件後，就有兩個可 Link Aggregation 合併頻寬的1Gb 網路埠+一個10Gb網路埠，對於網路的配置靈活度更佳。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-2.jpg" alt="DS923+"></p>
+<p>筆者就以自己的角度來說，必須具備大容量與安全的儲存空間、快速的資料傳輸和存取速度、應用程式的支援、易於管理設定和一定的擴充能力。所以當時選擇了Synology&nbsp; DS923+ NAS，除了可以擴充10G網卡，又有內建兩個M.2插槽，可用於快取或儲存空間用。使用了一年多，家中的環境已經全部10G網路化，對於NAS的速度已經不是快取能滿足。看到原廠的NVMe SSD價格，真的下不了手，於是才有想要使用非原廠的念頭。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-35.jpg" alt="DS923+"></p>
+<p>由於PC一直升級，手上蠻多1TB的M.2 SSD，裝上只能當作快取用，無法直接當成儲存區，有些遺憾。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-03.jpg" alt="DS923+"></p>
+<p>DSM只要偵測不是原廠或認定NVMe SSD，都不會出現儲存區選項，所以要利用一些技巧，首先要啟用SSH功能。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-07.jpg" alt="DS923+"></p>
+<p>接下來使用終端機程式來登入DSM系統內，不用第三方工具，使用Windows 11的PowerShell就可以。找到PowerShell後按下滑鼠右鍵，選擇「以系統管理員身分」來執行</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-05.jpg" alt="DS923+"></p>
+<p>進入PowerShell後，使用「<span>ssh</span> <span>帳號</span>@<span>NAS IP位址</span>」來登入，登入前會詢問帳號密碼，輸入確認後即看到熟悉Linux的’$’提示字元。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-08.jpg" alt="DS923+"></p>
+<p>眾所周知，DSM系統其實就是以Linux為核心研發的，想要對磁碟分割與管理，必須取得root權限，有玩過Linux都知道下個<span>sudo -i</span>指令即可輕鬆取得root權限，當然執行後會要求再次輸入密碼來確認(就是你DSM帳號的密碼)，看到’＃’提示字元就是擁有最高權限的環境。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-09.jpg" alt="DS923+"></p>
+<p>想要讓NVMe SSD被DSM辨識到，需要動一些手腳。先來看看磁碟設備的清單，/dev這個目錄對所有的使用者都十分重要，因為在這個目錄中包含了所有Linux系統中所使用的外部設備。單純地列出NVMe可以使用”<span>ls /dev/nvme*</span>“指令，如下圖看到一大堆的NVMe裝置，是不是眼花撩亂。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-10.jpg" alt="DS923+"></p>
+<p>從/dev 下可以發現有一堆nvme 設備，NVMe固態硬碟的裝置名稱通常以”/dev/nvme<span>X</span>n<span>Y</span>“形式表示，其中X是裝置編號，Y是命名空間編號。這與之前的sda/sdb有些不同，因為NVMe 介面硬碟的出現，Linux 採用了新的命名規則，即nvme[<span>0-9</span>]n[<span>1-9</span>]，nvme 是固定的前綴，第一個數字表示控制器的編號， n 是固定字符，第二個數字表示該控制器下的命名空間編號。</p>
+<p>那明明只有插入兩塊NVMe SSD，怎麼跑出這麼多的裝置出來，主要是分割區的關係。例如nvme0設備裝置上，有3個分割區，分區表類型為GPT，如下所示：</p>
+<p>nvme0n1<br>
+├─nvme0n1p1<br>
+├─nvme0n1p2<br>
+└─nvme0n1p3</p>
+<p>會出現這種狀況，主要是筆者的NVMe SSD都是PC升級大容量汰換下來的，所以殘留下Windows的分割狀況。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-11.jpg" alt="DS923+"></p>
+<p>如果你是新的NVMe SSD就不會有這麼多的清單出現，如下找到<span>/dev/nvme0n1</span>及&nbsp;<span>/dev/nvme1n1</span>兩個主要的NVMe SSD硬碟。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-15.jpg" alt="DS923+"></p>
+<p>接著就是來分割這兩個NVMe SSD硬碟，不是使用Linux常見的fdisk，而是使用Synology的<span>synopartition</span>指令來分割，利用<span>–part 12</span>參數來做特定佈局的磁碟分割，<span>–part<span>後面為(1-16)，不同的值代表不同的佈局，筆者查不到細節，所以就照著輸入”<span><span>synopartition</span> –part /dev/nvme0n1 </span><span><span>12</span>“</span>就對了，當出現訊息時按下”Y”，即可完成。</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-20.jpg" alt="DS923+"></p>
+<p>可以使用”<span>fdisk -l /dev/nvme0n1<span>“</span></span>來查看剛剛分割的資訊，可以很清楚看到切出的3個分割區(nvme0n1p1、nvme0n1p2、nvme0n1p3)，nvme0n1p3擁有最大空間的分割區，待會就是要處理格式化分割區。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-21.jpg" alt="DS923+"></p>
+<p>一樣下”<span><span><span><span>synopartition</span> –part /dev/nvme1n1 </span><span><span>12</span>“指令將另一顆SSD進行分割配置，也再利用”<span>fdisk -l /dev/nvme1n1″<span>查看，如同第三個/dev/nvme1n1p3擁有最大空間的分割區。</span></span></span></span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-23.jpg" alt="DS923+"></p>
+<p>目前我的DS923+上有兩顆傳統硬碟的RAID佈局，兩個插槽是空的，雖然NVMe SSD品質已經相當成熟，為了安全起見，RAID 1還是不可避免。但手動做RAID，必須避免衝突，所以使用”cat /proc/mdstat”來查看RAID編號狀況。藍色匡內看到編號md0、md1、md2，所以只要編號md3以上即可。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-24.jpg" alt="DS923+"></p>
+<p>考慮到筆者還有兩個空的插槽要使用RAID，想說設定成md6應該足夠，所以利用Linux的mdadm指令來建立Raid。</p>
+<p><span>指令：mdadm –create /dev/md6 –level=1 –raid-devices=2 –force /dev/nvme0n1p3 /dev/nvme1n1p3</span></p>
+<p>–create /dev/md6&nbsp; <span># 建立一個RAID，名稱為md6</span><br>
+–level=1&nbsp; <span><span># RAID1</span>&nbsp;</span><br>
+–raid-device=2 <span># <span>使用2個分割區</span><br>
+</span>–force <span>#強制執行</span><br>
+–/dev/nvme0n1p3 /dev/nvme1n1p3 <span># 指定要建立Raid 1的兩個最大分割區</span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-27.jpg" alt="DS923+"></p>
+<p>建立RAID後，接下來就是格式化，檔案系統格式當然是選擇Synology首推的btrfs(若想使用mkfs.ext4 -f /dev/md6)。</p>
+<p><span>指令：<span>mkfs.btrfs -f /dev/md6</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-28.jpg" alt="DS923+"></p>
+<p>看到完成後退出ssh並離開PowerShell，回到NAS的DSM畫面上，請重新啟動NAS。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-29.jpg" alt="DS923+"></p>
+<p>重新啟動後再進入NAS，進入<strong>儲存空間管理員</strong>內，隨即看到一個可重組集區，點選「線上重組」。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-30.jpg" alt="DS923+"></p>
+<p>看到再次檢查設定視窗內，有RAID類型還有硬碟的型態，出現M.2硬碟就表示手動將非原廠SSD掛入成功。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-31.jpg" alt="DS923+"></p>
+<p>接下來就慢慢地等檢查完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-32.jpg" alt="DS923+"></p>
+<p>雖然有些繁複，但結果是令人振奮。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-34.jpg" alt="DS923+"></p>
+<p>筆者實作時的DSM版本是7.1.1，嘗試升級到7.2.2試試看(安全起見，若有資料要先備份)。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-37.jpg" alt="DS923+"></p>
+<p>升級後進入儲存空間管理員查看，手動建立Ｍ.2 SSD還健在，完全運作正常不受影響，暫時不用擔心小版本的升級。不過最好不要使用韌體自動升級，因為此方式未必是正常的管道，遇到大版本的升級，先備份在聽看聽一下再做決定哦！</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-38.jpg" alt="DS923+"></p>
+<h3>小結</h3>
+<p>有了10G網路後，剩下的就是硬碟效能的問題。傳統的磁碟I/O少於160MB/s，即使使用SATA SSD也只能有500MB/s多的實力，但使用10GbE的網路設備，理論上有每秒的1250MB的讀取，可見利用M.2 NVMe SSD插槽當成儲存區，才能讓NAS裝置瞬間享受高速的傳輸與讀寫效能。對NAS這種存儲裝置來說，MTBF(平均故障間隔)、TBW(寫入總量)、廠商保固、NAND Flash晶片類型更是重點。使用非原廠的NVMe SSD 當建儲存空間，就一定會有安全上的問題嗎？其實享受速度也不一定要妥協原廠的束縛，善用<a href="https://walker-a.com/archives/3376" target="_blank">快照</a>、<a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup</a>就可以迎刃而解。</p>
+<p>如筆者使用非原廠的NVMe SSD來做RAID 1，有了第一層保護。再利用NAS內建的快照功能儲到到傳統硬碟上，隨時依需求將檔案還原至特定時間點，確保資料萬無一失，則屬第二層防護。第三層使用Hyper Backup完善的備份策略儲存較安全的傳統硬碟上，最多有65,535份備份版本，讓重要的資訊隨時可還原與追蹤，且使用區塊層級增量備份與跨版本資料去重複技術，大幅地降低所需的儲存空間，所以享受速度也可以便宜又大碗。</p>
+<p><img src="https://image.walker-a.com/2017/06/hb/hb-01.jpg"></p>
+<h3>如何刪除修復磁碟分割區</h3>
+<p>如果你的是全新的SSD，可以不用理會以下的說明。筆者將汰換的PCIe Gen 3×4 NVMe SSD給NAS運用，對於10Gb網路速度綽綽有餘，但因Windows系統的分割，產生了微軟特有的修復磁碟分割區，此區主要是來恢復系統用的特殊分割區，有使用Windoiws RE(Windows Recovery Environment)大都了解。雖然此區站個空間不大，但總是覺得殘留無法讓NAS為所用。如果你想要釋放，也不一定要第三方工具，可以用內建的磁碟管理工具來清除，不過動作務必小心，別刪錯了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12.jpg" alt="DS923+"></p>
+<p>Windows系統有個修復磁碟分割區，使用磁碟管理工具的視窗介面無法刪除，你可以使用diskpart指令。</p>
+<ol>
+<li>C:\WINDOWS\system32&gt;diskpart</li>
+<li>DISKPART&gt; List Disk (列出所有磁碟)</li>
+<li>DISKPART&gt; Select Disk X (修復磁碟分割區所在的磁碟號碼)</li>
+<li>DISKPART&gt; list partition (列出該磁碟所有分割區)</li>
+<li>DISKPART&gt; select partition X (選擇修復磁碟分割區號碼)</li>
+<li>DISKPART&gt; delete partition override (刪除該分割區)</li>
+<li>DISKPART&gt; list partition (重複指令確認該復原磁碟分割 X 已刪除)</li>
+</ol>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-14.jpg" alt="DS923+"></p>
+<p>清除乾淨後就看到一個完整的未配置間。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12-1.jpg" alt="DS923+"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li>
+<ul>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup 為你的NAS建立多版本、遠端與雲端備份</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/3376">Synology NAS DSM 6.0系統的磁碟快照/複寫(Snapshot)功能</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/8474">Synology DS923+ 家庭和小企業的資料儲存與管理解決方案</a></li>
+</ul>
+</li>
+</ul>]]>
+    </description>
+    <content:encoded><![CDATA[<p>使用過SSD固態硬碟就回不去了，因為傲人的讀取速度讓人難以忘懷，然而速度永遠不嫌慢，M.2 PCIe的固態硬碟又重新定義了傳統SSD的效能速度。M.2 NVMe&nbsp; SSD變成了下一代的新寵兒。對NAS這種存儲裝置來說，速度不是唯一考量，但正所謂天下武功是唯快不破，NAS已經不再是NAS了，除了需要大量的儲存空間外，同時也需要可靠且高效的資料傳輸和存取，於是利用一些技巧，終於讓 Synology DS923+ 使用非原廠NVMe SSD來建立儲存空間，或許安全性上打了些折扣，但在有限的經費上，是個另類的選擇。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-01.jpg" alt="DS923+"></p>
+<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
+Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
+<p>Synology NAS的功能眾多，已不是單純NAS那麼簡單，筆者的部落格備援站、郵件主機、私有雲空間與相簿、iSCSI、備份通通在NAS上，原因無他，就是Synology NAS有個令人愛不擇手的DSM系統與眾多的應用軟體。NAS想要好用，系統扮演著相當重要的角色，Synology DSM系統可是出了名，尤其是套件的運用更是讓NAS飛上天。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-8.jpg" alt="DS923+"></p>
+<p>網路無遠弗屆，速度的演變也非吳下阿蒙，對個人來說1Gb的網路頻寬應該還算OK，但面對一台多人存取的NAS而言，感覺似乎也慢慢不敷使用，低成本的Link Aggregation 802.3ad (稱為「網路聚合」)是不錯的解決方案，Synology DS923+ 內建 2 個 1Gb 網路埠，可&nbsp;<a href="https://walker-a.com/archives/4278" target="_blank">Link Aggregation 合併頻寬</a>，避免多人使用下造成的瓶頸，也提供10Gb網路升級套件，可說進可攻退可守，滿足要求網路速度的需求。裝上E10G22-T1-Mini套件後，就有兩個可 Link Aggregation 合併頻寬的1Gb 網路埠+一個10Gb網路埠，對於網路的配置靈活度更佳。</p>
+<p><img src="https://image.walker-a.com/2022/12/ds923/ds923-34-2.jpg" alt="DS923+"></p>
+<p>筆者就以自己的角度來說，必須具備大容量與安全的儲存空間、快速的資料傳輸和存取速度、應用程式的支援、易於管理設定和一定的擴充能力。所以當時選擇了Synology&nbsp; DS923+ NAS，除了可以擴充10G網卡，又有內建兩個M.2插槽，可用於快取或儲存空間用。使用了一年多，家中的環境已經全部10G網路化，對於NAS的速度已經不是快取能滿足。看到原廠的NVMe SSD價格，真的下不了手，於是才有想要使用非原廠的念頭。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-35.jpg" alt="DS923+"></p>
+<p>由於PC一直升級，手上蠻多1TB的M.2 SSD，裝上只能當作快取用，無法直接當成儲存區，有些遺憾。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-03.jpg" alt="DS923+"></p>
+<p>DSM只要偵測不是原廠或認定NVMe SSD，都不會出現儲存區選項，所以要利用一些技巧，首先要啟用SSH功能。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-07.jpg" alt="DS923+"></p>
+<p>接下來使用終端機程式來登入DSM系統內，不用第三方工具，使用Windows 11的PowerShell就可以。找到PowerShell後按下滑鼠右鍵，選擇「以系統管理員身分」來執行</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-05.jpg" alt="DS923+"></p>
+<p>進入PowerShell後，使用「<span>ssh</span> <span>帳號</span>@<span>NAS IP位址</span>」來登入，登入前會詢問帳號密碼，輸入確認後即看到熟悉Linux的’$’提示字元。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-08.jpg" alt="DS923+"></p>
+<p>眾所周知，DSM系統其實就是以Linux為核心研發的，想要對磁碟分割與管理，必須取得root權限，有玩過Linux都知道下個<span>sudo -i</span>指令即可輕鬆取得root權限，當然執行後會要求再次輸入密碼來確認(就是你DSM帳號的密碼)，看到’＃’提示字元就是擁有最高權限的環境。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-09.jpg" alt="DS923+"></p>
+<p>想要讓NVMe SSD被DSM辨識到，需要動一些手腳。先來看看磁碟設備的清單，/dev這個目錄對所有的使用者都十分重要，因為在這個目錄中包含了所有Linux系統中所使用的外部設備。單純地列出NVMe可以使用”<span>ls /dev/nvme*</span>“指令，如下圖看到一大堆的NVMe裝置，是不是眼花撩亂。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-10.jpg" alt="DS923+"></p>
+<p>從/dev 下可以發現有一堆nvme 設備，NVMe固態硬碟的裝置名稱通常以”/dev/nvme<span>X</span>n<span>Y</span>“形式表示，其中X是裝置編號，Y是命名空間編號。這與之前的sda/sdb有些不同，因為NVMe 介面硬碟的出現，Linux 採用了新的命名規則，即nvme[<span>0-9</span>]n[<span>1-9</span>]，nvme 是固定的前綴，第一個數字表示控制器的編號， n 是固定字符，第二個數字表示該控制器下的命名空間編號。</p>
+<p>那明明只有插入兩塊NVMe SSD，怎麼跑出這麼多的裝置出來，主要是分割區的關係。例如nvme0設備裝置上，有3個分割區，分區表類型為GPT，如下所示：</p>
+<p>nvme0n1<br>
+├─nvme0n1p1<br>
+├─nvme0n1p2<br>
+└─nvme0n1p3</p>
+<p>會出現這種狀況，主要是筆者的NVMe SSD都是PC升級大容量汰換下來的，所以殘留下Windows的分割狀況。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-11.jpg" alt="DS923+"></p>
+<p>如果你是新的NVMe SSD就不會有這麼多的清單出現，如下找到<span>/dev/nvme0n1</span>及&nbsp;<span>/dev/nvme1n1</span>兩個主要的NVMe SSD硬碟。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-15.jpg" alt="DS923+"></p>
+<p>接著就是來分割這兩個NVMe SSD硬碟，不是使用Linux常見的fdisk，而是使用Synology的<span>synopartition</span>指令來分割，利用<span>–part 12</span>參數來做特定佈局的磁碟分割，<span>–part<span>後面為(1-16)，不同的值代表不同的佈局，筆者查不到細節，所以就照著輸入”<span><span>synopartition</span> –part /dev/nvme0n1 </span><span><span>12</span>“</span>就對了，當出現訊息時按下”Y”，即可完成。</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-20.jpg" alt="DS923+"></p>
+<p>可以使用”<span>fdisk -l /dev/nvme0n1<span>“</span></span>來查看剛剛分割的資訊，可以很清楚看到切出的3個分割區(nvme0n1p1、nvme0n1p2、nvme0n1p3)，nvme0n1p3擁有最大空間的分割區，待會就是要處理格式化分割區。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-21.jpg" alt="DS923+"></p>
+<p>一樣下”<span><span><span><span>synopartition</span> –part /dev/nvme1n1 </span><span><span>12</span>“指令將另一顆SSD進行分割配置，也再利用”<span>fdisk -l /dev/nvme1n1″<span>查看，如同第三個/dev/nvme1n1p3擁有最大空間的分割區。</span></span></span></span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-23.jpg" alt="DS923+"></p>
+<p>目前我的DS923+上有兩顆傳統硬碟的RAID佈局，兩個插槽是空的，雖然NVMe SSD品質已經相當成熟，為了安全起見，RAID 1還是不可避免。但手動做RAID，必須避免衝突，所以使用”cat /proc/mdstat”來查看RAID編號狀況。藍色匡內看到編號md0、md1、md2，所以只要編號md3以上即可。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-24.jpg" alt="DS923+"></p>
+<p>考慮到筆者還有兩個空的插槽要使用RAID，想說設定成md6應該足夠，所以利用Linux的mdadm指令來建立Raid。</p>
+<p><span>指令：mdadm –create /dev/md6 –level=1 –raid-devices=2 –force /dev/nvme0n1p3 /dev/nvme1n1p3</span></p>
+<p>–create /dev/md6&nbsp; <span># 建立一個RAID，名稱為md6</span><br>
+–level=1&nbsp; <span><span># RAID1</span>&nbsp;</span><br>
+–raid-device=2 <span># <span>使用2個分割區</span><br>
+</span>–force <span>#強制執行</span><br>
+–/dev/nvme0n1p3 /dev/nvme1n1p3 <span># 指定要建立Raid 1的兩個最大分割區</span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-27.jpg" alt="DS923+"></p>
+<p>建立RAID後，接下來就是格式化，檔案系統格式當然是選擇Synology首推的btrfs(若想使用mkfs.ext4 -f /dev/md6)。</p>
+<p><span>指令：<span>mkfs.btrfs -f /dev/md6</span></span></p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-28.jpg" alt="DS923+"></p>
+<p>看到完成後退出ssh並離開PowerShell，回到NAS的DSM畫面上，請重新啟動NAS。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-29.jpg" alt="DS923+"></p>
+<p>重新啟動後再進入NAS，進入<strong>儲存空間管理員</strong>內，隨即看到一個可重組集區，點選「線上重組」。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-30.jpg" alt="DS923+"></p>
+<p>看到再次檢查設定視窗內，有RAID類型還有硬碟的型態，出現M.2硬碟就表示手動將非原廠SSD掛入成功。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-31.jpg" alt="DS923+"></p>
+<p>接下來就慢慢地等檢查完成。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-32.jpg" alt="DS923+"></p>
+<p>雖然有些繁複，但結果是令人振奮。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-34.jpg" alt="DS923+"></p>
+<p>筆者實作時的DSM版本是7.1.1，嘗試升級到7.2.2試試看(安全起見，若有資料要先備份)。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-37.jpg" alt="DS923+"></p>
+<p>升級後進入儲存空間管理員查看，手動建立Ｍ.2 SSD還健在，完全運作正常不受影響，暫時不用擔心小版本的升級。不過最好不要使用韌體自動升級，因為此方式未必是正常的管道，遇到大版本的升級，先備份在聽看聽一下再做決定哦！</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-38.jpg" alt="DS923+"></p>
+<h3>小結</h3>
+<p>有了10G網路後，剩下的就是硬碟效能的問題。傳統的磁碟I/O少於160MB/s，即使使用SATA SSD也只能有500MB/s多的實力，但使用10GbE的網路設備，理論上有每秒的1250MB的讀取，可見利用M.2 NVMe SSD插槽當成儲存區，才能讓NAS裝置瞬間享受高速的傳輸與讀寫效能。對NAS這種存儲裝置來說，MTBF(平均故障間隔)、TBW(寫入總量)、廠商保固、NAND Flash晶片類型更是重點。使用非原廠的NVMe SSD 當建儲存空間，就一定會有安全上的問題嗎？其實享受速度也不一定要妥協原廠的束縛，善用<a href="https://walker-a.com/archives/3376" target="_blank">快照</a>、<a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup</a>就可以迎刃而解。</p>
+<p>如筆者使用非原廠的NVMe SSD來做RAID 1，有了第一層保護。再利用NAS內建的快照功能儲到到傳統硬碟上，隨時依需求將檔案還原至特定時間點，確保資料萬無一失，則屬第二層防護。第三層使用Hyper Backup完善的備份策略儲存較安全的傳統硬碟上，最多有65,535份備份版本，讓重要的資訊隨時可還原與追蹤，且使用區塊層級增量備份與跨版本資料去重複技術，大幅地降低所需的儲存空間，所以享受速度也可以便宜又大碗。</p>
+<p><img src="https://image.walker-a.com/2017/06/hb/hb-01.jpg"></p>
+<h3>如何刪除修復磁碟分割區</h3>
+<p>如果你的是全新的SSD，可以不用理會以下的說明。筆者將汰換的PCIe Gen 3×4 NVMe SSD給NAS運用，對於10Gb網路速度綽綽有餘，但因Windows系統的分割，產生了微軟特有的修復磁碟分割區，此區主要是來恢復系統用的特殊分割區，有使用Windoiws RE(Windows Recovery Environment)大都了解。雖然此區站個空間不大，但總是覺得殘留無法讓NAS為所用。如果你想要釋放，也不一定要第三方工具，可以用內建的磁碟管理工具來清除，不過動作務必小心，別刪錯了。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12.jpg" alt="DS923+"></p>
+<p>Windows系統有個修復磁碟分割區，使用磁碟管理工具的視窗介面無法刪除，你可以使用diskpart指令。</p>
+<ol>
+<li>C:\WINDOWS\system32&gt;diskpart</li>
+<li>DISKPART&gt; List Disk (列出所有磁碟)</li>
+<li>DISKPART&gt; Select Disk X (修復磁碟分割區所在的磁碟號碼)</li>
+<li>DISKPART&gt; list partition (列出該磁碟所有分割區)</li>
+<li>DISKPART&gt; select partition X (選擇修復磁碟分割區號碼)</li>
+<li>DISKPART&gt; delete partition override (刪除該分割區)</li>
+<li>DISKPART&gt; list partition (重複指令確認該復原磁碟分割 X 已刪除)</li>
+</ol>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-14.jpg" alt="DS923+"></p>
+<p>清除乾淨後就看到一個完整的未配置間。</p>
+<p><img src="https://image.walker-a.com/2024/11/ds923m2/ds923m2-12-1.jpg" alt="DS923+"></p>
+<h3>延伸閱讀：</h3>
+<ul>
+<li>
+<ul>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/4307" target="_blank">Hyper Backup 為你的NAS建立多版本、遠端與雲端備份</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/3376">Synology NAS DSM 6.0系統的磁碟快照/複寫(Snapshot)功能</a></li>
+<li title="Hyper Backup 為你的NAS建立多版本、遠端與雲端備份"><a href="https://walker-a.com/archives/8474">Synology DS923+ 家庭和小企業的資料儲存與管理解決方案</a></li>
+</ul>
+</li>
+</ul>]]></content:encoded>
+    <itunes:image href="https://image.walker-a.com/2024/11/ds923m2/ds923m2-01.jpg"/>
+          <media:content url="https://image.walker-a.com/2024/11/ds923m2/ds923m2-01.jpg" medium="image"/>
+    <pubDate>Mon, 25 Nov 2024 23:58:14 +0000</pubDate>
+  </item><item>
     <title><![CDATA[限時免費 IObit Driver Booster 12 PRO 一鍵更新所有驅動程式]]></title>
     <link>https://walker-a.com/archives/11057</link>
     <itunes:title><![CDATA[限時免費 IObit Driver Booster 12 PRO 一鍵更新所有驅動程式]]></itunes:title>
@@ -1082,74 +1379,5 @@ Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.
     <itunes:image href="https://image.walker-a.com/2024/10/24h2/24h2-01-1.jpg"/>
           <media:content url="https://image.walker-a.com/2024/10/24h2/24h2-01-1.jpg" medium="image"/>
     <pubDate>Sun, 03 Nov 2024 23:55:57 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[iOS 18.1 內建最新P圖秘技，一鍵移除移照片中的人物]]></title>
-    <link>https://walker-a.com/archives/12663</link>
-    <itunes:title><![CDATA[iOS 18.1 內建最新P圖秘技，一鍵移除移照片中的人物]]></itunes:title>
-    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>人手一機隨時拍照可說是再平常不過，在觀光景點常常看到取景時在避開人潮的舉動，其實就是怕照片中有閒雜人或物入境。只要你有iPhone手機並升級iOS 18.1後，不用安裝任何第三方App，使用照片內的「去除」功能，就能將移除照片中不想要的品牌標誌、物體、人像、文本、日期與貼紙等，不用修圖即可讓畫面更加清爽宜人。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-01.jpg" alt="iOS 18.1"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>照片中若有閒雜等人、物入境，那會完全破壞視覺效果與美好的記憶，使用後製軟體可以為你清除一些障礙物，但iPhone升級iOS 18後，你不用擔心複雜的動作操作，如同拍攝照片般那麼容易，不管是遊客，浮水印，徽標，文字，建築、瑕疵和其他不需要的東西，無需透過第三方App，也無須專業的照片編輯技術，都可以輕輕鬆鬆的讓你的照片更完美。</p>
-<p>升級iOS 18後，開啟內建「照片」App，選擇要修改的圖片，並且選擇下方紅色框內的「編輯」圖示鈕，進入後再選擇橡皮插圖示的<strong>清除</strong>鈕，且首次啟動時會到線上下載清除的AI模型。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-02.jpg" alt="iOS 18"></p>
-<p>接下來就可以透過手指輕刷或選取要移除的的內容，不管是人物、物體或文字等都可以，塗鴉塗抹要只要點選塗鴉主體即可。建議利用兩指來放大照片，這樣比較好來塗鴉選取物件，如下圖中間塗鴉一個人物，結果相當智慧的自動選取物件的輪廓，再塗鴉旁邊的人．輕輕鬆鬆的選取了兩個人的輪廓，最後按下右上的〔完成〕。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-03.jpg" alt="iOS 18"></p>
-<p>結果幾乎看不出來有修圖過痕跡。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-04.jpg" alt="iOS 18"></p>
-<p>透過手動放大圖片更容易來塗鴉選取，每個物件塗鴉塗抹要記得一次連續畫滿主體，不要分次來塗鴉，隨後會透過 AI 辨識自動將物件去除。</p>
-<div><iframe title="iOS 18.1 清除功能" src="https://www.youtube.com/embed/-PD4fRKOY2c" frameborder="0" allowfullscreen="allowfullscreen"></iframe></div>
-<h3><strong>延伸閱讀：</strong></h3>
-<ul>
-<li><a href="https://walker-a.com/archives/7001" target="_blank">CheatSheet 快速輔助顯示Mac OS快捷鍵應用程式</a></li>
-<li><a href="https://walker-a.com/archives/6993" target="_blank">如何使用Mac的 Time Machine 將資料備份至 Synology NAS</a></li>
-<li><a title="如何檢查 Windows 10 ISO 檔案的系統組建與版本編號" href="https://walker-a.com/archives/5049" target="_blank">如何檢查 Windows 10 ISO 檔案的系統組建與版本編號</a></li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>人手一機隨時拍照可說是再平常不過，在觀光景點常常看到取景時在避開人潮的舉動，其實就是怕照片中有閒雜人或物入境。只要你有iPhone手機並升級iOS 18.1後，不用安裝任何第三方App，使用照片內的「去除」功能，就能將移除照片中不想要的品牌標誌、物體、人像、文本、日期與貼紙等，不用修圖即可讓畫面更加清爽宜人。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-01.jpg" alt="iOS 18.1"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>照片中若有閒雜等人、物入境，那會完全破壞視覺效果與美好的記憶，使用後製軟體可以為你清除一些障礙物，但iPhone升級iOS 18後，你不用擔心複雜的動作操作，如同拍攝照片般那麼容易，不管是遊客，浮水印，徽標，文字，建築、瑕疵和其他不需要的東西，無需透過第三方App，也無須專業的照片編輯技術，都可以輕輕鬆鬆的讓你的照片更完美。</p>
-<p>升級iOS 18後，開啟內建「照片」App，選擇要修改的圖片，並且選擇下方紅色框內的「編輯」圖示鈕，進入後再選擇橡皮插圖示的<strong>清除</strong>鈕，且首次啟動時會到線上下載清除的AI模型。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-02.jpg" alt="iOS 18"></p>
-<p>接下來就可以透過手指輕刷或選取要移除的的內容，不管是人物、物體或文字等都可以，塗鴉塗抹要只要點選塗鴉主體即可。建議利用兩指來放大照片，這樣比較好來塗鴉選取物件，如下圖中間塗鴉一個人物，結果相當智慧的自動選取物件的輪廓，再塗鴉旁邊的人．輕輕鬆鬆的選取了兩個人的輪廓，最後按下右上的〔完成〕。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-03.jpg" alt="iOS 18"></p>
-<p>結果幾乎看不出來有修圖過痕跡。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-04.jpg" alt="iOS 18"></p>
-<p>透過手動放大圖片更容易來塗鴉選取，每個物件塗鴉塗抹要記得一次連續畫滿主體，不要分次來塗鴉，隨後會透過 AI 辨識自動將物件去除。</p>
-<div><iframe title="iOS 18.1 清除功能" src="https://www.youtube.com/embed/-PD4fRKOY2c" frameborder="0" allowfullscreen="allowfullscreen"></iframe></div>
-<h3><strong>延伸閱讀：</strong></h3>
-<ul>
-<li><a href="https://walker-a.com/archives/7001" target="_blank">CheatSheet 快速輔助顯示Mac OS快捷鍵應用程式</a></li>
-<li><a href="https://walker-a.com/archives/6993" target="_blank">如何使用Mac的 Time Machine 將資料備份至 Synology NAS</a></li>
-<li><a title="如何檢查 Windows 10 ISO 檔案的系統組建與版本編號" href="https://walker-a.com/archives/5049" target="_blank">如何檢查 Windows 10 ISO 檔案的系統組建與版本編號</a></li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p>人手一機隨時拍照可說是再平常不過，在觀光景點常常看到取景時在避開人潮的舉動，其實就是怕照片中有閒雜人或物入境。只要你有iPhone手機並升級iOS 18.1後，不用安裝任何第三方App，使用照片內的「去除」功能，就能將移除照片中不想要的品牌標誌、物體、人像、文本、日期與貼紙等，不用修圖即可讓畫面更加清爽宜人。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-01.jpg" alt="iOS 18.1"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>照片中若有閒雜等人、物入境，那會完全破壞視覺效果與美好的記憶，使用後製軟體可以為你清除一些障礙物，但iPhone升級iOS 18後，你不用擔心複雜的動作操作，如同拍攝照片般那麼容易，不管是遊客，浮水印，徽標，文字，建築、瑕疵和其他不需要的東西，無需透過第三方App，也無須專業的照片編輯技術，都可以輕輕鬆鬆的讓你的照片更完美。</p>
-<p>升級iOS 18後，開啟內建「照片」App，選擇要修改的圖片，並且選擇下方紅色框內的「編輯」圖示鈕，進入後再選擇橡皮插圖示的<strong>清除</strong>鈕，且首次啟動時會到線上下載清除的AI模型。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-02.jpg" alt="iOS 18"></p>
-<p>接下來就可以透過手指輕刷或選取要移除的的內容，不管是人物、物體或文字等都可以，塗鴉塗抹要只要點選塗鴉主體即可。建議利用兩指來放大照片，這樣比較好來塗鴉選取物件，如下圖中間塗鴉一個人物，結果相當智慧的自動選取物件的輪廓，再塗鴉旁邊的人．輕輕鬆鬆的選取了兩個人的輪廓，最後按下右上的〔完成〕。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-03.jpg" alt="iOS 18"></p>
-<p>結果幾乎看不出來有修圖過痕跡。</p>
-<p><img src="https://image.walker-a.com/2024/10/ios181/ios181-04.jpg" alt="iOS 18"></p>
-<p>透過手動放大圖片更容易來塗鴉選取，每個物件塗鴉塗抹要記得一次連續畫滿主體，不要分次來塗鴉，隨後會透過 AI 辨識自動將物件去除。</p>
-<div><iframe title="iOS 18.1 清除功能" src="https://www.youtube.com/embed/-PD4fRKOY2c" frameborder="0" allowfullscreen="allowfullscreen"></iframe></div>
-<h3><strong>延伸閱讀：</strong></h3>
-<ul>
-<li><a href="https://walker-a.com/archives/7001" target="_blank">CheatSheet 快速輔助顯示Mac OS快捷鍵應用程式</a></li>
-<li><a href="https://walker-a.com/archives/6993" target="_blank">如何使用Mac的 Time Machine 將資料備份至 Synology NAS</a></li>
-<li><a title="如何檢查 Windows 10 ISO 檔案的系統組建與版本編號" href="https://walker-a.com/archives/5049" target="_blank">如何檢查 Windows 10 ISO 檔案的系統組建與版本編號</a></li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://image.walker-a.com/2024/10/ios181/ios181-01.jpg"/>
-          <media:content url="https://image.walker-a.com/2024/10/ios181/ios181-01.jpg" medium="image"/>
-    <pubDate>Thu, 31 Oct 2024 23:54:52 +0000</pubDate>
   </item></channel>
 </rss>
