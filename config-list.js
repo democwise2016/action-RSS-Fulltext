@@ -1,15 +1,15 @@
 const ItemFilters = require('./app/config/ItemFilters.js')
 
 let feedList = [
-  {
-    title: 'PokemonGoJiang on Twitter',
-    feedID: 'PokemonGoJiang',
-    feedURL: 'https://rss.app/feeds/SI3KHkg8RwMrRYbr.xml',
-    itemFilters: [
-      ItemFilters['twitter'].ItemFilterTwitter,
-      ItemFilters['sites'].ItemFilterTwitterPokemonGoJiang
-    ],
-  },
+  // {
+  //   title: 'PokemonGoJiang on Twitter',
+  //   feedID: 'PokemonGoJiang',
+  //   feedURL: 'https://rss.app/feeds/SI3KHkg8RwMrRYbr.xml',
+  //   itemFilters: [
+  //     ItemFilters['twitter'].ItemFilterTwitter,
+  //     ItemFilters['sites'].ItemFilterTwitterPokemonGoJiang
+  //   ],
+  // },
   {
     title: '電腦王阿達',
     feedID: 'kocpc',
