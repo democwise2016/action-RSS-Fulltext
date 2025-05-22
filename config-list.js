@@ -124,6 +124,9 @@ let feedList = [
       selector: '.p_mainnew'
     }
   },
+
+  // ======= 上面 10 個 =======
+  
   { // <outline type="rss" text="海芋小站++" title="海芋小站++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/$1227-1844$/http%3A%2F%2Ffeedproxy.google.com%2Finotetw" htmlUrl="https://www.inote.tw"/>
     title: 'ePrice 比價王 手機品牌新聞',
     feedID: 'eprice-mobile',
@@ -252,6 +255,9 @@ let feedList = [
       selector: 'article[id] > .td-post-content'
     }
   },
+
+  // ======= 上面 20 個 =======
+  
   { // <outline type="rss" text="靖技場++" title="靖技場++" xmlUrl="http://pulipuli.myqnapcloud.com/304/fc/http%3A%2F%2Fjinnsblog.blogspot.com%2Ffeeds%2Fposts%2Fdefault" htmlUrl="https://www.jinnsblog.com/"/>
     title: '靖技場 聊 3C',
     feedID: 'jinnsblog',
