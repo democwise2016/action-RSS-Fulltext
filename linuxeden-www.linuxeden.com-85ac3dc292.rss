@@ -30,6 +30,68 @@
     </itunes:owner>
     <itunes:image href="http://www.linuxeden.com/image/logonew2009.gif"/>
 <item>
+    <title><![CDATA[‌Linux 随机选取空闲CPU核心的机制，在高核心数系统上展现出小幅性能提升‌]]></title>
+    <link>http://www.linuxeden.com/a/165032</link>
+    <itunes:title><![CDATA[‌Linux 随机选取空闲CPU核心的机制，在高核心数系统上展现出小幅性能提升‌]]></itunes:title>
+    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Arm工程师克里斯蒂安·勒勒今日发布了一组补丁系列，提议让Linux调度器代码在选择退出延迟相同的浅度空闲CPU核心时引入随机化机制。这种随机化策略目前已被证实，至少在高核心数平台上能通过更合理的工作负载分布带来性能收益。</p>
+<p>勒勒发现，Linux内核调度器在并发执行慢路径CPU选择逻辑时，多个任务可能在自身入队前就“不约而同”选中了同一批空闲CPU核心。为了避免这种任务集中扎堆到少数空闲核心的问题，他提出的方案就是对所有退出延迟相同的浅度空闲CPU核心做随机选择。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-40c7bfcfcb.png" alt="‌Linux 随机选取空闲CPU核心的机制，在高核心数系统上展现出小幅性能提升‌"></p>
+<p>在双路老旧Ampere Altra平台（总计160个CPU核心）上的测试显示，通过Stress-NG基准测试，系统吞吐量最高能实现几个百分点的提升。</p>
+<p>补丁中进一步详细说明：</p>
+<blockquote>
+<p>“慢路径CPU选择器会优先选择最近刚进入空闲状态的CPU，以此作为缓存热度的判断依据。</p>
+<p>越新的空闲时间戳，反而越有可能让该CPU正处于进入更深空闲状态的过程中。在所有标称退出延迟相同的CPU里，这种策略反而会优先选中唤醒成本最高的那一个：如果CPU已经开始进入深度空闲状态且无法中止，就必须先完成整个进入流程再退出，而原本就处于运行状态的CPU只需要直接退出空闲状态即可。但这两种情况在调度器看来，标称的最坏延迟是完全一样的。</p>
+<p>现有的<code>idle_stamp</code>机制不会追踪CPU当前正在进行的Idle状态进入流程，因此一个空闲时间戳更早的调度器空闲CPU，同样可能正在重新进入深度空闲状态。<br>
+……<br>
+直接选取第一个符合条件的空闲CPU，会天然带来扫描顺序上的偏向性。并发执行的慢路径选择逻辑，完全可能在任意一个任务完成入队前就选中同一个CPU。</p>
+<p>我们在平局分支中使用蓄水池采样算法，当发现退出延迟更低的CPU时重置候选计数；同时利用每个CPU独立的调度器伪随机数生成器和<code>reciprocal_scale()</code>函数，避免可变除法运算或第二次全量扫描。</p>
+<p>这套方案在不预先占用选中CPU的前提下，大幅降低了确定性的任务集中扎堆问题。”</p>
+</blockquote>
+<p>这套引入随机化的补丁目前已经发布在内核邮件列表中。</p>
+<p>目前针对这项工作的初步疑问主要集中在：该随机化机制在低核心数CPU上能带来多少收益？同时这种随机化可能会引入部分不可预测的调度行为。这项工作最终走向何方仍有待观察，但至少对于当下的高核心数CPU（比如最新的AMD EPYC 9006系列，单路最高可达256核心）而言，如果没有其他调度器优化方案能解决扫描顺序偏向问题，这项补丁完全有可能带来实际收益。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-Random-Equal-Idle-CPUs">Linux Randomly Picking Idle CPU Cores Shows Modest Win On High Core Count Systems – Phoronix</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Arm工程师克里斯蒂安·勒勒今日发布了一组补丁系列，提议让Linux调度器代码在选择退出延迟相同的浅度空闲CPU核心时引入随机化机制。这种随机化策略目前已被证实，至少在高核心数平台上能通过更合理的工作负载分布带来性能收益。</p>
+<p>勒勒发现，Linux内核调度器在并发执行慢路径CPU选择逻辑时，多个任务可能在自身入队前就“不约而同”选中了同一批空闲CPU核心。为了避免这种任务集中扎堆到少数空闲核心的问题，他提出的方案就是对所有退出延迟相同的浅度空闲CPU核心做随机选择。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-40c7bfcfcb.png" alt="‌Linux 随机选取空闲CPU核心的机制，在高核心数系统上展现出小幅性能提升‌"></p>
+<p>在双路老旧Ampere Altra平台（总计160个CPU核心）上的测试显示，通过Stress-NG基准测试，系统吞吐量最高能实现几个百分点的提升。</p>
+<p>补丁中进一步详细说明：</p>
+<blockquote>
+<p>“慢路径CPU选择器会优先选择最近刚进入空闲状态的CPU，以此作为缓存热度的判断依据。</p>
+<p>越新的空闲时间戳，反而越有可能让该CPU正处于进入更深空闲状态的过程中。在所有标称退出延迟相同的CPU里，这种策略反而会优先选中唤醒成本最高的那一个：如果CPU已经开始进入深度空闲状态且无法中止，就必须先完成整个进入流程再退出，而原本就处于运行状态的CPU只需要直接退出空闲状态即可。但这两种情况在调度器看来，标称的最坏延迟是完全一样的。</p>
+<p>现有的<code>idle_stamp</code>机制不会追踪CPU当前正在进行的Idle状态进入流程，因此一个空闲时间戳更早的调度器空闲CPU，同样可能正在重新进入深度空闲状态。<br>
+……<br>
+直接选取第一个符合条件的空闲CPU，会天然带来扫描顺序上的偏向性。并发执行的慢路径选择逻辑，完全可能在任意一个任务完成入队前就选中同一个CPU。</p>
+<p>我们在平局分支中使用蓄水池采样算法，当发现退出延迟更低的CPU时重置候选计数；同时利用每个CPU独立的调度器伪随机数生成器和<code>reciprocal_scale()</code>函数，避免可变除法运算或第二次全量扫描。</p>
+<p>这套方案在不预先占用选中CPU的前提下，大幅降低了确定性的任务集中扎堆问题。”</p>
+</blockquote>
+<p>这套引入随机化的补丁目前已经发布在内核邮件列表中。</p>
+<p>目前针对这项工作的初步疑问主要集中在：该随机化机制在低核心数CPU上能带来多少收益？同时这种随机化可能会引入部分不可预测的调度行为。这项工作最终走向何方仍有待观察，但至少对于当下的高核心数CPU（比如最新的AMD EPYC 9006系列，单路最高可达256核心）而言，如果没有其他调度器优化方案能解决扫描顺序偏向问题，这项补丁完全有可能带来实际收益。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-Random-Equal-Idle-CPUs">Linux Randomly Picking Idle CPU Cores Shows Modest Win On High Core Count Systems – Phoronix</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Arm工程师克里斯蒂安·勒勒今日发布了一组补丁系列，提议让Linux调度器代码在选择退出延迟相同的浅度空闲CPU核心时引入随机化机制。这种随机化策略目前已被证实，至少在高核心数平台上能通过更合理的工作负载分布带来性能收益。</p>
+<p>勒勒发现，Linux内核调度器在并发执行慢路径CPU选择逻辑时，多个任务可能在自身入队前就“不约而同”选中了同一批空闲CPU核心。为了避免这种任务集中扎堆到少数空闲核心的问题，他提出的方案就是对所有退出延迟相同的浅度空闲CPU核心做随机选择。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-40c7bfcfcb.png" alt="‌Linux 随机选取空闲CPU核心的机制，在高核心数系统上展现出小幅性能提升‌"></p>
+<p>在双路老旧Ampere Altra平台（总计160个CPU核心）上的测试显示，通过Stress-NG基准测试，系统吞吐量最高能实现几个百分点的提升。</p>
+<p>补丁中进一步详细说明：</p>
+<blockquote>
+<p>“慢路径CPU选择器会优先选择最近刚进入空闲状态的CPU，以此作为缓存热度的判断依据。</p>
+<p>越新的空闲时间戳，反而越有可能让该CPU正处于进入更深空闲状态的过程中。在所有标称退出延迟相同的CPU里，这种策略反而会优先选中唤醒成本最高的那一个：如果CPU已经开始进入深度空闲状态且无法中止，就必须先完成整个进入流程再退出，而原本就处于运行状态的CPU只需要直接退出空闲状态即可。但这两种情况在调度器看来，标称的最坏延迟是完全一样的。</p>
+<p>现有的<code>idle_stamp</code>机制不会追踪CPU当前正在进行的Idle状态进入流程，因此一个空闲时间戳更早的调度器空闲CPU，同样可能正在重新进入深度空闲状态。<br>
+……<br>
+直接选取第一个符合条件的空闲CPU，会天然带来扫描顺序上的偏向性。并发执行的慢路径选择逻辑，完全可能在任意一个任务完成入队前就选中同一个CPU。</p>
+<p>我们在平局分支中使用蓄水池采样算法，当发现退出延迟更低的CPU时重置候选计数；同时利用每个CPU独立的调度器伪随机数生成器和<code>reciprocal_scale()</code>函数，避免可变除法运算或第二次全量扫描。</p>
+<p>这套方案在不预先占用选中CPU的前提下，大幅降低了确定性的任务集中扎堆问题。”</p>
+</blockquote>
+<p>这套引入随机化的补丁目前已经发布在内核邮件列表中。</p>
+<p>目前针对这项工作的初步疑问主要集中在：该随机化机制在低核心数CPU上能带来多少收益？同时这种随机化可能会引入部分不可预测的调度行为。这项工作最终走向何方仍有待观察，但至少对于当下的高核心数CPU（比如最新的AMD EPYC 9006系列，单路最高可达256核心）而言，如果没有其他调度器优化方案能解决扫描顺序偏向问题，这项补丁完全有可能带来实际收益。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-Random-Equal-Idle-CPUs">Linux Randomly Picking Idle CPU Cores Shows Modest Win On High Core Count Systems – Phoronix</a></p>]]></content:encoded>
+    
+    <pubDate>Wed, 16 Sep 2026 13:44:33 +0000</pubDate>
+  </item><item>
     <title><![CDATA[‌Ubuntu 26.10 将 cp、mv 和 rm 迁移至 Rust Coreutils，实现100%过渡‌]]></title>
     <link>http://www.linuxeden.com/a/165028</link>
     <itunes:title><![CDATA[‌Ubuntu 26.10 将 cp、mv 和 rm 迁移至 Rust Coreutils，实现100%过渡‌]]></itunes:title>
@@ -280,46 +342,5 @@
 <p>转自&nbsp;<a href="https://9to5linux.com/virtualbox-7-2-18-released-with-linux-7-3-fixes-support-for-rhel-10-3-kernel">VirtualBox 7.2.18 Released with Linux 7.3 Fixes, Support for RHEL 10.3 Kernel – 9to5Linux</a></p>]]></content:encoded>
     
     <pubDate>Tue, 15 Sep 2026 22:51:50 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[‌Java 27 正式发布通用可用版本，全平台默认采用G1垃圾回收器‌]]></title>
-    <link>http://www.linuxeden.com/a/165000</link>
-    <itunes:title><![CDATA[‌Java 27 正式发布通用可用版本，全平台默认采用G1垃圾回收器‌]]></itunes:title>
-    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>甲骨文今日正式推出Java 27，OpenJDK 27版本已达到通用可用（GA）状态。</p>
-<p>在Java 27中，G1（Garbage-First）垃圾回收器现已在全平台环境下被设为默认选项。自JDK 9起G1仅作为Java服务器环境的默认回收器，如今它的稳定性已得到充分验证，足以在所有场景下作为默认方案。相比串行回收器，G1在全堆大小场景下都能提供与之相当的吞吐量、延迟、内存占用和启动速度。</p>
-<p>对应全平台默认切换至G1的JEP 523规范说明：<br>
-“此后我们在所有指标维度上优化了G1回收器，测试显示G1在所有堆大小场景下的表现都能与串行回收器持平。结合近期针对同步机制的优化工作（JEP 522），G1的最大吞吐量已接近串行回收器。G1的最大延迟表现始终优于串行回收器，它通过增量垃圾回收而非全量回收来回收老年代内存。此外，在近期版本中我们已将G1的原生内存占用降低到与串行回收器相当的水平。</p>
-<p>目前G1的性能已足够在所有原本JVM会选择串行回收器的场景中替代它。现在是时候停止在资源受限环境中默认选用串行回收器了，这也能让开发者更轻松地理解和推演JVM的运行行为。”</p>
-<p>OpenJDK/Java 27还新增了TLS 1.3后量子混合密钥交换支持、惰性常量的最新预览版、Java结构化并发支持的第七次预览、默认启用的紧凑对象头，以及Java向量API的最新孵化器版本。</p>
-<p>默认启用的紧凑对象头将对象头大小从96位缩减至64位，以此提升部署密度、优化数据局部性并缩小堆占用空间。自JDK 24以来，紧凑对象头的稳定性与性能表现已得到充分验证，因此成为新的默认配置。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-a71c7e69a2.png" alt="‌Java 27 正式发布通用可用版本，全平台默认采用G1垃圾回收器‌"></p>
-<p>关于Java 27 GA版本的更多细节，可查看今日发布的官方公告。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/OpenJDK-27-Java-27">Java 27 Reaches GA With The G1 Garbage Collector By Default Everywhere – Phoronix</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>甲骨文今日正式推出Java 27，OpenJDK 27版本已达到通用可用（GA）状态。</p>
-<p>在Java 27中，G1（Garbage-First）垃圾回收器现已在全平台环境下被设为默认选项。自JDK 9起G1仅作为Java服务器环境的默认回收器，如今它的稳定性已得到充分验证，足以在所有场景下作为默认方案。相比串行回收器，G1在全堆大小场景下都能提供与之相当的吞吐量、延迟、内存占用和启动速度。</p>
-<p>对应全平台默认切换至G1的JEP 523规范说明：<br>
-“此后我们在所有指标维度上优化了G1回收器，测试显示G1在所有堆大小场景下的表现都能与串行回收器持平。结合近期针对同步机制的优化工作（JEP 522），G1的最大吞吐量已接近串行回收器。G1的最大延迟表现始终优于串行回收器，它通过增量垃圾回收而非全量回收来回收老年代内存。此外，在近期版本中我们已将G1的原生内存占用降低到与串行回收器相当的水平。</p>
-<p>目前G1的性能已足够在所有原本JVM会选择串行回收器的场景中替代它。现在是时候停止在资源受限环境中默认选用串行回收器了，这也能让开发者更轻松地理解和推演JVM的运行行为。”</p>
-<p>OpenJDK/Java 27还新增了TLS 1.3后量子混合密钥交换支持、惰性常量的最新预览版、Java结构化并发支持的第七次预览、默认启用的紧凑对象头，以及Java向量API的最新孵化器版本。</p>
-<p>默认启用的紧凑对象头将对象头大小从96位缩减至64位，以此提升部署密度、优化数据局部性并缩小堆占用空间。自JDK 24以来，紧凑对象头的稳定性与性能表现已得到充分验证，因此成为新的默认配置。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-a71c7e69a2.png" alt="‌Java 27 正式发布通用可用版本，全平台默认采用G1垃圾回收器‌"></p>
-<p>关于Java 27 GA版本的更多细节，可查看今日发布的官方公告。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/OpenJDK-27-Java-27">Java 27 Reaches GA With The G1 Garbage Collector By Default Everywhere – Phoronix</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>甲骨文今日正式推出Java 27，OpenJDK 27版本已达到通用可用（GA）状态。</p>
-<p>在Java 27中，G1（Garbage-First）垃圾回收器现已在全平台环境下被设为默认选项。自JDK 9起G1仅作为Java服务器环境的默认回收器，如今它的稳定性已得到充分验证，足以在所有场景下作为默认方案。相比串行回收器，G1在全堆大小场景下都能提供与之相当的吞吐量、延迟、内存占用和启动速度。</p>
-<p>对应全平台默认切换至G1的JEP 523规范说明：<br>
-“此后我们在所有指标维度上优化了G1回收器，测试显示G1在所有堆大小场景下的表现都能与串行回收器持平。结合近期针对同步机制的优化工作（JEP 522），G1的最大吞吐量已接近串行回收器。G1的最大延迟表现始终优于串行回收器，它通过增量垃圾回收而非全量回收来回收老年代内存。此外，在近期版本中我们已将G1的原生内存占用降低到与串行回收器相当的水平。</p>
-<p>目前G1的性能已足够在所有原本JVM会选择串行回收器的场景中替代它。现在是时候停止在资源受限环境中默认选用串行回收器了，这也能让开发者更轻松地理解和推演JVM的运行行为。”</p>
-<p>OpenJDK/Java 27还新增了TLS 1.3后量子混合密钥交换支持、惰性常量的最新预览版、Java结构化并发支持的第七次预览、默认启用的紧凑对象头，以及Java向量API的最新孵化器版本。</p>
-<p>默认启用的紧凑对象头将对象头大小从96位缩减至64位，以此提升部署密度、优化数据局部性并缩小堆占用空间。自JDK 24以来，紧凑对象头的稳定性与性能表现已得到充分验证，因此成为新的默认配置。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-a71c7e69a2.png" alt="‌Java 27 正式发布通用可用版本，全平台默认采用G1垃圾回收器‌"></p>
-<p>关于Java 27 GA版本的更多细节，可查看今日发布的官方公告。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/OpenJDK-27-Java-27">Java 27 Reaches GA With The G1 Garbage Collector By Default Everywhere – Phoronix</a></p>]]></content:encoded>
-    
-    <pubDate>Tue, 15 Sep 2026 14:27:58 +0000</pubDate>
   </item></channel>
 </rss>
