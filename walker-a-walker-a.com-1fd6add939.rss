@@ -30,6 +30,180 @@
     </itunes:owner>
     <itunes:image href="https://i0.wp.com/walker-a.com/wp-content/uploads/2017/02/988cf43a2f652a9c1a8b61dc6b5f7245.png?fit=32%2C32&ssl=1"/>
 <item>
+    <title><![CDATA[Windows 11 安裝 WSL2 建置指南]]></title>
+    <link>https://walker-a.com/archives/12805</link>
+    <itunes:title><![CDATA[Windows 11 安裝 WSL2 建置指南]]></itunes:title>
+    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Linux 擁有原生強大的命令列生態與伺服器環境，是後端、網頁開發與 AI 工程師的天堂；然而，日常辦公系統仍是無可取代的Windows天下，其便利性、豐富的軟體支援與極佳的硬體相容性是無庸置疑。過去，為了兼顧兩個系統，總是忍受安裝雙系統的繁瑣切換，或是使用耗效能的虛擬機器(Vmware)。不過，WSL2（Windows Subsystem for Linux 2） 的出現，讓開發者能在 Windows 環境下無縫執行完整的 Linux 系統與命令列，兩個系統完美的融合，徹底顛覆了跨平台開發的環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01.jpg">
+<blockquote>
+<p>追蹤挨踢路人甲的FB 粉絲專頁: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>Telegram 訂閱挨踢路人甲文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p>
+</blockquote>
+<p>WSL2在 Windows 核心內直接執行一個真正、完整的 Linux 內核。這意味著您可以在幾秒鐘內喚醒一個純淨的 Ubuntu 環境，並享有近乎原生、大幅提升的檔案 I/O 讀寫效能，同時完全不影響 Windows 系統的流暢度。兼具了 Windows 的日常便利性與 Linux 的原生開發生態，成為現代跨平台開發的首選，但更令人驚豔的，是開發利器 VS Code（Visual Studio Code） 的完美對接。</p>
+<h3>WSL1與WSL2差異</h3>
+<p>WSL 1 於 2016 年首次發佈，在 Windows 系統中提供了令人印象深刻的 Linux 體驗。WSL 2（Windows Subsystem for Linux 2）是在 2019 年 6 月 12 日 透過 Windows Insider 計劃（Build 18917）首次向測試人員推出預覽版，並隨後在 2020 年 5 月 隨著 Windows 10 版本 2004（20H1）正式向一般大眾推出。</p>
+<p>WSL1 與 WSL2 的最大差別在於底層架構，WSL1 使用轉譯層將 Linux 呼叫轉為 Windows 呼叫，而 WSL2 運行在輕量型虛擬機器中並包含完整的真實 Linux 核心。也就是說WSL1 沒有真正的 Linux Kernel，WSL1 必須把 Linux 的系統呼叫「翻譯」成 Windows 可以理解的方式；而WSL2 則直接放了一個真正的 Linux Kernel，相容性更佳。</p>
+<p><span>你可以先把它理解成WSL2 是 Windows 11 裡面提供 Linux 環境的一套技術；而 Ubuntu 則是你可以安裝在 WSL2 裡面的 Linux 發行版；這兩個東西不要混在一起喔！</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02-1.jpg">
+<h3>WSL的安裝</h3>
+<p>WSL2適合較高的相容環境、執行開發環境(如Docker..等)或需要完整的Linux功能使用者。WSL1適合需要快速存取Windows檔案、對Linux相容性不高或舊系統的使用者。總之，目前Windows 11已經將WSL2設為預設安裝的版本，所以在 Windows 11 上安裝 WSL 2（適用於 Linux 的 Windows 子系統）相對簡單。</p>
+<p>很多初學者會把Linux認為是Ubuntu，其實不完全正確，簡單說 Linux 是核心（Kernel）及其生態系統的基礎，而 Ubuntu、Debian、Fedora 等是不同的 Linux 發行版。想要安裝 Linux 不同的發行版本，就要在 Windows 11 裡面建立一個可以使用 Ubuntu/Linux 的環境，這個環境就是WSL。</p>
+<p>WSL2 也是使用 Windows 的虛擬化技術來運作 Linux kernel，但它的使用體驗不是傳統完整虛擬機那種「另外開一台電腦」，較類似 Windows 內建的一個輕量 Linux 開發環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01-1.jpg">
+<p>&nbsp;&nbsp;</p>
+<p>安裝WSL環境先確定Windows 11的基本設定，首先進入〔設定〕畫面上，選擇〔系統〕-&gt;〔選用功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02.jpg">
+<p>&nbsp;滑動到相關設定的區塊上，選擇〔更多Windows 功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-03.jpg">
+<p>進入「開啟或關閉Windows功能」的視窗畫面，勾選〔虛擬機器平台〕選項(紅色框)重新開機即可。Windows 11系統預設是以WSL2為預設環境，若想要wsl1的請再多加勾選〔Windows子系統Linux版〕(藍色框)。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-4.jpg">
+<p>有了需要的系統環境設定後，接下來就是建立一個「讓 Linux 跑在 Windows 上」的環境WSL環境。工作列上的開始按鈕按下滑鼠右鍵，再出現的選單上點選〔終端機(系統管理員)〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-07.jpg">
+<p>在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-2.jpg">
+<p>進入擁有系統管理員權限的終端機(PowerShell)，輸入「wsl –status」按下〔Enter〕後看到未安裝Windows子系統Linux版訊息。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-1.jpg">
+<p>&nbsp;第一次安裝wsl最簡單，只要輸入「wsl –install」，新版 Windows 11 通常會自動處理必要元件，預設會安裝並安裝預設的 Ubuntu 發行版。其過程如啟用必要 Windows 元件-&gt;安裝 WSL-&gt;下載與安裝 Ubuntu-&gt;啟動Ubuntu-&gt;建立帳號與密碼。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-3.jpg">
+<p>您是否願意加入平台指標收集計畫（Y/n）？如需查看收集的資料範例，請輸入「e」，筆者選擇「n」來繼續。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-5.jpg">
+<h3>查看WSL與安裝的 Linux 發行版</h3>
+<p>接下來驗證一下，進入終端機視窗上，輸入「wsl –list –verbose」(或wsl -l -v)，查看安裝在 Windows 電腦上的 Linux 發行版清單，包括狀態（無論是正在執行或已停止），以及執行該發行版的 WSL 版本（WSL 1 或 WSL 2）。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-8.jpg">
+<p>安裝完後，重新進入終端機(PowerShell)，如下圖你可以在紅色框圖示下選單，即可看到多出來的〔Ubuntu〕選項；點選此選項來進入ubuntu系統；也可在終端機畫面上直接輸入「wsl」(就是<span>wsl</span> <span>–</span><span>d</span> <span>Ubuntu)</span>來啟動預設 Linux版本。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-6.jpg">
+<p>進入ubuntu動手輸入幾個指令驗收，如whoami、pwd、<span>ls等，想要離開ubuntu可輸入exit。確定運作正常，你的 Windows 11 + WSL2 + Ubuntu 基礎環境就完成了。</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-7.jpg">
+<h3>安裝與移除 Linux 發行版</h3>
+<p>wsl是個環境，你可以安裝多個不同的Linux發行版，先使用「wsl -l -o」來搜尋列出線上可安裝的 Linux 發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-1.jpg"></p>
+<p>查看可安裝的清單後，假如筆者還要安裝Debian發行版的Linux，輸入wsl –install &lt;Distribution Name&gt;，Distribution Name就是要指定的發行版名稱。此時會看下載與安裝的過程，接著出現要求輸入使用者名稱與密碼等，成功後即進入Debian系統內。離開Debian發行版輸入「wsl -l」來查看目前安裝的發行版清單，綠色框中可以看到目前安裝的Linux發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-2.jpg"></p>
+<p>停止 WSL (Windows Subsystem for Linux) 中的 Linux 運作，最快的方法是在 Windows 的 PowerShell 或命令提示字元中執行關閉指令。也可以使用「wsl –shutdown」來終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機；下圖中黃色框看到兩個Linux發行版運作中，執行「wsl –shutdown」後再查詢，綠色框中兩個Linux發行版運已停止運作了。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-3.jpg"></p>
+<p>若要在 WSL 中解除安裝特定的 Linux 發行版並刪除所有資料，請先確定要移除得發行版是否運作中，若正在運作中請先下「wsl –shutdown」來停止系統運作，接著輸入 <code>wsl --unregister &lt;Linux發行版本名稱&gt;</code> 即可。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-4.jpg"></p>
+<p>注意：這個動作會永久刪除該 Linux 發行版內的所有檔案與資料，且無法復原。</p>
+<p>筆者列出幾個常見的基本命令，想要更詳細的命令說明，可以使用wsl –help來查看。</p>
+<table><thead><tr><th>指令</th><th>說明</th></tr></thead><tbody><tr><td>wsl –install</td><td>安裝 WSL 和 Linux 的預設 Ubuntu 版本</td></tr><tr><td>wsl –install &lt;Distribution Name&gt;</td><td>安裝其他 Linux 發行版，就是指定要安裝的Linux發行版</td></tr><tr><td>wsl –list(或 <code>wsl -l</code>)</td><td>列出所有已安装的 Linux 發行版</td></tr><tr><td>wsl –list –online (或wsl -l -o)</td><td>列出所有可透過線上安裝的 Linux 發行版清單</td></tr><tr><td>wsl –list –verbose(或wsl -l -v)</td><td>查看安裝在 Windows 電腦上的 Linux 發行版清單，在執行或已停止，以及 WSL 版本</td></tr><tr><td>wsl –help</td><td>查看 WSL 可用的選項和命令清單</td></tr><tr><td>wsl -d &lt;DistributionName&gt;</td><td>執行指定的發行的Linux版本，如 wsl -d Debian</td></tr><tr><td>wsl –shutdown</td><td>立即終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機</td></tr><tr><td>wsl –unregister &lt;DistributionName&gt;</td><td>從 WSL 取消註冊該發行版，以便重新安裝或清理</td></tr></tbody></table>
+<h3>&nbsp;延伸閱讀：</h3>
+<p><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a><br><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a><br><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Linux 擁有原生強大的命令列生態與伺服器環境，是後端、網頁開發與 AI 工程師的天堂；然而，日常辦公系統仍是無可取代的Windows天下，其便利性、豐富的軟體支援與極佳的硬體相容性是無庸置疑。過去，為了兼顧兩個系統，總是忍受安裝雙系統的繁瑣切換，或是使用耗效能的虛擬機器(Vmware)。不過，WSL2（Windows Subsystem for Linux 2） 的出現，讓開發者能在 Windows 環境下無縫執行完整的 Linux 系統與命令列，兩個系統完美的融合，徹底顛覆了跨平台開發的環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01.jpg">
+<blockquote>
+<p>追蹤挨踢路人甲的FB 粉絲專頁: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>Telegram 訂閱挨踢路人甲文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p>
+</blockquote>
+<p>WSL2在 Windows 核心內直接執行一個真正、完整的 Linux 內核。這意味著您可以在幾秒鐘內喚醒一個純淨的 Ubuntu 環境，並享有近乎原生、大幅提升的檔案 I/O 讀寫效能，同時完全不影響 Windows 系統的流暢度。兼具了 Windows 的日常便利性與 Linux 的原生開發生態，成為現代跨平台開發的首選，但更令人驚豔的，是開發利器 VS Code（Visual Studio Code） 的完美對接。</p>
+<h3>WSL1與WSL2差異</h3>
+<p>WSL 1 於 2016 年首次發佈，在 Windows 系統中提供了令人印象深刻的 Linux 體驗。WSL 2（Windows Subsystem for Linux 2）是在 2019 年 6 月 12 日 透過 Windows Insider 計劃（Build 18917）首次向測試人員推出預覽版，並隨後在 2020 年 5 月 隨著 Windows 10 版本 2004（20H1）正式向一般大眾推出。</p>
+<p>WSL1 與 WSL2 的最大差別在於底層架構，WSL1 使用轉譯層將 Linux 呼叫轉為 Windows 呼叫，而 WSL2 運行在輕量型虛擬機器中並包含完整的真實 Linux 核心。也就是說WSL1 沒有真正的 Linux Kernel，WSL1 必須把 Linux 的系統呼叫「翻譯」成 Windows 可以理解的方式；而WSL2 則直接放了一個真正的 Linux Kernel，相容性更佳。</p>
+<p><span>你可以先把它理解成WSL2 是 Windows 11 裡面提供 Linux 環境的一套技術；而 Ubuntu 則是你可以安裝在 WSL2 裡面的 Linux 發行版；這兩個東西不要混在一起喔！</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02-1.jpg">
+<h3>WSL的安裝</h3>
+<p>WSL2適合較高的相容環境、執行開發環境(如Docker..等)或需要完整的Linux功能使用者。WSL1適合需要快速存取Windows檔案、對Linux相容性不高或舊系統的使用者。總之，目前Windows 11已經將WSL2設為預設安裝的版本，所以在 Windows 11 上安裝 WSL 2（適用於 Linux 的 Windows 子系統）相對簡單。</p>
+<p>很多初學者會把Linux認為是Ubuntu，其實不完全正確，簡單說 Linux 是核心（Kernel）及其生態系統的基礎，而 Ubuntu、Debian、Fedora 等是不同的 Linux 發行版。想要安裝 Linux 不同的發行版本，就要在 Windows 11 裡面建立一個可以使用 Ubuntu/Linux 的環境，這個環境就是WSL。</p>
+<p>WSL2 也是使用 Windows 的虛擬化技術來運作 Linux kernel，但它的使用體驗不是傳統完整虛擬機那種「另外開一台電腦」，較類似 Windows 內建的一個輕量 Linux 開發環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01-1.jpg">
+<p>&nbsp;&nbsp;</p>
+<p>安裝WSL環境先確定Windows 11的基本設定，首先進入〔設定〕畫面上，選擇〔系統〕-&gt;〔選用功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02.jpg">
+<p>&nbsp;滑動到相關設定的區塊上，選擇〔更多Windows 功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-03.jpg">
+<p>進入「開啟或關閉Windows功能」的視窗畫面，勾選〔虛擬機器平台〕選項(紅色框)重新開機即可。Windows 11系統預設是以WSL2為預設環境，若想要wsl1的請再多加勾選〔Windows子系統Linux版〕(藍色框)。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-4.jpg">
+<p>有了需要的系統環境設定後，接下來就是建立一個「讓 Linux 跑在 Windows 上」的環境WSL環境。工作列上的開始按鈕按下滑鼠右鍵，再出現的選單上點選〔終端機(系統管理員)〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-07.jpg">
+<p>在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-2.jpg">
+<p>進入擁有系統管理員權限的終端機(PowerShell)，輸入「wsl –status」按下〔Enter〕後看到未安裝Windows子系統Linux版訊息。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-1.jpg">
+<p>&nbsp;第一次安裝wsl最簡單，只要輸入「wsl –install」，新版 Windows 11 通常會自動處理必要元件，預設會安裝並安裝預設的 Ubuntu 發行版。其過程如啟用必要 Windows 元件-&gt;安裝 WSL-&gt;下載與安裝 Ubuntu-&gt;啟動Ubuntu-&gt;建立帳號與密碼。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-3.jpg">
+<p>您是否願意加入平台指標收集計畫（Y/n）？如需查看收集的資料範例，請輸入「e」，筆者選擇「n」來繼續。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-5.jpg">
+<h3>查看WSL與安裝的 Linux 發行版</h3>
+<p>接下來驗證一下，進入終端機視窗上，輸入「wsl –list –verbose」(或wsl -l -v)，查看安裝在 Windows 電腦上的 Linux 發行版清單，包括狀態（無論是正在執行或已停止），以及執行該發行版的 WSL 版本（WSL 1 或 WSL 2）。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-8.jpg">
+<p>安裝完後，重新進入終端機(PowerShell)，如下圖你可以在紅色框圖示下選單，即可看到多出來的〔Ubuntu〕選項；點選此選項來進入ubuntu系統；也可在終端機畫面上直接輸入「wsl」(就是<span>wsl</span> <span>–</span><span>d</span> <span>Ubuntu)</span>來啟動預設 Linux版本。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-6.jpg">
+<p>進入ubuntu動手輸入幾個指令驗收，如whoami、pwd、<span>ls等，想要離開ubuntu可輸入exit。確定運作正常，你的 Windows 11 + WSL2 + Ubuntu 基礎環境就完成了。</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-7.jpg">
+<h3>安裝與移除 Linux 發行版</h3>
+<p>wsl是個環境，你可以安裝多個不同的Linux發行版，先使用「wsl -l -o」來搜尋列出線上可安裝的 Linux 發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-1.jpg"></p>
+<p>查看可安裝的清單後，假如筆者還要安裝Debian發行版的Linux，輸入wsl –install &lt;Distribution Name&gt;，Distribution Name就是要指定的發行版名稱。此時會看下載與安裝的過程，接著出現要求輸入使用者名稱與密碼等，成功後即進入Debian系統內。離開Debian發行版輸入「wsl -l」來查看目前安裝的發行版清單，綠色框中可以看到目前安裝的Linux發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-2.jpg"></p>
+<p>停止 WSL (Windows Subsystem for Linux) 中的 Linux 運作，最快的方法是在 Windows 的 PowerShell 或命令提示字元中執行關閉指令。也可以使用「wsl –shutdown」來終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機；下圖中黃色框看到兩個Linux發行版運作中，執行「wsl –shutdown」後再查詢，綠色框中兩個Linux發行版運已停止運作了。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-3.jpg"></p>
+<p>若要在 WSL 中解除安裝特定的 Linux 發行版並刪除所有資料，請先確定要移除得發行版是否運作中，若正在運作中請先下「wsl –shutdown」來停止系統運作，接著輸入 <code>wsl --unregister &lt;Linux發行版本名稱&gt;</code> 即可。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-4.jpg"></p>
+<p>注意：這個動作會永久刪除該 Linux 發行版內的所有檔案與資料，且無法復原。</p>
+<p>筆者列出幾個常見的基本命令，想要更詳細的命令說明，可以使用wsl –help來查看。</p>
+<table><thead><tr><th>指令</th><th>說明</th></tr></thead><tbody><tr><td>wsl –install</td><td>安裝 WSL 和 Linux 的預設 Ubuntu 版本</td></tr><tr><td>wsl –install &lt;Distribution Name&gt;</td><td>安裝其他 Linux 發行版，就是指定要安裝的Linux發行版</td></tr><tr><td>wsl –list(或 <code>wsl -l</code>)</td><td>列出所有已安装的 Linux 發行版</td></tr><tr><td>wsl –list –online (或wsl -l -o)</td><td>列出所有可透過線上安裝的 Linux 發行版清單</td></tr><tr><td>wsl –list –verbose(或wsl -l -v)</td><td>查看安裝在 Windows 電腦上的 Linux 發行版清單，在執行或已停止，以及 WSL 版本</td></tr><tr><td>wsl –help</td><td>查看 WSL 可用的選項和命令清單</td></tr><tr><td>wsl -d &lt;DistributionName&gt;</td><td>執行指定的發行的Linux版本，如 wsl -d Debian</td></tr><tr><td>wsl –shutdown</td><td>立即終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機</td></tr><tr><td>wsl –unregister &lt;DistributionName&gt;</td><td>從 WSL 取消註冊該發行版，以便重新安裝或清理</td></tr></tbody></table>
+<h3>&nbsp;延伸閱讀：</h3>
+<p><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a><br><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a><br><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Linux 擁有原生強大的命令列生態與伺服器環境，是後端、網頁開發與 AI 工程師的天堂；然而，日常辦公系統仍是無可取代的Windows天下，其便利性、豐富的軟體支援與極佳的硬體相容性是無庸置疑。過去，為了兼顧兩個系統，總是忍受安裝雙系統的繁瑣切換，或是使用耗效能的虛擬機器(Vmware)。不過，WSL2（Windows Subsystem for Linux 2） 的出現，讓開發者能在 Windows 環境下無縫執行完整的 Linux 系統與命令列，兩個系統完美的融合，徹底顛覆了跨平台開發的環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01.jpg">
+<blockquote>
+<p>追蹤挨踢路人甲的FB 粉絲專頁: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>Telegram 訂閱挨踢路人甲文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p>
+</blockquote>
+<p>WSL2在 Windows 核心內直接執行一個真正、完整的 Linux 內核。這意味著您可以在幾秒鐘內喚醒一個純淨的 Ubuntu 環境，並享有近乎原生、大幅提升的檔案 I/O 讀寫效能，同時完全不影響 Windows 系統的流暢度。兼具了 Windows 的日常便利性與 Linux 的原生開發生態，成為現代跨平台開發的首選，但更令人驚豔的，是開發利器 VS Code（Visual Studio Code） 的完美對接。</p>
+<h3>WSL1與WSL2差異</h3>
+<p>WSL 1 於 2016 年首次發佈，在 Windows 系統中提供了令人印象深刻的 Linux 體驗。WSL 2（Windows Subsystem for Linux 2）是在 2019 年 6 月 12 日 透過 Windows Insider 計劃（Build 18917）首次向測試人員推出預覽版，並隨後在 2020 年 5 月 隨著 Windows 10 版本 2004（20H1）正式向一般大眾推出。</p>
+<p>WSL1 與 WSL2 的最大差別在於底層架構，WSL1 使用轉譯層將 Linux 呼叫轉為 Windows 呼叫，而 WSL2 運行在輕量型虛擬機器中並包含完整的真實 Linux 核心。也就是說WSL1 沒有真正的 Linux Kernel，WSL1 必須把 Linux 的系統呼叫「翻譯」成 Windows 可以理解的方式；而WSL2 則直接放了一個真正的 Linux Kernel，相容性更佳。</p>
+<p><span>你可以先把它理解成WSL2 是 Windows 11 裡面提供 Linux 環境的一套技術；而 Ubuntu 則是你可以安裝在 WSL2 裡面的 Linux 發行版；這兩個東西不要混在一起喔！</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02-1.jpg">
+<h3>WSL的安裝</h3>
+<p>WSL2適合較高的相容環境、執行開發環境(如Docker..等)或需要完整的Linux功能使用者。WSL1適合需要快速存取Windows檔案、對Linux相容性不高或舊系統的使用者。總之，目前Windows 11已經將WSL2設為預設安裝的版本，所以在 Windows 11 上安裝 WSL 2（適用於 Linux 的 Windows 子系統）相對簡單。</p>
+<p>很多初學者會把Linux認為是Ubuntu，其實不完全正確，簡單說 Linux 是核心（Kernel）及其生態系統的基礎，而 Ubuntu、Debian、Fedora 等是不同的 Linux 發行版。想要安裝 Linux 不同的發行版本，就要在 Windows 11 裡面建立一個可以使用 Ubuntu/Linux 的環境，這個環境就是WSL。</p>
+<p>WSL2 也是使用 Windows 的虛擬化技術來運作 Linux kernel，但它的使用體驗不是傳統完整虛擬機那種「另外開一台電腦」，較類似 Windows 內建的一個輕量 Linux 開發環境。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-01-1.jpg">
+<p>&nbsp;&nbsp;</p>
+<p>安裝WSL環境先確定Windows 11的基本設定，首先進入〔設定〕畫面上，選擇〔系統〕-&gt;〔選用功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-02.jpg">
+<p>&nbsp;滑動到相關設定的區塊上，選擇〔更多Windows 功能〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-03.jpg">
+<p>進入「開啟或關閉Windows功能」的視窗畫面，勾選〔虛擬機器平台〕選項(紅色框)重新開機即可。Windows 11系統預設是以WSL2為預設環境，若想要wsl1的請再多加勾選〔Windows子系統Linux版〕(藍色框)。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-4.jpg">
+<p>有了需要的系統環境設定後，接下來就是建立一個「讓 Linux 跑在 Windows 上」的環境WSL環境。工作列上的開始按鈕按下滑鼠右鍵，再出現的選單上點選〔終端機(系統管理員)〕。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-07.jpg">
+<p>在Windows 8/10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a href="https://walker-a.com/archives/2613" target="_blank">談Windows 8/10的使用者帳戶控制(UAC)」</a>文章）</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-2.jpg">
+<p>進入擁有系統管理員權限的終端機(PowerShell)，輸入「wsl –status」按下〔Enter〕後看到未安裝Windows子系統Linux版訊息。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-17-1.jpg">
+<p>&nbsp;第一次安裝wsl最簡單，只要輸入「wsl –install」，新版 Windows 11 通常會自動處理必要元件，預設會安裝並安裝預設的 Ubuntu 發行版。其過程如啟用必要 Windows 元件-&gt;安裝 WSL-&gt;下載與安裝 Ubuntu-&gt;啟動Ubuntu-&gt;建立帳號與密碼。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-3.jpg">
+<p>您是否願意加入平台指標收集計畫（Y/n）？如需查看收集的資料範例，請輸入「e」，筆者選擇「n」來繼續。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-5.jpg">
+<h3>查看WSL與安裝的 Linux 發行版</h3>
+<p>接下來驗證一下，進入終端機視窗上，輸入「wsl –list –verbose」(或wsl -l -v)，查看安裝在 Windows 電腦上的 Linux 發行版清單，包括狀態（無論是正在執行或已停止），以及執行該發行版的 WSL 版本（WSL 1 或 WSL 2）。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-8.jpg">
+<p>安裝完後，重新進入終端機(PowerShell)，如下圖你可以在紅色框圖示下選單，即可看到多出來的〔Ubuntu〕選項；點選此選項來進入ubuntu系統；也可在終端機畫面上直接輸入「wsl」(就是<span>wsl</span> <span>–</span><span>d</span> <span>Ubuntu)</span>來啟動預設 Linux版本。</p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-6.jpg">
+<p>進入ubuntu動手輸入幾個指令驗收，如whoami、pwd、<span>ls等，想要離開ubuntu可輸入exit。確定運作正常，你的 Windows 11 + WSL2 + Ubuntu 基礎環境就完成了。</span></p>
+<img src="https://image.walker-a.com/2026/06/wsl/wsl-18-7.jpg">
+<h3>安裝與移除 Linux 發行版</h3>
+<p>wsl是個環境，你可以安裝多個不同的Linux發行版，先使用「wsl -l -o」來搜尋列出線上可安裝的 Linux 發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-1.jpg"></p>
+<p>查看可安裝的清單後，假如筆者還要安裝Debian發行版的Linux，輸入wsl –install &lt;Distribution Name&gt;，Distribution Name就是要指定的發行版名稱。此時會看下載與安裝的過程，接著出現要求輸入使用者名稱與密碼等，成功後即進入Debian系統內。離開Debian發行版輸入「wsl -l」來查看目前安裝的發行版清單，綠色框中可以看到目前安裝的Linux發行版清單。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-2.jpg"></p>
+<p>停止 WSL (Windows Subsystem for Linux) 中的 Linux 運作，最快的方法是在 Windows 的 PowerShell 或命令提示字元中執行關閉指令。也可以使用「wsl –shutdown」來終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機；下圖中黃色框看到兩個Linux發行版運作中，執行「wsl –shutdown」後再查詢，綠色框中兩個Linux發行版運已停止運作了。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-3.jpg"></p>
+<p>若要在 WSL 中解除安裝特定的 Linux 發行版並刪除所有資料，請先確定要移除得發行版是否運作中，若正在運作中請先下「wsl –shutdown」來停止系統運作，接著輸入 <code>wsl --unregister &lt;Linux發行版本名稱&gt;</code> 即可。</p>
+<p><img src="https://image.walker-a.com/2026/06/wsl/wsl-19-4.jpg"></p>
+<p>注意：這個動作會永久刪除該 Linux 發行版內的所有檔案與資料，且無法復原。</p>
+<p>筆者列出幾個常見的基本命令，想要更詳細的命令說明，可以使用wsl –help來查看。</p>
+<table><thead><tr><th>指令</th><th>說明</th></tr></thead><tbody><tr><td>wsl –install</td><td>安裝 WSL 和 Linux 的預設 Ubuntu 版本</td></tr><tr><td>wsl –install &lt;Distribution Name&gt;</td><td>安裝其他 Linux 發行版，就是指定要安裝的Linux發行版</td></tr><tr><td>wsl –list(或 <code>wsl -l</code>)</td><td>列出所有已安装的 Linux 發行版</td></tr><tr><td>wsl –list –online (或wsl -l -o)</td><td>列出所有可透過線上安裝的 Linux 發行版清單</td></tr><tr><td>wsl –list –verbose(或wsl -l -v)</td><td>查看安裝在 Windows 電腦上的 Linux 發行版清單，在執行或已停止，以及 WSL 版本</td></tr><tr><td>wsl –help</td><td>查看 WSL 可用的選項和命令清單</td></tr><tr><td>wsl -d &lt;DistributionName&gt;</td><td>執行指定的發行的Linux版本，如 wsl -d Debian</td></tr><tr><td>wsl –shutdown</td><td>立即終止所有執行中的發行版和 WSL 2 輕量型的公用程式虛擬機</td></tr><tr><td>wsl –unregister &lt;DistributionName&gt;</td><td>從 WSL 取消註冊該發行版，以便重新安裝或清理</td></tr></tbody></table>
+<h3>&nbsp;延伸閱讀：</h3>
+<p><a href="https://walker-a.com/archives/5911">使用 VMware Workstation Pro 安裝 ESXi Server 6.x 虛擬平台</a><br><a href="https://walker-a.com/archives/6074">VMware ESXi 6.7 安裝後出現CVE-2018-3646( L1TF ) 的警告處理</a><br><a href="https://walker-a.com/archives/5918">一台PC與 Synology DS1618+ NAS搞定VMware ESXi外部儲存運用</a></p>]]></content:encoded>
+    <itunes:image href="https://image.walker-a.com/2026/06/wsl/wsl-01.jpg"/>
+          <media:content url="https://image.walker-a.com/2026/06/wsl/wsl-01.jpg" medium="image"/>
+    <pubDate>Thu, 24 Sep 2026 02:45:51 +0000</pubDate>
+  </item><item>
     <title><![CDATA[EaseUS Partition Master Professional 磁碟分割區限時免費]]></title>
     <link>https://walker-a.com/archives/12792</link>
     <itunes:title><![CDATA[EaseUS Partition Master Professional 磁碟分割區限時免費]]></itunes:title>
@@ -884,125 +1058,5 @@ Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.
     <itunes:image href="https://image.walker-a.com/2022/06/avp/avp-01.jpg"/>
           <media:content url="https://image.walker-a.com/2022/06/avp/avp-01.jpg" medium="image"/>
     <pubDate>Thu, 20 Mar 2025 03:06:51 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[【限時免費】Coolmuster PDF Password Remover 輕鬆移除密碼]]></title>
-    <link>https://walker-a.com/archives/9971</link>
-    <itunes:title><![CDATA[【限時免費】Coolmuster PDF Password Remover 輕鬆移除密碼]]></itunes:title>
-    <itunes:author><![CDATA[挨踢路人甲[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>PDF（Portable Document Format的簡稱，意思「可攜式文件格式」）是由Adobe Systems在1993年用於文件交換所發展出的文件格式，PDF檔案具有跨平台，容易攜帶的優點、因開放性標準，能自由授權開發PDF相容軟體，網路上提供下載的手冊、文件，用PDF格式無所不在。常常有些文件為了隱私而製作密碼保護，但有時覺得很麻煩，假如你想要刪除密碼的保護設定，挨踢路人甲告訴你 Coolmuster PDF Password Remover 是一款 PDF 密碼刪除工具，旨在從 PDF 中刪除密碼以進行編輯、複製或共享。此工具提供兩種不同的解密模式：批量解密模式和右鍵單擊解密，以幫助您快速從 Adob​​e PDF 文件中刪除密碼。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-01.jpg" alt="&quot;Coolmuster"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>你知道<a href="https://walker-a.com/archives/3232" target="_blank">Windows 10已經內建了PDF的轉換工具</a>嗎？常常要將文件轉成PDF格式，由於Windows 10已內建PDF轉換工具，與系統整合、操作簡單又有中文介面，重點還是免費的。可是常常收到有密碼保護的PDF文件，每次開起都要輸入密碼，有時對方給的密碼又臭又長，想要取消密碼保護，沒有Adobe Acrobat怎麼辦？只要您知道PDF密碼，Windows 10系統本身就可以輕鬆地從PDF文件中刪除密碼與複製、編輯、簽名、打印等限制。</p>
-<p><img src="https://image.walker-a.com/2022/04/xenpdf/xpdf-11.jpg" alt="Coolmuster PDF Password Remover"></p>
-<p>到 Coolmuster PDF Password Remover 的活動網頁，即可以看「Get IT FREE」字眼，價值 $19.95的軟體限時免費喔！(文末有活動網址)。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02.jpg"></p>
-<p>往下捲動即可以看到Step1的「GIVEAWAY PAGE」下載連結(紅色框)，點選來進入。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02-1.jpg"></p>
-<p>輸入名稱、郵件帳號並填入產生的亂數，接著按下〔Submit〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-03.jpg"></p>
-<p>結果看到紅色框內的免費啟動序號，請記下。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-04.jpg"></p>
-<p>回到活動網頁上捲動到Step 3來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-05.jpg"></p>
-<p>將下載的安裝檔執行，執行安裝檔，在Windows 10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a title="Permalink to 如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）" href="https://walker-a.com/archives/6970" target="_blank">如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-06.jpg"></p>
-<p>只要滑鼠按一下就可以完成所有的動作。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-07.gif"></p>
-<p>Coolmuster PDF Password Remover 的主畫面相當簡潔，可以針對單PDF檔案來處理，也可以指定資料夾來同時處理。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-08.jpg"></p>
-<p>先來註冊，不然試用版僅能處理3個PDF檔。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-09.jpg"></p>
-<p>輸入之前的帳號與獲取的密碼後按下〔註冊〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-10.jpg"></p>
-<p>註冊成功後查看有1年的免費時間。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-11.jpg"></p>
-<div>【軟體名稱】：Coolmuster PDF Password Remover<br>
-【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/coolmuster-pdf-password-remover-key/" target="_blank">這裡</a></div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a title="Permalink to DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾" href="https://walker-a.com/archives/7163">DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾</a></li>
-<li><a title="Permalink to 教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey" href="https://walker-a.com/archives/7263" target="_blank">教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey</a></li>
-<li><a title="Permalink to HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生" href="https://walker-a.com/archives/7251" target="_blank">HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生</a></li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>PDF（Portable Document Format的簡稱，意思「可攜式文件格式」）是由Adobe Systems在1993年用於文件交換所發展出的文件格式，PDF檔案具有跨平台，容易攜帶的優點、因開放性標準，能自由授權開發PDF相容軟體，網路上提供下載的手冊、文件，用PDF格式無所不在。常常有些文件為了隱私而製作密碼保護，但有時覺得很麻煩，假如你想要刪除密碼的保護設定，挨踢路人甲告訴你 Coolmuster PDF Password Remover 是一款 PDF 密碼刪除工具，旨在從 PDF 中刪除密碼以進行編輯、複製或共享。此工具提供兩種不同的解密模式：批量解密模式和右鍵單擊解密，以幫助您快速從 Adob​​e PDF 文件中刪除密碼。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-01.jpg" alt="&quot;Coolmuster"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>你知道<a href="https://walker-a.com/archives/3232" target="_blank">Windows 10已經內建了PDF的轉換工具</a>嗎？常常要將文件轉成PDF格式，由於Windows 10已內建PDF轉換工具，與系統整合、操作簡單又有中文介面，重點還是免費的。可是常常收到有密碼保護的PDF文件，每次開起都要輸入密碼，有時對方給的密碼又臭又長，想要取消密碼保護，沒有Adobe Acrobat怎麼辦？只要您知道PDF密碼，Windows 10系統本身就可以輕鬆地從PDF文件中刪除密碼與複製、編輯、簽名、打印等限制。</p>
-<p><img src="https://image.walker-a.com/2022/04/xenpdf/xpdf-11.jpg" alt="Coolmuster PDF Password Remover"></p>
-<p>到 Coolmuster PDF Password Remover 的活動網頁，即可以看「Get IT FREE」字眼，價值 $19.95的軟體限時免費喔！(文末有活動網址)。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02.jpg"></p>
-<p>往下捲動即可以看到Step1的「GIVEAWAY PAGE」下載連結(紅色框)，點選來進入。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02-1.jpg"></p>
-<p>輸入名稱、郵件帳號並填入產生的亂數，接著按下〔Submit〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-03.jpg"></p>
-<p>結果看到紅色框內的免費啟動序號，請記下。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-04.jpg"></p>
-<p>回到活動網頁上捲動到Step 3來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-05.jpg"></p>
-<p>將下載的安裝檔執行，執行安裝檔，在Windows 10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a title="Permalink to 如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）" href="https://walker-a.com/archives/6970" target="_blank">如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-06.jpg"></p>
-<p>只要滑鼠按一下就可以完成所有的動作。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-07.gif"></p>
-<p>Coolmuster PDF Password Remover 的主畫面相當簡潔，可以針對單PDF檔案來處理，也可以指定資料夾來同時處理。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-08.jpg"></p>
-<p>先來註冊，不然試用版僅能處理3個PDF檔。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-09.jpg"></p>
-<p>輸入之前的帳號與獲取的密碼後按下〔註冊〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-10.jpg"></p>
-<p>註冊成功後查看有1年的免費時間。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-11.jpg"></p>
-<div>【軟體名稱】：Coolmuster PDF Password Remover<br>
-【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/coolmuster-pdf-password-remover-key/" target="_blank">這裡</a></div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a title="Permalink to DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾" href="https://walker-a.com/archives/7163">DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾</a></li>
-<li><a title="Permalink to 教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey" href="https://walker-a.com/archives/7263" target="_blank">教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey</a></li>
-<li><a title="Permalink to HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生" href="https://walker-a.com/archives/7251" target="_blank">HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生</a></li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p>PDF（Portable Document Format的簡稱，意思「可攜式文件格式」）是由Adobe Systems在1993年用於文件交換所發展出的文件格式，PDF檔案具有跨平台，容易攜帶的優點、因開放性標準，能自由授權開發PDF相容軟體，網路上提供下載的手冊、文件，用PDF格式無所不在。常常有些文件為了隱私而製作密碼保護，但有時覺得很麻煩，假如你想要刪除密碼的保護設定，挨踢路人甲告訴你 Coolmuster PDF Password Remover 是一款 PDF 密碼刪除工具，旨在從 PDF 中刪除密碼以進行編輯、複製或共享。此工具提供兩種不同的解密模式：批量解密模式和右鍵單擊解密，以幫助您快速從 Adob​​e PDF 文件中刪除密碼。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-01.jpg" alt="&quot;Coolmuster"></p>
-<blockquote><p>追蹤挨踢路人甲的FB&nbsp;<strong>粉絲專頁</strong>: 點選<a href="https://www.facebook.com/itwalker" target="_blank">這裡</a><br>
-Telegram 訂閱<strong>挨踢路人甲</strong>文章: 點選<a href="https://t.me/itwshare" target="_blank">這裡</a></p></blockquote>
-<p>你知道<a href="https://walker-a.com/archives/3232" target="_blank">Windows 10已經內建了PDF的轉換工具</a>嗎？常常要將文件轉成PDF格式，由於Windows 10已內建PDF轉換工具，與系統整合、操作簡單又有中文介面，重點還是免費的。可是常常收到有密碼保護的PDF文件，每次開起都要輸入密碼，有時對方給的密碼又臭又長，想要取消密碼保護，沒有Adobe Acrobat怎麼辦？只要您知道PDF密碼，Windows 10系統本身就可以輕鬆地從PDF文件中刪除密碼與複製、編輯、簽名、打印等限制。</p>
-<p><img src="https://image.walker-a.com/2022/04/xenpdf/xpdf-11.jpg" alt="Coolmuster PDF Password Remover"></p>
-<p>到 Coolmuster PDF Password Remover 的活動網頁，即可以看「Get IT FREE」字眼，價值 $19.95的軟體限時免費喔！(文末有活動網址)。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02.jpg"></p>
-<p>往下捲動即可以看到Step1的「GIVEAWAY PAGE」下載連結(紅色框)，點選來進入。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-02-1.jpg"></p>
-<p>輸入名稱、郵件帳號並填入產生的亂數，接著按下〔Submit〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-03.jpg"></p>
-<p>結果看到紅色框內的免費啟動序號，請記下。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-04.jpg"></p>
-<p>回到活動網頁上捲動到Step 3來下載程式。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-05.jpg"></p>
-<p>將下載的安裝檔執行，執行安裝檔，在Windows 10/11的環境下，執行時會出現使用這帳戶的視窗，這是因為安全問題會出現「使用者帳戶控制」的安全性警告視窗，主要是當使用者執行一些會影響系統的動作，經常會到出的確認畫面，所以還是按下〔是〕來繼續（若是想要移除這個警告，請參考「<a title="Permalink to 如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）" href="https://walker-a.com/archives/6970" target="_blank">如何在 Windows 11 中關閉 使用者帳戶控制功能（UAC）」</a>文章）。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-06.jpg"></p>
-<p>只要滑鼠按一下就可以完成所有的動作。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-07.gif"></p>
-<p>Coolmuster PDF Password Remover 的主畫面相當簡潔，可以針對單PDF檔案來處理，也可以指定資料夾來同時處理。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-08.jpg"></p>
-<p>先來註冊，不然試用版僅能處理3個PDF檔。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-09.jpg"></p>
-<p>輸入之前的帳號與獲取的密碼後按下〔註冊〕。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-10.jpg"></p>
-<p>註冊成功後查看有1年的免費時間。</p>
-<p><img src="https://image.walker-a.com/2023/06/cpdf/cpdf-11.jpg"></p>
-<div>【軟體名稱】：Coolmuster PDF Password Remover<br>
-【活動網頁】：請點選<a href="https://walker-a.com/external.php?url=https://giveaway.tickcoupon.com/coolmuster-pdf-password-remover-key/" target="_blank">這裡</a></div>
-<h3>延伸閱讀：</h3>
-<ul>
-<li><a title="Permalink to DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾" href="https://walker-a.com/archives/7163">DoYourData Super Eraser (Windows/Mac) 輕鬆徹底刪除檔案資、資料夾</a></li>
-<li><a title="Permalink to 教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey" href="https://walker-a.com/archives/7263" target="_blank">教你輕鬆找回iPhone 取用限制密碼 | 螢幕使用時間密碼 | Tenorshare 4uKey</a></li>
-<li><a title="Permalink to HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生" href="https://walker-a.com/archives/7251" target="_blank">HitPaw Photo Enhancer 輕鬆將模糊照片變清晰軟體，讓老照片起死回生</a></li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://image.walker-a.com/2023/06/cpdf/cpdf-01.jpg"/>
-          <media:content url="https://image.walker-a.com/2023/06/cpdf/cpdf-01.jpg" medium="image"/>
-    <pubDate>Mon, 17 Mar 2025 23:55:52 +0000</pubDate>
   </item></channel>
 </rss>
