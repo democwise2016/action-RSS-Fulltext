@@ -30,6 +30,393 @@
     </itunes:owner>
     <itunes:image href="https://blogger.googleusercontent.com/img/a/AVvXsEh8KyFU8q9VBYbldI_qsuqPS4uFb3dbmQQR4LmjV8hbz9I1zHeSoVc2KStLIDD45r4iEsw5jO_rEOg33zvOOqcaAJ_Q3UKKE_p0Nl2dQIswqzPZug5Pt9duk5kzGbZGMHJq5xl0VzWMTBdqyPYfeLXMSJNIjrnTzklW7-KgS9gxuAT71FPGayV2_A"/>
 <item>
+    <title><![CDATA[自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題]]></title>
+    <link>https://www.kocpc.com.tw/archives/670959</link>
+    <itunes:title><![CDATA[自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/9W2nm6OHQIc" target="_blank"><img src="https://www.youtube.com/embed/9W2nm6OHQIc" /></a></p>
+<p>不知道有多少人跟我一樣是使用「自然輸入法」的呢？我使用該輸入法應該已經有十幾年的時間，至今也是使用自然輸入法 V11 免費版（本來要付費買，但官方限定使用機器數量對我來說是種束縛，所以一直用免費版）。最近幾個月在 Chrome 改版後我遇到一個很奇怪的問題：自然輸入法在記事本與絕大部分的網頁都正常，但一到 X（前推特）或是 Threads 要貼文或回覆的時候，不管自然輸入法怎麼輸入注音，中文字卻沒有出現。但換到其他頁面或 WORD 時又恢復正常，甚至同一個 Chrome 視窗裡的聊天側邊欄也會一起受影響，最奇妙的是微軟注音輸入法一切正常。一開始懷疑是社群網站的輸入框與中文輸入法不相容。不過，這次跟 Codex 一路追到當機紀錄與程式呼叫後，找到的線索居然是：<strong>瀏覽器視窗標題太長，觸發自然輸入法讀取標題時的緩衝區錯誤。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003024156_0_3ba39c.gif" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達"><br>
+</strong></p>
+<p>後續測試又發現 Telegram 網頁版與 Gmail 側邊 Gemini 的也一樣有自然輸入法中文輸入失常問題（而且臉友反餽確認自然輸入法 V11、V12、V13 也都會遇到同樣的狀況），但不過它們的問題又不相同，這次是網站清理空欄位，干擾輸入法的組字空白。我們針對幾個網站採用不同的相容處理，並做成免費、MIT 授權的開源瀏覽器外掛，讓自然輸入法的使用者可以繼續在 X、Threads、Telegram 與 Gmail 等網站能正常輸入中文。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003025505_0_ad4edc.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>症狀：為什麼換一個分頁，中文就能打了？</h3>
+<p>最初遇到的情況，不是所有程式都不能打中文。記事本正常，其他 Chrome 頁面也正常；進入特定 X 貼文，回覆時確認了中文字，欄位卻還是空白。Threads 也曾出現輸入異常。更奇怪的是，失敗不一定只限於 X 的回覆框。同一個 Chrome 視窗裡的聊天側邊欄，也可能突然收不到中文。切到另一個網頁，又能繼續輸入。</p>
+<p>這讓問題的範圍不只落在某個 HTML 輸入框，也必須檢查 Windows 輸入法服務與瀏覽器視窗之間發生了什麼。我的需求很單純：保留已經習慣的自然輸入法，在原本的欄位直接打字。不要另外叫出小輸入框，也不要每次先在別的程式打好再貼上。因此，解法必須先弄清楚文字在哪個環節消失。</p>
+<h3>先監看組字事件，發現網頁根本沒收到完整中文</h3>
+<p>最怪的是這些網站自然輸入法如果要直接打中文都會異常，但只要先輸入一個任意英數符號後就能解決，但這絕對不是正常的處理方法。後來我叫 Codex 外掛開始監看輸入法的 Key in&nbsp;狀態，在一次已確認失敗的 X 測試中，頁面確實收到了組字相關事件，但組字資料只有一個空白，後續沒有取得完整中文字。同時，Windows 留下自然輸入法背景程序 <code>GOImeServer11.exe</code> 的當機紀錄，服務之後重新啟動。</p>
+<p>這項發現影響了原本的設想：如果外掛只是監聽「組字完成」再把文字貼回去，在這次失敗裡沒有完整文字可拿。問題已經發生在自然輸入法交付文字的過程中，單純做一層轉貼，無法救回沒有交付的內容。</p>
+<p>接下來，調查重點轉向自然輸入法本身的當機原因。</p>
+<h3>十份當機檔，指向同一條讀取視窗標題的路徑</h3>
+<p>本次針對 V11 收集到的十份本機當機檔，都指向 <code>OVIMGoing.dll</code> 的同一條程式路徑。例外代碼是 <code>0xc0000409</code>，fast-fail 參數為 <code>2</code>，與堆疊安全檢查失敗相符。</p>
+<p>這些紀錄並不是看到「不能輸入」就猜測輸入法壞了，而是直接顯示背景程序在何處終止。離線檢查該模組後，找到一個取得前景視窗、接著讀取視窗標題的函式。</p>
+<p>真正有問題的地方，是緩衝區容量與傳給 Windows API 的長度單位不一致：</p>
+<ul>
+<li>目的緩衝區起點到堆疊安全檢查值之間，只有 <strong>600 位元組</strong>的空間，相當於 <strong>300 個 UTF-16 單位</strong>。</li>
+<li>程式呼叫 <code>GetWindowTextW</code> 時，卻傳入 <strong>600 個字元</strong>的長度上限。</li>
+<li>本次當機檔裡保存的視窗標題長度是 <strong>313 個 UTF-16 單位</strong>，已超過前述空間。</li>
+</ul>
+<p>Windows 的 <code>GetWindowTextW</code> 長度參數以字元數計算，並包含結尾的終止符；它不是「可以寫入多少位元組」。這個單位差異，會讓程式允許寫入比目的空間更長的內容。用一般人比較容易理解的方式說，就是準備了一個只能放約 300 單位文字的空間，卻告訴系統可以寫到 600。短標題時不容易出事，一旦遇到夠長的視窗標題，就可能覆寫到不該碰的堆疊區域，最後被安全檢查終止。</p>
+<p>十份當機檔、同一個函式、相同的標題長度，以及緩衝區與 API 參數的差異，形成了強烈指向長標題越界的證據。這是我們依本機資料得出的根因判讀，目前沒有自然輸入法廠商的獨立確認。</p>
+<h3>X 貼文內容變成標題，為什麼連側邊欄都受影響？</h3>
+<p>後來測試故障 X 分頁的 <code>document.title</code> 長度實測為 <strong>297 個 UTF-16 單位</strong>，當機檔保存的 Windows 視窗標題長度則是 <strong>313</strong>。兩者相差 16，符合 Chrome 在分頁標題後附加瀏覽器名稱的情況。</p>
+<p>X 貼文頁面會把貼文文字放入標題，當標題夠長，再加上瀏覽器的視窗後綴，就可能跨過自然輸入法這段程式的安全空間。這也解釋了為什麼有些貼文正常，有些貼文卻打不出中文。</p>
+<p>至於同一個視窗的聊天側邊欄為什麼也可能受影響，線索在於輸入法這段程式讀取的是「前景視窗標題」。只要當下 Chrome 視窗的標題符合觸發條件，就算正在輸入的是視窗裡另一個欄位，也可能走到同一條出問題的路徑。這個機制符合觀察到的跨欄位症狀，但仍需更多環境的獨立重現，不能拿它解釋所有中文輸入異常。</p>
+<h3>解法：縮短長標題，保留原本的輸入操作</h3>
+<p>找到這條 BUG 觸發路徑後，我們採取的相容處理很直接：在輸入法讀取到過長標題之前，先把指定社群網站的分頁標題縮短。外掛會把超過 <strong>180 個 UTF-16 單位</strong>的標題截短，保留開頭內容，並預留瀏覽器附加標題的空間。遇到 emoji 時，也會避免在 UTF-16 配對字元中間切開。</p>
+<p>X、Threads 的頁面經常在不重新載入的情況下切換內容，因此只改一次標題不夠。外掛會監看後續的標題變化，並在欄位取得焦點、按鍵及開始組字時同步檢查長度。</p>
+<p>整個操作仍然是在原本的欄位裡完成：打注音、選字、確認文字，不必叫出其他輸入框，也不需要用剪貼簿轉貼。這個外掛採用 <a href="https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts" target="_blank">Manifest V3 內容腳本</a>，沒有修改自然輸入法的 DLL，也沒有修補它的二進位檔。</p>
+<h3>第二個問題：Telegram 把組字空白當成空欄位清掉</h3>
+<p>解決 X／Threads 問題之後，我突然想起之前跟 OpenClaw、Hermes 等 AI Agent 都是用 Telegram Web 網頁版溝通，當時也出現「一直打注音，欄位沒有反應」的問題。但只要先打英文或數字，後面的中文就正常；清空欄位又可能失敗，在當時沒想到是自然輸入法問題，現在順便一起解決。</p>
+<p>這次跟 Codex 監看發現，自然輸入法 V11 開始組字時，會先把一個占位空白交給網頁。Telegram 的輸入事件處理程式判斷內容只有空白，便呼叫 <code>replaceChildren()</code> 清空欄位。占位內容約 6–9 毫秒後被移除，下一個按鍵又重新開始組字，導致流程無法順利接續。</p>
+<p>我們不是只靠時間先後推論：針對該欄位的 DOM 呼叫追蹤，確實抓到 Telegram 自己的清空呼叫。Telegram Web K 的<a href="https://github.com/morethanwords/tweb/blob/master/src/components/inputField.ts" target="_blank">公開原始碼</a>也有將只有空白的欄位視為空內容、再清空的處理。這也能解釋「先打英文或數字就正常」：欄位已有非空白內容，就不再走這條空欄位清理路徑。問題不是特定中文字被封鎖，而是第一段組字還沒完成，網站就把它使用的占位內容清掉了。</p>
+<p>解法是在實際訊息欄位取得焦點、正在組字、內容僅有空白，且網站要清空所有子節點時，暫時保留占位空白。確認文字、取消組字、離開欄位與一般清空仍可進行；不用自動補英文或數字。套用後，我們用實際 V11 連續確認四次從空白欄位輸入「輸入測試」或「測試輸入」成功。這項保護已加入 v0.2.0，支援 <code>web.telegram.org/k/</code>；Telegram Web A、桌面版及 V12／V13 的這項修正尚未個別驗證。</p>
+<h3>第三個問題：Gmail Gemini 也是組字干擾</h3>
+<p>這個 BUG&nbsp;是臉友提供的，不然我本來沒注意到。在 Gmail&nbsp;網頁寫信時一般欄位正常，但右側 Gemini 提問欄位卻間歇性無法輸入注音。有時整段沒有反應，有時只漏掉第一個音，例如 ㄕㄨ 的 ㄕ 消失，最後變成「屋」；修正前另一次「輸入測試」只出現「入測試」。切換英文仍能輸入。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003022953_0_6476d4.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 838px) 100vw, 838px"></p>
+<p>事件紀錄確認按鍵抵達欄位，焦點也沒有跑掉，但組字空白約 1–2 毫秒後被移除，下一鍵又重新開始組字。後續追蹤抓到 Gmail／Gemini 的清空程式逐個移除欄位子節點。</p>
+<div><div data-alt="自然輸入法 Gmail Gemini 欄位問題"></div></div>
+<p>這裡有一次重要的試錯：最初的原型嘗試直接阻止 DOM 清空，卻讓網站「只要還有子節點就繼續刪除」的迴圈無法前進，頁面暫時卡住。我們終止執行、撤回這個原型，正式外掛沒有包含這種攔截。</p>
+<p>最後採用的方式更窄：當「向 Gemini 提問」欄位收到組字中、內容只有一個占位空白的 <code>input</code> 通知時，暫時不讓網站處理這個通知。<strong>原生編輯照常進行，真正的中文字、英文、刪除與其他欄位的事件仍正常傳遞。</strong> 這樣不用阻止網站的 DOM 刪除方法，也不會卡住它的清空迴圈。</p>
+<p>套用新版原型後，實際 V11 紀錄捕捉到七次中文輸入事件，包含清空後直接輸入完整「輸入測試」、連續中文與換行。我也回報「現在正常」「現在都正常」。目前沒有向 Gemini 送出提問，驗證的是編輯器輸入。</p>
+<p>這項初步有效的修正已加入修正外掛的 v0.2.0，但仍保留實驗性標記。目前選擇器只涵蓋繁體中文介面的「向 Gemini 提問」，其他介面語言、V12／V13，以及長時間使用的穩定性仍待驗證。早期也有空白移除後仍成功輸入的例子，因此不能宣稱所有間歇失效的原因都已找齊。</p>
+<h3>為什麼微軟注音正常，自然輸入法卻失敗？</h3>
+<p>這看起來奇怪，但同樣打注音，背後的輸入法實作不一定一樣。網頁收到的是輸入法與瀏覽器轉換後的組字事件，不只是鍵盤上的 ㄕ 或 ㄨ；不同輸入法的組字內容、時機與按鍵事件可能有差異。本次已觀察到自然輸入法 V11 使用占位空白，而網站的清理程式會干擾它。微軟注音可能沒有觸發相同的空白流程，或以不同的事件時序維持組字；<strong>我們尚未抓取微軟注音的對照紀錄，所以這仍是推論，不能寫成已證實的差異。</strong></p>
+<p>至於長標題當機，錯誤位於自然輸入法自己的 DLL，微軟注音沒有走那段程式。不能因為微軟注音正常，就認定網站沒有相容問題，也不能反過來把所有中文輸入異常都歸咎於同一個 BUG。</p>
+<h3>免費開源外掛下載與安裝</h3>
+<p>專案已公開在 GitHub，採用 MIT 授權。目前透過 GitHub 下載，並以瀏覽器「載入未封裝項目」方式安裝，尚未上架 Chrome 線上應用程式商店。<strong>不過老實說這個問題應該是自然輸入法官方自己要解決</strong>，我一開始還以為是 V11 版太舊的問題，不過這情況是在 Chrome 某次改版後發生，猜測是 Chromium&nbsp;核心更新造成的問題，如果官方看到應該要積極處理才是。</p>
+<ul>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard" target="_blank">GitHub 專案與原始碼&nbsp;</a></li>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard/releases/latest" target="_blank">最新版外掛下載&nbsp;</a></li>
+</ul>
+<p>Chrome 安裝步驟（載入方式可參照 <a href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked" target="_blank">Chrome 官方教學</a>）：</p>
+<ol>
+<li>到下載頁的 Assets 區，取得 <code>natural-ime-v11-title-guard-v0.2.0.zip</code>（或之後的新版），解壓縮到固定資料夾。這裡要下載的是外掛發布包。</li>
+<li>在 Chrome 網址列開啟 <code>chrome://extensions</code>，打開「開發人員模式」。</li>
+<li>按「載入未封裝項目」，選擇解壓縮後、裡面有 <code>manifest.json</code> 的 <code>natural-ime-v11-title-guard</code> 資料夾。</li>
+<li>依 Chrome 顯示的流程確認網站存取權。v0.2.0 除 X／Threads 外，也包含 Telegram Web K 與 Gmail；Gemini 修正目前對應繁體中文介面的「向 Gemini 提問」。</li>
+<li>先保存現有草稿，再重新載入 X／Threads、Telegram 或 Gmail 分頁，讓外掛開始執行。</li>
+<li>回到原本不能輸入的欄位，保持欄位空白，直接用自然輸入法打「輸入測試」。確認文字留下後清空，再重複幾次；不必發文或送出訊息。</li>
+</ol>
+<p>如果下載的是 GitHub 的原始碼 ZIP，第三步改選其中的 <code>extension</code> 資料夾。Edge 可在 <code>edge://extensions</code> 依相同方式載入；目前公開的實際頁面測試以 Chrome 為主。</p>
+<p>已安裝舊版的人，先保存草稿，以新版檔案替換原外掛資料夾中的檔案，在擴充功能頁按這個外掛的重新載入按鈕，依畫面確認新增網站存取權，再重新整理網站。只重新整理網頁，不能把舊版外掛更新成新版。</p>
+<p>若 Chrome 顯示找不到資訊清單，請確認選到的資料夾直接包含 <code>manifest.json</code>，不是外面多一層的 ZIP 解壓縮資料夾。要暫時停用修正，可在擴充功能頁關閉外掛，再保存草稿並重新載入網站。</p>
+<h3>外掛會讀取我輸入的文字嗎？</h3>
+<p>本外掛已經上 GitHub 開源分享，有需要的可以自己下載使用， X／Threads 腳本只讀寫分頁標題；Telegram 腳本會讀取指定訊息欄位的當前文字，判斷是否只有組字空白；Gmail 腳本會檢查 Gemini 的輸入事件是否為占位空白。這些文字與事件不會被記錄、儲存或傳送。外掛沒有讀取剪貼簿、帳號或 Cookie，也沒有網路請求。Gmail 腳本不查閱郵件內容與一般郵件欄位。Telegram Web K 與 Gmail 的頁面存取範圍，安裝或更新時應確認這些網站權限，擔心的話大家可以把這篇內容交給 AI 自行開發自己的版本。</p>
+<p>如果你使用自然輸入法 V11～V13，遇到特定網頁中文失效，可以下載開源外掛，在原本出問題的欄位測試。回報時請附上輸入法與瀏覽器版本、網站與欄位、英文是否正常，以及可重現的操作；後續確認會更新在專案的<a href="https://github.com/kocpc001/natural-ime-v11-title-guard/blob/main/docs/known-issues.zh-TW.md" target="_blank">已知問題與驗證範圍 </a>。</p>
+<h3>如果遇到類似問題，怎麼一步步排查？</h3>
+<p>這次經驗中，畫面同樣是「中文沒有出現」，背後卻至少有兩條不同的故障路徑。可以依下面順序縮小範圍，避免只看到症狀就認定是同一個問題：</p>
+<ol>
+<li><strong>先確認範圍。</strong> 在記事本、另一個 Chrome 分頁，以及同頁不同輸入欄位，測試同一段「輸入測試」。記下是所有程式失敗、特定頁面失敗，還是只有 Gemini 這種特定欄位失敗。</li>
+<li><strong>比較中文與英文。</strong> 中文沒有反應時，切換英文測試；再比較「空白欄位直接中文」與「保留一個英文或數字後再中文」。這能幫助辨識是否與空欄位清理有關，但先打英文只是線索，不等於修好。</li>
+<li><strong>記下清空與重整的影響。</strong> 清空後是否復發？重整後是否只是暫時恢復？不要把一次成功當成穩定修正，也要分清楚是自己按刪除，還是網站自動移除組字內容。</li>
+<li><strong>檢查標題與當機。</strong> 有技術經驗的讀者可在開發者工具 Console 查看 <code>document.title.length</code>；一般讀者可先比較首頁、短標題頁與原本失敗的貼文。另在 Windows 的可靠性監視器或事件檢視器找同一時間的輸入法服務當機紀錄。分頁標題不等於完整視窗標題，瀏覽器還會加上後綴，單靠長度不能下結論。</li>
+<li><strong>追蹤組字到哪裡中斷。</strong> 本次進一步監看 <code>compositionstart</code>、<code>compositionupdate</code>、<code>compositionend</code>、<code>beforeinput</code>、<code>input</code>，同時看欄位 DOM。若完整中文根本未交付，與先交付再被移除，處理方向不同。必要時再追蹤網站的清空呼叫來源。</li>
+<li><strong>用真正的輸入法驗證修正。</strong> 在原失敗頁面從空白欄位重複輸入，清空後再試，再測連續中文、英文、換行與正常刪除。自動化直接塞中文字或送出模擬組字，會繞過 Windows 輸入法，不能當成原問題已解決的證據。</li>
+</ol>
+<p>回報時附上輸入法與瀏覽器版本、網站和欄位名稱、以上對照結果即可。當機檔、錄影與事件紀錄可能含私人資料，不要直接公開郵件、對話或帳號內容。</p>
+<h4>&nbsp;※本文內容與外掛由我本人與 Codex 共同完成。</h4>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/9W2nm6OHQIc" target="_blank"><img src="https://www.youtube.com/embed/9W2nm6OHQIc" /></a></p>
+<p>不知道有多少人跟我一樣是使用「自然輸入法」的呢？我使用該輸入法應該已經有十幾年的時間，至今也是使用自然輸入法 V11 免費版（本來要付費買，但官方限定使用機器數量對我來說是種束縛，所以一直用免費版）。最近幾個月在 Chrome 改版後我遇到一個很奇怪的問題：自然輸入法在記事本與絕大部分的網頁都正常，但一到 X（前推特）或是 Threads 要貼文或回覆的時候，不管自然輸入法怎麼輸入注音，中文字卻沒有出現。但換到其他頁面或 WORD 時又恢復正常，甚至同一個 Chrome 視窗裡的聊天側邊欄也會一起受影響，最奇妙的是微軟注音輸入法一切正常。一開始懷疑是社群網站的輸入框與中文輸入法不相容。不過，這次跟 Codex 一路追到當機紀錄與程式呼叫後，找到的線索居然是：<strong>瀏覽器視窗標題太長，觸發自然輸入法讀取標題時的緩衝區錯誤。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003024156_0_3ba39c.gif" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達"><br>
+</strong></p>
+<p>後續測試又發現 Telegram 網頁版與 Gmail 側邊 Gemini 的也一樣有自然輸入法中文輸入失常問題（而且臉友反餽確認自然輸入法 V11、V12、V13 也都會遇到同樣的狀況），但不過它們的問題又不相同，這次是網站清理空欄位，干擾輸入法的組字空白。我們針對幾個網站採用不同的相容處理，並做成免費、MIT 授權的開源瀏覽器外掛，讓自然輸入法的使用者可以繼續在 X、Threads、Telegram 與 Gmail 等網站能正常輸入中文。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003025505_0_ad4edc.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>症狀：為什麼換一個分頁，中文就能打了？</h3>
+<p>最初遇到的情況，不是所有程式都不能打中文。記事本正常，其他 Chrome 頁面也正常；進入特定 X 貼文，回覆時確認了中文字，欄位卻還是空白。Threads 也曾出現輸入異常。更奇怪的是，失敗不一定只限於 X 的回覆框。同一個 Chrome 視窗裡的聊天側邊欄，也可能突然收不到中文。切到另一個網頁，又能繼續輸入。</p>
+<p>這讓問題的範圍不只落在某個 HTML 輸入框，也必須檢查 Windows 輸入法服務與瀏覽器視窗之間發生了什麼。我的需求很單純：保留已經習慣的自然輸入法，在原本的欄位直接打字。不要另外叫出小輸入框，也不要每次先在別的程式打好再貼上。因此，解法必須先弄清楚文字在哪個環節消失。</p>
+<h3>先監看組字事件，發現網頁根本沒收到完整中文</h3>
+<p>最怪的是這些網站自然輸入法如果要直接打中文都會異常，但只要先輸入一個任意英數符號後就能解決，但這絕對不是正常的處理方法。後來我叫 Codex 外掛開始監看輸入法的 Key in&nbsp;狀態，在一次已確認失敗的 X 測試中，頁面確實收到了組字相關事件，但組字資料只有一個空白，後續沒有取得完整中文字。同時，Windows 留下自然輸入法背景程序 <code>GOImeServer11.exe</code> 的當機紀錄，服務之後重新啟動。</p>
+<p>這項發現影響了原本的設想：如果外掛只是監聽「組字完成」再把文字貼回去，在這次失敗裡沒有完整文字可拿。問題已經發生在自然輸入法交付文字的過程中，單純做一層轉貼，無法救回沒有交付的內容。</p>
+<p>接下來，調查重點轉向自然輸入法本身的當機原因。</p>
+<h3>十份當機檔，指向同一條讀取視窗標題的路徑</h3>
+<p>本次針對 V11 收集到的十份本機當機檔，都指向 <code>OVIMGoing.dll</code> 的同一條程式路徑。例外代碼是 <code>0xc0000409</code>，fast-fail 參數為 <code>2</code>，與堆疊安全檢查失敗相符。</p>
+<p>這些紀錄並不是看到「不能輸入」就猜測輸入法壞了，而是直接顯示背景程序在何處終止。離線檢查該模組後，找到一個取得前景視窗、接著讀取視窗標題的函式。</p>
+<p>真正有問題的地方，是緩衝區容量與傳給 Windows API 的長度單位不一致：</p>
+<ul>
+<li>目的緩衝區起點到堆疊安全檢查值之間，只有 <strong>600 位元組</strong>的空間，相當於 <strong>300 個 UTF-16 單位</strong>。</li>
+<li>程式呼叫 <code>GetWindowTextW</code> 時，卻傳入 <strong>600 個字元</strong>的長度上限。</li>
+<li>本次當機檔裡保存的視窗標題長度是 <strong>313 個 UTF-16 單位</strong>，已超過前述空間。</li>
+</ul>
+<p>Windows 的 <code>GetWindowTextW</code> 長度參數以字元數計算，並包含結尾的終止符；它不是「可以寫入多少位元組」。這個單位差異，會讓程式允許寫入比目的空間更長的內容。用一般人比較容易理解的方式說，就是準備了一個只能放約 300 單位文字的空間，卻告訴系統可以寫到 600。短標題時不容易出事，一旦遇到夠長的視窗標題，就可能覆寫到不該碰的堆疊區域，最後被安全檢查終止。</p>
+<p>十份當機檔、同一個函式、相同的標題長度，以及緩衝區與 API 參數的差異，形成了強烈指向長標題越界的證據。這是我們依本機資料得出的根因判讀，目前沒有自然輸入法廠商的獨立確認。</p>
+<h3>X 貼文內容變成標題，為什麼連側邊欄都受影響？</h3>
+<p>後來測試故障 X 分頁的 <code>document.title</code> 長度實測為 <strong>297 個 UTF-16 單位</strong>，當機檔保存的 Windows 視窗標題長度則是 <strong>313</strong>。兩者相差 16，符合 Chrome 在分頁標題後附加瀏覽器名稱的情況。</p>
+<p>X 貼文頁面會把貼文文字放入標題，當標題夠長，再加上瀏覽器的視窗後綴，就可能跨過自然輸入法這段程式的安全空間。這也解釋了為什麼有些貼文正常，有些貼文卻打不出中文。</p>
+<p>至於同一個視窗的聊天側邊欄為什麼也可能受影響，線索在於輸入法這段程式讀取的是「前景視窗標題」。只要當下 Chrome 視窗的標題符合觸發條件，就算正在輸入的是視窗裡另一個欄位，也可能走到同一條出問題的路徑。這個機制符合觀察到的跨欄位症狀，但仍需更多環境的獨立重現，不能拿它解釋所有中文輸入異常。</p>
+<h3>解法：縮短長標題，保留原本的輸入操作</h3>
+<p>找到這條 BUG 觸發路徑後，我們採取的相容處理很直接：在輸入法讀取到過長標題之前，先把指定社群網站的分頁標題縮短。外掛會把超過 <strong>180 個 UTF-16 單位</strong>的標題截短，保留開頭內容，並預留瀏覽器附加標題的空間。遇到 emoji 時，也會避免在 UTF-16 配對字元中間切開。</p>
+<p>X、Threads 的頁面經常在不重新載入的情況下切換內容，因此只改一次標題不夠。外掛會監看後續的標題變化，並在欄位取得焦點、按鍵及開始組字時同步檢查長度。</p>
+<p>整個操作仍然是在原本的欄位裡完成：打注音、選字、確認文字，不必叫出其他輸入框，也不需要用剪貼簿轉貼。這個外掛採用 <a href="https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts" target="_blank">Manifest V3 內容腳本</a>，沒有修改自然輸入法的 DLL，也沒有修補它的二進位檔。</p>
+<h3>第二個問題：Telegram 把組字空白當成空欄位清掉</h3>
+<p>解決 X／Threads 問題之後，我突然想起之前跟 OpenClaw、Hermes 等 AI Agent 都是用 Telegram Web 網頁版溝通，當時也出現「一直打注音，欄位沒有反應」的問題。但只要先打英文或數字，後面的中文就正常；清空欄位又可能失敗，在當時沒想到是自然輸入法問題，現在順便一起解決。</p>
+<p>這次跟 Codex 監看發現，自然輸入法 V11 開始組字時，會先把一個占位空白交給網頁。Telegram 的輸入事件處理程式判斷內容只有空白，便呼叫 <code>replaceChildren()</code> 清空欄位。占位內容約 6–9 毫秒後被移除，下一個按鍵又重新開始組字，導致流程無法順利接續。</p>
+<p>我們不是只靠時間先後推論：針對該欄位的 DOM 呼叫追蹤，確實抓到 Telegram 自己的清空呼叫。Telegram Web K 的<a href="https://github.com/morethanwords/tweb/blob/master/src/components/inputField.ts" target="_blank">公開原始碼</a>也有將只有空白的欄位視為空內容、再清空的處理。這也能解釋「先打英文或數字就正常」：欄位已有非空白內容，就不再走這條空欄位清理路徑。問題不是特定中文字被封鎖，而是第一段組字還沒完成，網站就把它使用的占位內容清掉了。</p>
+<p>解法是在實際訊息欄位取得焦點、正在組字、內容僅有空白，且網站要清空所有子節點時，暫時保留占位空白。確認文字、取消組字、離開欄位與一般清空仍可進行；不用自動補英文或數字。套用後，我們用實際 V11 連續確認四次從空白欄位輸入「輸入測試」或「測試輸入」成功。這項保護已加入 v0.2.0，支援 <code>web.telegram.org/k/</code>；Telegram Web A、桌面版及 V12／V13 的這項修正尚未個別驗證。</p>
+<h3>第三個問題：Gmail Gemini 也是組字干擾</h3>
+<p>這個 BUG&nbsp;是臉友提供的，不然我本來沒注意到。在 Gmail&nbsp;網頁寫信時一般欄位正常，但右側 Gemini 提問欄位卻間歇性無法輸入注音。有時整段沒有反應，有時只漏掉第一個音，例如 ㄕㄨ 的 ㄕ 消失，最後變成「屋」；修正前另一次「輸入測試」只出現「入測試」。切換英文仍能輸入。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003022953_0_6476d4.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 838px) 100vw, 838px"></p>
+<p>事件紀錄確認按鍵抵達欄位，焦點也沒有跑掉，但組字空白約 1–2 毫秒後被移除，下一鍵又重新開始組字。後續追蹤抓到 Gmail／Gemini 的清空程式逐個移除欄位子節點。</p>
+<div><div data-alt="自然輸入法 Gmail Gemini 欄位問題"></div></div>
+<p>這裡有一次重要的試錯：最初的原型嘗試直接阻止 DOM 清空，卻讓網站「只要還有子節點就繼續刪除」的迴圈無法前進，頁面暫時卡住。我們終止執行、撤回這個原型，正式外掛沒有包含這種攔截。</p>
+<p>最後採用的方式更窄：當「向 Gemini 提問」欄位收到組字中、內容只有一個占位空白的 <code>input</code> 通知時，暫時不讓網站處理這個通知。<strong>原生編輯照常進行，真正的中文字、英文、刪除與其他欄位的事件仍正常傳遞。</strong> 這樣不用阻止網站的 DOM 刪除方法，也不會卡住它的清空迴圈。</p>
+<p>套用新版原型後，實際 V11 紀錄捕捉到七次中文輸入事件，包含清空後直接輸入完整「輸入測試」、連續中文與換行。我也回報「現在正常」「現在都正常」。目前沒有向 Gemini 送出提問，驗證的是編輯器輸入。</p>
+<p>這項初步有效的修正已加入修正外掛的 v0.2.0，但仍保留實驗性標記。目前選擇器只涵蓋繁體中文介面的「向 Gemini 提問」，其他介面語言、V12／V13，以及長時間使用的穩定性仍待驗證。早期也有空白移除後仍成功輸入的例子，因此不能宣稱所有間歇失效的原因都已找齊。</p>
+<h3>為什麼微軟注音正常，自然輸入法卻失敗？</h3>
+<p>這看起來奇怪，但同樣打注音，背後的輸入法實作不一定一樣。網頁收到的是輸入法與瀏覽器轉換後的組字事件，不只是鍵盤上的 ㄕ 或 ㄨ；不同輸入法的組字內容、時機與按鍵事件可能有差異。本次已觀察到自然輸入法 V11 使用占位空白，而網站的清理程式會干擾它。微軟注音可能沒有觸發相同的空白流程，或以不同的事件時序維持組字；<strong>我們尚未抓取微軟注音的對照紀錄，所以這仍是推論，不能寫成已證實的差異。</strong></p>
+<p>至於長標題當機，錯誤位於自然輸入法自己的 DLL，微軟注音沒有走那段程式。不能因為微軟注音正常，就認定網站沒有相容問題，也不能反過來把所有中文輸入異常都歸咎於同一個 BUG。</p>
+<h3>免費開源外掛下載與安裝</h3>
+<p>專案已公開在 GitHub，採用 MIT 授權。目前透過 GitHub 下載，並以瀏覽器「載入未封裝項目」方式安裝，尚未上架 Chrome 線上應用程式商店。<strong>不過老實說這個問題應該是自然輸入法官方自己要解決</strong>，我一開始還以為是 V11 版太舊的問題，不過這情況是在 Chrome 某次改版後發生，猜測是 Chromium&nbsp;核心更新造成的問題，如果官方看到應該要積極處理才是。</p>
+<ul>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard" target="_blank">GitHub 專案與原始碼&nbsp;</a></li>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard/releases/latest" target="_blank">最新版外掛下載&nbsp;</a></li>
+</ul>
+<p>Chrome 安裝步驟（載入方式可參照 <a href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked" target="_blank">Chrome 官方教學</a>）：</p>
+<ol>
+<li>到下載頁的 Assets 區，取得 <code>natural-ime-v11-title-guard-v0.2.0.zip</code>（或之後的新版），解壓縮到固定資料夾。這裡要下載的是外掛發布包。</li>
+<li>在 Chrome 網址列開啟 <code>chrome://extensions</code>，打開「開發人員模式」。</li>
+<li>按「載入未封裝項目」，選擇解壓縮後、裡面有 <code>manifest.json</code> 的 <code>natural-ime-v11-title-guard</code> 資料夾。</li>
+<li>依 Chrome 顯示的流程確認網站存取權。v0.2.0 除 X／Threads 外，也包含 Telegram Web K 與 Gmail；Gemini 修正目前對應繁體中文介面的「向 Gemini 提問」。</li>
+<li>先保存現有草稿，再重新載入 X／Threads、Telegram 或 Gmail 分頁，讓外掛開始執行。</li>
+<li>回到原本不能輸入的欄位，保持欄位空白，直接用自然輸入法打「輸入測試」。確認文字留下後清空，再重複幾次；不必發文或送出訊息。</li>
+</ol>
+<p>如果下載的是 GitHub 的原始碼 ZIP，第三步改選其中的 <code>extension</code> 資料夾。Edge 可在 <code>edge://extensions</code> 依相同方式載入；目前公開的實際頁面測試以 Chrome 為主。</p>
+<p>已安裝舊版的人，先保存草稿，以新版檔案替換原外掛資料夾中的檔案，在擴充功能頁按這個外掛的重新載入按鈕，依畫面確認新增網站存取權，再重新整理網站。只重新整理網頁，不能把舊版外掛更新成新版。</p>
+<p>若 Chrome 顯示找不到資訊清單，請確認選到的資料夾直接包含 <code>manifest.json</code>，不是外面多一層的 ZIP 解壓縮資料夾。要暫時停用修正，可在擴充功能頁關閉外掛，再保存草稿並重新載入網站。</p>
+<h3>外掛會讀取我輸入的文字嗎？</h3>
+<p>本外掛已經上 GitHub 開源分享，有需要的可以自己下載使用， X／Threads 腳本只讀寫分頁標題；Telegram 腳本會讀取指定訊息欄位的當前文字，判斷是否只有組字空白；Gmail 腳本會檢查 Gemini 的輸入事件是否為占位空白。這些文字與事件不會被記錄、儲存或傳送。外掛沒有讀取剪貼簿、帳號或 Cookie，也沒有網路請求。Gmail 腳本不查閱郵件內容與一般郵件欄位。Telegram Web K 與 Gmail 的頁面存取範圍，安裝或更新時應確認這些網站權限，擔心的話大家可以把這篇內容交給 AI 自行開發自己的版本。</p>
+<p>如果你使用自然輸入法 V11～V13，遇到特定網頁中文失效，可以下載開源外掛，在原本出問題的欄位測試。回報時請附上輸入法與瀏覽器版本、網站與欄位、英文是否正常，以及可重現的操作；後續確認會更新在專案的<a href="https://github.com/kocpc001/natural-ime-v11-title-guard/blob/main/docs/known-issues.zh-TW.md" target="_blank">已知問題與驗證範圍 </a>。</p>
+<h3>如果遇到類似問題，怎麼一步步排查？</h3>
+<p>這次經驗中，畫面同樣是「中文沒有出現」，背後卻至少有兩條不同的故障路徑。可以依下面順序縮小範圍，避免只看到症狀就認定是同一個問題：</p>
+<ol>
+<li><strong>先確認範圍。</strong> 在記事本、另一個 Chrome 分頁，以及同頁不同輸入欄位，測試同一段「輸入測試」。記下是所有程式失敗、特定頁面失敗，還是只有 Gemini 這種特定欄位失敗。</li>
+<li><strong>比較中文與英文。</strong> 中文沒有反應時，切換英文測試；再比較「空白欄位直接中文」與「保留一個英文或數字後再中文」。這能幫助辨識是否與空欄位清理有關，但先打英文只是線索，不等於修好。</li>
+<li><strong>記下清空與重整的影響。</strong> 清空後是否復發？重整後是否只是暫時恢復？不要把一次成功當成穩定修正，也要分清楚是自己按刪除，還是網站自動移除組字內容。</li>
+<li><strong>檢查標題與當機。</strong> 有技術經驗的讀者可在開發者工具 Console 查看 <code>document.title.length</code>；一般讀者可先比較首頁、短標題頁與原本失敗的貼文。另在 Windows 的可靠性監視器或事件檢視器找同一時間的輸入法服務當機紀錄。分頁標題不等於完整視窗標題，瀏覽器還會加上後綴，單靠長度不能下結論。</li>
+<li><strong>追蹤組字到哪裡中斷。</strong> 本次進一步監看 <code>compositionstart</code>、<code>compositionupdate</code>、<code>compositionend</code>、<code>beforeinput</code>、<code>input</code>，同時看欄位 DOM。若完整中文根本未交付，與先交付再被移除，處理方向不同。必要時再追蹤網站的清空呼叫來源。</li>
+<li><strong>用真正的輸入法驗證修正。</strong> 在原失敗頁面從空白欄位重複輸入，清空後再試，再測連續中文、英文、換行與正常刪除。自動化直接塞中文字或送出模擬組字，會繞過 Windows 輸入法，不能當成原問題已解決的證據。</li>
+</ol>
+<p>回報時附上輸入法與瀏覽器版本、網站和欄位名稱、以上對照結果即可。當機檔、錄影與事件紀錄可能含私人資料，不要直接公開郵件、對話或帳號內容。</p>
+<h4>&nbsp;※本文內容與外掛由我本人與 Codex 共同完成。</h4>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/9W2nm6OHQIc" target="_blank"><img src="https://www.youtube.com/embed/9W2nm6OHQIc" /></a></p>
+<p>不知道有多少人跟我一樣是使用「自然輸入法」的呢？我使用該輸入法應該已經有十幾年的時間，至今也是使用自然輸入法 V11 免費版（本來要付費買，但官方限定使用機器數量對我來說是種束縛，所以一直用免費版）。最近幾個月在 Chrome 改版後我遇到一個很奇怪的問題：自然輸入法在記事本與絕大部分的網頁都正常，但一到 X（前推特）或是 Threads 要貼文或回覆的時候，不管自然輸入法怎麼輸入注音，中文字卻沒有出現。但換到其他頁面或 WORD 時又恢復正常，甚至同一個 Chrome 視窗裡的聊天側邊欄也會一起受影響，最奇妙的是微軟注音輸入法一切正常。一開始懷疑是社群網站的輸入框與中文輸入法不相容。不過，這次跟 Codex 一路追到當機紀錄與程式呼叫後，找到的線索居然是：<strong>瀏覽器視窗標題太長，觸發自然輸入法讀取標題時的緩衝區錯誤。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003024156_0_3ba39c.gif" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達"><br>
+</strong></p>
+<p>後續測試又發現 Telegram 網頁版與 Gmail 側邊 Gemini 的也一樣有自然輸入法中文輸入失常問題（而且臉友反餽確認自然輸入法 V11、V12、V13 也都會遇到同樣的狀況），但不過它們的問題又不相同，這次是網站清理空欄位，干擾輸入法的組字空白。我們針對幾個網站採用不同的相容處理，並做成免費、MIT 授權的開源瀏覽器外掛，讓自然輸入法的使用者可以繼續在 X、Threads、Telegram 與 Gmail 等網站能正常輸入中文。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003025505_0_ad4edc.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>症狀：為什麼換一個分頁，中文就能打了？</h3>
+<p>最初遇到的情況，不是所有程式都不能打中文。記事本正常，其他 Chrome 頁面也正常；進入特定 X 貼文，回覆時確認了中文字，欄位卻還是空白。Threads 也曾出現輸入異常。更奇怪的是，失敗不一定只限於 X 的回覆框。同一個 Chrome 視窗裡的聊天側邊欄，也可能突然收不到中文。切到另一個網頁，又能繼續輸入。</p>
+<p>這讓問題的範圍不只落在某個 HTML 輸入框，也必須檢查 Windows 輸入法服務與瀏覽器視窗之間發生了什麼。我的需求很單純：保留已經習慣的自然輸入法，在原本的欄位直接打字。不要另外叫出小輸入框，也不要每次先在別的程式打好再貼上。因此，解法必須先弄清楚文字在哪個環節消失。</p>
+<h3>先監看組字事件，發現網頁根本沒收到完整中文</h3>
+<p>最怪的是這些網站自然輸入法如果要直接打中文都會異常，但只要先輸入一個任意英數符號後就能解決，但這絕對不是正常的處理方法。後來我叫 Codex 外掛開始監看輸入法的 Key in&nbsp;狀態，在一次已確認失敗的 X 測試中，頁面確實收到了組字相關事件，但組字資料只有一個空白，後續沒有取得完整中文字。同時，Windows 留下自然輸入法背景程序 <code>GOImeServer11.exe</code> 的當機紀錄，服務之後重新啟動。</p>
+<p>這項發現影響了原本的設想：如果外掛只是監聽「組字完成」再把文字貼回去，在這次失敗裡沒有完整文字可拿。問題已經發生在自然輸入法交付文字的過程中，單純做一層轉貼，無法救回沒有交付的內容。</p>
+<p>接下來，調查重點轉向自然輸入法本身的當機原因。</p>
+<h3>十份當機檔，指向同一條讀取視窗標題的路徑</h3>
+<p>本次針對 V11 收集到的十份本機當機檔，都指向 <code>OVIMGoing.dll</code> 的同一條程式路徑。例外代碼是 <code>0xc0000409</code>，fast-fail 參數為 <code>2</code>，與堆疊安全檢查失敗相符。</p>
+<p>這些紀錄並不是看到「不能輸入」就猜測輸入法壞了，而是直接顯示背景程序在何處終止。離線檢查該模組後，找到一個取得前景視窗、接著讀取視窗標題的函式。</p>
+<p>真正有問題的地方，是緩衝區容量與傳給 Windows API 的長度單位不一致：</p>
+<ul>
+<li>目的緩衝區起點到堆疊安全檢查值之間，只有 <strong>600 位元組</strong>的空間，相當於 <strong>300 個 UTF-16 單位</strong>。</li>
+<li>程式呼叫 <code>GetWindowTextW</code> 時，卻傳入 <strong>600 個字元</strong>的長度上限。</li>
+<li>本次當機檔裡保存的視窗標題長度是 <strong>313 個 UTF-16 單位</strong>，已超過前述空間。</li>
+</ul>
+<p>Windows 的 <code>GetWindowTextW</code> 長度參數以字元數計算，並包含結尾的終止符；它不是「可以寫入多少位元組」。這個單位差異，會讓程式允許寫入比目的空間更長的內容。用一般人比較容易理解的方式說，就是準備了一個只能放約 300 單位文字的空間，卻告訴系統可以寫到 600。短標題時不容易出事，一旦遇到夠長的視窗標題，就可能覆寫到不該碰的堆疊區域，最後被安全檢查終止。</p>
+<p>十份當機檔、同一個函式、相同的標題長度，以及緩衝區與 API 參數的差異，形成了強烈指向長標題越界的證據。這是我們依本機資料得出的根因判讀，目前沒有自然輸入法廠商的獨立確認。</p>
+<h3>X 貼文內容變成標題，為什麼連側邊欄都受影響？</h3>
+<p>後來測試故障 X 分頁的 <code>document.title</code> 長度實測為 <strong>297 個 UTF-16 單位</strong>，當機檔保存的 Windows 視窗標題長度則是 <strong>313</strong>。兩者相差 16，符合 Chrome 在分頁標題後附加瀏覽器名稱的情況。</p>
+<p>X 貼文頁面會把貼文文字放入標題，當標題夠長，再加上瀏覽器的視窗後綴，就可能跨過自然輸入法這段程式的安全空間。這也解釋了為什麼有些貼文正常，有些貼文卻打不出中文。</p>
+<p>至於同一個視窗的聊天側邊欄為什麼也可能受影響，線索在於輸入法這段程式讀取的是「前景視窗標題」。只要當下 Chrome 視窗的標題符合觸發條件，就算正在輸入的是視窗裡另一個欄位，也可能走到同一條出問題的路徑。這個機制符合觀察到的跨欄位症狀，但仍需更多環境的獨立重現，不能拿它解釋所有中文輸入異常。</p>
+<h3>解法：縮短長標題，保留原本的輸入操作</h3>
+<p>找到這條 BUG 觸發路徑後，我們採取的相容處理很直接：在輸入法讀取到過長標題之前，先把指定社群網站的分頁標題縮短。外掛會把超過 <strong>180 個 UTF-16 單位</strong>的標題截短，保留開頭內容，並預留瀏覽器附加標題的空間。遇到 emoji 時，也會避免在 UTF-16 配對字元中間切開。</p>
+<p>X、Threads 的頁面經常在不重新載入的情況下切換內容，因此只改一次標題不夠。外掛會監看後續的標題變化，並在欄位取得焦點、按鍵及開始組字時同步檢查長度。</p>
+<p>整個操作仍然是在原本的欄位裡完成：打注音、選字、確認文字，不必叫出其他輸入框，也不需要用剪貼簿轉貼。這個外掛採用 <a href="https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts" target="_blank">Manifest V3 內容腳本</a>，沒有修改自然輸入法的 DLL，也沒有修補它的二進位檔。</p>
+<h3>第二個問題：Telegram 把組字空白當成空欄位清掉</h3>
+<p>解決 X／Threads 問題之後，我突然想起之前跟 OpenClaw、Hermes 等 AI Agent 都是用 Telegram Web 網頁版溝通，當時也出現「一直打注音，欄位沒有反應」的問題。但只要先打英文或數字，後面的中文就正常；清空欄位又可能失敗，在當時沒想到是自然輸入法問題，現在順便一起解決。</p>
+<p>這次跟 Codex 監看發現，自然輸入法 V11 開始組字時，會先把一個占位空白交給網頁。Telegram 的輸入事件處理程式判斷內容只有空白，便呼叫 <code>replaceChildren()</code> 清空欄位。占位內容約 6–9 毫秒後被移除，下一個按鍵又重新開始組字，導致流程無法順利接續。</p>
+<p>我們不是只靠時間先後推論：針對該欄位的 DOM 呼叫追蹤，確實抓到 Telegram 自己的清空呼叫。Telegram Web K 的<a href="https://github.com/morethanwords/tweb/blob/master/src/components/inputField.ts" target="_blank">公開原始碼</a>也有將只有空白的欄位視為空內容、再清空的處理。這也能解釋「先打英文或數字就正常」：欄位已有非空白內容，就不再走這條空欄位清理路徑。問題不是特定中文字被封鎖，而是第一段組字還沒完成，網站就把它使用的占位內容清掉了。</p>
+<p>解法是在實際訊息欄位取得焦點、正在組字、內容僅有空白，且網站要清空所有子節點時，暫時保留占位空白。確認文字、取消組字、離開欄位與一般清空仍可進行；不用自動補英文或數字。套用後，我們用實際 V11 連續確認四次從空白欄位輸入「輸入測試」或「測試輸入」成功。這項保護已加入 v0.2.0，支援 <code>web.telegram.org/k/</code>；Telegram Web A、桌面版及 V12／V13 的這項修正尚未個別驗證。</p>
+<h3>第三個問題：Gmail Gemini 也是組字干擾</h3>
+<p>這個 BUG&nbsp;是臉友提供的，不然我本來沒注意到。在 Gmail&nbsp;網頁寫信時一般欄位正常，但右側 Gemini 提問欄位卻間歇性無法輸入注音。有時整段沒有反應，有時只漏掉第一個音，例如 ㄕㄨ 的 ㄕ 消失，最後變成「屋」；修正前另一次「輸入測試」只出現「入測試」。切換英文仍能輸入。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003022953_0_6476d4.jpg" alt="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" title="自然輸入法修正外掛開源上線，解決Threads、X、Gemini與Telegram網頁輸入問題 - 電腦王阿達" data-lazy-sizes="(max-width: 838px) 100vw, 838px"></p>
+<p>事件紀錄確認按鍵抵達欄位，焦點也沒有跑掉，但組字空白約 1–2 毫秒後被移除，下一鍵又重新開始組字。後續追蹤抓到 Gmail／Gemini 的清空程式逐個移除欄位子節點。</p>
+<div><div data-alt="自然輸入法 Gmail Gemini 欄位問題"></div></div>
+<p>這裡有一次重要的試錯：最初的原型嘗試直接阻止 DOM 清空，卻讓網站「只要還有子節點就繼續刪除」的迴圈無法前進，頁面暫時卡住。我們終止執行、撤回這個原型，正式外掛沒有包含這種攔截。</p>
+<p>最後採用的方式更窄：當「向 Gemini 提問」欄位收到組字中、內容只有一個占位空白的 <code>input</code> 通知時，暫時不讓網站處理這個通知。<strong>原生編輯照常進行，真正的中文字、英文、刪除與其他欄位的事件仍正常傳遞。</strong> 這樣不用阻止網站的 DOM 刪除方法，也不會卡住它的清空迴圈。</p>
+<p>套用新版原型後，實際 V11 紀錄捕捉到七次中文輸入事件，包含清空後直接輸入完整「輸入測試」、連續中文與換行。我也回報「現在正常」「現在都正常」。目前沒有向 Gemini 送出提問，驗證的是編輯器輸入。</p>
+<p>這項初步有效的修正已加入修正外掛的 v0.2.0，但仍保留實驗性標記。目前選擇器只涵蓋繁體中文介面的「向 Gemini 提問」，其他介面語言、V12／V13，以及長時間使用的穩定性仍待驗證。早期也有空白移除後仍成功輸入的例子，因此不能宣稱所有間歇失效的原因都已找齊。</p>
+<h3>為什麼微軟注音正常，自然輸入法卻失敗？</h3>
+<p>這看起來奇怪，但同樣打注音，背後的輸入法實作不一定一樣。網頁收到的是輸入法與瀏覽器轉換後的組字事件，不只是鍵盤上的 ㄕ 或 ㄨ；不同輸入法的組字內容、時機與按鍵事件可能有差異。本次已觀察到自然輸入法 V11 使用占位空白，而網站的清理程式會干擾它。微軟注音可能沒有觸發相同的空白流程，或以不同的事件時序維持組字；<strong>我們尚未抓取微軟注音的對照紀錄，所以這仍是推論，不能寫成已證實的差異。</strong></p>
+<p>至於長標題當機，錯誤位於自然輸入法自己的 DLL，微軟注音沒有走那段程式。不能因為微軟注音正常，就認定網站沒有相容問題，也不能反過來把所有中文輸入異常都歸咎於同一個 BUG。</p>
+<h3>免費開源外掛下載與安裝</h3>
+<p>專案已公開在 GitHub，採用 MIT 授權。目前透過 GitHub 下載，並以瀏覽器「載入未封裝項目」方式安裝，尚未上架 Chrome 線上應用程式商店。<strong>不過老實說這個問題應該是自然輸入法官方自己要解決</strong>，我一開始還以為是 V11 版太舊的問題，不過這情況是在 Chrome 某次改版後發生，猜測是 Chromium&nbsp;核心更新造成的問題，如果官方看到應該要積極處理才是。</p>
+<ul>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard" target="_blank">GitHub 專案與原始碼&nbsp;</a></li>
+<li><a href="https://github.com/kocpc001/natural-ime-v11-title-guard/releases/latest" target="_blank">最新版外掛下載&nbsp;</a></li>
+</ul>
+<p>Chrome 安裝步驟（載入方式可參照 <a href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked" target="_blank">Chrome 官方教學</a>）：</p>
+<ol>
+<li>到下載頁的 Assets 區，取得 <code>natural-ime-v11-title-guard-v0.2.0.zip</code>（或之後的新版），解壓縮到固定資料夾。這裡要下載的是外掛發布包。</li>
+<li>在 Chrome 網址列開啟 <code>chrome://extensions</code>，打開「開發人員模式」。</li>
+<li>按「載入未封裝項目」，選擇解壓縮後、裡面有 <code>manifest.json</code> 的 <code>natural-ime-v11-title-guard</code> 資料夾。</li>
+<li>依 Chrome 顯示的流程確認網站存取權。v0.2.0 除 X／Threads 外，也包含 Telegram Web K 與 Gmail；Gemini 修正目前對應繁體中文介面的「向 Gemini 提問」。</li>
+<li>先保存現有草稿，再重新載入 X／Threads、Telegram 或 Gmail 分頁，讓外掛開始執行。</li>
+<li>回到原本不能輸入的欄位，保持欄位空白，直接用自然輸入法打「輸入測試」。確認文字留下後清空，再重複幾次；不必發文或送出訊息。</li>
+</ol>
+<p>如果下載的是 GitHub 的原始碼 ZIP，第三步改選其中的 <code>extension</code> 資料夾。Edge 可在 <code>edge://extensions</code> 依相同方式載入；目前公開的實際頁面測試以 Chrome 為主。</p>
+<p>已安裝舊版的人，先保存草稿，以新版檔案替換原外掛資料夾中的檔案，在擴充功能頁按這個外掛的重新載入按鈕，依畫面確認新增網站存取權，再重新整理網站。只重新整理網頁，不能把舊版外掛更新成新版。</p>
+<p>若 Chrome 顯示找不到資訊清單，請確認選到的資料夾直接包含 <code>manifest.json</code>，不是外面多一層的 ZIP 解壓縮資料夾。要暫時停用修正，可在擴充功能頁關閉外掛，再保存草稿並重新載入網站。</p>
+<h3>外掛會讀取我輸入的文字嗎？</h3>
+<p>本外掛已經上 GitHub 開源分享，有需要的可以自己下載使用， X／Threads 腳本只讀寫分頁標題；Telegram 腳本會讀取指定訊息欄位的當前文字，判斷是否只有組字空白；Gmail 腳本會檢查 Gemini 的輸入事件是否為占位空白。這些文字與事件不會被記錄、儲存或傳送。外掛沒有讀取剪貼簿、帳號或 Cookie，也沒有網路請求。Gmail 腳本不查閱郵件內容與一般郵件欄位。Telegram Web K 與 Gmail 的頁面存取範圍，安裝或更新時應確認這些網站權限，擔心的話大家可以把這篇內容交給 AI 自行開發自己的版本。</p>
+<p>如果你使用自然輸入法 V11～V13，遇到特定網頁中文失效，可以下載開源外掛，在原本出問題的欄位測試。回報時請附上輸入法與瀏覽器版本、網站與欄位、英文是否正常，以及可重現的操作；後續確認會更新在專案的<a href="https://github.com/kocpc001/natural-ime-v11-title-guard/blob/main/docs/known-issues.zh-TW.md" target="_blank">已知問題與驗證範圍 </a>。</p>
+<h3>如果遇到類似問題，怎麼一步步排查？</h3>
+<p>這次經驗中，畫面同樣是「中文沒有出現」，背後卻至少有兩條不同的故障路徑。可以依下面順序縮小範圍，避免只看到症狀就認定是同一個問題：</p>
+<ol>
+<li><strong>先確認範圍。</strong> 在記事本、另一個 Chrome 分頁，以及同頁不同輸入欄位，測試同一段「輸入測試」。記下是所有程式失敗、特定頁面失敗，還是只有 Gemini 這種特定欄位失敗。</li>
+<li><strong>比較中文與英文。</strong> 中文沒有反應時，切換英文測試；再比較「空白欄位直接中文」與「保留一個英文或數字後再中文」。這能幫助辨識是否與空欄位清理有關，但先打英文只是線索，不等於修好。</li>
+<li><strong>記下清空與重整的影響。</strong> 清空後是否復發？重整後是否只是暫時恢復？不要把一次成功當成穩定修正，也要分清楚是自己按刪除，還是網站自動移除組字內容。</li>
+<li><strong>檢查標題與當機。</strong> 有技術經驗的讀者可在開發者工具 Console 查看 <code>document.title.length</code>；一般讀者可先比較首頁、短標題頁與原本失敗的貼文。另在 Windows 的可靠性監視器或事件檢視器找同一時間的輸入法服務當機紀錄。分頁標題不等於完整視窗標題，瀏覽器還會加上後綴，單靠長度不能下結論。</li>
+<li><strong>追蹤組字到哪裡中斷。</strong> 本次進一步監看 <code>compositionstart</code>、<code>compositionupdate</code>、<code>compositionend</code>、<code>beforeinput</code>、<code>input</code>，同時看欄位 DOM。若完整中文根本未交付，與先交付再被移除，處理方向不同。必要時再追蹤網站的清空呼叫來源。</li>
+<li><strong>用真正的輸入法驗證修正。</strong> 在原失敗頁面從空白欄位重複輸入，清空後再試，再測連續中文、英文、換行與正常刪除。自動化直接塞中文字或送出模擬組字，會繞過 Windows 輸入法，不能當成原問題已解決的證據。</li>
+</ol>
+<p>回報時附上輸入法與瀏覽器版本、網站和欄位名稱、以上對照結果即可。當機檔、錄影與事件紀錄可能含私人資料，不要直接公開郵件、對話或帳號內容。</p>
+<h4>&nbsp;※本文內容與外掛由我本人與 Codex 共同完成。</h4>]]></content:encoded>
+    <itunes:image href="https://www.youtube.com/embed/9W2nm6OHQIc"/>
+          <media:content url="https://www.youtube.com/embed/9W2nm6OHQIc" medium="image"/>
+    <pubDate>Fri, 02 Oct 2026 18:55:54 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速]]></title>
+    <link>https://www.kocpc.com.tw/archives/670936</link>
+    <itunes:title><![CDATA[韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/PpNFmPcBYPY" target="_blank"><img src="https://www.youtube.com/embed/PpNFmPcBYPY" /></a></p>
+<p>幾個月前<strong><a href="https://www.kocpc.com.tw/archives/tag/%e8%8f%af%e7%82%ba">華為</a></strong>半導體業務部總裁何庭波今日在上海 IEEE ISCAS 2026 上發表「<a href="https://www.kocpc.com.tw/archives/643783" target="_blank">韜定律</a>」，當時就講到可以在沒有先進製程的情況下，透過<a href="https://www.kocpc.com.tw/archives/tag/%e9%82%8f%e8%bc%af%e6%91%ba%e7%96%8a"><strong>邏輯摺疊</strong></a>的方式讓半導體密度達到先進製程的水準。當時大部分媒體都認為這可能只是一個概念或吹牛皮的技術，不過在前陣子華為推出的三摺疊旗艦 Mate XT 2 裡面搭載的<a href="https://www.kocpc.com.tw/archives/tag/%e9%ba%92%e9%ba%9f-9050-pro">麒麟 9050 Pro</a> 處理器中，當時中國科技頻道極客灣 Geekerwan 當時所發的<a href="https://www.kocpc.com.tw/archives/668794" target="_blank">性能測試</a>就已經有相當明顯的進步。近日極客灣 Geekerwan 又發佈了新影片《邏輯摺疊深度解析！華為 Mate 90 系列韜晶片有多強？》，真的把麒麟 9050 Pro 處理器拿去實驗室切片，在 3D 空間重建內部結構，解開「邏輯折疊」的封裝之謎，再用 Mate 90 Pro Max 實測遊戲與續航。直接先講結論：這顆晶片用上下兩片晶粒「折疊」堆疊，在製程沒換代的前提下把電晶體密度拉高 28%，實測能效甚至贏過 Google 今年的 Tensor G6。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011253_0_78dd81.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h2>極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術</h2>
+<h3>韜晶片家族：9030、9035 與 9050 Pro</h3>
+<p>華為 10 月 1 日發表的 Mate 90 系列共五款機型，全系出廠搭載 HarmonyOS 7，晶片陣容分三級：Mate 90 用麒麟 9030（8 核 12 線程，整機性能較前代提升 27%）、Mate 90 Pro 用麒麟 9035（規格近似 9030 Pro、調整峰值頻率，提升 20%）、Pro Max 及以上則是主角麒麟 9050 Pro，整機性能較上代旗艦提升 31%。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011455_0_3f06d6.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011633_0_98721a.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>這代晶片有個統一的名字叫「韜晶片」，背後是華為自研的「<a href="https://www.kocpc.com.tw/archives/tag/%e9%9f%9c%e5%ae%9a%e5%be%8b"><strong>韜（τ）定律</strong></a>」：用「時間縮微」替代傳統「幾何縮微」，在不依賴 EUV 曝光機的前提下提升性能，官方目標是 2031 年把韜定律晶片的電晶體密度做到與 1.4 奈米製程同等水準。9030 與 9035 都遵循韜定律但沒用上邏輯折疊，這項技術目前只屬於最旗艦的 9050 Pro。</p>
+<h3>切開來看：晶片漢堡與 8 萬根 TSV</h3>
+<p>極客灣把麒麟 9050 Pro 切片後看到的結構，和傳統晶片完全不同。一般晶片從基板往上一層層金屬層，頂端埋邏輯電路；9050 Pro 則是上下兩塊相向排布，中間用銅-銅混合鍵合（Cu-Cu hybrid bonding）把金屬層黏在一起，這整份「晶片漢堡」又被夾在兩層矽之間，不直接接觸封裝基板。上面那片是主 Die，製程較先進；下面那片是副 Die，兩片邏輯電路透過金屬層與銅-鍵合通信。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011828_0_20f001.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>夾在矽中間帶來一個供電難題，解法是 TSV 矽穿孔：導電通路穿過底層矽與邏輯電路區，一路連到鍵合金屬層。極客灣統計海思在晶片與基板之間打了約 8 萬根 TSV，代價是下層 Die 約 8% 可用面積讓給了穿孔與禁布區。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011952_0_3f7892.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>官方數據也對得上這個思路：9050 Pro 有 500 萬個訊號傳輸鍵合、跨 Die 傳輸頻寬 125TB/s，關鍵路徑時延縮短 30%、緩衝器數量減少 55%，電晶體密度來到每平方毫米 2.38 億個、較前代提升 28%。</p>
+<h3>邏輯折疊真的把每顆核心折起來放</h3>
+<p>邏輯折疊不是「上面放 CPU、下面放 GPU」那麼粗暴。極客灣攤開兩片晶粒發現，每個 CPU 核心都被切成上下兩塊：超大核的執行單元（整數、浮點、Load &amp; Store）留在主 Die，L1、L2 快取則放到副 Die，折疊後快取正好蓋在 Load &amp; Store 的正下方，透過銅-鍵合直連，走線距離大幅縮短，延遲降低、同頻下電壓更低，功耗跟著下降。全晶片的 IP 都採同樣策略：快取、I/O、PLL 這類熱密度低、對製程不敏感的部分擺副 Die，高密度高發熱的運算單元擺主 Die。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003012123_0_564cb0.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>換來的集成度很可觀：上下兩片晶粒各約 120 多平方毫米，疊起來的佔位比前代 140 多平方毫米還小，但兩片加起來 240 多平方毫米的裸片面積足足多了 70%，等於在不換製程、不擴佔地的前提下多塞進 70% 的電路。這正是華為被逼出來的路徑：既然設備拿不到 EUV、製程卡在原地，就把封裝與堆疊當成新的戰場，用三維重構繞過平面縮微的極限。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013312_0_ae4eb8.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>比較尷尬的是麒麟 9050 Pro 在能效曲線方面的表現甚至贏過採用台積電 N3P 3nm 製程的 Tensor G6 處理器（不過 Tensor 系列一直都不是以高性能作為主打，而是著重於 AI&nbsp;的表現）。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014942_0_c6a9c3.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>麒麟 9050 Pro 遊戲與續航實測</h3>
+<p>紙面之外，Mate 90 Pro Max 的實測同樣有看頭。原神 7.0 版在 890P 解析度、高性能模式下，整機 4.2W 就能跑滿 60 幀，比前代 Mate 80 Pro Max 用更低解析度的表現還省電，與高通最新旗艦和蘋果 A19 Pro 機型差距不大。壓力更大的鳴潮在 648P 下跑圖 30 分鐘平均 50 幀、6.3W，異環更拿到 53 幀、6.8W，比前代整整多 10 幀，能效幾乎追平安卓陣營的天璣 9500 與高通旗艦平台。極客灣也點出前提：這是鴻蒙原生遊戲才有的待遇，沒上鴻蒙的遊戲得靠轉譯層跑，流暢但能效不出色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013538_0_ff8109.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013649_0_940a76.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px">
+<p>電池加到 6,800mAh，搭配晶片能效進步，在極客灣的 5G 續航模型裡撐了 9 小時 56 分，比前代多出一個半小時以上，和一票大電池安卓機相比毫不遜色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013818_0_0af42b.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>圖形技術這代也補了 AI 超分（NPU 與 GPU 協同）、更多遊戲的硬體光追支援（鴻蒙版鳴潮的光追反射肉眼可見）與遊戲內智能 HDR。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013847_0_8cee49.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013848_0_2140a9.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>NPU：面積多 150% 更強的本地 AI&nbsp;能力</h3>
+<p>極客灣說這顆 NPU 大得誇張：光是主 Die 上的 NPU 面積就超過麒麟 9030 Pro 整顆 NPU，上下兩片加總面積比前代多 150%，INT8 吞吐 68 TOPS，跑 3B 模型的 Prefill 速度是前代的三倍。官方規格也呼應這點：達芬奇架構 NPU 性能提升 140%，並支援端側 30B MoE 大模型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014020_0_835466.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>實際應用上，離線狀態就能叫小藝整理相簿（跑 30B-a2B 的 MoE 模型），修圖時先由 MoE 模型分析畫面給出去路人、加虛化的建議，再交給本地 6B 多模態模型動手修，成果不輸雲端模型。如果想瞭解麒麟 9050 Pro的更多能力也可以直接看極客灣的影片，個人是對這次華為的這顆處理器表現也很驚艷。</p>
+<div><div data-alt="逻辑折叠深度解析！华为Mate 90系列韬芯片有多强？"></div></div>
+<h2>結語：折出來的第三條路</h2>
+<p>極客灣對邏輯折疊的評價很高，但也踩了煞車：這種技術現階段成本高昂、良率還在爬坡，短期內只會用在旗艦產品，華為自己也把韜定律與邏輯折疊定義成包含關係，並非每顆晶片都會折。價格反映了一切：Mate 90 Pro Max 的 16GB＋512GB 版本賣 9,999 元人民幣、約新台幣 4.4 萬元，比前代同配置貴 2,000 元人民幣，余承東坦言記憶體漲價讓每台手機成本平均增加 200 美元。對半導體產業而言，邏輯折疊提供了一個耐人尋味的示範：當製程縮微的大門逐漸收窄，封裝、堆疊與架構設計這些「後段功夫」，同樣能把晶片往前推一代。這條路能不能走遠，最終考驗的是良率與成本曲線。</p>
+<blockquote data-secret="95v5CAJ3am"><p><a href="https://www.kocpc.com.tw/archives/668794">華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化 — 電腦王阿達" src="about:blank" data-secret="95v5CAJ3am" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/668794/embed#?secret=UlRFyS8kqd#?secret=95v5CAJ3am"></iframe></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/PpNFmPcBYPY" target="_blank"><img src="https://www.youtube.com/embed/PpNFmPcBYPY" /></a></p>
+<p>幾個月前<strong><a href="https://www.kocpc.com.tw/archives/tag/%e8%8f%af%e7%82%ba">華為</a></strong>半導體業務部總裁何庭波今日在上海 IEEE ISCAS 2026 上發表「<a href="https://www.kocpc.com.tw/archives/643783" target="_blank">韜定律</a>」，當時就講到可以在沒有先進製程的情況下，透過<a href="https://www.kocpc.com.tw/archives/tag/%e9%82%8f%e8%bc%af%e6%91%ba%e7%96%8a"><strong>邏輯摺疊</strong></a>的方式讓半導體密度達到先進製程的水準。當時大部分媒體都認為這可能只是一個概念或吹牛皮的技術，不過在前陣子華為推出的三摺疊旗艦 Mate XT 2 裡面搭載的<a href="https://www.kocpc.com.tw/archives/tag/%e9%ba%92%e9%ba%9f-9050-pro">麒麟 9050 Pro</a> 處理器中，當時中國科技頻道極客灣 Geekerwan 當時所發的<a href="https://www.kocpc.com.tw/archives/668794" target="_blank">性能測試</a>就已經有相當明顯的進步。近日極客灣 Geekerwan 又發佈了新影片《邏輯摺疊深度解析！華為 Mate 90 系列韜晶片有多強？》，真的把麒麟 9050 Pro 處理器拿去實驗室切片，在 3D 空間重建內部結構，解開「邏輯折疊」的封裝之謎，再用 Mate 90 Pro Max 實測遊戲與續航。直接先講結論：這顆晶片用上下兩片晶粒「折疊」堆疊，在製程沒換代的前提下把電晶體密度拉高 28%，實測能效甚至贏過 Google 今年的 Tensor G6。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011253_0_78dd81.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h2>極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術</h2>
+<h3>韜晶片家族：9030、9035 與 9050 Pro</h3>
+<p>華為 10 月 1 日發表的 Mate 90 系列共五款機型，全系出廠搭載 HarmonyOS 7，晶片陣容分三級：Mate 90 用麒麟 9030（8 核 12 線程，整機性能較前代提升 27%）、Mate 90 Pro 用麒麟 9035（規格近似 9030 Pro、調整峰值頻率，提升 20%）、Pro Max 及以上則是主角麒麟 9050 Pro，整機性能較上代旗艦提升 31%。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011455_0_3f06d6.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011633_0_98721a.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>這代晶片有個統一的名字叫「韜晶片」，背後是華為自研的「<a href="https://www.kocpc.com.tw/archives/tag/%e9%9f%9c%e5%ae%9a%e5%be%8b"><strong>韜（τ）定律</strong></a>」：用「時間縮微」替代傳統「幾何縮微」，在不依賴 EUV 曝光機的前提下提升性能，官方目標是 2031 年把韜定律晶片的電晶體密度做到與 1.4 奈米製程同等水準。9030 與 9035 都遵循韜定律但沒用上邏輯折疊，這項技術目前只屬於最旗艦的 9050 Pro。</p>
+<h3>切開來看：晶片漢堡與 8 萬根 TSV</h3>
+<p>極客灣把麒麟 9050 Pro 切片後看到的結構，和傳統晶片完全不同。一般晶片從基板往上一層層金屬層，頂端埋邏輯電路；9050 Pro 則是上下兩塊相向排布，中間用銅-銅混合鍵合（Cu-Cu hybrid bonding）把金屬層黏在一起，這整份「晶片漢堡」又被夾在兩層矽之間，不直接接觸封裝基板。上面那片是主 Die，製程較先進；下面那片是副 Die，兩片邏輯電路透過金屬層與銅-鍵合通信。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011828_0_20f001.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>夾在矽中間帶來一個供電難題，解法是 TSV 矽穿孔：導電通路穿過底層矽與邏輯電路區，一路連到鍵合金屬層。極客灣統計海思在晶片與基板之間打了約 8 萬根 TSV，代價是下層 Die 約 8% 可用面積讓給了穿孔與禁布區。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011952_0_3f7892.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>官方數據也對得上這個思路：9050 Pro 有 500 萬個訊號傳輸鍵合、跨 Die 傳輸頻寬 125TB/s，關鍵路徑時延縮短 30%、緩衝器數量減少 55%，電晶體密度來到每平方毫米 2.38 億個、較前代提升 28%。</p>
+<h3>邏輯折疊真的把每顆核心折起來放</h3>
+<p>邏輯折疊不是「上面放 CPU、下面放 GPU」那麼粗暴。極客灣攤開兩片晶粒發現，每個 CPU 核心都被切成上下兩塊：超大核的執行單元（整數、浮點、Load &amp; Store）留在主 Die，L1、L2 快取則放到副 Die，折疊後快取正好蓋在 Load &amp; Store 的正下方，透過銅-鍵合直連，走線距離大幅縮短，延遲降低、同頻下電壓更低，功耗跟著下降。全晶片的 IP 都採同樣策略：快取、I/O、PLL 這類熱密度低、對製程不敏感的部分擺副 Die，高密度高發熱的運算單元擺主 Die。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003012123_0_564cb0.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>換來的集成度很可觀：上下兩片晶粒各約 120 多平方毫米，疊起來的佔位比前代 140 多平方毫米還小，但兩片加起來 240 多平方毫米的裸片面積足足多了 70%，等於在不換製程、不擴佔地的前提下多塞進 70% 的電路。這正是華為被逼出來的路徑：既然設備拿不到 EUV、製程卡在原地，就把封裝與堆疊當成新的戰場，用三維重構繞過平面縮微的極限。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013312_0_ae4eb8.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>比較尷尬的是麒麟 9050 Pro 在能效曲線方面的表現甚至贏過採用台積電 N3P 3nm 製程的 Tensor G6 處理器（不過 Tensor 系列一直都不是以高性能作為主打，而是著重於 AI&nbsp;的表現）。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014942_0_c6a9c3.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>麒麟 9050 Pro 遊戲與續航實測</h3>
+<p>紙面之外，Mate 90 Pro Max 的實測同樣有看頭。原神 7.0 版在 890P 解析度、高性能模式下，整機 4.2W 就能跑滿 60 幀，比前代 Mate 80 Pro Max 用更低解析度的表現還省電，與高通最新旗艦和蘋果 A19 Pro 機型差距不大。壓力更大的鳴潮在 648P 下跑圖 30 分鐘平均 50 幀、6.3W，異環更拿到 53 幀、6.8W，比前代整整多 10 幀，能效幾乎追平安卓陣營的天璣 9500 與高通旗艦平台。極客灣也點出前提：這是鴻蒙原生遊戲才有的待遇，沒上鴻蒙的遊戲得靠轉譯層跑，流暢但能效不出色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013538_0_ff8109.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013649_0_940a76.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px">
+<p>電池加到 6,800mAh，搭配晶片能效進步，在極客灣的 5G 續航模型裡撐了 9 小時 56 分，比前代多出一個半小時以上，和一票大電池安卓機相比毫不遜色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013818_0_0af42b.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>圖形技術這代也補了 AI 超分（NPU 與 GPU 協同）、更多遊戲的硬體光追支援（鴻蒙版鳴潮的光追反射肉眼可見）與遊戲內智能 HDR。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013847_0_8cee49.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013848_0_2140a9.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>NPU：面積多 150% 更強的本地 AI&nbsp;能力</h3>
+<p>極客灣說這顆 NPU 大得誇張：光是主 Die 上的 NPU 面積就超過麒麟 9030 Pro 整顆 NPU，上下兩片加總面積比前代多 150%，INT8 吞吐 68 TOPS，跑 3B 模型的 Prefill 速度是前代的三倍。官方規格也呼應這點：達芬奇架構 NPU 性能提升 140%，並支援端側 30B MoE 大模型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014020_0_835466.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>實際應用上，離線狀態就能叫小藝整理相簿（跑 30B-a2B 的 MoE 模型），修圖時先由 MoE 模型分析畫面給出去路人、加虛化的建議，再交給本地 6B 多模態模型動手修，成果不輸雲端模型。如果想瞭解麒麟 9050 Pro的更多能力也可以直接看極客灣的影片，個人是對這次華為的這顆處理器表現也很驚艷。</p>
+<div><div data-alt="逻辑折叠深度解析！华为Mate 90系列韬芯片有多强？"></div></div>
+<h2>結語：折出來的第三條路</h2>
+<p>極客灣對邏輯折疊的評價很高，但也踩了煞車：這種技術現階段成本高昂、良率還在爬坡，短期內只會用在旗艦產品，華為自己也把韜定律與邏輯折疊定義成包含關係，並非每顆晶片都會折。價格反映了一切：Mate 90 Pro Max 的 16GB＋512GB 版本賣 9,999 元人民幣、約新台幣 4.4 萬元，比前代同配置貴 2,000 元人民幣，余承東坦言記憶體漲價讓每台手機成本平均增加 200 美元。對半導體產業而言，邏輯折疊提供了一個耐人尋味的示範：當製程縮微的大門逐漸收窄，封裝、堆疊與架構設計這些「後段功夫」，同樣能把晶片往前推一代。這條路能不能走遠，最終考驗的是良率與成本曲線。</p>
+<blockquote data-secret="95v5CAJ3am"><p><a href="https://www.kocpc.com.tw/archives/668794">華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化 — 電腦王阿達" src="about:blank" data-secret="95v5CAJ3am" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/668794/embed#?secret=UlRFyS8kqd#?secret=95v5CAJ3am"></iframe></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/PpNFmPcBYPY" target="_blank"><img src="https://www.youtube.com/embed/PpNFmPcBYPY" /></a></p>
+<p>幾個月前<strong><a href="https://www.kocpc.com.tw/archives/tag/%e8%8f%af%e7%82%ba">華為</a></strong>半導體業務部總裁何庭波今日在上海 IEEE ISCAS 2026 上發表「<a href="https://www.kocpc.com.tw/archives/643783" target="_blank">韜定律</a>」，當時就講到可以在沒有先進製程的情況下，透過<a href="https://www.kocpc.com.tw/archives/tag/%e9%82%8f%e8%bc%af%e6%91%ba%e7%96%8a"><strong>邏輯摺疊</strong></a>的方式讓半導體密度達到先進製程的水準。當時大部分媒體都認為這可能只是一個概念或吹牛皮的技術，不過在前陣子華為推出的三摺疊旗艦 Mate XT 2 裡面搭載的<a href="https://www.kocpc.com.tw/archives/tag/%e9%ba%92%e9%ba%9f-9050-pro">麒麟 9050 Pro</a> 處理器中，當時中國科技頻道極客灣 Geekerwan 當時所發的<a href="https://www.kocpc.com.tw/archives/668794" target="_blank">性能測試</a>就已經有相當明顯的進步。近日極客灣 Geekerwan 又發佈了新影片《邏輯摺疊深度解析！華為 Mate 90 系列韜晶片有多強？》，真的把麒麟 9050 Pro 處理器拿去實驗室切片，在 3D 空間重建內部結構，解開「邏輯折疊」的封裝之謎，再用 Mate 90 Pro Max 實測遊戲與續航。直接先講結論：這顆晶片用上下兩片晶粒「折疊」堆疊，在製程沒換代的前提下把電晶體密度拉高 28%，實測能效甚至贏過 Google 今年的 Tensor G6。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011253_0_78dd81.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h2>極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術</h2>
+<h3>韜晶片家族：9030、9035 與 9050 Pro</h3>
+<p>華為 10 月 1 日發表的 Mate 90 系列共五款機型，全系出廠搭載 HarmonyOS 7，晶片陣容分三級：Mate 90 用麒麟 9030（8 核 12 線程，整機性能較前代提升 27%）、Mate 90 Pro 用麒麟 9035（規格近似 9030 Pro、調整峰值頻率，提升 20%）、Pro Max 及以上則是主角麒麟 9050 Pro，整機性能較上代旗艦提升 31%。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011455_0_3f06d6.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011633_0_98721a.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>這代晶片有個統一的名字叫「韜晶片」，背後是華為自研的「<a href="https://www.kocpc.com.tw/archives/tag/%e9%9f%9c%e5%ae%9a%e5%be%8b"><strong>韜（τ）定律</strong></a>」：用「時間縮微」替代傳統「幾何縮微」，在不依賴 EUV 曝光機的前提下提升性能，官方目標是 2031 年把韜定律晶片的電晶體密度做到與 1.4 奈米製程同等水準。9030 與 9035 都遵循韜定律但沒用上邏輯折疊，這項技術目前只屬於最旗艦的 9050 Pro。</p>
+<h3>切開來看：晶片漢堡與 8 萬根 TSV</h3>
+<p>極客灣把麒麟 9050 Pro 切片後看到的結構，和傳統晶片完全不同。一般晶片從基板往上一層層金屬層，頂端埋邏輯電路；9050 Pro 則是上下兩塊相向排布，中間用銅-銅混合鍵合（Cu-Cu hybrid bonding）把金屬層黏在一起，這整份「晶片漢堡」又被夾在兩層矽之間，不直接接觸封裝基板。上面那片是主 Die，製程較先進；下面那片是副 Die，兩片邏輯電路透過金屬層與銅-鍵合通信。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011828_0_20f001.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>夾在矽中間帶來一個供電難題，解法是 TSV 矽穿孔：導電通路穿過底層矽與邏輯電路區，一路連到鍵合金屬層。極客灣統計海思在晶片與基板之間打了約 8 萬根 TSV，代價是下層 Die 約 8% 可用面積讓給了穿孔與禁布區。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003011952_0_3f7892.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>官方數據也對得上這個思路：9050 Pro 有 500 萬個訊號傳輸鍵合、跨 Die 傳輸頻寬 125TB/s，關鍵路徑時延縮短 30%、緩衝器數量減少 55%，電晶體密度來到每平方毫米 2.38 億個、較前代提升 28%。</p>
+<h3>邏輯折疊真的把每顆核心折起來放</h3>
+<p>邏輯折疊不是「上面放 CPU、下面放 GPU」那麼粗暴。極客灣攤開兩片晶粒發現，每個 CPU 核心都被切成上下兩塊：超大核的執行單元（整數、浮點、Load &amp; Store）留在主 Die，L1、L2 快取則放到副 Die，折疊後快取正好蓋在 Load &amp; Store 的正下方，透過銅-鍵合直連，走線距離大幅縮短，延遲降低、同頻下電壓更低，功耗跟著下降。全晶片的 IP 都採同樣策略：快取、I/O、PLL 這類熱密度低、對製程不敏感的部分擺副 Die，高密度高發熱的運算單元擺主 Die。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003012123_0_564cb0.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<p>換來的集成度很可觀：上下兩片晶粒各約 120 多平方毫米，疊起來的佔位比前代 140 多平方毫米還小，但兩片加起來 240 多平方毫米的裸片面積足足多了 70%，等於在不換製程、不擴佔地的前提下多塞進 70% 的電路。這正是華為被逼出來的路徑：既然設備拿不到 EUV、製程卡在原地，就把封裝與堆疊當成新的戰場，用三維重構繞過平面縮微的極限。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013312_0_ae4eb8.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>比較尷尬的是麒麟 9050 Pro 在能效曲線方面的表現甚至贏過採用台積電 N3P 3nm 製程的 Tensor G6 處理器（不過 Tensor 系列一直都不是以高性能作為主打，而是著重於 AI&nbsp;的表現）。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014942_0_c6a9c3.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>麒麟 9050 Pro 遊戲與續航實測</h3>
+<p>紙面之外，Mate 90 Pro Max 的實測同樣有看頭。原神 7.0 版在 890P 解析度、高性能模式下，整機 4.2W 就能跑滿 60 幀，比前代 Mate 80 Pro Max 用更低解析度的表現還省電，與高通最新旗艦和蘋果 A19 Pro 機型差距不大。壓力更大的鳴潮在 648P 下跑圖 30 分鐘平均 50 幀、6.3W，異環更拿到 53 幀、6.8W，比前代整整多 10 幀，能效幾乎追平安卓陣營的天璣 9500 與高通旗艦平台。極客灣也點出前提：這是鴻蒙原生遊戲才有的待遇，沒上鴻蒙的遊戲得靠轉譯層跑，流暢但能效不出色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013538_0_ff8109.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013649_0_940a76.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px">
+<p>電池加到 6,800mAh，搭配晶片能效進步，在極客灣的 5G 續航模型裡撐了 9 小時 56 分，比前代多出一個半小時以上，和一票大電池安卓機相比毫不遜色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013818_0_0af42b.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>圖形技術這代也補了 AI 超分（NPU 與 GPU 協同）、更多遊戲的硬體光追支援（鴻蒙版鳴潮的光追反射肉眼可見）與遊戲內智能 HDR。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013847_0_8cee49.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003013848_0_2140a9.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<h3>NPU：面積多 150% 更強的本地 AI&nbsp;能力</h3>
+<p>極客灣說這顆 NPU 大得誇張：光是主 Die 上的 NPU 面積就超過麒麟 9030 Pro 整顆 NPU，上下兩片加總面積比前代多 150%，INT8 吞吐 68 TOPS，跑 3B 模型的 Prefill 速度是前代的三倍。官方規格也呼應這點：達芬奇架構 NPU 性能提升 140%，並支援端側 30B MoE 大模型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261003014020_0_835466.jpg" alt="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" title="韜定律是真的！極客灣切片拆解華為麒麟 9050 Pro 邏輯摺疊技術：兩片 Die 用 TSV 疊起來加速 - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>實際應用上，離線狀態就能叫小藝整理相簿（跑 30B-a2B 的 MoE 模型），修圖時先由 MoE 模型分析畫面給出去路人、加虛化的建議，再交給本地 6B 多模態模型動手修，成果不輸雲端模型。如果想瞭解麒麟 9050 Pro的更多能力也可以直接看極客灣的影片，個人是對這次華為的這顆處理器表現也很驚艷。</p>
+<div><div data-alt="逻辑折叠深度解析！华为Mate 90系列韬芯片有多强？"></div></div>
+<h2>結語：折出來的第三條路</h2>
+<p>極客灣對邏輯折疊的評價很高，但也踩了煞車：這種技術現階段成本高昂、良率還在爬坡，短期內只會用在旗艦產品，華為自己也把韜定律與邏輯折疊定義成包含關係，並非每顆晶片都會折。價格反映了一切：Mate 90 Pro Max 的 16GB＋512GB 版本賣 9,999 元人民幣、約新台幣 4.4 萬元，比前代同配置貴 2,000 元人民幣，余承東坦言記憶體漲價讓每台手機成本平均增加 200 美元。對半導體產業而言，邏輯折疊提供了一個耐人尋味的示範：當製程縮微的大門逐漸收窄，封裝、堆疊與架構設計這些「後段功夫」，同樣能把晶片往前推一代。這條路能不能走遠，最終考驗的是良率與成本曲線。</p>
+<blockquote data-secret="95v5CAJ3am"><p><a href="https://www.kocpc.com.tw/archives/668794">華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="華為麒麟 9050 Pro 效能實測分析：用韜定律「邏輯摺疊」不換製程也能全面進化 — 電腦王阿達" src="about:blank" data-secret="95v5CAJ3am" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/668794/embed#?secret=UlRFyS8kqd#?secret=95v5CAJ3am"></iframe></p>]]></content:encoded>
+    <itunes:image href="https://www.youtube.com/embed/PpNFmPcBYPY"/>
+          <media:content url="https://www.youtube.com/embed/PpNFmPcBYPY" medium="image"/>
+    <pubDate>Fri, 02 Oct 2026 17:54:17 +0000</pubDate>
+  </item><item>
     <title><![CDATA[HUAWEI 穿戴市佔破 20% 登全球第一！WATCH GT 7 系列在台上市，17,990 元起]]></title>
     <link>https://www.kocpc.com.tw/archives/670914</link>
     <itunes:title><![CDATA[HUAWEI 穿戴市佔破 20% 登全球第一！WATCH GT 7 系列在台上市，17,990 元起]]></itunes:title>
@@ -1505,242 +1892,5 @@ DX12 → Metal with the madeira-d3d12 runtime</p>
     <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002142252_0_323cb5-scaled.jpg"/>
           <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002142252_0_323cb5-scaled.jpg" medium="image"/>
     <pubDate>Fri, 02 Oct 2026 06:24:56 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多]]></title>
-    <link>https://www.kocpc.com.tw/archives/670798</link>
-    <itunes:title><![CDATA[自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>隨著免費開放權重模型越來越強，很多人開始覺得，與其長期訂閱 Claude、ChatGPT 等 AI 服務，不如直接改用本地 LLM，或自己租 GPU 來跑模型，整體應該會省不少。尤其 DeepSeek V4.1 Flash 推出後，國外就有不少開發者開始考慮租用 GPU 自架 DeepSeek，取代原本每天使用的 Claude Code。</p>
-<p>根據外媒報導，美國一間顧問公司就進行了這項實測。他們租下 4 張 NVIDIA H200，準備讓 DeepSeek V4.1 Flash 接手原本由 Claude Opus 5.5 負責的寫程式工作，但最終成本不是大家想的那樣省，而且由於安全問題，DeepSeek 最後甚至沒有投入程式碼撰寫。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123324_0_5f9f2d.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"><br>
-<span>AI 生成的示意圖</span></p>
-<h2>DeepSeek 真的比 Claude 便宜 80 倍？美國公司租 4 張 H200 自架實測：每月 1.3 萬美元，比 Claude 帳單貴一倍以上</h2>
-<p>根據外媒 <a href="https://www.tomshardware.com/tech-industry/artificial-intelligence/firm-rents-four-nvidia-h200s-to-test-80x-cheaper-deepseek-claim-usd13-200-monthly-gpu-rental-doubles-claude-bill-while-security-flaws-keep-code-offline" target="_blank">Tom’s Hardware</a> 報導，The Call Center Doctors 是一間替其他企業建置與營運客服中心的顧問公司，最近分享了租用 GPU 運行本地 DeepSeek 的心得。</p>
-<p>他們在 9 月 27 日租了一台搭載 4 張 H200 的主機，讓自家的 Claude Code 代理改接 DeepSeek V4.1 Flash，取代原本的 Opus 5.5。</p>
-<p>這台主機正常的隨需價是每小時 18.37 美元，不過他們實際付的是 spot 閒置算力價，每小時僅 9.19 美元，便宜一半，但代價是供應商隨時可以把機器收回去。</p>
-<p>而且整個架設過程也沒有想像中順利。</p>
-<p>報導提到，每次重新載入 DeepSeek V4.1 Flash 都要等上 10～15 分鐘，前幾次還接連因為 GPU 記憶體設定、顯示卡之間的通訊問題，以及同時啟動太多代理而當機。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260909003423_0_01caa4.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達"></p>
-<p>團隊前後調整了好幾輪設定，直到第 5 次把同時執行的代理數限制在 128 個，並把 GPU 記憶體使用率控制在 90% 左右，系統才終於穩定下來。</p>
-<p>因此他們認為，自架大型模型並不是「下載模型、開起來就能用」這麼簡單，背後還需要有人懂 GPU、記憶體配置和系統調校，隨時處理各種問題。</p>
-<p>一開始他們做了幾輪一分鐘的滿載測試，每次只測一種工作，全程零錯誤，可說相當完美。但進到真實的寫程式工作後，問題就開始出現。</p>
-<p>AI 寫程式不是每次只處理一個全新的問題。隨著對話和程式碼越來越長，每次執行任務時，模型都得重新讀取前面的內容，才能知道目前做到哪裡。</p>
-<p>他們檢查 9 月的 Claude Code 使用紀錄後發現，有高達 96% 的輸入 Token 都是在重讀先前的內容。平均每次呼叫模型，都要重新讀取約 19.6 萬個 Token。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123323_0_24d37e.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"></p><div></div><br>
-<span>AI 生成的示意圖</span>
-<p>這也代表，自架 DeepSeek 瓶頸不是一秒能生成多少 Token，還要考慮大量重複讀取上下文所花掉的運算資源。</p>
-<p>實際測算後，這台配備 4 張 H200 的主機，一天大約只能處理 200 億個 Token，但這家公司 9 月最忙的一天，Claude Code 的使用量就高達 510 億個 Token，等於一台 4×H200 主機根本無法滿足尖峰時期的需求。</p>
-<p>不僅如此，他們這次實驗也發現到資安問題。</p>
-<p>不過這裡要先說清楚，問題不在 DeepSeek 模型本身，而是這家公司替 AI 代理準備的「沙箱」環境。</p>
-<p>安全審查過程中，團隊多次找到可以突破限制的方法，因此這個隔離環境不夠安全，最終導致公司沒有讓 DeepSeek 修改正式程式碼。</p>
-<p>因此這次測試中，DeepSeek 主要只負責「讀程式碼、找問題」。團隊同時啟動約 48～64 個唯讀審查代理，掃描了 2,377 個資料夾，最後產出 32 份 bug 報告。</p>
-<p>整個測試大約跑了 3 小時，使用 Spot 價格約花 28 美元；如果按照一般隨需價格計算，則約為 55 美元。</p>
-<p>下方是最終結果。如果跑滿一整個月，自架 DeepSeek 的費用會遠高於之前 Claude Code 訂閱：</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>方案</th>
-<th>成本</th>
-<th>說明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Claude Code</strong></td>
-<td><strong>約 5,500 美元／月</strong></td>
-<td>公司 9 月實際帳單</td>
-</tr>
-<tr>
-<td><strong>DeepSeek 自架（4×H200）</strong></td>
-<td><strong>約 28 美元</strong></td>
-<td>約 3 小時實際測試、使用 Spot 價格</td>
-</tr>
-<tr>
-<td>DeepSeek 自架（4×H200）</td>
-<td>約 13,200 美元／月</td>
-<td>依隨需價格推算整月持續租用</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p data-pm-slice="1 1 []">當然，他們並沒有真的讓 4 張 H200 連續跑滿一個月，13,200 美元只是依照隨需價格推算出來的，因此不能單憑這次測試就認定「自架模型一定比雲端 AI 貴」。</p>
-<p>不過至少從這次的實測來看，除了 GPU 租用成本之外，自架大型模型還得考慮部署、調校、維護以及工程師投入的時間成本。對前這種 Claude Code 高使用量與工作模式來說，繼續使用雲端 AI 確實更好。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>隨著免費開放權重模型越來越強，很多人開始覺得，與其長期訂閱 Claude、ChatGPT 等 AI 服務，不如直接改用本地 LLM，或自己租 GPU 來跑模型，整體應該會省不少。尤其 DeepSeek V4.1 Flash 推出後，國外就有不少開發者開始考慮租用 GPU 自架 DeepSeek，取代原本每天使用的 Claude Code。</p>
-<p>根據外媒報導，美國一間顧問公司就進行了這項實測。他們租下 4 張 NVIDIA H200，準備讓 DeepSeek V4.1 Flash 接手原本由 Claude Opus 5.5 負責的寫程式工作，但最終成本不是大家想的那樣省，而且由於安全問題，DeepSeek 最後甚至沒有投入程式碼撰寫。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123324_0_5f9f2d.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"><br>
-<span>AI 生成的示意圖</span></p>
-<h2>DeepSeek 真的比 Claude 便宜 80 倍？美國公司租 4 張 H200 自架實測：每月 1.3 萬美元，比 Claude 帳單貴一倍以上</h2>
-<p>根據外媒 <a href="https://www.tomshardware.com/tech-industry/artificial-intelligence/firm-rents-four-nvidia-h200s-to-test-80x-cheaper-deepseek-claim-usd13-200-monthly-gpu-rental-doubles-claude-bill-while-security-flaws-keep-code-offline" target="_blank">Tom’s Hardware</a> 報導，The Call Center Doctors 是一間替其他企業建置與營運客服中心的顧問公司，最近分享了租用 GPU 運行本地 DeepSeek 的心得。</p>
-<p>他們在 9 月 27 日租了一台搭載 4 張 H200 的主機，讓自家的 Claude Code 代理改接 DeepSeek V4.1 Flash，取代原本的 Opus 5.5。</p>
-<p>這台主機正常的隨需價是每小時 18.37 美元，不過他們實際付的是 spot 閒置算力價，每小時僅 9.19 美元，便宜一半，但代價是供應商隨時可以把機器收回去。</p>
-<p>而且整個架設過程也沒有想像中順利。</p>
-<p>報導提到，每次重新載入 DeepSeek V4.1 Flash 都要等上 10～15 分鐘，前幾次還接連因為 GPU 記憶體設定、顯示卡之間的通訊問題，以及同時啟動太多代理而當機。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260909003423_0_01caa4.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達"></p>
-<p>團隊前後調整了好幾輪設定，直到第 5 次把同時執行的代理數限制在 128 個，並把 GPU 記憶體使用率控制在 90% 左右，系統才終於穩定下來。</p>
-<p>因此他們認為，自架大型模型並不是「下載模型、開起來就能用」這麼簡單，背後還需要有人懂 GPU、記憶體配置和系統調校，隨時處理各種問題。</p>
-<p>一開始他們做了幾輪一分鐘的滿載測試，每次只測一種工作，全程零錯誤，可說相當完美。但進到真實的寫程式工作後，問題就開始出現。</p>
-<p>AI 寫程式不是每次只處理一個全新的問題。隨著對話和程式碼越來越長，每次執行任務時，模型都得重新讀取前面的內容，才能知道目前做到哪裡。</p>
-<p>他們檢查 9 月的 Claude Code 使用紀錄後發現，有高達 96% 的輸入 Token 都是在重讀先前的內容。平均每次呼叫模型，都要重新讀取約 19.6 萬個 Token。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123323_0_24d37e.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"></p><div></div><br>
-<span>AI 生成的示意圖</span>
-<p>這也代表，自架 DeepSeek 瓶頸不是一秒能生成多少 Token，還要考慮大量重複讀取上下文所花掉的運算資源。</p>
-<p>實際測算後，這台配備 4 張 H200 的主機，一天大約只能處理 200 億個 Token，但這家公司 9 月最忙的一天，Claude Code 的使用量就高達 510 億個 Token，等於一台 4×H200 主機根本無法滿足尖峰時期的需求。</p>
-<p>不僅如此，他們這次實驗也發現到資安問題。</p>
-<p>不過這裡要先說清楚，問題不在 DeepSeek 模型本身，而是這家公司替 AI 代理準備的「沙箱」環境。</p>
-<p>安全審查過程中，團隊多次找到可以突破限制的方法，因此這個隔離環境不夠安全，最終導致公司沒有讓 DeepSeek 修改正式程式碼。</p>
-<p>因此這次測試中，DeepSeek 主要只負責「讀程式碼、找問題」。團隊同時啟動約 48～64 個唯讀審查代理，掃描了 2,377 個資料夾，最後產出 32 份 bug 報告。</p>
-<p>整個測試大約跑了 3 小時，使用 Spot 價格約花 28 美元；如果按照一般隨需價格計算，則約為 55 美元。</p>
-<p>下方是最終結果。如果跑滿一整個月，自架 DeepSeek 的費用會遠高於之前 Claude Code 訂閱：</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>方案</th>
-<th>成本</th>
-<th>說明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Claude Code</strong></td>
-<td><strong>約 5,500 美元／月</strong></td>
-<td>公司 9 月實際帳單</td>
-</tr>
-<tr>
-<td><strong>DeepSeek 自架（4×H200）</strong></td>
-<td><strong>約 28 美元</strong></td>
-<td>約 3 小時實際測試、使用 Spot 價格</td>
-</tr>
-<tr>
-<td>DeepSeek 自架（4×H200）</td>
-<td>約 13,200 美元／月</td>
-<td>依隨需價格推算整月持續租用</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p data-pm-slice="1 1 []">當然，他們並沒有真的讓 4 張 H200 連續跑滿一個月，13,200 美元只是依照隨需價格推算出來的，因此不能單憑這次測試就認定「自架模型一定比雲端 AI 貴」。</p>
-<p>不過至少從這次的實測來看，除了 GPU 租用成本之外，自架大型模型還得考慮部署、調校、維護以及工程師投入的時間成本。對前這種 Claude Code 高使用量與工作模式來說，繼續使用雲端 AI 確實更好。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>隨著免費開放權重模型越來越強，很多人開始覺得，與其長期訂閱 Claude、ChatGPT 等 AI 服務，不如直接改用本地 LLM，或自己租 GPU 來跑模型，整體應該會省不少。尤其 DeepSeek V4.1 Flash 推出後，國外就有不少開發者開始考慮租用 GPU 自架 DeepSeek，取代原本每天使用的 Claude Code。</p>
-<p>根據外媒報導，美國一間顧問公司就進行了這項實測。他們租下 4 張 NVIDIA H200，準備讓 DeepSeek V4.1 Flash 接手原本由 Claude Opus 5.5 負責的寫程式工作，但最終成本不是大家想的那樣省，而且由於安全問題，DeepSeek 最後甚至沒有投入程式碼撰寫。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123324_0_5f9f2d.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"><br>
-<span>AI 生成的示意圖</span></p>
-<h2>DeepSeek 真的比 Claude 便宜 80 倍？美國公司租 4 張 H200 自架實測：每月 1.3 萬美元，比 Claude 帳單貴一倍以上</h2>
-<p>根據外媒 <a href="https://www.tomshardware.com/tech-industry/artificial-intelligence/firm-rents-four-nvidia-h200s-to-test-80x-cheaper-deepseek-claim-usd13-200-monthly-gpu-rental-doubles-claude-bill-while-security-flaws-keep-code-offline" target="_blank">Tom’s Hardware</a> 報導，The Call Center Doctors 是一間替其他企業建置與營運客服中心的顧問公司，最近分享了租用 GPU 運行本地 DeepSeek 的心得。</p>
-<p>他們在 9 月 27 日租了一台搭載 4 張 H200 的主機，讓自家的 Claude Code 代理改接 DeepSeek V4.1 Flash，取代原本的 Opus 5.5。</p>
-<p>這台主機正常的隨需價是每小時 18.37 美元，不過他們實際付的是 spot 閒置算力價，每小時僅 9.19 美元，便宜一半，但代價是供應商隨時可以把機器收回去。</p>
-<p>而且整個架設過程也沒有想像中順利。</p>
-<p>報導提到，每次重新載入 DeepSeek V4.1 Flash 都要等上 10～15 分鐘，前幾次還接連因為 GPU 記憶體設定、顯示卡之間的通訊問題，以及同時啟動太多代理而當機。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260909003423_0_01caa4.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達"></p>
-<p>團隊前後調整了好幾輪設定，直到第 5 次把同時執行的代理數限制在 128 個，並把 GPU 記憶體使用率控制在 90% 左右，系統才終於穩定下來。</p>
-<p>因此他們認為，自架大型模型並不是「下載模型、開起來就能用」這麼簡單，背後還需要有人懂 GPU、記憶體配置和系統調校，隨時處理各種問題。</p>
-<p>一開始他們做了幾輪一分鐘的滿載測試，每次只測一種工作，全程零錯誤，可說相當完美。但進到真實的寫程式工作後，問題就開始出現。</p>
-<p>AI 寫程式不是每次只處理一個全新的問題。隨著對話和程式碼越來越長，每次執行任務時，模型都得重新讀取前面的內容，才能知道目前做到哪裡。</p>
-<p>他們檢查 9 月的 Claude Code 使用紀錄後發現，有高達 96% 的輸入 Token 都是在重讀先前的內容。平均每次呼叫模型，都要重新讀取約 19.6 萬個 Token。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123323_0_24d37e.jpg" alt="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" title="自架 DeepSeek 真的比較省？國外公司租 4 張 H200 實測，每月成本竟是 Claude 的兩倍多 - 電腦王阿達" data-lazy-sizes="(max-width: 1672px) 100vw, 1672px"></p><div></div><br>
-<span>AI 生成的示意圖</span>
-<p>這也代表，自架 DeepSeek 瓶頸不是一秒能生成多少 Token，還要考慮大量重複讀取上下文所花掉的運算資源。</p>
-<p>實際測算後，這台配備 4 張 H200 的主機，一天大約只能處理 200 億個 Token，但這家公司 9 月最忙的一天，Claude Code 的使用量就高達 510 億個 Token，等於一台 4×H200 主機根本無法滿足尖峰時期的需求。</p>
-<p>不僅如此，他們這次實驗也發現到資安問題。</p>
-<p>不過這裡要先說清楚，問題不在 DeepSeek 模型本身，而是這家公司替 AI 代理準備的「沙箱」環境。</p>
-<p>安全審查過程中，團隊多次找到可以突破限制的方法，因此這個隔離環境不夠安全，最終導致公司沒有讓 DeepSeek 修改正式程式碼。</p>
-<p>因此這次測試中，DeepSeek 主要只負責「讀程式碼、找問題」。團隊同時啟動約 48～64 個唯讀審查代理，掃描了 2,377 個資料夾，最後產出 32 份 bug 報告。</p>
-<p>整個測試大約跑了 3 小時，使用 Spot 價格約花 28 美元；如果按照一般隨需價格計算，則約為 55 美元。</p>
-<p>下方是最終結果。如果跑滿一整個月，自架 DeepSeek 的費用會遠高於之前 Claude Code 訂閱：</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>方案</th>
-<th>成本</th>
-<th>說明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Claude Code</strong></td>
-<td><strong>約 5,500 美元／月</strong></td>
-<td>公司 9 月實際帳單</td>
-</tr>
-<tr>
-<td><strong>DeepSeek 自架（4×H200）</strong></td>
-<td><strong>約 28 美元</strong></td>
-<td>約 3 小時實際測試、使用 Spot 價格</td>
-</tr>
-<tr>
-<td>DeepSeek 自架（4×H200）</td>
-<td>約 13,200 美元／月</td>
-<td>依隨需價格推算整月持續租用</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p data-pm-slice="1 1 []">當然，他們並沒有真的讓 4 張 H200 連續跑滿一個月，13,200 美元只是依照隨需價格推算出來的，因此不能單憑這次測試就認定「自架模型一定比雲端 AI 貴」。</p>
-<p>不過至少從這次的實測來看，除了 GPU 租用成本之外，自架大型模型還得考慮部署、調校、維護以及工程師投入的時間成本。對前這種 Claude Code 高使用量與工作模式來說，繼續使用雲端 AI 確實更好。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123324_0_5f9f2d.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002123324_0_5f9f2d.jpg" medium="image"/>
-    <pubDate>Fri, 02 Oct 2026 04:34:45 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點]]></title>
-    <link>https://www.kocpc.com.tw/archives/670811</link>
-    <itunes:title><![CDATA[Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/DAn34l_YrUM" target="_blank"><img src="https://www.youtube.com/embed/DAn34l_YrUM" /></a></p>
-<p>每年最令人期待的 Google「惡搞創新」傳統之一，莫過於 Google 日本團隊在十月推出的 Gboard 創意鍵盤企劃。這項活動至今已經持續超過 15 年，而令人佩服的是，他們幾乎每次都能想出比前一代更天馬行空、更讓人哭笑不得的點子。雖然這些產品從來不是為了真正量產販售而設計，但憑藉獨特的創意與話題性，總能成功吸引大眾目光，也讓更多人重新認識每天都在使用的 Gboard 輸入法。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091922_0_c34400.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點</h2>
-<p>如果你過去沒有接觸過這系列作品，絕對值得花點時間回顧。Google 日本團隊每年都會以一本正經的方式，提出一款他們認為能夠改善日常輸入體驗的「革命性鍵盤」，而今年登場的作品，則是名為「旋轉鍵盤（Conveyor Belt Keyboard）」的奇特構想。</p>
-<p>這款鍵盤最大的特色在於希望讓使用者僅靠一隻手，甚至只用單指就能完成文字輸入。為了實現這個目標，Google 設計了一套可旋轉移動的按鍵機制，讓所有按鍵如同輸送帶般不斷循環移動。使用者只需讓手指停留在固定位置，等待想要輸入的按鍵經過時按下即可。換句話說，打字的人不需要移動手指尋找按鍵，而是讓按鍵主動來到手指面前。</p>
-<div><div data-alt="Gboard くるくるバージョン"></div></div>
-<p>根據 Google 在<a href="https://blog.google/intl/ja-jp/products/android-chrome-play/gboard-2026/" target="_blank">官方介紹中</a>的說明，這套設計的原理就像是運作中的傳送帶。每個字符按鍵會依序從眼前經過，使用者只要在正確時機按下即可完成輸入。每條按鍵帶共有 29 個按鍵，不僅包含大小寫字母，也強調操作直覺性，希望降低使用上的學習成本。雖然實際體驗起來可能未必比傳統鍵盤更有效率，但光是這種突破常規的思維方式，就足以讓人會心一笑。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091745_0_5a9f20.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002092132_0_d4a95e.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>更有趣的是，Google 團隊甚至認真思考過這項產品可能衍生出的各種版本。例如不同配色款式、更長或更短的鍵盤配置，甚至還有高轉速版本，讓按鍵以更快速度在使用者眼前飛馳而過。當然，這些想法究竟有多少實用價值並不重要，畢竟這系列作品最大的魅力，本來就建立在一本正經地實現荒謬創意之上。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091814_0_4864af.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>雖然 Google 不太可能真的將這些概念產品商業化，但公司依然展現了相當開放的態度，公開相關設計資料與製作資訊，提供給有興趣的開發者與 Maker 社群參考。對於喜歡動手打造特殊裝置的人來說，這些公開資源或許就是實現腦洞創意的最佳起點。此外，Google 也整理了歷年所有 Gboard 創意鍵盤作品，從較為正常的設計到充滿實驗精神的極端版本應有盡有，充分展現團隊源源不絕的想像力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091901_0_e8bb3d.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>回到日常使用層面，Gboard 依舊是多數 Android 用戶的首選鍵盤。它不僅擁有流暢穩定的輸入體驗，也持續加入語音輸入、智慧建議、翻譯功能以及各種 AI 應用，讓輸入效率不斷提升。當然，要真正發揮 Gboard 的全部潛力，適當調整一些設定仍然十分重要。無論是個人化鍵盤配置、手勢輸入功能，還是剪貼簿與快捷操作選項，都能讓整體使用體驗更上一層樓。</p>
-<p>而在這些實用功能之外，Google 日本團隊每年推出的創意鍵盤計畫，也提醒了我們一件事：科技產品不一定只能追求效率與規格，有時候天馬行空的想像力與幽默感，同樣能成為吸引人們關注科技的最佳方式。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/DAn34l_YrUM" target="_blank"><img src="https://www.youtube.com/embed/DAn34l_YrUM" /></a></p>
-<p>每年最令人期待的 Google「惡搞創新」傳統之一，莫過於 Google 日本團隊在十月推出的 Gboard 創意鍵盤企劃。這項活動至今已經持續超過 15 年，而令人佩服的是，他們幾乎每次都能想出比前一代更天馬行空、更讓人哭笑不得的點子。雖然這些產品從來不是為了真正量產販售而設計，但憑藉獨特的創意與話題性，總能成功吸引大眾目光，也讓更多人重新認識每天都在使用的 Gboard 輸入法。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091922_0_c34400.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點</h2>
-<p>如果你過去沒有接觸過這系列作品，絕對值得花點時間回顧。Google 日本團隊每年都會以一本正經的方式，提出一款他們認為能夠改善日常輸入體驗的「革命性鍵盤」，而今年登場的作品，則是名為「旋轉鍵盤（Conveyor Belt Keyboard）」的奇特構想。</p>
-<p>這款鍵盤最大的特色在於希望讓使用者僅靠一隻手，甚至只用單指就能完成文字輸入。為了實現這個目標，Google 設計了一套可旋轉移動的按鍵機制，讓所有按鍵如同輸送帶般不斷循環移動。使用者只需讓手指停留在固定位置，等待想要輸入的按鍵經過時按下即可。換句話說，打字的人不需要移動手指尋找按鍵，而是讓按鍵主動來到手指面前。</p>
-<div><div data-alt="Gboard くるくるバージョン"></div></div>
-<p>根據 Google 在<a href="https://blog.google/intl/ja-jp/products/android-chrome-play/gboard-2026/" target="_blank">官方介紹中</a>的說明，這套設計的原理就像是運作中的傳送帶。每個字符按鍵會依序從眼前經過，使用者只要在正確時機按下即可完成輸入。每條按鍵帶共有 29 個按鍵，不僅包含大小寫字母，也強調操作直覺性，希望降低使用上的學習成本。雖然實際體驗起來可能未必比傳統鍵盤更有效率，但光是這種突破常規的思維方式，就足以讓人會心一笑。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091745_0_5a9f20.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002092132_0_d4a95e.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>更有趣的是，Google 團隊甚至認真思考過這項產品可能衍生出的各種版本。例如不同配色款式、更長或更短的鍵盤配置，甚至還有高轉速版本，讓按鍵以更快速度在使用者眼前飛馳而過。當然，這些想法究竟有多少實用價值並不重要，畢竟這系列作品最大的魅力，本來就建立在一本正經地實現荒謬創意之上。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091814_0_4864af.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>雖然 Google 不太可能真的將這些概念產品商業化，但公司依然展現了相當開放的態度，公開相關設計資料與製作資訊，提供給有興趣的開發者與 Maker 社群參考。對於喜歡動手打造特殊裝置的人來說，這些公開資源或許就是實現腦洞創意的最佳起點。此外，Google 也整理了歷年所有 Gboard 創意鍵盤作品，從較為正常的設計到充滿實驗精神的極端版本應有盡有，充分展現團隊源源不絕的想像力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091901_0_e8bb3d.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>回到日常使用層面，Gboard 依舊是多數 Android 用戶的首選鍵盤。它不僅擁有流暢穩定的輸入體驗，也持續加入語音輸入、智慧建議、翻譯功能以及各種 AI 應用，讓輸入效率不斷提升。當然，要真正發揮 Gboard 的全部潛力，適當調整一些設定仍然十分重要。無論是個人化鍵盤配置、手勢輸入功能，還是剪貼簿與快捷操作選項，都能讓整體使用體驗更上一層樓。</p>
-<p>而在這些實用功能之外，Google 日本團隊每年推出的創意鍵盤計畫，也提醒了我們一件事：科技產品不一定只能追求效率與規格，有時候天馬行空的想像力與幽默感，同樣能成為吸引人們關注科技的最佳方式。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/DAn34l_YrUM" target="_blank"><img src="https://www.youtube.com/embed/DAn34l_YrUM" /></a></p>
-<p>每年最令人期待的 Google「惡搞創新」傳統之一，莫過於 Google 日本團隊在十月推出的 Gboard 創意鍵盤企劃。這項活動至今已經持續超過 15 年，而令人佩服的是，他們幾乎每次都能想出比前一代更天馬行空、更讓人哭笑不得的點子。雖然這些產品從來不是為了真正量產販售而設計，但憑藉獨特的創意與話題性，總能成功吸引大眾目光，也讓更多人重新認識每天都在使用的 Gboard 輸入法。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091922_0_c34400.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點</h2>
-<p>如果你過去沒有接觸過這系列作品，絕對值得花點時間回顧。Google 日本團隊每年都會以一本正經的方式，提出一款他們認為能夠改善日常輸入體驗的「革命性鍵盤」，而今年登場的作品，則是名為「旋轉鍵盤（Conveyor Belt Keyboard）」的奇特構想。</p>
-<p>這款鍵盤最大的特色在於希望讓使用者僅靠一隻手，甚至只用單指就能完成文字輸入。為了實現這個目標，Google 設計了一套可旋轉移動的按鍵機制，讓所有按鍵如同輸送帶般不斷循環移動。使用者只需讓手指停留在固定位置，等待想要輸入的按鍵經過時按下即可。換句話說，打字的人不需要移動手指尋找按鍵，而是讓按鍵主動來到手指面前。</p>
-<div><div data-alt="Gboard くるくるバージョン"></div></div>
-<p>根據 Google 在<a href="https://blog.google/intl/ja-jp/products/android-chrome-play/gboard-2026/" target="_blank">官方介紹中</a>的說明，這套設計的原理就像是運作中的傳送帶。每個字符按鍵會依序從眼前經過，使用者只要在正確時機按下即可完成輸入。每條按鍵帶共有 29 個按鍵，不僅包含大小寫字母，也強調操作直覺性，希望降低使用上的學習成本。雖然實際體驗起來可能未必比傳統鍵盤更有效率，但光是這種突破常規的思維方式，就足以讓人會心一笑。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091745_0_5a9f20.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002092132_0_d4a95e.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>更有趣的是，Google 團隊甚至認真思考過這項產品可能衍生出的各種版本。例如不同配色款式、更長或更短的鍵盤配置，甚至還有高轉速版本，讓按鍵以更快速度在使用者眼前飛馳而過。當然，這些想法究竟有多少實用價值並不重要，畢竟這系列作品最大的魅力，本來就建立在一本正經地實現荒謬創意之上。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091814_0_4864af.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>雖然 Google 不太可能真的將這些概念產品商業化，但公司依然展現了相當開放的態度，公開相關設計資料與製作資訊，提供給有興趣的開發者與 Maker 社群參考。對於喜歡動手打造特殊裝置的人來說，這些公開資源或許就是實現腦洞創意的最佳起點。此外，Google 也整理了歷年所有 Gboard 創意鍵盤作品，從較為正常的設計到充滿實驗精神的極端版本應有盡有，充分展現團隊源源不絕的想像力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261002091901_0_e8bb3d.jpg" alt="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" title="Google 日本 Gboard 團隊發表年度惡搞鍵盤作品，每年更天馬行空一點 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>回到日常使用層面，Gboard 依舊是多數 Android 用戶的首選鍵盤。它不僅擁有流暢穩定的輸入體驗，也持續加入語音輸入、智慧建議、翻譯功能以及各種 AI 應用，讓輸入效率不斷提升。當然，要真正發揮 Gboard 的全部潛力，適當調整一些設定仍然十分重要。無論是個人化鍵盤配置、手勢輸入功能，還是剪貼簿與快捷操作選項，都能讓整體使用體驗更上一層樓。</p>
-<p>而在這些實用功能之外，Google 日本團隊每年推出的創意鍵盤計畫，也提醒了我們一件事：科技產品不一定只能追求效率與規格，有時候天馬行空的想像力與幽默感，同樣能成為吸引人們關注科技的最佳方式。</p>]]></content:encoded>
-    <itunes:image href="https://www.youtube.com/embed/DAn34l_YrUM"/>
-          <media:content url="https://www.youtube.com/embed/DAn34l_YrUM" medium="image"/>
-    <pubDate>Fri, 02 Oct 2026 01:20:55 +0000</pubDate>
   </item></channel>
 </rss>
