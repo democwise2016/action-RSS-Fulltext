@@ -30,6 +30,240 @@
     </itunes:owner>
     <itunes:image href="https://blogger.googleusercontent.com/img/a/AVvXsEh8KyFU8q9VBYbldI_qsuqPS4uFb3dbmQQR4LmjV8hbz9I1zHeSoVc2KStLIDD45r4iEsw5jO_rEOg33zvOOqcaAJ_Q3UKKE_p0Nl2dQIswqzPZug5Pt9duk5kzGbZGMHJq5xl0VzWMTBdqyPYfeLXMSJNIjrnTzklW7-KgS9gxuAT71FPGayV2_A"/>
 <item>
+    <title><![CDATA[madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！]]></title>
+    <link>https://www.kocpc.com.tw/archives/671390</link>
+    <itunes:title><![CDATA[madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>「一台 iPad 剛剛跑起了 PS5 執行檔。不是串流、不是 Remote Play、房間裡沒有 PS5、也沒有主機模擬器。」，網友在一台 M2 iPad 上開機實測《Dreaming Sarah》的 PS5 版透過 madeira-anyps5 轉譯後，不論是走路、跳躍、跟 NPC 對話、音樂播放、觸控操作一應俱全（演示機是 13 吋 M2 iPad Air），這不是第一個「PS5 遊戲上 PC」的話題，但把 PS5 商業遊戲弄上 ARM 架構的平板，是另一個層級的挑戰。這是多年來模擬器社群見過最驚人的多層次逆向工程成就之一，也是有紀錄以來第一次把第九世代主機軟體帶上行動 ARM 硬體運行。</p>
+<blockquote>
+<p dir="ltr" lang="en">An iPad just ran a PS5 binary. Not streaming. Not Remote Play. No PS5 in the room. No console emulator. The PS5 build of Dreaming Sarah, relinked by AnyPS5 and booted on an M2 iPad: walk, jump, talk to NPCs, music, touch controls. Here’s how it works 🧵 https://t.co/7LooaN4FKD</p>
+<p>— Konrad (@buberlo) <a href="https://x.com/buberlo/status/2107516336977146178?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
+<h2>madeira-anyps5 三層接力：從 PS5 執行檔到 iPad 螢幕</h2>
+<p>先澄清架構，因為這正是最容易被誤解的部分。buberlo 本人補上關鍵技術內容：遊戲程式碼並不是原生 ARM，AnyPS5 先把它預先重連成 Windows x86-64 程式，再由 <a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 內的 FEX 在執行期把 x86-64 翻譯成 ARM64；他並把功勞歸給 AnyPS5 作者 boykopovar 與 Madeira 作者 Will Faust。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024345_0_e8533d.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>第一層是 AnyPS5 的「重連器」（relinker）：吃進解密後的 PS5 執行檔，預先轉換成標準 Windows x86-64 執行檔。遊戲原本編譯好的 x86 指令原封不動，換掉的是底下的作業系統根基，索尼專屬的系統函式庫、核心、標準 C 函式庫、音訊、控制器介面與 AGC 顯示驅動，全被替換成開源的高階相容層實作。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024314_0_722abe.gif" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達"></p>
+<p>第二層解決「x86 程式怎麼在 ARM 晶片上跑」，<a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 是 Will Faust 開發的 iOS 側載 App，能在單一程序裡執行 Windows 程式，內部組合了編譯成 ARM64EC 的 Wine 11 與動態二進位轉譯器 FEX-Emu，執行期把遊戲的 x86-64 指令即時翻譯成 Apple M2 能執行的 ARM64 指令。</p>
+<p>第三層是圖形：PS5 著色器是 AMD RDNA 2 位元碼，AnyPS5 的著色器重編器把它轉成標準 Vulkan SPIR-V，再由 Khronos 的 MoltenVK 翻成 Apple Metal 繪製指令。重連、轉譯、著色器三段接力，才有 iPad 上那幾分鐘的 2D 平台遊戲畫面。至於觸控操作，則是把平板螢幕的輸入接到遊戲的控制器介面，玩家不靠手把就能在螢幕上操控角色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008025949_0_ad7f00.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<h3>AnyPS5 是什麼：不模擬主機的相容層</h3>
+<p>話題主角 AnyPS5 本身就是近期自製軟體圈的大事。這是開發者 boykopovar 從 8 月 3 日起在 GitHub 開源的工具（GPL v2 授權），自我定位是「把執行檔自動移植到 Linux 與 Windows」：內含重連器與針對 PS5 系統函式庫的重實作，執行期不做模擬、也沒有獨立的模擬程序。工具本身高度自動化：重連器會解析 guest ELF 映像、解析動態匯入與函式編號、掃描系統呼叫、重寫執行檔佈局，最後把用不到的符號修剪掉，再接上自製的執行期橋接程式碼。PS5 用的是 AMD Zen 2 的 x86-64 架構，跟 PC 同宗，才讓這種接近 Proton 或 Wine 的二進位轉譯路線成立。</p>
+<blockquote data-secret="k4TTrMuWDz"><p><a href="https://www.kocpc.com.tw/archives/670351">係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多 — 電腦王阿達" src="about:blank" data-secret="k4TTrMuWDz" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670351/embed#?secret=XMqT1GKQDq#?secret=k4TTrMuWDz"></iframe></p>
+<h3>為什麼 iPad 這次特別有意義</h3>
+<p>在 PC 上跑 PS5 遊戲，靠的是架構血緣（PS5 使用的是 AMD Ryzen X86 架構）；在 iPad 上跑，則是要正面撞上 ARM 的高牆。buberlo 的演示證明這道牆可以翻過去：只要轉譯層夠多、夠完整，x86-64 的主機遊戲也能在行動晶片上落地。對遊戲保存社群來說，這是把第九世代主機軟體帶往非原生硬體的第一個公開紀錄。先用負載較小的 2D 遊戲證明整條管線走得通，把硬仗留給 3D 大作，是務實的工程順序。</p>
+<h3>限制與風險：別把它想成萬能</h3>
+<p>潑點冷水：第一，AnyPS5 需要你自行提供解密的 PS5 執行檔，專案本身不散發任何韌體、金鑰或專屬函式庫、也不做任何破解行為，使用門檻與法律風險都落在使用者自己身上。第二，目前驗證可玩的遊戲只有《Dreaming Sarah》一款，它是 2D 平台遊戲，對著色器重編器的壓力測試相當有限，主要考驗是那些吃滿 PS5 GPU 特性的 3D 大作。</p>
+<h3 title="madeira-anyps5" data-testid="repo-name-wrapper" data-inline="true"><strong><a href="https://github.com/buberlo/madeira-anyps5" target="_blank" data-component="Link" data-testid="repo-name-link" data-status="active" aria-current="page">GitHub – madeira-anyps5</a></strong></h3>
+<h3>結語</h3>
+<p>從 boykopovar 的重連器、Will Faust 的 Madeira，到 buberlo 的 iPad 演示，三個人的作品疊起來，讓「PS5 遊戲跑在平板上」變成可重現的技術展示。x86 主機的遊戲程式碼與 ARM 行動裝置之間，第一次被具體地接上了。但老實說套這麼多層轉譯，只是證明技術上可行，想拿來玩遊戲，買主機還是更實際的選擇。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>「一台 iPad 剛剛跑起了 PS5 執行檔。不是串流、不是 Remote Play、房間裡沒有 PS5、也沒有主機模擬器。」，網友在一台 M2 iPad 上開機實測《Dreaming Sarah》的 PS5 版透過 madeira-anyps5 轉譯後，不論是走路、跳躍、跟 NPC 對話、音樂播放、觸控操作一應俱全（演示機是 13 吋 M2 iPad Air），這不是第一個「PS5 遊戲上 PC」的話題，但把 PS5 商業遊戲弄上 ARM 架構的平板，是另一個層級的挑戰。這是多年來模擬器社群見過最驚人的多層次逆向工程成就之一，也是有紀錄以來第一次把第九世代主機軟體帶上行動 ARM 硬體運行。</p>
+<blockquote>
+<p dir="ltr" lang="en">An iPad just ran a PS5 binary. Not streaming. Not Remote Play. No PS5 in the room. No console emulator. The PS5 build of Dreaming Sarah, relinked by AnyPS5 and booted on an M2 iPad: walk, jump, talk to NPCs, music, touch controls. Here’s how it works 🧵 https://t.co/7LooaN4FKD</p>
+<p>— Konrad (@buberlo) <a href="https://x.com/buberlo/status/2107516336977146178?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
+<h2>madeira-anyps5 三層接力：從 PS5 執行檔到 iPad 螢幕</h2>
+<p>先澄清架構，因為這正是最容易被誤解的部分。buberlo 本人補上關鍵技術內容：遊戲程式碼並不是原生 ARM，AnyPS5 先把它預先重連成 Windows x86-64 程式，再由 <a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 內的 FEX 在執行期把 x86-64 翻譯成 ARM64；他並把功勞歸給 AnyPS5 作者 boykopovar 與 Madeira 作者 Will Faust。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024345_0_e8533d.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>第一層是 AnyPS5 的「重連器」（relinker）：吃進解密後的 PS5 執行檔，預先轉換成標準 Windows x86-64 執行檔。遊戲原本編譯好的 x86 指令原封不動，換掉的是底下的作業系統根基，索尼專屬的系統函式庫、核心、標準 C 函式庫、音訊、控制器介面與 AGC 顯示驅動，全被替換成開源的高階相容層實作。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024314_0_722abe.gif" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達"></p>
+<p>第二層解決「x86 程式怎麼在 ARM 晶片上跑」，<a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 是 Will Faust 開發的 iOS 側載 App，能在單一程序裡執行 Windows 程式，內部組合了編譯成 ARM64EC 的 Wine 11 與動態二進位轉譯器 FEX-Emu，執行期把遊戲的 x86-64 指令即時翻譯成 Apple M2 能執行的 ARM64 指令。</p>
+<p>第三層是圖形：PS5 著色器是 AMD RDNA 2 位元碼，AnyPS5 的著色器重編器把它轉成標準 Vulkan SPIR-V，再由 Khronos 的 MoltenVK 翻成 Apple Metal 繪製指令。重連、轉譯、著色器三段接力，才有 iPad 上那幾分鐘的 2D 平台遊戲畫面。至於觸控操作，則是把平板螢幕的輸入接到遊戲的控制器介面，玩家不靠手把就能在螢幕上操控角色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008025949_0_ad7f00.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<h3>AnyPS5 是什麼：不模擬主機的相容層</h3>
+<p>話題主角 AnyPS5 本身就是近期自製軟體圈的大事。這是開發者 boykopovar 從 8 月 3 日起在 GitHub 開源的工具（GPL v2 授權），自我定位是「把執行檔自動移植到 Linux 與 Windows」：內含重連器與針對 PS5 系統函式庫的重實作，執行期不做模擬、也沒有獨立的模擬程序。工具本身高度自動化：重連器會解析 guest ELF 映像、解析動態匯入與函式編號、掃描系統呼叫、重寫執行檔佈局，最後把用不到的符號修剪掉，再接上自製的執行期橋接程式碼。PS5 用的是 AMD Zen 2 的 x86-64 架構，跟 PC 同宗，才讓這種接近 Proton 或 Wine 的二進位轉譯路線成立。</p>
+<blockquote data-secret="k4TTrMuWDz"><p><a href="https://www.kocpc.com.tw/archives/670351">係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多 — 電腦王阿達" src="about:blank" data-secret="k4TTrMuWDz" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670351/embed#?secret=XMqT1GKQDq#?secret=k4TTrMuWDz"></iframe></p>
+<h3>為什麼 iPad 這次特別有意義</h3>
+<p>在 PC 上跑 PS5 遊戲，靠的是架構血緣（PS5 使用的是 AMD Ryzen X86 架構）；在 iPad 上跑，則是要正面撞上 ARM 的高牆。buberlo 的演示證明這道牆可以翻過去：只要轉譯層夠多、夠完整，x86-64 的主機遊戲也能在行動晶片上落地。對遊戲保存社群來說，這是把第九世代主機軟體帶往非原生硬體的第一個公開紀錄。先用負載較小的 2D 遊戲證明整條管線走得通，把硬仗留給 3D 大作，是務實的工程順序。</p>
+<h3>限制與風險：別把它想成萬能</h3>
+<p>潑點冷水：第一，AnyPS5 需要你自行提供解密的 PS5 執行檔，專案本身不散發任何韌體、金鑰或專屬函式庫、也不做任何破解行為，使用門檻與法律風險都落在使用者自己身上。第二，目前驗證可玩的遊戲只有《Dreaming Sarah》一款，它是 2D 平台遊戲，對著色器重編器的壓力測試相當有限，主要考驗是那些吃滿 PS5 GPU 特性的 3D 大作。</p>
+<h3 title="madeira-anyps5" data-testid="repo-name-wrapper" data-inline="true"><strong><a href="https://github.com/buberlo/madeira-anyps5" target="_blank" data-component="Link" data-testid="repo-name-link" data-status="active" aria-current="page">GitHub – madeira-anyps5</a></strong></h3>
+<h3>結語</h3>
+<p>從 boykopovar 的重連器、Will Faust 的 Madeira，到 buberlo 的 iPad 演示，三個人的作品疊起來，讓「PS5 遊戲跑在平板上」變成可重現的技術展示。x86 主機的遊戲程式碼與 ARM 行動裝置之間，第一次被具體地接上了。但老實說套這麼多層轉譯，只是證明技術上可行，想拿來玩遊戲，買主機還是更實際的選擇。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>「一台 iPad 剛剛跑起了 PS5 執行檔。不是串流、不是 Remote Play、房間裡沒有 PS5、也沒有主機模擬器。」，網友在一台 M2 iPad 上開機實測《Dreaming Sarah》的 PS5 版透過 madeira-anyps5 轉譯後，不論是走路、跳躍、跟 NPC 對話、音樂播放、觸控操作一應俱全（演示機是 13 吋 M2 iPad Air），這不是第一個「PS5 遊戲上 PC」的話題，但把 PS5 商業遊戲弄上 ARM 架構的平板，是另一個層級的挑戰。這是多年來模擬器社群見過最驚人的多層次逆向工程成就之一，也是有紀錄以來第一次把第九世代主機軟體帶上行動 ARM 硬體運行。</p>
+<blockquote>
+<p dir="ltr" lang="en">An iPad just ran a PS5 binary. Not streaming. Not Remote Play. No PS5 in the room. No console emulator. The PS5 build of Dreaming Sarah, relinked by AnyPS5 and booted on an M2 iPad: walk, jump, talk to NPCs, music, touch controls. Here’s how it works 🧵 https://t.co/7LooaN4FKD</p>
+<p>— Konrad (@buberlo) <a href="https://x.com/buberlo/status/2107516336977146178?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
+<h2>madeira-anyps5 三層接力：從 PS5 執行檔到 iPad 螢幕</h2>
+<p>先澄清架構，因為這正是最容易被誤解的部分。buberlo 本人補上關鍵技術內容：遊戲程式碼並不是原生 ARM，AnyPS5 先把它預先重連成 Windows x86-64 程式，再由 <a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 內的 FEX 在執行期把 x86-64 翻譯成 ARM64；他並把功勞歸給 AnyPS5 作者 boykopovar 與 Madeira 作者 Will Faust。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024345_0_e8533d.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p>
+<p>第一層是 AnyPS5 的「重連器」（relinker）：吃進解密後的 PS5 執行檔，預先轉換成標準 Windows x86-64 執行檔。遊戲原本編譯好的 x86 指令原封不動，換掉的是底下的作業系統根基，索尼專屬的系統函式庫、核心、標準 C 函式庫、音訊、控制器介面與 AGC 顯示驅動，全被替換成開源的高階相容層實作。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024314_0_722abe.gif" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達"></p>
+<p>第二層解決「x86 程式怎麼在 ARM 晶片上跑」，<a href="https://www.kocpc.com.tw/archives/670859" target="_blank">Madeira</a> 是 Will Faust 開發的 iOS 側載 App，能在單一程序裡執行 Windows 程式，內部組合了編譯成 ARM64EC 的 Wine 11 與動態二進位轉譯器 FEX-Emu，執行期把遊戲的 x86-64 指令即時翻譯成 Apple M2 能執行的 ARM64 指令。</p>
+<p>第三層是圖形：PS5 著色器是 AMD RDNA 2 位元碼，AnyPS5 的著色器重編器把它轉成標準 Vulkan SPIR-V，再由 Khronos 的 MoltenVK 翻成 Apple Metal 繪製指令。重連、轉譯、著色器三段接力，才有 iPad 上那幾分鐘的 2D 平台遊戲畫面。至於觸控操作，則是把平板螢幕的輸入接到遊戲的控制器介面，玩家不靠手把就能在螢幕上操控角色。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008025949_0_ad7f00.jpg" alt="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" title="madeira-anyps5轉譯三次，網路神人成功在 iPad 直接運行 PS5 遊戲！ - 電腦王阿達" data-lazy-sizes="(max-width: 1282px) 100vw, 1282px"></p><div></div>
+<h3>AnyPS5 是什麼：不模擬主機的相容層</h3>
+<p>話題主角 AnyPS5 本身就是近期自製軟體圈的大事。這是開發者 boykopovar 從 8 月 3 日起在 GitHub 開源的工具（GPL v2 授權），自我定位是「把執行檔自動移植到 Linux 與 Windows」：內含重連器與針對 PS5 系統函式庫的重實作，執行期不做模擬、也沒有獨立的模擬程序。工具本身高度自動化：重連器會解析 guest ELF 映像、解析動態匯入與函式編號、掃描系統呼叫、重寫執行檔佈局，最後把用不到的符號修剪掉，再接上自製的執行期橋接程式碼。PS5 用的是 AMD Zen 2 的 x86-64 架構，跟 PC 同宗，才讓這種接近 Proton 或 Wine 的二進位轉譯路線成立。</p>
+<blockquote data-secret="k4TTrMuWDz"><p><a href="https://www.kocpc.com.tw/archives/670351">係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="係金A！開源專案 AnyPS5 讓 PC 直跑 PS5 遊戲，但跟你想的差很多 — 電腦王阿達" src="about:blank" data-secret="k4TTrMuWDz" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670351/embed#?secret=XMqT1GKQDq#?secret=k4TTrMuWDz"></iframe></p>
+<h3>為什麼 iPad 這次特別有意義</h3>
+<p>在 PC 上跑 PS5 遊戲，靠的是架構血緣（PS5 使用的是 AMD Ryzen X86 架構）；在 iPad 上跑，則是要正面撞上 ARM 的高牆。buberlo 的演示證明這道牆可以翻過去：只要轉譯層夠多、夠完整，x86-64 的主機遊戲也能在行動晶片上落地。對遊戲保存社群來說，這是把第九世代主機軟體帶往非原生硬體的第一個公開紀錄。先用負載較小的 2D 遊戲證明整條管線走得通，把硬仗留給 3D 大作，是務實的工程順序。</p>
+<h3>限制與風險：別把它想成萬能</h3>
+<p>潑點冷水：第一，AnyPS5 需要你自行提供解密的 PS5 執行檔，專案本身不散發任何韌體、金鑰或專屬函式庫、也不做任何破解行為，使用門檻與法律風險都落在使用者自己身上。第二，目前驗證可玩的遊戲只有《Dreaming Sarah》一款，它是 2D 平台遊戲，對著色器重編器的壓力測試相當有限，主要考驗是那些吃滿 PS5 GPU 特性的 3D 大作。</p>
+<h3 title="madeira-anyps5" data-testid="repo-name-wrapper" data-inline="true"><strong><a href="https://github.com/buberlo/madeira-anyps5" target="_blank" data-component="Link" data-testid="repo-name-link" data-status="active" aria-current="page">GitHub – madeira-anyps5</a></strong></h3>
+<h3>結語</h3>
+<p>從 boykopovar 的重連器、Will Faust 的 Madeira，到 buberlo 的 iPad 演示，三個人的作品疊起來，讓「PS5 遊戲跑在平板上」變成可重現的技術展示。x86 主機的遊戲程式碼與 ARM 行動裝置之間，第一次被具體地接上了。但老實說套這麼多層轉譯，只是證明技術上可行，想拿來玩遊戲，買主機還是更實際的選擇。</p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024345_0_e8533d.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008024345_0_e8533d.jpg" medium="image"/>
+    <pubDate>Wed, 07 Oct 2026 19:01:06 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元]]></title>
+    <link>https://www.kocpc.com.tw/archives/671393</link>
+    <itunes:title><![CDATA[Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>小宅看大螢幕正在成為居家娛樂的新解法！OVO 旗下 Warpple 系列推出新款「王牌輕劇院」Warpple LA9 Pro，投射比壓到 0.8:1，官方稱是 LCD 投影機技術史上最短焦，只要 1.8 公尺就能投出 100 吋畫面，並整合官方 Google TV、90 度靈動雲台與完整智能校正。上市售價 9,999 元，目前在嗨嗨募資平台開放贊助預購，6 折只要 5,999 元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015621_0_62b51f.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p>
+<h3>0.8:1 投射比，1.8 公尺投百吋</h3>
+<p>財政部統計顯示，近 10 年全台逾 8 成縣市平均每戶坪數縮減，全國平均由 42.3 坪降至 40.7 坪，其中台北市減幅 7.2% 最大，居住空間變小，讓短焦投影機的實用性浮上台面。</p>
+<p>對照 Warpple 自家前代機型，LA3 投射比 0.9:1，離牆 2 公尺可投百吋；高亮機型 LA8 為 1.0:1，需要 2.2 公尺；一般焦投影機則要 2.8 公尺。LA9 Pro 是首款突破 0.8:1 的高亮機型，1.8 公尺就能投出百吋，相同距離下畫面可達 2.4 倍大。我們的<a href="https://www.kocpc.com.tw/archives/669012" target="_blank">開箱實測</a>也印證，約 1.77 公尺的距離就能投影百吋畫面。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015912_0_bf5535.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<h3>Google TV、智能校正一次到位</h3>
+<p>LA9 Pro 搭載官方 Google TV，開機就能使用 Netflix、YouTube 等正版授權串流平台，不必外接電視盒。畫質規格為 1080p 解析度、最高亮度 900 ANSI 流明、燈泡壽命 30,000 小時，並支援 4K 解碼與 HDR 動態對比。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260915155526_0_9a6fba.jpg" alt="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p><div></div>
+<p>機身尺寸 195×153.3×140.4mm，大約一本書的大小，重量 1.1 公斤，底座內建可調整達 90 度的靈動雲台，從白牆改投天花板單手就能完成。校正功能整合自動對焦、自動梯校、自動入幕與自動避障，開機擺好後會自動調正畫面；連線方面配備 2.4G/5G 雙模 WiFi、藍牙 5.0，以及 HDMI、USB-A、AUX 音源輸出，可外接遊戲機、筆電或喇叭。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015745_0_271738.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<p>Warpple 產品總監許家明表示：「我們希望投影機不只是少數玩家的高階設備，而是能真正普及到民眾日常生活的娛樂選擇。LA9 Pro 在保留 Google TV、高亮度與靈動雲台等核心規格的前提下，同時做到機身更輕巧、價格更親民。」</p>
+<blockquote data-secret="qZIx9dLgTT"><p><a href="https://www.kocpc.com.tw/archives/669012">Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ — 電腦王阿達" src="about:blank" data-secret="qZIx9dLgTT" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/669012/embed#?secret=HFQXEh5Bun#?secret=qZIx9dLgTT"></iframe></p>
+<h3>Warpple LA9 Pro 募資已達標 435%，OVO 感謝祭同步開跑</h3>
+<p>嗨嗨平台專案頁顯示，LA9 Pro 目前已募得超過 130 萬元，達目標金額的 435.86%，累計 219 位贊助人次，預購到 10 月 30 日止。OVO 同時推出「OVO 感謝祭」，活動期間購買 OVO 品牌家族任一主商品並至官網登錄，就有機會抽中超過 100 項大獎，獎項包含真 4K 超高亮投影機、5.1.2 杜比全景聲聲霸、派對 K 歌擴音三用音響等，單項價值從 2,016 元到 29,999 元不等，活動到 10 月 31 日止。</p>
+<h3><a href="https://lihi3.me/zZghb" target="_blank">Warpple LA9 Pro&nbsp; 這邊買</a>（優惠碼：DDLA9P20）</h3>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>小宅看大螢幕正在成為居家娛樂的新解法！OVO 旗下 Warpple 系列推出新款「王牌輕劇院」Warpple LA9 Pro，投射比壓到 0.8:1，官方稱是 LCD 投影機技術史上最短焦，只要 1.8 公尺就能投出 100 吋畫面，並整合官方 Google TV、90 度靈動雲台與完整智能校正。上市售價 9,999 元，目前在嗨嗨募資平台開放贊助預購，6 折只要 5,999 元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015621_0_62b51f.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p>
+<h3>0.8:1 投射比，1.8 公尺投百吋</h3>
+<p>財政部統計顯示，近 10 年全台逾 8 成縣市平均每戶坪數縮減，全國平均由 42.3 坪降至 40.7 坪，其中台北市減幅 7.2% 最大，居住空間變小，讓短焦投影機的實用性浮上台面。</p>
+<p>對照 Warpple 自家前代機型，LA3 投射比 0.9:1，離牆 2 公尺可投百吋；高亮機型 LA8 為 1.0:1，需要 2.2 公尺；一般焦投影機則要 2.8 公尺。LA9 Pro 是首款突破 0.8:1 的高亮機型，1.8 公尺就能投出百吋，相同距離下畫面可達 2.4 倍大。我們的<a href="https://www.kocpc.com.tw/archives/669012" target="_blank">開箱實測</a>也印證，約 1.77 公尺的距離就能投影百吋畫面。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015912_0_bf5535.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<h3>Google TV、智能校正一次到位</h3>
+<p>LA9 Pro 搭載官方 Google TV，開機就能使用 Netflix、YouTube 等正版授權串流平台，不必外接電視盒。畫質規格為 1080p 解析度、最高亮度 900 ANSI 流明、燈泡壽命 30,000 小時，並支援 4K 解碼與 HDR 動態對比。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260915155526_0_9a6fba.jpg" alt="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p><div></div>
+<p>機身尺寸 195×153.3×140.4mm，大約一本書的大小，重量 1.1 公斤，底座內建可調整達 90 度的靈動雲台，從白牆改投天花板單手就能完成。校正功能整合自動對焦、自動梯校、自動入幕與自動避障，開機擺好後會自動調正畫面；連線方面配備 2.4G/5G 雙模 WiFi、藍牙 5.0，以及 HDMI、USB-A、AUX 音源輸出，可外接遊戲機、筆電或喇叭。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015745_0_271738.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<p>Warpple 產品總監許家明表示：「我們希望投影機不只是少數玩家的高階設備，而是能真正普及到民眾日常生活的娛樂選擇。LA9 Pro 在保留 Google TV、高亮度與靈動雲台等核心規格的前提下，同時做到機身更輕巧、價格更親民。」</p>
+<blockquote data-secret="qZIx9dLgTT"><p><a href="https://www.kocpc.com.tw/archives/669012">Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ — 電腦王阿達" src="about:blank" data-secret="qZIx9dLgTT" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/669012/embed#?secret=HFQXEh5Bun#?secret=qZIx9dLgTT"></iframe></p>
+<h3>Warpple LA9 Pro 募資已達標 435%，OVO 感謝祭同步開跑</h3>
+<p>嗨嗨平台專案頁顯示，LA9 Pro 目前已募得超過 130 萬元，達目標金額的 435.86%，累計 219 位贊助人次，預購到 10 月 30 日止。OVO 同時推出「OVO 感謝祭」，活動期間購買 OVO 品牌家族任一主商品並至官網登錄，就有機會抽中超過 100 項大獎，獎項包含真 4K 超高亮投影機、5.1.2 杜比全景聲聲霸、派對 K 歌擴音三用音響等，單項價值從 2,016 元到 29,999 元不等，活動到 10 月 31 日止。</p>
+<h3><a href="https://lihi3.me/zZghb" target="_blank">Warpple LA9 Pro&nbsp; 這邊買</a>（優惠碼：DDLA9P20）</h3>]]>
+    </description>
+    <content:encoded><![CDATA[<p>小宅看大螢幕正在成為居家娛樂的新解法！OVO 旗下 Warpple 系列推出新款「王牌輕劇院」Warpple LA9 Pro，投射比壓到 0.8:1，官方稱是 LCD 投影機技術史上最短焦，只要 1.8 公尺就能投出 100 吋畫面，並整合官方 Google TV、90 度靈動雲台與完整智能校正。上市售價 9,999 元，目前在嗨嗨募資平台開放贊助預購，6 折只要 5,999 元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015621_0_62b51f.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p>
+<h3>0.8:1 投射比，1.8 公尺投百吋</h3>
+<p>財政部統計顯示，近 10 年全台逾 8 成縣市平均每戶坪數縮減，全國平均由 42.3 坪降至 40.7 坪，其中台北市減幅 7.2% 最大，居住空間變小，讓短焦投影機的實用性浮上台面。</p>
+<p>對照 Warpple 自家前代機型，LA3 投射比 0.9:1，離牆 2 公尺可投百吋；高亮機型 LA8 為 1.0:1，需要 2.2 公尺；一般焦投影機則要 2.8 公尺。LA9 Pro 是首款突破 0.8:1 的高亮機型，1.8 公尺就能投出百吋，相同距離下畫面可達 2.4 倍大。我們的<a href="https://www.kocpc.com.tw/archives/669012" target="_blank">開箱實測</a>也印證，約 1.77 公尺的距離就能投影百吋畫面。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015912_0_bf5535.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<h3>Google TV、智能校正一次到位</h3>
+<p>LA9 Pro 搭載官方 Google TV，開機就能使用 Netflix、YouTube 等正版授權串流平台，不必外接電視盒。畫質規格為 1080p 解析度、最高亮度 900 ANSI 流明、燈泡壽命 30,000 小時，並支援 4K 解碼與 HDR 動態對比。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260915155526_0_9a6fba.jpg" alt="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達"></p><div></div>
+<p>機身尺寸 195×153.3×140.4mm，大約一本書的大小，重量 1.1 公斤，底座內建可調整達 90 度的靈動雲台，從白牆改投天花板單手就能完成。校正功能整合自動對焦、自動梯校、自動入幕與自動避障，開機擺好後會自動調正畫面；連線方面配備 2.4G/5G 雙模 WiFi、藍牙 5.0，以及 HDMI、USB-A、AUX 音源輸出，可外接遊戲機、筆電或喇叭。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015745_0_271738.jpg" alt="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" title="Warpple LA9 Pro 推出：0.8:1 史上最短焦 Google TV 投影機，1.8 公尺投百吋、預購 5,999 元 - 電腦王阿達" data-lazy-sizes="(max-width: 1002px) 100vw, 1002px"></p>
+<p>Warpple 產品總監許家明表示：「我們希望投影機不只是少數玩家的高階設備，而是能真正普及到民眾日常生活的娛樂選擇。LA9 Pro 在保留 Google TV、高亮度與靈動雲台等核心規格的前提下，同時做到機身更輕巧、價格更親民。」</p>
+<blockquote data-secret="qZIx9dLgTT"><p><a href="https://www.kocpc.com.tw/archives/669012">Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Warpple LA9 Pro 開箱實測：超早鳥價不到六千元入手 Google TV 投影機，0.8 : 1 投射比讓小空間也能有百吋大享受！ — 電腦王阿達" src="about:blank" data-secret="qZIx9dLgTT" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/669012/embed#?secret=HFQXEh5Bun#?secret=qZIx9dLgTT"></iframe></p>
+<h3>Warpple LA9 Pro 募資已達標 435%，OVO 感謝祭同步開跑</h3>
+<p>嗨嗨平台專案頁顯示，LA9 Pro 目前已募得超過 130 萬元，達目標金額的 435.86%，累計 219 位贊助人次，預購到 10 月 30 日止。OVO 同時推出「OVO 感謝祭」，活動期間購買 OVO 品牌家族任一主商品並至官網登錄，就有機會抽中超過 100 項大獎，獎項包含真 4K 超高亮投影機、5.1.2 杜比全景聲聲霸、派對 K 歌擴音三用音響等，單項價值從 2,016 元到 29,999 元不等，活動到 10 月 31 日止。</p>
+<h3><a href="https://lihi3.me/zZghb" target="_blank">Warpple LA9 Pro&nbsp; 這邊買</a>（優惠碼：DDLA9P20）</h3>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015621_0_62b51f.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008015621_0_62b51f.jpg" medium="image"/>
+    <pubDate>Wed, 07 Oct 2026 18:02:15 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信]]></title>
+    <link>https://www.kocpc.com.tw/archives/671391</link>
+    <itunes:title><![CDATA[FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>美國聯邦通訊委員會（FCC）在美國時間 10 月 6 日核准了 SpaceX 一項極具野心的申請：部署 15,000 顆第二代手機直連衛星，同時給予衛星功率上限的有條件豁免。SpaceX 早在 2025 年 9 月就遞交這份申請，歷經與競爭對手的角力，終於拿到放行令。這批衛星數量是現役手機直連衛星的二十倍以上。拿到這道放行令，也讓星鏈行動（Starlink Mobile）有機會從 T-Mobile 的附屬服務，升級成與美國三大電信業者正面競爭的獨立行動網路。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260806155111_0_a2a067.jpg" alt="SpaceX 與 Nvidia 聯手打造軌道 AI 資料中心：Starmind AI1 衛星搭載 Rubin GPU - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p>
+<h2>FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile挑戰三大電信</h2>
+<h3>FCC 到底核准了什麼</h3>
+<p>根據 PCMag 報導，FCC 在週二清除了 SpaceX 這份 15,000 顆衛星星座的申請。SpaceX 原本在 2025 年 9 月提出，申請內容包含兩項關鍵授權：一是部署這批低軌衛星，二是取得一份豁免，讓 SpaceX 不必先與地面行動電信業者簽訂租用協議，就能直接用衛星提供無線服務。這道命令還包含對衛星功率上限的有條件豁免，讓 SpaceX 能把行動覆蓋推進到基地台涵蓋不到的區域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008004459_0_825655.jpg" alt="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" data-lazy-sizes="(max-width: 962px) 100vw, 962px"></p>
+<p>FCC 在命令中寫明，這項部署將藉由改善競爭、讓更多消費者在更多地方有更多選擇，重塑以頻譜為基礎的連線，以進一步達成讓所有人、所有地方都連上現代通訊服務的目標。FCC 也點出，這批衛星除了服務訊號盲區的使用者，也會為美國零售無線服務市場帶來更多競爭。<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">[1]</a></p>
+<h3>從 4Mbps 到 150Mbps 的跳躍</h3>
+<p>目前星鏈行動的第一代版本，在美國只能透過 T-Mobile 以 T-Satellite 名義提供，動用的衛星僅約 650 顆，資料速度估計在 4Mbps 上下，只能應付緊急簡訊與低速率通訊。而這批 15,000 顆第二代衛星，SpaceX 宣稱能提供每人 150Mbps 的 5G 級速度。&nbsp;兩者差距將近 37 倍，是星鏈行動從救急備援轉向日常上網主力的關鍵一步。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260303144353_0_c3dd6f.jpg" alt="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p><div></div>
+<p>SpaceX 的構想是把衛星與成本較低的地面微型基地台（femtocell）並用，替郊區與都會區的手機提供行動覆蓋。這個路線圖，SpaceX 高層已經多次對外暗示，目標就是讓星鏈行動變成 AT&amp;T、T-Mobile 與 Verizon 之外的選項。</p>
+<blockquote data-secret="YcUtl91P95"><p><a href="https://www.kocpc.com.tw/archives/633004">SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 — 電腦王阿達" src="about:blank" data-secret="YcUtl91P95" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/633004/embed#?secret=qzOSaYBKGA#?secret=YcUtl91P95"></iframe></p>
+<h3>更低軌道、更多頻譜</h3>
+<p>FCC 的授權允許這批衛星在離地 335 公里到最低 326 公里（約 202 英里）的軌道上繞行，比第一代手機直連星鏈衛星更低。較低的軌道有助縮短訊號延遲。</p>
+<p>頻譜方面，FCC 同時放行這 15,000 顆衛星使用 SpaceX 向 EchoStar 收購來的無線電頻段，包括 1695 至 1710、2000 至 2020、2180 至 2200、1915 至 1920、1995 至 2000 MHz 等美國頻段，也允許衛星在美國境外進行行動通訊營運。SpaceX 這筆向 Boost Mobile 母公司 EchoStar 收購頻譜的交易，金額超過 190 億美元（約新台幣 6,175 億元）。</p>
+<p>這筆授權也帶了附帶條件：SpaceX 在 EchoStar 交易完成第二步之前，只能用這些頻率測試，交易最終完成日排定在 2027 年 11 月 30 日，屆時 SpaceX 預計已經開始發射第一批第二代星鏈行動衛星。 同一批衛星也被允許繼續使用 T-Mobile 的 PCS G-block 頻段（1910 至 1915 MHz 與 1990 至 1995 MHz），這正是第一代星鏈行動在美國一直採用的頻譜。</p>
+<h3>競爭對手的反對聲浪</h3>
+<p>這道放行令並非沒有阻力，早在 2026 年 1 月，Viasat、Globalstar、Ligado、Iridium，以及代表行動衛星服務業者的 MSSA，就已向 FCC 遞交異議。Viasat 直指，這項擴張會讓 SpaceX 更有能力與動機排除其他業者取得稀缺的軌道與頻譜資源，並製造無法克服的干擾風險。Globalstar 則主張，SpaceX 在美國境外使用 1610 至 1626.5 MHz 與 2483.5 至 2500 MHz 等大型低軌頻段的請求，早在 2023 年就被 FCC 的決定否決。</p>
+<p>經營地球同步軌道衛星的 SES 與 Eutelsat，則針對 SpaceX 申請豁免特定頻段功率上限一事表達關切，認為相關的 EPFD 規則修訂仍在進行中，FCC 不應在爭議未解前就放行。美國國家電波天文台與美國天文學會也出面，要求保障天文研究用的頻譜。他們指出，自家成員近期偵測到疑似來自星鏈衛星的無意電波干擾，而目前星鏈已有超過 8,000 顆衛星在軌，再加 15,000 顆，干擾問題只會更難收拾。</p>
+<p>即便如此，FCC 仍大致通過了 SpaceX 的提案，僅針對部分申請項目暫緩處理，包括 2020 至 2025 MHz 頻段的使用請求，以及美國境外 1429 至 2690 MHz 範圍的使用請求。</p>
+<h3>手機直連衛星的賽局</h3>
+<p>手機直連衛星這條賽道，SpaceX 並非唯一玩家，主要對手包括同樣主攻衛星直連手機的 AST SpaceMobile，以及貝佐斯主導的 Amazon Kuiper 等。 不過 SpaceX 靠著星鏈現有的火箭發射能力與衛星製造規模，在把大量衛星送上軌道這件事上，速度明顯快於對手。T-Mobile 財務長先前就曾對星鏈行動的作法表達不以為然，T-Mobile 甚至傳出可能改與其他衛星業者合作，星鏈行動與 T-Mobile 的關係會不會繼續走下去，仍是變數。</p>
+<h3>結語</h3>
+<p>FCC 這次放行，把 SpaceX 手機直連衛星的規模從數百顆一口氣推到一萬五千顆，也順勢鬆綁了衛星功率與營運模式的限制。短期內，消費者看到的仍是 T-Mobile 體系下的 T-Satellite。等到 2027 年底 EchoStar 交易完成、第二代衛星開始發射，星鏈行動會不會真的長成足以撼動三大電信業者的第四勢力，是接下來兩年最值得追蹤的太空通訊戲碼。</p>
+<p><strong>資料來源：<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">PCMag</a></strong></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>美國聯邦通訊委員會（FCC）在美國時間 10 月 6 日核准了 SpaceX 一項極具野心的申請：部署 15,000 顆第二代手機直連衛星，同時給予衛星功率上限的有條件豁免。SpaceX 早在 2025 年 9 月就遞交這份申請，歷經與競爭對手的角力，終於拿到放行令。這批衛星數量是現役手機直連衛星的二十倍以上。拿到這道放行令，也讓星鏈行動（Starlink Mobile）有機會從 T-Mobile 的附屬服務，升級成與美國三大電信業者正面競爭的獨立行動網路。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260806155111_0_a2a067.jpg" alt="SpaceX 與 Nvidia 聯手打造軌道 AI 資料中心：Starmind AI1 衛星搭載 Rubin GPU - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p>
+<h2>FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile挑戰三大電信</h2>
+<h3>FCC 到底核准了什麼</h3>
+<p>根據 PCMag 報導，FCC 在週二清除了 SpaceX 這份 15,000 顆衛星星座的申請。SpaceX 原本在 2025 年 9 月提出，申請內容包含兩項關鍵授權：一是部署這批低軌衛星，二是取得一份豁免，讓 SpaceX 不必先與地面行動電信業者簽訂租用協議，就能直接用衛星提供無線服務。這道命令還包含對衛星功率上限的有條件豁免，讓 SpaceX 能把行動覆蓋推進到基地台涵蓋不到的區域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008004459_0_825655.jpg" alt="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" data-lazy-sizes="(max-width: 962px) 100vw, 962px"></p>
+<p>FCC 在命令中寫明，這項部署將藉由改善競爭、讓更多消費者在更多地方有更多選擇，重塑以頻譜為基礎的連線，以進一步達成讓所有人、所有地方都連上現代通訊服務的目標。FCC 也點出，這批衛星除了服務訊號盲區的使用者，也會為美國零售無線服務市場帶來更多競爭。<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">[1]</a></p>
+<h3>從 4Mbps 到 150Mbps 的跳躍</h3>
+<p>目前星鏈行動的第一代版本，在美國只能透過 T-Mobile 以 T-Satellite 名義提供，動用的衛星僅約 650 顆，資料速度估計在 4Mbps 上下，只能應付緊急簡訊與低速率通訊。而這批 15,000 顆第二代衛星，SpaceX 宣稱能提供每人 150Mbps 的 5G 級速度。&nbsp;兩者差距將近 37 倍，是星鏈行動從救急備援轉向日常上網主力的關鍵一步。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260303144353_0_c3dd6f.jpg" alt="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p><div></div>
+<p>SpaceX 的構想是把衛星與成本較低的地面微型基地台（femtocell）並用，替郊區與都會區的手機提供行動覆蓋。這個路線圖，SpaceX 高層已經多次對外暗示，目標就是讓星鏈行動變成 AT&amp;T、T-Mobile 與 Verizon 之外的選項。</p>
+<blockquote data-secret="YcUtl91P95"><p><a href="https://www.kocpc.com.tw/archives/633004">SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 — 電腦王阿達" src="about:blank" data-secret="YcUtl91P95" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/633004/embed#?secret=qzOSaYBKGA#?secret=YcUtl91P95"></iframe></p>
+<h3>更低軌道、更多頻譜</h3>
+<p>FCC 的授權允許這批衛星在離地 335 公里到最低 326 公里（約 202 英里）的軌道上繞行，比第一代手機直連星鏈衛星更低。較低的軌道有助縮短訊號延遲。</p>
+<p>頻譜方面，FCC 同時放行這 15,000 顆衛星使用 SpaceX 向 EchoStar 收購來的無線電頻段，包括 1695 至 1710、2000 至 2020、2180 至 2200、1915 至 1920、1995 至 2000 MHz 等美國頻段，也允許衛星在美國境外進行行動通訊營運。SpaceX 這筆向 Boost Mobile 母公司 EchoStar 收購頻譜的交易，金額超過 190 億美元（約新台幣 6,175 億元）。</p>
+<p>這筆授權也帶了附帶條件：SpaceX 在 EchoStar 交易完成第二步之前，只能用這些頻率測試，交易最終完成日排定在 2027 年 11 月 30 日，屆時 SpaceX 預計已經開始發射第一批第二代星鏈行動衛星。 同一批衛星也被允許繼續使用 T-Mobile 的 PCS G-block 頻段（1910 至 1915 MHz 與 1990 至 1995 MHz），這正是第一代星鏈行動在美國一直採用的頻譜。</p>
+<h3>競爭對手的反對聲浪</h3>
+<p>這道放行令並非沒有阻力，早在 2026 年 1 月，Viasat、Globalstar、Ligado、Iridium，以及代表行動衛星服務業者的 MSSA，就已向 FCC 遞交異議。Viasat 直指，這項擴張會讓 SpaceX 更有能力與動機排除其他業者取得稀缺的軌道與頻譜資源，並製造無法克服的干擾風險。Globalstar 則主張，SpaceX 在美國境外使用 1610 至 1626.5 MHz 與 2483.5 至 2500 MHz 等大型低軌頻段的請求，早在 2023 年就被 FCC 的決定否決。</p>
+<p>經營地球同步軌道衛星的 SES 與 Eutelsat，則針對 SpaceX 申請豁免特定頻段功率上限一事表達關切，認為相關的 EPFD 規則修訂仍在進行中，FCC 不應在爭議未解前就放行。美國國家電波天文台與美國天文學會也出面，要求保障天文研究用的頻譜。他們指出，自家成員近期偵測到疑似來自星鏈衛星的無意電波干擾，而目前星鏈已有超過 8,000 顆衛星在軌，再加 15,000 顆，干擾問題只會更難收拾。</p>
+<p>即便如此，FCC 仍大致通過了 SpaceX 的提案，僅針對部分申請項目暫緩處理，包括 2020 至 2025 MHz 頻段的使用請求，以及美國境外 1429 至 2690 MHz 範圍的使用請求。</p>
+<h3>手機直連衛星的賽局</h3>
+<p>手機直連衛星這條賽道，SpaceX 並非唯一玩家，主要對手包括同樣主攻衛星直連手機的 AST SpaceMobile，以及貝佐斯主導的 Amazon Kuiper 等。 不過 SpaceX 靠著星鏈現有的火箭發射能力與衛星製造規模，在把大量衛星送上軌道這件事上，速度明顯快於對手。T-Mobile 財務長先前就曾對星鏈行動的作法表達不以為然，T-Mobile 甚至傳出可能改與其他衛星業者合作，星鏈行動與 T-Mobile 的關係會不會繼續走下去，仍是變數。</p>
+<h3>結語</h3>
+<p>FCC 這次放行，把 SpaceX 手機直連衛星的規模從數百顆一口氣推到一萬五千顆，也順勢鬆綁了衛星功率與營運模式的限制。短期內，消費者看到的仍是 T-Mobile 體系下的 T-Satellite。等到 2027 年底 EchoStar 交易完成、第二代衛星開始發射，星鏈行動會不會真的長成足以撼動三大電信業者的第四勢力，是接下來兩年最值得追蹤的太空通訊戲碼。</p>
+<p><strong>資料來源：<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">PCMag</a></strong></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>美國聯邦通訊委員會（FCC）在美國時間 10 月 6 日核准了 SpaceX 一項極具野心的申請：部署 15,000 顆第二代手機直連衛星，同時給予衛星功率上限的有條件豁免。SpaceX 早在 2025 年 9 月就遞交這份申請，歷經與競爭對手的角力，終於拿到放行令。這批衛星數量是現役手機直連衛星的二十倍以上。拿到這道放行令，也讓星鏈行動（Starlink Mobile）有機會從 T-Mobile 的附屬服務，升級成與美國三大電信業者正面競爭的獨立行動網路。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260806155111_0_a2a067.jpg" alt="SpaceX 與 Nvidia 聯手打造軌道 AI 資料中心：Starmind AI1 衛星搭載 Rubin GPU - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p>
+<h2>FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile挑戰三大電信</h2>
+<h3>FCC 到底核准了什麼</h3>
+<p>根據 PCMag 報導，FCC 在週二清除了 SpaceX 這份 15,000 顆衛星星座的申請。SpaceX 原本在 2025 年 9 月提出，申請內容包含兩項關鍵授權：一是部署這批低軌衛星，二是取得一份豁免，讓 SpaceX 不必先與地面行動電信業者簽訂租用協議，就能直接用衛星提供無線服務。這道命令還包含對衛星功率上限的有條件豁免，讓 SpaceX 能把行動覆蓋推進到基地台涵蓋不到的區域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261008004459_0_825655.jpg" alt="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達" data-lazy-sizes="(max-width: 962px) 100vw, 962px"></p>
+<p>FCC 在命令中寫明，這項部署將藉由改善競爭、讓更多消費者在更多地方有更多選擇，重塑以頻譜為基礎的連線，以進一步達成讓所有人、所有地方都連上現代通訊服務的目標。FCC 也點出，這批衛星除了服務訊號盲區的使用者，也會為美國零售無線服務市場帶來更多競爭。<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">[1]</a></p>
+<h3>從 4Mbps 到 150Mbps 的跳躍</h3>
+<p>目前星鏈行動的第一代版本，在美國只能透過 T-Mobile 以 T-Satellite 名義提供，動用的衛星僅約 650 顆，資料速度估計在 4Mbps 上下，只能應付緊急簡訊與低速率通訊。而這批 15,000 顆第二代衛星，SpaceX 宣稱能提供每人 150Mbps 的 5G 級速度。&nbsp;兩者差距將近 37 倍，是星鏈行動從救急備援轉向日常上網主力的關鍵一步。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260303144353_0_c3dd6f.jpg" alt="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 - 電腦王阿達" title="FCC 放行 SpaceX 15,000 顆手機直連衛星，Starlink Mobile升級挑戰三大電信 - 電腦王阿達"></p><div></div>
+<p>SpaceX 的構想是把衛星與成本較低的地面微型基地台（femtocell）並用，替郊區與都會區的手機提供行動覆蓋。這個路線圖，SpaceX 高層已經多次對外暗示，目標就是讓星鏈行動變成 AT&amp;T、T-Mobile 與 Verizon 之外的選項。</p>
+<blockquote data-secret="YcUtl91P95"><p><a href="https://www.kocpc.com.tw/archives/633004">SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="SpaceX 正式發佈 Starlink V2 衛星：5G 速度、100 倍數據密度，真全球無死角高速上網 — 電腦王阿達" src="about:blank" data-secret="YcUtl91P95" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/633004/embed#?secret=qzOSaYBKGA#?secret=YcUtl91P95"></iframe></p>
+<h3>更低軌道、更多頻譜</h3>
+<p>FCC 的授權允許這批衛星在離地 335 公里到最低 326 公里（約 202 英里）的軌道上繞行，比第一代手機直連星鏈衛星更低。較低的軌道有助縮短訊號延遲。</p>
+<p>頻譜方面，FCC 同時放行這 15,000 顆衛星使用 SpaceX 向 EchoStar 收購來的無線電頻段，包括 1695 至 1710、2000 至 2020、2180 至 2200、1915 至 1920、1995 至 2000 MHz 等美國頻段，也允許衛星在美國境外進行行動通訊營運。SpaceX 這筆向 Boost Mobile 母公司 EchoStar 收購頻譜的交易，金額超過 190 億美元（約新台幣 6,175 億元）。</p>
+<p>這筆授權也帶了附帶條件：SpaceX 在 EchoStar 交易完成第二步之前，只能用這些頻率測試，交易最終完成日排定在 2027 年 11 月 30 日，屆時 SpaceX 預計已經開始發射第一批第二代星鏈行動衛星。 同一批衛星也被允許繼續使用 T-Mobile 的 PCS G-block 頻段（1910 至 1915 MHz 與 1990 至 1995 MHz），這正是第一代星鏈行動在美國一直採用的頻譜。</p>
+<h3>競爭對手的反對聲浪</h3>
+<p>這道放行令並非沒有阻力，早在 2026 年 1 月，Viasat、Globalstar、Ligado、Iridium，以及代表行動衛星服務業者的 MSSA，就已向 FCC 遞交異議。Viasat 直指，這項擴張會讓 SpaceX 更有能力與動機排除其他業者取得稀缺的軌道與頻譜資源，並製造無法克服的干擾風險。Globalstar 則主張，SpaceX 在美國境外使用 1610 至 1626.5 MHz 與 2483.5 至 2500 MHz 等大型低軌頻段的請求，早在 2023 年就被 FCC 的決定否決。</p>
+<p>經營地球同步軌道衛星的 SES 與 Eutelsat，則針對 SpaceX 申請豁免特定頻段功率上限一事表達關切，認為相關的 EPFD 規則修訂仍在進行中，FCC 不應在爭議未解前就放行。美國國家電波天文台與美國天文學會也出面，要求保障天文研究用的頻譜。他們指出，自家成員近期偵測到疑似來自星鏈衛星的無意電波干擾，而目前星鏈已有超過 8,000 顆衛星在軌，再加 15,000 顆，干擾問題只會更難收拾。</p>
+<p>即便如此，FCC 仍大致通過了 SpaceX 的提案，僅針對部分申請項目暫緩處理，包括 2020 至 2025 MHz 頻段的使用請求，以及美國境外 1429 至 2690 MHz 範圍的使用請求。</p>
+<h3>手機直連衛星的賽局</h3>
+<p>手機直連衛星這條賽道，SpaceX 並非唯一玩家，主要對手包括同樣主攻衛星直連手機的 AST SpaceMobile，以及貝佐斯主導的 Amazon Kuiper 等。 不過 SpaceX 靠著星鏈現有的火箭發射能力與衛星製造規模，在把大量衛星送上軌道這件事上，速度明顯快於對手。T-Mobile 財務長先前就曾對星鏈行動的作法表達不以為然，T-Mobile 甚至傳出可能改與其他衛星業者合作，星鏈行動與 T-Mobile 的關係會不會繼續走下去，仍是變數。</p>
+<h3>結語</h3>
+<p>FCC 這次放行，把 SpaceX 手機直連衛星的規模從數百顆一口氣推到一萬五千顆，也順勢鬆綁了衛星功率與營運模式的限制。短期內，消費者看到的仍是 T-Mobile 體系下的 T-Satellite。等到 2027 年底 EchoStar 交易完成、第二代衛星開始發射，星鏈行動會不會真的長成足以撼動三大電信業者的第四勢力，是接下來兩年最值得追蹤的太空通訊戲碼。</p>
+<p><strong>資料來源：<a href="https://www.pcmag.com/news/fcc-green-lights-spacexs-15000-satellites-for-starlink-mobile" target="_blank">PCMag</a></strong></p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260806155111_0_a2a067.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260806155111_0_a2a067.jpg" medium="image"/>
+    <pubDate>Wed, 07 Oct 2026 17:32:14 +0000</pubDate>
+  </item><item>
     <title><![CDATA[彭博社爆料 Apple 將攜手 LG 殺入智慧家庭！門鈴門鎖攝影機全家桶10/13登場]]></title>
     <link>https://www.kocpc.com.tw/archives/671392</link>
     <itunes:title><![CDATA[彭博社爆料 Apple 將攜手 LG 殺入智慧家庭！門鈴門鎖攝影機全家桶10/13登場]]></itunes:title>
@@ -1133,230 +1367,5 @@ by <a href="https://www.reddit.com/user/No_One_of_Consequenc/" target="_blank">u
     <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007083642_0_e885dd.jpg"/>
           <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007083642_0_e885dd.jpg" medium="image"/>
     <pubDate>Wed, 07 Oct 2026 00:47:34 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容]]></title>
-    <link>https://www.kocpc.com.tw/archives/671332</link>
-    <itunes:title><![CDATA[ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>大家都不喜歡在需要專注思考的空間裡看到廣告，因此當得知 ChatGPT 開始測試圖片中的視覺廣告時，給人第一反應就是反感。生成式 AI 最吸引人的地方，在於它提供了一個相對純淨、能夠專注於創作與思考的環境。如果未來在生成圖片、整理想法，甚至進行深度討論時，旁邊出現各式各樣的商業訊息，那種沉浸感與專注度勢必受到影響。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082452_0_bbd8cc.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<h2>ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容</h2>
-<p>根據目前公開的資訊，<a href="https://openai.com/zh-Hant/index/new-chatgpt-ads-format-and-measurement/" target="_blank">OpenAI 正在測試一種全新的圖片廣告形式</a>。這些廣告不會直接混入使用者生成的內容，而是以相對獨立的方式呈現，展示特定產品的使用情境，或是產品能帶來的體驗，並且會清楚標示其廣告身分。從產品設計角度來看，OpenAI 顯然希望降低廣告對使用者體驗的干擾，避免讓人產生被強迫觀看的感覺。</p>
-<p>更值得注意的是，OpenAI 表示在投放個人化廣告之前，系統會先分析對話內容，判斷是否涉及情緒脆弱、心理健康或其他敏感議題。如果系統認為使用者正處於較敏感的狀態，便不會觸發相關廣告。從技術面來看，這是一種保護機制，目的在於避免廣告利用使用者的情緒或個人處境進行精準行銷。雖然這項措施聽起來有其正當性，但也引發另一層疑問：當系統開始分析使用者的情緒與對話內容時，我們是否也正在讓 AI 更深入地理解甚至評估我們的個人狀態？</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082431_0_ed6497.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>OpenAI 也提到，第三方機構如 DoubleVerify 與 Integral Ad Science 將負責檢查品牌安全規範是否被妥善執行。這些公司不會接觸真實對話內容，而是在受控環境中驗證系統是否符合既定規則。我認為這類外部監督是必要的。任何打算根據使用者行為與偏好投放廣告的平台，都應該接受獨立審查，而不是完全依靠企業自身的保證。畢竟，當一個系統開始蒐集資訊並決定向誰展示哪些廣告時，透明度與可信度就變得格外重要。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082604_0_2408b9.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>從商業角度來看，OpenAI 推出廣告其實不難理解。ChatGPT 擁有龐大的使用者基礎，但真正付費訂閱的人數終究只是其中一部分。如果能夠透過廣告獲利，企業便能從免費用戶身上建立新的收入來源，進一步支撐高昂的運算與研發成本。這對公司而言是合理的商業模式，只是對使用者來說，是否願意接受 AI 工具逐漸走向廣告平台化，則是另一回事。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/04/20260413132144_0_c86e3f.jpeg" alt="用戶實測叫 ChatGPT 評論「屁聲」，結果得到超高讚美？ - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>此外，歐洲的監管制度也讓這件事變得更加值得關注。自八月底起，相關廣告已在歐洲多個國家向免費用戶與 Go 用戶展示，而 Plus、Pro 及企業版用戶則不受影響。同時，由於 ChatGPT 在歐盟擁有超過一億五千萬月活躍用戶，遠高於《數位服務法》所定義的門檻，因此被列為「超大型線上搜尋引擎」。</p>
-<p>這項認定帶來的重要後果是，OpenAI 未來必須定期公開廣告相關資訊，包括廣告主是誰、何時投放、鎖定哪些受眾，以及最終觸及多少人。換句話說，歐盟要求 OpenAI 為其廣告業務建立完整且可追溯的紀錄。這不僅有助於監管機關進行監督，也能讓大眾更清楚了解 ChatGPT 廣告系統的實際運作方式。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260324135521_0_bd25f7.jpg" alt="ChatGPT 推出「檔案庫」功能！上傳的檔案、圖片、文件都不會再消失，讓你能隨時再次使用 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>事實上，ChatGPT 先前已經嘗試過文字形式的廣告，如今進一步發展到視覺廣告，代表其商業化進程正在加速。雖然 OpenAI 強調會兼顧使用者體驗、安全防護與透明度，但對我而言，AI 最珍貴的價值仍然是協助思考與創作，而不是成為另一個充滿廣告的媒介。當廣告逐漸進入對話式 AI 空間時，我們或許該開始思考一個問題：究竟要如何在商業獲利與使用者體驗之間，取得真正合理的平衡？</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>大家都不喜歡在需要專注思考的空間裡看到廣告，因此當得知 ChatGPT 開始測試圖片中的視覺廣告時，給人第一反應就是反感。生成式 AI 最吸引人的地方，在於它提供了一個相對純淨、能夠專注於創作與思考的環境。如果未來在生成圖片、整理想法，甚至進行深度討論時，旁邊出現各式各樣的商業訊息，那種沉浸感與專注度勢必受到影響。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082452_0_bbd8cc.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<h2>ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容</h2>
-<p>根據目前公開的資訊，<a href="https://openai.com/zh-Hant/index/new-chatgpt-ads-format-and-measurement/" target="_blank">OpenAI 正在測試一種全新的圖片廣告形式</a>。這些廣告不會直接混入使用者生成的內容，而是以相對獨立的方式呈現，展示特定產品的使用情境，或是產品能帶來的體驗，並且會清楚標示其廣告身分。從產品設計角度來看，OpenAI 顯然希望降低廣告對使用者體驗的干擾，避免讓人產生被強迫觀看的感覺。</p>
-<p>更值得注意的是，OpenAI 表示在投放個人化廣告之前，系統會先分析對話內容，判斷是否涉及情緒脆弱、心理健康或其他敏感議題。如果系統認為使用者正處於較敏感的狀態，便不會觸發相關廣告。從技術面來看，這是一種保護機制，目的在於避免廣告利用使用者的情緒或個人處境進行精準行銷。雖然這項措施聽起來有其正當性，但也引發另一層疑問：當系統開始分析使用者的情緒與對話內容時，我們是否也正在讓 AI 更深入地理解甚至評估我們的個人狀態？</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082431_0_ed6497.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>OpenAI 也提到，第三方機構如 DoubleVerify 與 Integral Ad Science 將負責檢查品牌安全規範是否被妥善執行。這些公司不會接觸真實對話內容，而是在受控環境中驗證系統是否符合既定規則。我認為這類外部監督是必要的。任何打算根據使用者行為與偏好投放廣告的平台，都應該接受獨立審查，而不是完全依靠企業自身的保證。畢竟，當一個系統開始蒐集資訊並決定向誰展示哪些廣告時，透明度與可信度就變得格外重要。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082604_0_2408b9.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>從商業角度來看，OpenAI 推出廣告其實不難理解。ChatGPT 擁有龐大的使用者基礎，但真正付費訂閱的人數終究只是其中一部分。如果能夠透過廣告獲利，企業便能從免費用戶身上建立新的收入來源，進一步支撐高昂的運算與研發成本。這對公司而言是合理的商業模式，只是對使用者來說，是否願意接受 AI 工具逐漸走向廣告平台化，則是另一回事。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/04/20260413132144_0_c86e3f.jpeg" alt="用戶實測叫 ChatGPT 評論「屁聲」，結果得到超高讚美？ - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>此外，歐洲的監管制度也讓這件事變得更加值得關注。自八月底起，相關廣告已在歐洲多個國家向免費用戶與 Go 用戶展示，而 Plus、Pro 及企業版用戶則不受影響。同時，由於 ChatGPT 在歐盟擁有超過一億五千萬月活躍用戶，遠高於《數位服務法》所定義的門檻，因此被列為「超大型線上搜尋引擎」。</p>
-<p>這項認定帶來的重要後果是，OpenAI 未來必須定期公開廣告相關資訊，包括廣告主是誰、何時投放、鎖定哪些受眾，以及最終觸及多少人。換句話說，歐盟要求 OpenAI 為其廣告業務建立完整且可追溯的紀錄。這不僅有助於監管機關進行監督，也能讓大眾更清楚了解 ChatGPT 廣告系統的實際運作方式。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260324135521_0_bd25f7.jpg" alt="ChatGPT 推出「檔案庫」功能！上傳的檔案、圖片、文件都不會再消失，讓你能隨時再次使用 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>事實上，ChatGPT 先前已經嘗試過文字形式的廣告，如今進一步發展到視覺廣告，代表其商業化進程正在加速。雖然 OpenAI 強調會兼顧使用者體驗、安全防護與透明度，但對我而言，AI 最珍貴的價值仍然是協助思考與創作，而不是成為另一個充滿廣告的媒介。當廣告逐漸進入對話式 AI 空間時，我們或許該開始思考一個問題：究竟要如何在商業獲利與使用者體驗之間，取得真正合理的平衡？</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>大家都不喜歡在需要專注思考的空間裡看到廣告，因此當得知 ChatGPT 開始測試圖片中的視覺廣告時，給人第一反應就是反感。生成式 AI 最吸引人的地方，在於它提供了一個相對純淨、能夠專注於創作與思考的環境。如果未來在生成圖片、整理想法，甚至進行深度討論時，旁邊出現各式各樣的商業訊息，那種沉浸感與專注度勢必受到影響。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082452_0_bbd8cc.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<h2>ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容</h2>
-<p>根據目前公開的資訊，<a href="https://openai.com/zh-Hant/index/new-chatgpt-ads-format-and-measurement/" target="_blank">OpenAI 正在測試一種全新的圖片廣告形式</a>。這些廣告不會直接混入使用者生成的內容，而是以相對獨立的方式呈現，展示特定產品的使用情境，或是產品能帶來的體驗，並且會清楚標示其廣告身分。從產品設計角度來看，OpenAI 顯然希望降低廣告對使用者體驗的干擾，避免讓人產生被強迫觀看的感覺。</p>
-<p>更值得注意的是，OpenAI 表示在投放個人化廣告之前，系統會先分析對話內容，判斷是否涉及情緒脆弱、心理健康或其他敏感議題。如果系統認為使用者正處於較敏感的狀態，便不會觸發相關廣告。從技術面來看，這是一種保護機制，目的在於避免廣告利用使用者的情緒或個人處境進行精準行銷。雖然這項措施聽起來有其正當性，但也引發另一層疑問：當系統開始分析使用者的情緒與對話內容時，我們是否也正在讓 AI 更深入地理解甚至評估我們的個人狀態？</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082431_0_ed6497.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>OpenAI 也提到，第三方機構如 DoubleVerify 與 Integral Ad Science 將負責檢查品牌安全規範是否被妥善執行。這些公司不會接觸真實對話內容，而是在受控環境中驗證系統是否符合既定規則。我認為這類外部監督是必要的。任何打算根據使用者行為與偏好投放廣告的平台，都應該接受獨立審查，而不是完全依靠企業自身的保證。畢竟，當一個系統開始蒐集資訊並決定向誰展示哪些廣告時，透明度與可信度就變得格外重要。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082604_0_2408b9.jpg" alt="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div></div>
-<p>從商業角度來看，OpenAI 推出廣告其實不難理解。ChatGPT 擁有龐大的使用者基礎，但真正付費訂閱的人數終究只是其中一部分。如果能夠透過廣告獲利，企業便能從免費用戶身上建立新的收入來源，進一步支撐高昂的運算與研發成本。這對公司而言是合理的商業模式，只是對使用者來說，是否願意接受 AI 工具逐漸走向廣告平台化，則是另一回事。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/04/20260413132144_0_c86e3f.jpeg" alt="用戶實測叫 ChatGPT 評論「屁聲」，結果得到超高讚美？ - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>此外，歐洲的監管制度也讓這件事變得更加值得關注。自八月底起，相關廣告已在歐洲多個國家向免費用戶與 Go 用戶展示，而 Plus、Pro 及企業版用戶則不受影響。同時，由於 ChatGPT 在歐盟擁有超過一億五千萬月活躍用戶，遠高於《數位服務法》所定義的門檻，因此被列為「超大型線上搜尋引擎」。</p>
-<p>這項認定帶來的重要後果是，OpenAI 未來必須定期公開廣告相關資訊，包括廣告主是誰、何時投放、鎖定哪些受眾，以及最終觸及多少人。換句話說，歐盟要求 OpenAI 為其廣告業務建立完整且可追溯的紀錄。這不僅有助於監管機關進行監督，也能讓大眾更清楚了解 ChatGPT 廣告系統的實際運作方式。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/03/20260324135521_0_bd25f7.jpg" alt="ChatGPT 推出「檔案庫」功能！上傳的檔案、圖片、文件都不會再消失，讓你能隨時再次使用 - 電腦王阿達" title="ChatGPT正在將廣告融入圖像生成中，對話可能會決定你看到的內容 - 電腦王阿達"></p>
-<p>事實上，ChatGPT 先前已經嘗試過文字形式的廣告，如今進一步發展到視覺廣告，代表其商業化進程正在加速。雖然 OpenAI 強調會兼顧使用者體驗、安全防護與透明度，但對我而言，AI 最珍貴的價值仍然是協助思考與創作，而不是成為另一個充滿廣告的媒介。當廣告逐漸進入對話式 AI 空間時，我們或許該開始思考一個問題：究竟要如何在商業獲利與使用者體驗之間，取得真正合理的平衡？</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082452_0_bbd8cc.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082452_0_bbd8cc.jpg" medium="image"/>
-    <pubDate>Wed, 07 Oct 2026 00:29:44 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺]]></title>
-    <link>https://www.kocpc.com.tw/archives/671327</link>
-    <itunes:title><![CDATA[狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>現在有 AI 之後，普通人要開發什麼、移植什麼真的越變越容易，近日國外就出現一個很狂的專案。PC 版的《GTA V》（俠盜獵車手 V）儲存空間需求約為 105～125GB，但有網友成功讓它在 Chrome 瀏覽器裡跑起來，一開始只需要下載約 700MB 的資料，就能進入遊戲。而且不僅故事模式、自由漫遊洛聖都、鍵盤滑鼠和手把都能用，連手機觸控都支援。</p>
-<p>更重要的是，移植過程似乎都是靠 AI 完成。</p>
-<p>不過隨著這《GTA V》網頁版在 X 和 Reddit 瘋傳，一堆人湧進去玩，網站撐不到一天網站就消失了，推測可能被官方封殺。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081729_0_d681e6.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"><br>
-<span>圖片來源：Gizmodo</span></p>
-<h2>《GTA V》竟能直接在瀏覽器玩！初始只下載約 700MB，疑靠外洩原始碼＋AI 移植</h2>
-<p>根據 <a href="https://gizmodo.com/browser-based-grand-theft-auto-v-shows-how-ai-is-making-it-easy-to-illegally-port-games-to-new-platforms-2000822395" target="_blank">Gizmodo</a> 報導指出，稍早一個可以直接在瀏覽器執行的《GTA V》現身於網路，甚至還支援多人連線功能，但很快就被封鎖。不過有人表示還能透過 archive.org 找到存檔，這版本是拿 2023 年底外洩的遊戲原始碼做成的。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082208_0_aa4bca.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 2049px) 100vw, 2049px"><br>
-<span>圖片來源：VideoCardz</span></p>
-<p>而分享實機畫面的開發者 Alex St. Louis 寫道：「GTA 5 已經用 AI 移植到 WebAssembly 了，我們真的活在最瘋狂的時間線。」不過他只是轉發者，真正做出這個移植的人是誰，到現在都沒有人公開承認。</p>
-<blockquote>
-<p dir="ltr" lang="en">GTA 5 has been ported ported to WebAssembly using AI. We live in the wildest timeline. https://t.co/7dPeLX3CSC https://t.co/gOuqVPPAHq</p>
-<p>— Alex St. Louis (@AlexStLouis10) <a href="https://x.com/AlexStLouis10/status/2107340032805892276?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>而 St. Louis 提到的 WebAssembly，就是這個版本能在瀏覽器裡跑起來的關鍵。一般遊戲是編譯成 Windows 或主機能直接執行的程式，瀏覽器看不懂。WebAssembly 則可以想成一種「瀏覽器專用的通用格式」，把原本的程式翻譯成瀏覽器能執行的版本，速度又能接近原生程式，再搭配 WebGPU 這類讓網頁直接呼叫顯示卡的技術，就有機會在分頁裡跑 3D 遊戲。</p>
-<p>有玩家使用 Apple M3 Pro 實測時，瀏覽器在遊戲開始前先下載約 700MB 的資料，之後則會視需要繼續抓取其他遊戲素材。另一名開發者進一步分析網站檔案後發現，PlayGTA5.com 實際提供的 Rockstar 遊戲資料約有 20.9GB。</p>
-<p>換句話說，700MB 比較像是讓遊戲先跑起來所需的「初始資料」，不是整個遊戲容量。</p>
-<blockquote>
-<p dir="ltr" lang="en">You can now play GTA 5 in web browser in multiplayer with your friends https://t.co/OxftdrZqE6</p>
-<p>— 0xProbability (@0xProbabillity) <a href="https://x.com/0xProbabillity/status/2107396699022828002?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>網站網址為 playgta5.com，10 月 3 日註冊，10 月 6 日早上開始在社群爆紅，隨後湧入的流量太多，也使網站出現 Cloudflare 的 1014 錯誤，之後頁面被換成錯誤訊息，最後還變成一行「Thanks for playing!」畫面。</p>
-<p>至於實際是誰、或什麼原因導致網站下架，目前還不知道，不過多家外媒都指向 Take-Two（Rockstar Games 的母公司）發出存證信函，Rockstar 和 Take-Two 則都尚未正式回應。</p>
-<p>前面提到的 Cloudflare 1014 錯誤代表的是兩個 Cloudflare 帳號之間的 DNS 設定被擋，屬於技術狀態，並不是下架通知，所以「被 Take-Two 封掉」也算是合理推測。</p>
-<p>Gizmodo 也提到，網站完全消失前曾短暫掛出一句「誰想要原始碼？」，很像是在挑釁版權方：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081956_0_f6c461.png" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1184px) 100vw, 1184px"></p><div></div>
-<p>所以說，現在已經玩不到了。不過有興趣的人還是能隨時關注一下，搞不好過一陣子又有人偷偷上架。</p>
-<p>至於《GTA V》原始碼本身是怎麼流出來的，有些人可能不太清楚，這邊也快速說明一下。</p>
-<p>2022 年 9 月，Lapsus$ 成員 Arion Kurtaj 入侵 Rockstar Games，導致大量尚未公開的《GTA VI》開發影片被放上網路，當時總共有約 90 段影片流出。</p>
-<p>到了 2023 年 12 月，《GTA V》的原始碼也開始大規模在網路上流傳，其中還被發現包含《Bully 2》以及部分與《GTA VI》有關的開發檔案：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082358_0_309e32.jpeg" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達"></p>
-<p>Gizmodo 認為，這次瀏覽器版本很可能就是建立在這批外洩原始碼之上。</p>
-<p>從結果來看，這件事情最值得注意的不是《GTA V》能在瀏覽器玩，而是有了完整原始碼、WebAssembly、WebGPU，再加上現在的 AI 程式開發工具之後，要把大型舊遊戲移植到原本沒有支援的平台，門檻正在快速降低。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>現在有 AI 之後，普通人要開發什麼、移植什麼真的越變越容易，近日國外就出現一個很狂的專案。PC 版的《GTA V》（俠盜獵車手 V）儲存空間需求約為 105～125GB，但有網友成功讓它在 Chrome 瀏覽器裡跑起來，一開始只需要下載約 700MB 的資料，就能進入遊戲。而且不僅故事模式、自由漫遊洛聖都、鍵盤滑鼠和手把都能用，連手機觸控都支援。</p>
-<p>更重要的是，移植過程似乎都是靠 AI 完成。</p>
-<p>不過隨著這《GTA V》網頁版在 X 和 Reddit 瘋傳，一堆人湧進去玩，網站撐不到一天網站就消失了，推測可能被官方封殺。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081729_0_d681e6.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"><br>
-<span>圖片來源：Gizmodo</span></p>
-<h2>《GTA V》竟能直接在瀏覽器玩！初始只下載約 700MB，疑靠外洩原始碼＋AI 移植</h2>
-<p>根據 <a href="https://gizmodo.com/browser-based-grand-theft-auto-v-shows-how-ai-is-making-it-easy-to-illegally-port-games-to-new-platforms-2000822395" target="_blank">Gizmodo</a> 報導指出，稍早一個可以直接在瀏覽器執行的《GTA V》現身於網路，甚至還支援多人連線功能，但很快就被封鎖。不過有人表示還能透過 archive.org 找到存檔，這版本是拿 2023 年底外洩的遊戲原始碼做成的。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082208_0_aa4bca.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 2049px) 100vw, 2049px"><br>
-<span>圖片來源：VideoCardz</span></p>
-<p>而分享實機畫面的開發者 Alex St. Louis 寫道：「GTA 5 已經用 AI 移植到 WebAssembly 了，我們真的活在最瘋狂的時間線。」不過他只是轉發者，真正做出這個移植的人是誰，到現在都沒有人公開承認。</p>
-<blockquote>
-<p dir="ltr" lang="en">GTA 5 has been ported ported to WebAssembly using AI. We live in the wildest timeline. https://t.co/7dPeLX3CSC https://t.co/gOuqVPPAHq</p>
-<p>— Alex St. Louis (@AlexStLouis10) <a href="https://x.com/AlexStLouis10/status/2107340032805892276?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>而 St. Louis 提到的 WebAssembly，就是這個版本能在瀏覽器裡跑起來的關鍵。一般遊戲是編譯成 Windows 或主機能直接執行的程式，瀏覽器看不懂。WebAssembly 則可以想成一種「瀏覽器專用的通用格式」，把原本的程式翻譯成瀏覽器能執行的版本，速度又能接近原生程式，再搭配 WebGPU 這類讓網頁直接呼叫顯示卡的技術，就有機會在分頁裡跑 3D 遊戲。</p>
-<p>有玩家使用 Apple M3 Pro 實測時，瀏覽器在遊戲開始前先下載約 700MB 的資料，之後則會視需要繼續抓取其他遊戲素材。另一名開發者進一步分析網站檔案後發現，PlayGTA5.com 實際提供的 Rockstar 遊戲資料約有 20.9GB。</p>
-<p>換句話說，700MB 比較像是讓遊戲先跑起來所需的「初始資料」，不是整個遊戲容量。</p>
-<blockquote>
-<p dir="ltr" lang="en">You can now play GTA 5 in web browser in multiplayer with your friends https://t.co/OxftdrZqE6</p>
-<p>— 0xProbability (@0xProbabillity) <a href="https://x.com/0xProbabillity/status/2107396699022828002?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>網站網址為 playgta5.com，10 月 3 日註冊，10 月 6 日早上開始在社群爆紅，隨後湧入的流量太多，也使網站出現 Cloudflare 的 1014 錯誤，之後頁面被換成錯誤訊息，最後還變成一行「Thanks for playing!」畫面。</p>
-<p>至於實際是誰、或什麼原因導致網站下架，目前還不知道，不過多家外媒都指向 Take-Two（Rockstar Games 的母公司）發出存證信函，Rockstar 和 Take-Two 則都尚未正式回應。</p>
-<p>前面提到的 Cloudflare 1014 錯誤代表的是兩個 Cloudflare 帳號之間的 DNS 設定被擋，屬於技術狀態，並不是下架通知，所以「被 Take-Two 封掉」也算是合理推測。</p>
-<p>Gizmodo 也提到，網站完全消失前曾短暫掛出一句「誰想要原始碼？」，很像是在挑釁版權方：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081956_0_f6c461.png" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1184px) 100vw, 1184px"></p><div></div>
-<p>所以說，現在已經玩不到了。不過有興趣的人還是能隨時關注一下，搞不好過一陣子又有人偷偷上架。</p>
-<p>至於《GTA V》原始碼本身是怎麼流出來的，有些人可能不太清楚，這邊也快速說明一下。</p>
-<p>2022 年 9 月，Lapsus$ 成員 Arion Kurtaj 入侵 Rockstar Games，導致大量尚未公開的《GTA VI》開發影片被放上網路，當時總共有約 90 段影片流出。</p>
-<p>到了 2023 年 12 月，《GTA V》的原始碼也開始大規模在網路上流傳，其中還被發現包含《Bully 2》以及部分與《GTA VI》有關的開發檔案：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082358_0_309e32.jpeg" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達"></p>
-<p>Gizmodo 認為，這次瀏覽器版本很可能就是建立在這批外洩原始碼之上。</p>
-<p>從結果來看，這件事情最值得注意的不是《GTA V》能在瀏覽器玩，而是有了完整原始碼、WebAssembly、WebGPU，再加上現在的 AI 程式開發工具之後，要把大型舊遊戲移植到原本沒有支援的平台，門檻正在快速降低。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>現在有 AI 之後，普通人要開發什麼、移植什麼真的越變越容易，近日國外就出現一個很狂的專案。PC 版的《GTA V》（俠盜獵車手 V）儲存空間需求約為 105～125GB，但有網友成功讓它在 Chrome 瀏覽器裡跑起來，一開始只需要下載約 700MB 的資料，就能進入遊戲。而且不僅故事模式、自由漫遊洛聖都、鍵盤滑鼠和手把都能用，連手機觸控都支援。</p>
-<p>更重要的是，移植過程似乎都是靠 AI 完成。</p>
-<p>不過隨著這《GTA V》網頁版在 X 和 Reddit 瘋傳，一堆人湧進去玩，網站撐不到一天網站就消失了，推測可能被官方封殺。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081729_0_d681e6.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"><br>
-<span>圖片來源：Gizmodo</span></p>
-<h2>《GTA V》竟能直接在瀏覽器玩！初始只下載約 700MB，疑靠外洩原始碼＋AI 移植</h2>
-<p>根據 <a href="https://gizmodo.com/browser-based-grand-theft-auto-v-shows-how-ai-is-making-it-easy-to-illegally-port-games-to-new-platforms-2000822395" target="_blank">Gizmodo</a> 報導指出，稍早一個可以直接在瀏覽器執行的《GTA V》現身於網路，甚至還支援多人連線功能，但很快就被封鎖。不過有人表示還能透過 archive.org 找到存檔，這版本是拿 2023 年底外洩的遊戲原始碼做成的。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082208_0_aa4bca.webp" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 2049px) 100vw, 2049px"><br>
-<span>圖片來源：VideoCardz</span></p>
-<p>而分享實機畫面的開發者 Alex St. Louis 寫道：「GTA 5 已經用 AI 移植到 WebAssembly 了，我們真的活在最瘋狂的時間線。」不過他只是轉發者，真正做出這個移植的人是誰，到現在都沒有人公開承認。</p>
-<blockquote>
-<p dir="ltr" lang="en">GTA 5 has been ported ported to WebAssembly using AI. We live in the wildest timeline. https://t.co/7dPeLX3CSC https://t.co/gOuqVPPAHq</p>
-<p>— Alex St. Louis (@AlexStLouis10) <a href="https://x.com/AlexStLouis10/status/2107340032805892276?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>而 St. Louis 提到的 WebAssembly，就是這個版本能在瀏覽器裡跑起來的關鍵。一般遊戲是編譯成 Windows 或主機能直接執行的程式，瀏覽器看不懂。WebAssembly 則可以想成一種「瀏覽器專用的通用格式」，把原本的程式翻譯成瀏覽器能執行的版本，速度又能接近原生程式，再搭配 WebGPU 這類讓網頁直接呼叫顯示卡的技術，就有機會在分頁裡跑 3D 遊戲。</p>
-<p>有玩家使用 Apple M3 Pro 實測時，瀏覽器在遊戲開始前先下載約 700MB 的資料，之後則會視需要繼續抓取其他遊戲素材。另一名開發者進一步分析網站檔案後發現，PlayGTA5.com 實際提供的 Rockstar 遊戲資料約有 20.9GB。</p>
-<p>換句話說，700MB 比較像是讓遊戲先跑起來所需的「初始資料」，不是整個遊戲容量。</p>
-<blockquote>
-<p dir="ltr" lang="en">You can now play GTA 5 in web browser in multiplayer with your friends https://t.co/OxftdrZqE6</p>
-<p>— 0xProbability (@0xProbabillity) <a href="https://x.com/0xProbabillity/status/2107396699022828002?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>網站網址為 playgta5.com，10 月 3 日註冊，10 月 6 日早上開始在社群爆紅，隨後湧入的流量太多，也使網站出現 Cloudflare 的 1014 錯誤，之後頁面被換成錯誤訊息，最後還變成一行「Thanks for playing!」畫面。</p>
-<p>至於實際是誰、或什麼原因導致網站下架，目前還不知道，不過多家外媒都指向 Take-Two（Rockstar Games 的母公司）發出存證信函，Rockstar 和 Take-Two 則都尚未正式回應。</p>
-<p>前面提到的 Cloudflare 1014 錯誤代表的是兩個 Cloudflare 帳號之間的 DNS 設定被擋，屬於技術狀態，並不是下架通知，所以「被 Take-Two 封掉」也算是合理推測。</p>
-<p>Gizmodo 也提到，網站完全消失前曾短暫掛出一句「誰想要原始碼？」，很像是在挑釁版權方：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081956_0_f6c461.png" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" data-lazy-sizes="(max-width: 1184px) 100vw, 1184px"></p><div></div>
-<p>所以說，現在已經玩不到了。不過有興趣的人還是能隨時關注一下，搞不好過一陣子又有人偷偷上架。</p>
-<p>至於《GTA V》原始碼本身是怎麼流出來的，有些人可能不太清楚，這邊也快速說明一下。</p>
-<p>2022 年 9 月，Lapsus$ 成員 Arion Kurtaj 入侵 Rockstar Games，導致大量尚未公開的《GTA VI》開發影片被放上網路，當時總共有約 90 段影片流出。</p>
-<p>到了 2023 年 12 月，《GTA V》的原始碼也開始大規模在網路上流傳，其中還被發現包含《Bully 2》以及部分與《GTA VI》有關的開發檔案：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007082358_0_309e32.jpeg" alt="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達" title="狂！國外網友靠外洩原始碼加 AI，成功將《GTA V》移植到瀏覽器上玩，但上線沒多久就被封殺 - 電腦王阿達"></p>
-<p>Gizmodo 認為，這次瀏覽器版本很可能就是建立在這批外洩原始碼之上。</p>
-<p>從結果來看，這件事情最值得注意的不是《GTA V》能在瀏覽器玩，而是有了完整原始碼、WebAssembly、WebGPU，再加上現在的 AI 程式開發工具之後，要把大型舊遊戲移植到原本沒有支援的平台，門檻正在快速降低。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081729_0_d681e6.webp"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261007081729_0_d681e6.webp" medium="image"/>
-    <pubDate>Wed, 07 Oct 2026 00:25:28 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級]]></title>
-    <link>https://www.kocpc.com.tw/archives/671328</link>
-    <itunes:title><![CDATA[洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>期待已久的蘋果智慧家庭產品更新終於有望在近期亮相。根據最新曝光資訊，即將登場的新一代 Apple TV 4K 與 HomePod 系列產品，除了硬體效能提升之外，還可能帶來更多以人工智慧為核心的新功能。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/02/20250203112005_0_ab25cf.jpg" alt="為什麼不推薦 Android 用戶買 Apple TV？ - 電腦王阿達" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h2>洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級</h2>
-<p>外界預期蘋果將於 10 月 13 日發表多款全新智慧家庭裝置，包括新款 Apple TV 4K、第二代 HomePod mini，以及傳聞已久的 HomePad 智慧家庭控制中心。在正式發表前，最新版本的 tvOS、HomePod 與 iOS 測試版程式碼中，已陸續出現多項與新功能相關的線索，顯示蘋果正積極擴展智慧家庭生態系。</p>
-<h3>Siri AI 可望登上 Apple TV</h3>
-<p>Apple Intelligence 預計將成為此次智慧家庭更新的最大亮點之一。根據外媒 <a href="https://9to5mac.com/2026/10/06/leaks-reveal-new-apple-tv-4k-and-homepod-features-coming-next-week/" target="_blank">9to5Mac 報導</a>，在 tvOS 27.2 Beta 3 的程式碼中發現，新一代 Apple TV 將支援 Siri AI，讓蘋果升級後的智慧助理正式進軍客廳娛樂場景。有了 Siri AI 加持後，Apple TV 的功能將不再侷限於影音串流播放。使用者可望獲得更自然的語音互動體驗，包括更精準的影集與電影推薦、智慧化內容搜尋，以及即時回答各類知識問題等功能。</p>
-<p>此外，新款 Apple TV 也傳出將迎來顯著的硬體升級，處理器可能從現行的 A15 仿生晶片，躍升至 A19 或 A19 Pro 等級，大幅提升運算與 AI 處理能力。這些消息也呼應先前相關報導。外界普遍認為，蘋果重新加速發展智慧家庭市場的重要策略之一，正是以 Siri AI 為核心，而 Apple TV 與 HomePod mini 將成為首批受惠的產品。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2023/02/1675761556-c7a4f1dd5b9e50f6c11ccc5831d9c6c6.jpg" alt="Apple TV 4K（第 3 代）" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h3>HomePod 與 Apple TV 整合度進一步提升</h3>
-<p>除了 Siri AI 之外，最新 HomePod 測試版程式碼也透露，未來 HomePod 與 Apple TV 的整合程度將更進一步。相關資訊顯示，HomePod 未來可自動辨識自己在環繞音響系統中的擺放位置，進而優化音效表現。同時，使用者透過 HomePod 發出的 Siri 指令，也能直接轉交給已連接的 Apple TV 執行，打造更無縫的智慧家庭操作體驗。</p>
-<blockquote>
-<p dir="ltr" lang="en">iOS 27.2 beta 3 includes new HomeKit code suggesting nearby smart-home accessories could show controls in the Dynamic Island. A new method explicitly references showing Dynamic Island controls through HomeKit’s proximity manager. This is an AI mockup of what it may look like: https://t.co/szddeb2nCg</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2107307464341233805?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>除此之外，蘋果似乎也正在開發全新的 HomeKit 控制機制。未來當相容的智慧家庭裝置靠近使用者時，相關控制選項有機會直接顯示在 iPhone 的動態島介面中，進一步提升操作便利性。在個人化功能方面，Apple TV 的使用者檔案頁面也可能迎來更新。根據程式碼內容，用戶將能選擇 Apple TV+ 影集或電影中的角色作為個人頭像，增加更多客製化元素。</p>
-<blockquote>
-<p dir="ltr" lang="en">You’ll soon be able to choose characters from the Apple TV catalog as profile pictures for local Apple TV profiles. “Choose a character from Apple TV or an emoji.” The server endpoint continues to serve only emojis, as in previous releases. https://t.co/UF4yKb95o3</p>
-<p>— pdfu (@itspdfu) <a href="https://x.com/itspdfu/status/2107248960893022612?ref_src=twsrc%5Etfw">October 5, 2026</a></p></blockquote>
-<p>目前蘋果尚未正式證實上述消息，但多方消息指出，新一波硬體產品最快將於下週亮相，因此距離官方揭曉相關細節的時間，可能已經不遠。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>期待已久的蘋果智慧家庭產品更新終於有望在近期亮相。根據最新曝光資訊，即將登場的新一代 Apple TV 4K 與 HomePod 系列產品，除了硬體效能提升之外，還可能帶來更多以人工智慧為核心的新功能。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/02/20250203112005_0_ab25cf.jpg" alt="為什麼不推薦 Android 用戶買 Apple TV？ - 電腦王阿達" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h2>洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級</h2>
-<p>外界預期蘋果將於 10 月 13 日發表多款全新智慧家庭裝置，包括新款 Apple TV 4K、第二代 HomePod mini，以及傳聞已久的 HomePad 智慧家庭控制中心。在正式發表前，最新版本的 tvOS、HomePod 與 iOS 測試版程式碼中，已陸續出現多項與新功能相關的線索，顯示蘋果正積極擴展智慧家庭生態系。</p>
-<h3>Siri AI 可望登上 Apple TV</h3>
-<p>Apple Intelligence 預計將成為此次智慧家庭更新的最大亮點之一。根據外媒 <a href="https://9to5mac.com/2026/10/06/leaks-reveal-new-apple-tv-4k-and-homepod-features-coming-next-week/" target="_blank">9to5Mac 報導</a>，在 tvOS 27.2 Beta 3 的程式碼中發現，新一代 Apple TV 將支援 Siri AI，讓蘋果升級後的智慧助理正式進軍客廳娛樂場景。有了 Siri AI 加持後，Apple TV 的功能將不再侷限於影音串流播放。使用者可望獲得更自然的語音互動體驗，包括更精準的影集與電影推薦、智慧化內容搜尋，以及即時回答各類知識問題等功能。</p>
-<p>此外，新款 Apple TV 也傳出將迎來顯著的硬體升級，處理器可能從現行的 A15 仿生晶片，躍升至 A19 或 A19 Pro 等級，大幅提升運算與 AI 處理能力。這些消息也呼應先前相關報導。外界普遍認為，蘋果重新加速發展智慧家庭市場的重要策略之一，正是以 Siri AI 為核心，而 Apple TV 與 HomePod mini 將成為首批受惠的產品。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2023/02/1675761556-c7a4f1dd5b9e50f6c11ccc5831d9c6c6.jpg" alt="Apple TV 4K（第 3 代）" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h3>HomePod 與 Apple TV 整合度進一步提升</h3>
-<p>除了 Siri AI 之外，最新 HomePod 測試版程式碼也透露，未來 HomePod 與 Apple TV 的整合程度將更進一步。相關資訊顯示，HomePod 未來可自動辨識自己在環繞音響系統中的擺放位置，進而優化音效表現。同時，使用者透過 HomePod 發出的 Siri 指令，也能直接轉交給已連接的 Apple TV 執行，打造更無縫的智慧家庭操作體驗。</p>
-<blockquote>
-<p dir="ltr" lang="en">iOS 27.2 beta 3 includes new HomeKit code suggesting nearby smart-home accessories could show controls in the Dynamic Island. A new method explicitly references showing Dynamic Island controls through HomeKit’s proximity manager. This is an AI mockup of what it may look like: https://t.co/szddeb2nCg</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2107307464341233805?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>除此之外，蘋果似乎也正在開發全新的 HomeKit 控制機制。未來當相容的智慧家庭裝置靠近使用者時，相關控制選項有機會直接顯示在 iPhone 的動態島介面中，進一步提升操作便利性。在個人化功能方面，Apple TV 的使用者檔案頁面也可能迎來更新。根據程式碼內容，用戶將能選擇 Apple TV+ 影集或電影中的角色作為個人頭像，增加更多客製化元素。</p>
-<blockquote>
-<p dir="ltr" lang="en">You’ll soon be able to choose characters from the Apple TV catalog as profile pictures for local Apple TV profiles. “Choose a character from Apple TV or an emoji.” The server endpoint continues to serve only emojis, as in previous releases. https://t.co/UF4yKb95o3</p>
-<p>— pdfu (@itspdfu) <a href="https://x.com/itspdfu/status/2107248960893022612?ref_src=twsrc%5Etfw">October 5, 2026</a></p></blockquote>
-<p>目前蘋果尚未正式證實上述消息，但多方消息指出，新一波硬體產品最快將於下週亮相，因此距離官方揭曉相關細節的時間，可能已經不遠。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>期待已久的蘋果智慧家庭產品更新終於有望在近期亮相。根據最新曝光資訊，即將登場的新一代 Apple TV 4K 與 HomePod 系列產品，除了硬體效能提升之外，還可能帶來更多以人工智慧為核心的新功能。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/02/20250203112005_0_ab25cf.jpg" alt="為什麼不推薦 Android 用戶買 Apple TV？ - 電腦王阿達" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h2>洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級</h2>
-<p>外界預期蘋果將於 10 月 13 日發表多款全新智慧家庭裝置，包括新款 Apple TV 4K、第二代 HomePod mini，以及傳聞已久的 HomePad 智慧家庭控制中心。在正式發表前，最新版本的 tvOS、HomePod 與 iOS 測試版程式碼中，已陸續出現多項與新功能相關的線索，顯示蘋果正積極擴展智慧家庭生態系。</p>
-<h3>Siri AI 可望登上 Apple TV</h3>
-<p>Apple Intelligence 預計將成為此次智慧家庭更新的最大亮點之一。根據外媒 <a href="https://9to5mac.com/2026/10/06/leaks-reveal-new-apple-tv-4k-and-homepod-features-coming-next-week/" target="_blank">9to5Mac 報導</a>，在 tvOS 27.2 Beta 3 的程式碼中發現，新一代 Apple TV 將支援 Siri AI，讓蘋果升級後的智慧助理正式進軍客廳娛樂場景。有了 Siri AI 加持後，Apple TV 的功能將不再侷限於影音串流播放。使用者可望獲得更自然的語音互動體驗，包括更精準的影集與電影推薦、智慧化內容搜尋，以及即時回答各類知識問題等功能。</p>
-<p>此外，新款 Apple TV 也傳出將迎來顯著的硬體升級，處理器可能從現行的 A15 仿生晶片，躍升至 A19 或 A19 Pro 等級，大幅提升運算與 AI 處理能力。這些消息也呼應先前相關報導。外界普遍認為，蘋果重新加速發展智慧家庭市場的重要策略之一，正是以 Siri AI 為核心，而 Apple TV 與 HomePod mini 將成為首批受惠的產品。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2023/02/1675761556-c7a4f1dd5b9e50f6c11ccc5831d9c6c6.jpg" alt="Apple TV 4K（第 3 代）" title="洩漏資訊中暗示 Apple 即將推出的智慧家庭設備會對 Siri 進行重大升級 - 電腦王阿達"></p>
-<h3>HomePod 與 Apple TV 整合度進一步提升</h3>
-<p>除了 Siri AI 之外，最新 HomePod 測試版程式碼也透露，未來 HomePod 與 Apple TV 的整合程度將更進一步。相關資訊顯示，HomePod 未來可自動辨識自己在環繞音響系統中的擺放位置，進而優化音效表現。同時，使用者透過 HomePod 發出的 Siri 指令，也能直接轉交給已連接的 Apple TV 執行，打造更無縫的智慧家庭操作體驗。</p>
-<blockquote>
-<p dir="ltr" lang="en">iOS 27.2 beta 3 includes new HomeKit code suggesting nearby smart-home accessories could show controls in the Dynamic Island. A new method explicitly references showing Dynamic Island controls through HomeKit’s proximity manager. This is an AI mockup of what it may look like: https://t.co/szddeb2nCg</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2107307464341233805?ref_src=twsrc%5Etfw">October 6, 2026</a></p></blockquote>
-<p>除此之外，蘋果似乎也正在開發全新的 HomeKit 控制機制。未來當相容的智慧家庭裝置靠近使用者時，相關控制選項有機會直接顯示在 iPhone 的動態島介面中，進一步提升操作便利性。在個人化功能方面，Apple TV 的使用者檔案頁面也可能迎來更新。根據程式碼內容，用戶將能選擇 Apple TV+ 影集或電影中的角色作為個人頭像，增加更多客製化元素。</p>
-<blockquote>
-<p dir="ltr" lang="en">You’ll soon be able to choose characters from the Apple TV catalog as profile pictures for local Apple TV profiles. “Choose a character from Apple TV or an emoji.” The server endpoint continues to serve only emojis, as in previous releases. https://t.co/UF4yKb95o3</p>
-<p>— pdfu (@itspdfu) <a href="https://x.com/itspdfu/status/2107248960893022612?ref_src=twsrc%5Etfw">October 5, 2026</a></p></blockquote>
-<p>目前蘋果尚未正式證實上述消息，但多方消息指出，新一波硬體產品最快將於下週亮相，因此距離官方揭曉相關細節的時間，可能已經不遠。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2025/02/20250203112005_0_ab25cf.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2025/02/20250203112005_0_ab25cf.jpg" medium="image"/>
-    <pubDate>Wed, 07 Oct 2026 00:13:15 +0000</pubDate>
   </item></channel>
 </rss>
