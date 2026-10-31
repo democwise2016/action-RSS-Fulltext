@@ -30,6 +30,945 @@
     </itunes:owner>
     <itunes:image href="https://pcrookie.com/wp-content/uploads/2019/11/blog-LOGO-2.png"/>
 <item>
+    <title><![CDATA[AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！]]></title>
+    <link>https://pcrookie.com/grok-bot-3d-virtual-office/</link>
+    <itunes:title><![CDATA[AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！]]></itunes:title>
+    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img post-id="8531" fifu-featured="1" alt="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-cover.png"></p>
+<p>手上的 AI bot 越來越多之後，阿正老師發現一個很實際的小困擾：每個 bot 都在各自的對話視窗裡忙，想知道誰在寫稿、誰卡住等我回覆，只能一個一個點開來看。等結果的時間也滿無聊的。</p>
+<p>最近 X 上的 <a href="https://x.com/btcup99" target="_blank">@btcup99（比特HODL）</a>在 2026 年 10 月 30 日發了一篇長文〈<a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">保姆級教程，手把手教你給 Grok Bot 團隊搭一間炫酷 3D 辦公室</a>〉，把這件事做成了一個 3D 網頁。每個 bot 是一個方塊小人，工作時坐在工位上打字，兩個 bot 協作時一起走進會議室，做完還會跳起來撒花。整個網頁幾乎都是叫 AI 自己寫出來的，作者只負責下指令跟定規矩。</p>
+<p>這篇就把原作者的做法整理成台灣讀者看得懂的版本，順便補上原文沒細講的費用、免費額度，以及公開上網前一定要想清楚的隱私問題<strong>，</strong>阿正老師也照著自己蓋一間，相當有趣喔！</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">3D 虛擬辦公室長什麼樣子？</a></li>
+<li><a href="#how">背後怎麼運作：狀態、上報指令與演示模式</a></li>
+<li><a href="#hosting">主機怎麼選：Instabox 與 Cloudflare Workers</a></li>
+<li><a href="#steps">照著做：把這段提示詞交給 AI</a></li>
+<li><a href="#cost">費用算一算：哪裡免費、哪裡會花錢</a></li>
+<li><a href="#pitfalls">一般人最容易卡關的地方</a></li>
+<li><a href="#privacy">隱私與安全：先定規矩再上報</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、3D 虛擬辦公室長什麼樣子？</h2>
+<p>原作者用 <a href="https://threejs.org/" target="_blank">Three.js</a>（一套在瀏覽器裡畫 3D 畫面的免費開源程式庫，採 MIT 授權）畫了一間方塊風格、斜上方俯視的辦公室，打開網頁就能看，不用安裝任何軟體。依原文的介紹，這間辦公室分成幾個區域：</p>
+<ul>
+<li><strong>總監室</strong>：坐著負責總調度的 Grok Bot。</li>
+<li><strong>會議室</strong>：電視即時顯示 BTC 價格，讀的是作者自己機器上的行情面板。</li>
+<li><strong>走道與茶水間</strong>：走道顯示 AI 剩餘額度，茶水間掛著「比特HODL ₿」霓虹燈牌。</li>
+<li><strong>工位區與休息區</strong>：每個 bot 一張工位，沒事做就去沙發晃。</li>
+</ul>
+<p>燈光會依時間切換白天、傍晚、夜晚（原作者用北京時間，台灣讀者請 AI 改成台灣時間 UTC+8 即可）。手機打開時，側邊資訊欄會變成從底部拉出的抽屜式面板。原作者還加了一個代表自己的「集團總裁」角色在辦公室裡巡視，很有當老闆視察的感覺。</p>
+<p>下圖就是阿正老師使用Grok Bot，照著作者的提示詞，實際做出來的3D虛擬辦公室，並且使用免費的CloudFlare方案來架設。</p>
+<p> <img fetchpriority="high" border="0" alt="一、3D 虛擬辦公室長什麼樣子？－AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/10/Grok-Bot-3D-_0968AEA2/image_4B128891.png">    </p>
+<div> <strong>阿正老師點評：</strong>配置不用照抄。原作者自己也說布局只是參考，阿正老師會建議把會議室電視換成自己真的會看的資訊，例如今天待審的文章數，比放行情更實用。     </div>
+<hr>
+<h2>二、背後怎麼運作：狀態、上報指令與演示模式</h2>
+<p>畫面看起來很熱鬧，原理其實很單純。每個 bot 做事前後，用一行指令跟網站「打卡」報告自己在幹嘛，網頁再依照這些狀態讓小人做出對應動作。</p>
+<img alt="示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 2" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-report-flow.png"><figcaption>示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程</figcaption>
+<h3>8 種狀態與小規則</h3>
+<p>原作者定了 8 種狀態，分別是寫程式、終端機作業中、瀏覽網頁、思考中、需要你（紅色閃爍）、出錯、閒置、已完成（會撒花）。每個 bot 的名字、角色、顏色和座位寫在一個名冊檔（roster.json），狀態另外存起來，重新開機也不會遺失。另外還有幾條讓畫面更像真的的小規則：</p>
+<ul>
+<li>30 分鐘沒上報，自動顯示「閒置」。</li>
+<li>晚上顯示「下班」，小人會走出門。</li>
+<li>兩個 bot 協作時，一起走去會議室。</li>
+</ul>
+<h3>上報指令長這樣</h3>
+<p>原作者的 bot 共用一台雲端機器，所以在上面放了一個共用指令，格式和範例如下：</p>
+<pre>office-report &lt;bot代號&gt; &lt;狀態&gt; "&lt;任務摘要&gt;" [協作的bot]
+office-report xstats browsing "抓取 ETF 資金流數據"</pre>
+<p>這個指令成功時不會有任何輸出，失敗也不會影響 bot 的主要工作。因為免費機器閒置會休眠，第一次請求可能要等它醒來，所以原作者把逾時設成 60 秒，失敗自動重試 2 次。</p>
+<h3>演示模式</h3>
+<p>剛上線時 bot 還沒開始做事，辦公室空蕩蕩的。原作者加了一段大約 1 分鐘、循環播放的模擬劇本，畫面上方會清楚標示「演示模式 · 模擬數據」，避免訪客以為是真實狀態。如果你的辦公室要公開給別人看，這個標示阿正老師覺得一定要留著。</p>
+<hr>
+<h2>三、主機怎麼選：Instabox 與 Cloudflare Workers</h2>
+<p>網頁總要放在某台機器上才能讓人連進來。原作者提了兩條路，一條是 Instabox 的免費雲端機器，另一條是不用自己顧主機的 Cloudflare Workers。兩者都有免費方案，差別在你想不想管一台「電腦」。</p>
+<h3>Instabox 免費雲端機器</h3>
+<p>Instabox 給你一台真正的 Linux 雲端機器，原作者的 bot 就共用這台機器，所以上報指令可以直接放在上面。依 Instabox 官方文件，免費方案規格如下：</p>
+<img alt="Instabox 官方方案頁面，可看到免費方案與付費方案的規格比較" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 3" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-instabox-pricing.png"><figcaption>圖片來源：instabox.sh</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://instabox.sh/" target="_blank">https://instabox.sh/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端 Linux 機器</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>1 台機器、4 vCPU／8 GiB 記憶體、20 GiB 硬碟、5 個快照、每月 100 GiB 對外流量</td>
+</tr>
+<tr>
+<td>使用限制</td>
+<td>閒置 30 分鐘自動暫停；單次最長連續運作 480 分鐘，之後進入 5～20 分鐘冷卻期，期間無法喚醒</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Pro 每月 20 美元、Builder 每月 100 美元、Team 每月 500 美元，另依用量計費</td>
+</tr>
+<tr>
+<td>申請方式</td>
+<td>原作者說用 Google 信箱排隊就能領到（待查證，官方文件未說明排隊流程）</td>
+</tr>
+<tr>
+<td>繁中介面／台灣可用性</td>
+<td>官方文件為英文，繁中介面待查證；台灣是否可申請待查證</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://instabox.sh/pricing" target="_blank">方案與價格</a>] [<a href="https://instabox.sh/docs/limits" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>是一台完整的機器，可以存檔案，bot 也能直接在上面執行上報指令</li>
+<li>免費方案有 5 個快照，改壞了可以還原</li>
+<li>有人打開公開網址時，閒置暫停的機器會自動醒來</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>閒置 30 分鐘就暫停，訪客第一次打開要等它醒來</li>
+<li>連續跑 480 分鐘會被強制冷卻，不適合要 24 小時穩定在線的看板</li>
+<li>原作者提到用 Tailscale 連線叫不醒機器，只有公開網址可以</li>
+</ul></div>
+</div>
+<h3>Cloudflare Workers 免費方案</h3>
+<p>如果手上沒有雲端機器，原作者推薦的另一條路是 Cloudflare Workers。它不用你管主機，程式丟上去就會在 Cloudflare 全球的節點上跑，還送一個公開網址（xxx.workers.dev），適合長期公開。</p>
+<img alt="Cloudflare Workers 官方價格頁面，可看到免費方案每日請求額度與付費方案價格" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 4" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-workers-pricing-v3.png"><figcaption>圖片來源：developers.cloudflare.com</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://workers.cloudflare.com/" target="_blank">https://workers.cloudflare.com/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端程式執行平台（不用自己架主機）</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>每天 100,000 次請求、每次最多 10 毫秒 CPU 時間；網頁靜態檔案（3D 場景本身）的請求免費且不限次數</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Workers Paid 每月 5 美元起</td>
+</tr>
+<tr>
+<td>繁中介面</td>
+<td>儀表板可在個人設定切換語言，是否含繁體中文待查證</td>
+</tr>
+<tr>
+<td>台灣可用性</td>
+<td>台灣可用，Cloudflare 在台北設有機房（<a href="https://pcrookie.com/cloudflare-taipei/" target="_blank">本站舊文</a>）</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://developers.cloudflare.com/workers/platform/pricing/" target="_blank">價格</a>] [<a href="https://developers.cloudflare.com/workers/platform/limits/" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>不會休眠，訪客打開就看得到</li>
+<li>每次部署都會留下程式版本，儀表板可以回復最近 100 個已發布版本，但只回復程式、不還原資料（限制見第六章）</li>
+<li>可搭配免費的 Cloudflare Access 把網頁鎖起來，只給自己看</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>沒有可以長期存檔的硬碟，原作者那種把狀態寫進 state.json 的做法要改（第六章說明）</li>
+<li>需要建立 Cloudflare API 權杖給 AI 部署，權限設定對新手有點門檻</li>
+<li>每天請求數超過免費額度會出現錯誤頁（Error 1027），要等世界標準時間午夜（台灣早上 8 點）重置</li>
+</ul></div>
+</div>
+<div>
+<br> <strong>阿正老師點評：</strong>你的 bot 本來就共用一台雲端機器（像原作者那樣），選 Instabox 最順；只是想要一個長期開著、不怕休眠的看板，阿正老師會選 Cloudflare Workers。 
+</div>
+<hr>
+<h2>四、照著做：把這段提示詞交給 AI</h2>
+<p>原作者的重點是「技術細節不用懂，交給 bot 處理」。整個過程其實不需要先學 Git 或 GitHub，把下面這段提示詞貼給你的 Grok Bot（或 Codex、Claude 等會寫程式的 AI），它會先列出計畫跟需要你提供的東西，你確認後它再開工。以下是阿正老師把原文提示詞轉成正體中文的版本，【】裡面換成你自己的資料：</p>
+<div> 請幫我建立一個可以公開瀏覽的 3D「AI 團隊虛擬辦公室」網頁，名稱叫「【暱稱】AI 工作室」。 
+<p>・用 Three.js 畫一間方塊風格、斜上方俯視的辦公室，我的每個 bot 坐在自己的工位，依即時狀態做動作（寫程式、思考、需要我、完成、閒置）。成員：【bot 名單】。</p>
+<p>・再加一個代表我的「集團總裁」角色，參考我提供的圖片，在辦公室裡來回巡視。</p>
+<p>・後端提供兩個介面，一個是公開唯讀的狀態介面，一個是 bot 回報狀態的介面，必須帶權杖（token）才能寫入。再給 bot 一個回報指令。部署在【我的雲端機器／Cloudflare Workers】上。</p>
+<p>・加分項目：會議室電視顯示即時資訊、依台灣時間切換白天與夜晚、演示模式、第一次瀏覽時跳出歡迎頁並播放輕音樂、手機版也要好用。</p>
+<p>・隱私和安全：bot 只回報籠統的任務類型，不寫帳號、私訊、金額；權杖不能外洩；所有輸入都要過濾並限制頻率。</p>
+<p>請先告訴我你的計畫和需要我提供什麼，我確認後再開始，完成後給我公開網址和截圖。<br>
+</p>
+</div>
+<p>整理原作者的做法，大概就是這 6 步：</p>
+<ol>
+<li>準備一台能開公開網址的雲端機器，或改用 Cloudflare Workers。</li>
+<li>讓 AI 用 Three.js 做出 3D 場景，打包成靜態網頁檔案。</li>
+<li>寫一個小服務，一個唯讀的狀態介面，加一個要權杖才能寫的上報介面。</li>
+<li>把網址公開出去（或用 Cloudflare Access 鎖起來，見第七章）。</li>
+<li>告訴每個 bot 什麼時候報、報什麼，並給它上報指令。</li>
+<li>最重要的一步：先定好隱私規則，再讓 bot 開始上報。</li>
+</ol>
+<div>
+<br>⚠️ 會議室電視要顯示行情或其他即時資料，得接外部的資料來源。原作者讀的是自己機器上的 BTC 面板，你要用哪個資料來源、是否免費、能不能公開顯示，請 AI 先查清楚該服務的使用規定（待查證）。 
+</div>
+<hr>
+<h2>五、費用算一算：哪裡免費、哪裡會花錢</h2>
+<p>先講結論，網頁本身幾乎不花錢，真正會用掉的是 AI 方案的額度。下面把每一塊拆開來看（價格皆為官方標示，未稅，查證日期 2026-10-31）：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>免費範圍</th>
+<th>什麼時候會花錢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Three.js</td>
+<td>MIT 開源授權，免費使用</td>
+<td>不會</td>
+</tr>
+<tr>
+<td>Cloudflare Workers</td>
+<td>每天 100,000 次請求，靜態檔案請求免費不限次數</td>
+<td>想突破每日額度才需要 Workers Paid，每月 5 美元起</td>
+</tr>
+<tr>
+<td>Workers KV（簡易存放區）</td>
+<td>每天讀取 100,000 次、寫入只有 1,000 次，容量 1 GB</td>
+<td>bot 多、上報頻繁時寫入次數容易用完</td>
+</tr>
+<tr>
+<td>D1／Durable Objects（資料庫）</td>
+<td>D1 每天寫入 100,000 列、容量 5 GB；Durable Objects 免費方案每天 100,000 次請求（限 SQLite 儲存）</td>
+<td>個人看板通常用不完</td>
+</tr>
+<tr>
+<td>Instabox</td>
+<td>免費 1 台機器（規格見第三章）</td>
+<td>要多台或更長運作時間，Pro 每月 20 美元起另加用量</td>
+</tr>
+<tr>
+<td>Cloudflare Access（網頁上鎖）</td>
+<td>Zero Trust 免費方案，最多 50 位使用者</td>
+<td>個人使用不會</td>
+</tr>
+<tr>
+<td>Grok Bot（AI 方案）</td>
+<td>The X Subscription 免費版與 Plus 不含 Grok Bot</td>
+<td>新訂戶 Premium 每月 30 美元起才含 Grok Bot，用量從每週共用額度扣</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>原作者說有人惡意狂刷頁面「最多讓機器一直醒著，免費版也不花錢」。這點在 Instabox 免費版成立，在 Cloudflare Workers 免費版則是超過每日請求額度後網頁暫時打不開，一樣不會自動扣款。</p>
+<p>比較需要留意的是 AI 額度。叫 AI 從零蓋一間 3D 辦公室，來回修改好幾輪是常態，每一輪都在消耗 Grok Bot 的每週用量；之後 bot 每次上報，也是它在任務裡多做的一個動作。整間辦公室蓋好大約會吃掉多少額度，官方沒有數字可參考（待查證），建議先從簡單版本做起，確定好玩再加裝潢。Grok Bot 的方案細節可以參考阿正老師之前寫的〈<a href="https://pcrookie.com/grok-bot-ai-agent-guide-2026/" target="_blank">Grok Bot 是什麼？費用與中文支援一次看懂</a>〉。</p>
+<hr>
+<h2>六、一般人最容易卡關的地方</h2>
+<p>原作者說「技術細節不用懂」，大方向沒錯，但阿正老師整理下來，非技術讀者大概會在這幾個地方停下來：</p>
+<h3>1. Cloudflare API 權杖要給多大權限</h3>
+<p>選 Cloudflare Workers 的話，AI 需要一組 API 權杖（token）才能幫你部署。權杖在 Cloudflare 儀表板的「My Profile → API Tokens」建立，可以套用範本或自訂權限，還能限定只對某個帳號或資源有效、限制來源 IP 與有效期限。權杖建立後只會顯示一次。阿正老師的建議是只給部署 Workers 需要的權限，並限定在你自己的帳號，不要圖方便全部打勾，再設一個到期日。</p>
+<h3>2. 改壞了沒有版本可以回去</h3>
+<p>不用 Git 的人最怕的就是 AI 改著改著，原本好好的畫面壞掉。兩種主機的解法不太一樣：</p>
+<ul>
+<li><strong>Cloudflare Workers</strong>：每次部署都會留下版本，可以在儀表板的 Workers &amp; Pages → 你的 Worker → Deployments，從最近 100 個已發布版本中選一個回復（Rollback）。要注意回復的只有程式，KV、D1、Durable Objects 裡的資料不會跟著還原；如果這段期間刪除或修改過 KV、D1 等綁定的資源（binding），或做過 Durable Objects 的類別變更（migration），舊版可能就不能回復。狀態資料請另外備份。</li>
+<li><strong>Instabox</strong>：免費方案有 5 個快照，大改之前先拍一個。</li>
+<li>不管哪一種，都可以直接跟 AI 說「每次修改前先備份目前能用的程式和狀態資料，改壞就還原」，把這條寫進提示詞最省事。</li>
+</ul>
+<h3>3. 每個 bot 都要你親自核准一次</h3>
+<p>原作者特別提醒，用 Grok Bot 搭建時，在一個 bot 的視窗下指令，其他 bot 不一定會照轉述的命令做，你得到每個 bot 的視窗裡親自按核准，它們才會開始上報。Grok Bot 官方文件是否有相關說明，阿正老師還沒查到（待查證），先照原作者的經驗準備多花點時間逐一設定。</p>
+<h3>4. Cloudflare Workers 沒有可以存檔的硬碟</h3>
+<p>原作者是在自己的雲端機器上，把狀態寫進一個 state.json 檔案。但依 Cloudflare 官方文件，Workers 裡的暫存資料夾只存在記憶體，每次請求各自一份，請求結束就沒了，所以這招在 Workers 上行不通。請 AI 改用 Cloudflare 的存放服務：</p>
+<ul>
+<li><strong>Workers KV</strong>：最簡單，但免費版每天只能寫入 1,000 次，而且同一筆資料每秒最多寫一次，更新後也可能晚一點才在各地看到。</li>
+<li><strong>D1 或 Durable Objects</strong>：免費寫入額度多很多，Durable Objects 的資料一致性也比較好，阿正老師會建議 bot 多的人直接選這兩個。</li>
+</ul>
+<h3>5. 測試資料忘了清</h3>
+<p>原作者踩過的坑，測試時隨便報的假狀態會一直留在頁面上，上線前要記得叫 AI 清掉，不然公開頁面會掛著假資料。</p>
+<hr>
+<h2>七、隱私與安全：先定規矩再上報</h2>
+<p>這間辦公室最大的風險其實不在技術，而在「bot 會把什麼寫上去」。公開網頁上看得到每個 bot 正在做什麼、什麼時間做，等於把你的工作習慣和例行排程攤在網路上。</p>
+<h3>原作者給 bot 定的規矩</h3>
+<ul>
+<li>只寫任務類型和籠統描述，例如「整理資料」，不寫是哪個客戶的資料。</li>
+<li>不寫帳號、私訊內容、金額、還沒公開的計畫。</li>
+<li>只報開始和結束的狀態，不要過程中一直報。</li>
+</ul>
+<h3>原作者做了哪些技術防護</h3>
+<p>依原文，原作者請 AI 做了這些防護（以下是白話說明）：</p>
+<ul>
+<li>上報要帶密鑰，伺服器用安全的比對方式檢查；密鑰檔放在網頁資料夾以外、只有擁有者能讀。</li>
+<li>讀檔前檢查路徑，防止有人用奇怪的路徑偷讀其他檔案。</li>
+<li>過濾控制字元和特殊符號，任務摘要最多 80 字，網頁顯示時再轉義一次。</li>
+<li>每次上報內容不超過 4,096 位元組。</li>
+<li>限制頻率，每個 bot 每 2 秒最多 1 筆，全部加起來每分鐘最多 120 筆。</li>
+</ul>
+<div>
+<br>⚠️ 原作者自己也坦白說，這些都是程式碼層面的檢查，沒有做過真正的滲透測試。剩下的風險有兩個，一是 bot 自己沒守規矩把隱私寫進摘要，二是有人惡意狂刷頁面。照著做之前，請把這點放在心上。 
+</div>
+<h3>阿正老師的補充建議</h3>
+<ul>
+<li><strong>不需要公開就鎖起來</strong>：放在 Cloudflare Workers 的話，可以在 Worker 的 Access 分頁開啟 Cloudflare Access，設定只有你的 Email 能登入看（帳號要先啟用 Zero Trust）。要注意整個 Worker 鎖起來後，bot 的上報網址也會被擋住，請 AI 一併設定讓 bot 用 Access 的服務權杖（service token）通過，或把上報介面另外處理。</li>
+<li><strong>權杖只給最小權限</strong>：部署用的 Cloudflare 權杖和 bot 上報用的密鑰要分開，都不要貼在公開的地方。</li>
+<li><strong>摘要寫得越籠統越好</strong>：與其寫「回覆某某客戶的報價信」，不如只寫「處理信件」。</li>
+</ul>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<p>老實說，這間 3D 辦公室的娛樂和展示價值大於實用價值。它不會讓 bot 做事更快，但能讓你一眼看出誰在忙、誰卡住在等你，拿來當直播背景或跟朋友炫耀也很有梗。成本面，網頁和主機都能靠免費方案搞定，真正要算的是 AI 額度和你願意花多少時間調整。</p>
+<div>
+<p> bot 本來就共用一台雲端機器</p>
+<p>→ <strong>Instabox</strong>。上報指令直接放在同一台機器上，最接近原作者的做法。</p>
+</div>
+<div>
+<p> 想要長期開著、不怕休眠的看板</p>
+<p>→ <strong>Cloudflare Workers</strong>。狀態改存 D1 或 Durable Objects，再用 Cloudflare Access 鎖起來只給自己看。</p>
+</div>
+<div>
+<p> 進階玩法：把工作流程畫成「流水線辦公室」</p>
+<p>→ 如果你跟阿正老師一樣，用 Gitea 這類自架的程式碼代管平台管理 AI 寫稿流程，每篇稿子的狀態（撰寫中、審稿中、等人處理）本來就記在檔案裡。這只是構想，阿正老師還沒做：讓內網的一支小程式定時讀取這些狀態，只把「哪個 bot、什麼階段」上報到辦公室，就能看到寫手坐在工位打字、審稿的 bot 在會議室看稿。稿子內容不要上報，內網的機器位址也不要寫進公開網頁。</p>
+</div>
+<img alt="示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 5" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-pipeline.png"><figcaption>示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動</figcaption>
+<p>還不太懂 AI bot、多代理這些名詞的話，可以先看〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司</a>〉，用公司組織的比喻來理解，再回來看這間辦公室會更有感覺。喜歡用 AI 做 3D 網頁的人，也可以逛逛〈<a href="https://pcrookie.com/openai-showcase-free-ai-web-games/" target="_blank">OpenAI 官方免費遊樂場</a>〉找靈感。</p>
+<hr>
+<div>
+<p> 先定規矩，再開辦公室</p>
+<p>感謝 <a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">@btcup99（比特HODL）</a>分享完整做法。想動手的話，阿正老師建議先用演示模式把畫面做出來，確定好玩，再寫好隱私規則讓 bot 一個一個接上。你會想在辦公室裡放哪些 bot？會議室的電視又想顯示什麼？</p>
+<p>歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img post-id="8531" fifu-featured="1" alt="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-cover.png"></p>
+<p>手上的 AI bot 越來越多之後，阿正老師發現一個很實際的小困擾：每個 bot 都在各自的對話視窗裡忙，想知道誰在寫稿、誰卡住等我回覆，只能一個一個點開來看。等結果的時間也滿無聊的。</p>
+<p>最近 X 上的 <a href="https://x.com/btcup99" target="_blank">@btcup99（比特HODL）</a>在 2026 年 10 月 30 日發了一篇長文〈<a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">保姆級教程，手把手教你給 Grok Bot 團隊搭一間炫酷 3D 辦公室</a>〉，把這件事做成了一個 3D 網頁。每個 bot 是一個方塊小人，工作時坐在工位上打字，兩個 bot 協作時一起走進會議室，做完還會跳起來撒花。整個網頁幾乎都是叫 AI 自己寫出來的，作者只負責下指令跟定規矩。</p>
+<p>這篇就把原作者的做法整理成台灣讀者看得懂的版本，順便補上原文沒細講的費用、免費額度，以及公開上網前一定要想清楚的隱私問題<strong>，</strong>阿正老師也照著自己蓋一間，相當有趣喔！</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">3D 虛擬辦公室長什麼樣子？</a></li>
+<li><a href="#how">背後怎麼運作：狀態、上報指令與演示模式</a></li>
+<li><a href="#hosting">主機怎麼選：Instabox 與 Cloudflare Workers</a></li>
+<li><a href="#steps">照著做：把這段提示詞交給 AI</a></li>
+<li><a href="#cost">費用算一算：哪裡免費、哪裡會花錢</a></li>
+<li><a href="#pitfalls">一般人最容易卡關的地方</a></li>
+<li><a href="#privacy">隱私與安全：先定規矩再上報</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、3D 虛擬辦公室長什麼樣子？</h2>
+<p>原作者用 <a href="https://threejs.org/" target="_blank">Three.js</a>（一套在瀏覽器裡畫 3D 畫面的免費開源程式庫，採 MIT 授權）畫了一間方塊風格、斜上方俯視的辦公室，打開網頁就能看，不用安裝任何軟體。依原文的介紹，這間辦公室分成幾個區域：</p>
+<ul>
+<li><strong>總監室</strong>：坐著負責總調度的 Grok Bot。</li>
+<li><strong>會議室</strong>：電視即時顯示 BTC 價格，讀的是作者自己機器上的行情面板。</li>
+<li><strong>走道與茶水間</strong>：走道顯示 AI 剩餘額度，茶水間掛著「比特HODL ₿」霓虹燈牌。</li>
+<li><strong>工位區與休息區</strong>：每個 bot 一張工位，沒事做就去沙發晃。</li>
+</ul>
+<p>燈光會依時間切換白天、傍晚、夜晚（原作者用北京時間，台灣讀者請 AI 改成台灣時間 UTC+8 即可）。手機打開時，側邊資訊欄會變成從底部拉出的抽屜式面板。原作者還加了一個代表自己的「集團總裁」角色在辦公室裡巡視，很有當老闆視察的感覺。</p>
+<p>下圖就是阿正老師使用Grok Bot，照著作者的提示詞，實際做出來的3D虛擬辦公室，並且使用免費的CloudFlare方案來架設。</p>
+<p> <img fetchpriority="high" border="0" alt="一、3D 虛擬辦公室長什麼樣子？－AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/10/Grok-Bot-3D-_0968AEA2/image_4B128891.png">    </p>
+<div> <strong>阿正老師點評：</strong>配置不用照抄。原作者自己也說布局只是參考，阿正老師會建議把會議室電視換成自己真的會看的資訊，例如今天待審的文章數，比放行情更實用。     </div>
+<hr>
+<h2>二、背後怎麼運作：狀態、上報指令與演示模式</h2>
+<p>畫面看起來很熱鬧，原理其實很單純。每個 bot 做事前後，用一行指令跟網站「打卡」報告自己在幹嘛，網頁再依照這些狀態讓小人做出對應動作。</p>
+<img alt="示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 2" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-report-flow.png"><figcaption>示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程</figcaption>
+<h3>8 種狀態與小規則</h3>
+<p>原作者定了 8 種狀態，分別是寫程式、終端機作業中、瀏覽網頁、思考中、需要你（紅色閃爍）、出錯、閒置、已完成（會撒花）。每個 bot 的名字、角色、顏色和座位寫在一個名冊檔（roster.json），狀態另外存起來，重新開機也不會遺失。另外還有幾條讓畫面更像真的的小規則：</p>
+<ul>
+<li>30 分鐘沒上報，自動顯示「閒置」。</li>
+<li>晚上顯示「下班」，小人會走出門。</li>
+<li>兩個 bot 協作時，一起走去會議室。</li>
+</ul>
+<h3>上報指令長這樣</h3>
+<p>原作者的 bot 共用一台雲端機器，所以在上面放了一個共用指令，格式和範例如下：</p>
+<pre>office-report &lt;bot代號&gt; &lt;狀態&gt; "&lt;任務摘要&gt;" [協作的bot]
+office-report xstats browsing "抓取 ETF 資金流數據"</pre>
+<p>這個指令成功時不會有任何輸出，失敗也不會影響 bot 的主要工作。因為免費機器閒置會休眠，第一次請求可能要等它醒來，所以原作者把逾時設成 60 秒，失敗自動重試 2 次。</p>
+<h3>演示模式</h3>
+<p>剛上線時 bot 還沒開始做事，辦公室空蕩蕩的。原作者加了一段大約 1 分鐘、循環播放的模擬劇本，畫面上方會清楚標示「演示模式 · 模擬數據」，避免訪客以為是真實狀態。如果你的辦公室要公開給別人看，這個標示阿正老師覺得一定要留著。</p>
+<hr>
+<h2>三、主機怎麼選：Instabox 與 Cloudflare Workers</h2>
+<p>網頁總要放在某台機器上才能讓人連進來。原作者提了兩條路，一條是 Instabox 的免費雲端機器，另一條是不用自己顧主機的 Cloudflare Workers。兩者都有免費方案，差別在你想不想管一台「電腦」。</p>
+<h3>Instabox 免費雲端機器</h3>
+<p>Instabox 給你一台真正的 Linux 雲端機器，原作者的 bot 就共用這台機器，所以上報指令可以直接放在上面。依 Instabox 官方文件，免費方案規格如下：</p>
+<img alt="Instabox 官方方案頁面，可看到免費方案與付費方案的規格比較" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 3" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-instabox-pricing.png"><figcaption>圖片來源：instabox.sh</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://instabox.sh/" target="_blank">https://instabox.sh/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端 Linux 機器</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>1 台機器、4 vCPU／8 GiB 記憶體、20 GiB 硬碟、5 個快照、每月 100 GiB 對外流量</td>
+</tr>
+<tr>
+<td>使用限制</td>
+<td>閒置 30 分鐘自動暫停；單次最長連續運作 480 分鐘，之後進入 5～20 分鐘冷卻期，期間無法喚醒</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Pro 每月 20 美元、Builder 每月 100 美元、Team 每月 500 美元，另依用量計費</td>
+</tr>
+<tr>
+<td>申請方式</td>
+<td>原作者說用 Google 信箱排隊就能領到（待查證，官方文件未說明排隊流程）</td>
+</tr>
+<tr>
+<td>繁中介面／台灣可用性</td>
+<td>官方文件為英文，繁中介面待查證；台灣是否可申請待查證</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://instabox.sh/pricing" target="_blank">方案與價格</a>] [<a href="https://instabox.sh/docs/limits" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>是一台完整的機器，可以存檔案，bot 也能直接在上面執行上報指令</li>
+<li>免費方案有 5 個快照，改壞了可以還原</li>
+<li>有人打開公開網址時，閒置暫停的機器會自動醒來</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>閒置 30 分鐘就暫停，訪客第一次打開要等它醒來</li>
+<li>連續跑 480 分鐘會被強制冷卻，不適合要 24 小時穩定在線的看板</li>
+<li>原作者提到用 Tailscale 連線叫不醒機器，只有公開網址可以</li>
+</ul></div>
+</div>
+<h3>Cloudflare Workers 免費方案</h3>
+<p>如果手上沒有雲端機器，原作者推薦的另一條路是 Cloudflare Workers。它不用你管主機，程式丟上去就會在 Cloudflare 全球的節點上跑，還送一個公開網址（xxx.workers.dev），適合長期公開。</p>
+<img alt="Cloudflare Workers 官方價格頁面，可看到免費方案每日請求額度與付費方案價格" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 4" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-workers-pricing-v3.png"><figcaption>圖片來源：developers.cloudflare.com</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://workers.cloudflare.com/" target="_blank">https://workers.cloudflare.com/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端程式執行平台（不用自己架主機）</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>每天 100,000 次請求、每次最多 10 毫秒 CPU 時間；網頁靜態檔案（3D 場景本身）的請求免費且不限次數</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Workers Paid 每月 5 美元起</td>
+</tr>
+<tr>
+<td>繁中介面</td>
+<td>儀表板可在個人設定切換語言，是否含繁體中文待查證</td>
+</tr>
+<tr>
+<td>台灣可用性</td>
+<td>台灣可用，Cloudflare 在台北設有機房（<a href="https://pcrookie.com/cloudflare-taipei/" target="_blank">本站舊文</a>）</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://developers.cloudflare.com/workers/platform/pricing/" target="_blank">價格</a>] [<a href="https://developers.cloudflare.com/workers/platform/limits/" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>不會休眠，訪客打開就看得到</li>
+<li>每次部署都會留下程式版本，儀表板可以回復最近 100 個已發布版本，但只回復程式、不還原資料（限制見第六章）</li>
+<li>可搭配免費的 Cloudflare Access 把網頁鎖起來，只給自己看</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>沒有可以長期存檔的硬碟，原作者那種把狀態寫進 state.json 的做法要改（第六章說明）</li>
+<li>需要建立 Cloudflare API 權杖給 AI 部署，權限設定對新手有點門檻</li>
+<li>每天請求數超過免費額度會出現錯誤頁（Error 1027），要等世界標準時間午夜（台灣早上 8 點）重置</li>
+</ul></div>
+</div>
+<div>
+<br> <strong>阿正老師點評：</strong>你的 bot 本來就共用一台雲端機器（像原作者那樣），選 Instabox 最順；只是想要一個長期開著、不怕休眠的看板，阿正老師會選 Cloudflare Workers。 
+</div>
+<hr>
+<h2>四、照著做：把這段提示詞交給 AI</h2>
+<p>原作者的重點是「技術細節不用懂，交給 bot 處理」。整個過程其實不需要先學 Git 或 GitHub，把下面這段提示詞貼給你的 Grok Bot（或 Codex、Claude 等會寫程式的 AI），它會先列出計畫跟需要你提供的東西，你確認後它再開工。以下是阿正老師把原文提示詞轉成正體中文的版本，【】裡面換成你自己的資料：</p>
+<div> 請幫我建立一個可以公開瀏覽的 3D「AI 團隊虛擬辦公室」網頁，名稱叫「【暱稱】AI 工作室」。 
+<p>・用 Three.js 畫一間方塊風格、斜上方俯視的辦公室，我的每個 bot 坐在自己的工位，依即時狀態做動作（寫程式、思考、需要我、完成、閒置）。成員：【bot 名單】。</p>
+<p>・再加一個代表我的「集團總裁」角色，參考我提供的圖片，在辦公室裡來回巡視。</p>
+<p>・後端提供兩個介面，一個是公開唯讀的狀態介面，一個是 bot 回報狀態的介面，必須帶權杖（token）才能寫入。再給 bot 一個回報指令。部署在【我的雲端機器／Cloudflare Workers】上。</p>
+<p>・加分項目：會議室電視顯示即時資訊、依台灣時間切換白天與夜晚、演示模式、第一次瀏覽時跳出歡迎頁並播放輕音樂、手機版也要好用。</p>
+<p>・隱私和安全：bot 只回報籠統的任務類型，不寫帳號、私訊、金額；權杖不能外洩；所有輸入都要過濾並限制頻率。</p>
+<p>請先告訴我你的計畫和需要我提供什麼，我確認後再開始，完成後給我公開網址和截圖。<br>
+</p>
+</div>
+<p>整理原作者的做法，大概就是這 6 步：</p>
+<ol>
+<li>準備一台能開公開網址的雲端機器，或改用 Cloudflare Workers。</li>
+<li>讓 AI 用 Three.js 做出 3D 場景，打包成靜態網頁檔案。</li>
+<li>寫一個小服務，一個唯讀的狀態介面，加一個要權杖才能寫的上報介面。</li>
+<li>把網址公開出去（或用 Cloudflare Access 鎖起來，見第七章）。</li>
+<li>告訴每個 bot 什麼時候報、報什麼，並給它上報指令。</li>
+<li>最重要的一步：先定好隱私規則，再讓 bot 開始上報。</li>
+</ol>
+<div>
+<br>⚠️ 會議室電視要顯示行情或其他即時資料，得接外部的資料來源。原作者讀的是自己機器上的 BTC 面板，你要用哪個資料來源、是否免費、能不能公開顯示，請 AI 先查清楚該服務的使用規定（待查證）。 
+</div>
+<hr>
+<h2>五、費用算一算：哪裡免費、哪裡會花錢</h2>
+<p>先講結論，網頁本身幾乎不花錢，真正會用掉的是 AI 方案的額度。下面把每一塊拆開來看（價格皆為官方標示，未稅，查證日期 2026-10-31）：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>免費範圍</th>
+<th>什麼時候會花錢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Three.js</td>
+<td>MIT 開源授權，免費使用</td>
+<td>不會</td>
+</tr>
+<tr>
+<td>Cloudflare Workers</td>
+<td>每天 100,000 次請求，靜態檔案請求免費不限次數</td>
+<td>想突破每日額度才需要 Workers Paid，每月 5 美元起</td>
+</tr>
+<tr>
+<td>Workers KV（簡易存放區）</td>
+<td>每天讀取 100,000 次、寫入只有 1,000 次，容量 1 GB</td>
+<td>bot 多、上報頻繁時寫入次數容易用完</td>
+</tr>
+<tr>
+<td>D1／Durable Objects（資料庫）</td>
+<td>D1 每天寫入 100,000 列、容量 5 GB；Durable Objects 免費方案每天 100,000 次請求（限 SQLite 儲存）</td>
+<td>個人看板通常用不完</td>
+</tr>
+<tr>
+<td>Instabox</td>
+<td>免費 1 台機器（規格見第三章）</td>
+<td>要多台或更長運作時間，Pro 每月 20 美元起另加用量</td>
+</tr>
+<tr>
+<td>Cloudflare Access（網頁上鎖）</td>
+<td>Zero Trust 免費方案，最多 50 位使用者</td>
+<td>個人使用不會</td>
+</tr>
+<tr>
+<td>Grok Bot（AI 方案）</td>
+<td>The X Subscription 免費版與 Plus 不含 Grok Bot</td>
+<td>新訂戶 Premium 每月 30 美元起才含 Grok Bot，用量從每週共用額度扣</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>原作者說有人惡意狂刷頁面「最多讓機器一直醒著，免費版也不花錢」。這點在 Instabox 免費版成立，在 Cloudflare Workers 免費版則是超過每日請求額度後網頁暫時打不開，一樣不會自動扣款。</p>
+<p>比較需要留意的是 AI 額度。叫 AI 從零蓋一間 3D 辦公室，來回修改好幾輪是常態，每一輪都在消耗 Grok Bot 的每週用量；之後 bot 每次上報，也是它在任務裡多做的一個動作。整間辦公室蓋好大約會吃掉多少額度，官方沒有數字可參考（待查證），建議先從簡單版本做起，確定好玩再加裝潢。Grok Bot 的方案細節可以參考阿正老師之前寫的〈<a href="https://pcrookie.com/grok-bot-ai-agent-guide-2026/" target="_blank">Grok Bot 是什麼？費用與中文支援一次看懂</a>〉。</p>
+<hr>
+<h2>六、一般人最容易卡關的地方</h2>
+<p>原作者說「技術細節不用懂」，大方向沒錯，但阿正老師整理下來，非技術讀者大概會在這幾個地方停下來：</p>
+<h3>1. Cloudflare API 權杖要給多大權限</h3>
+<p>選 Cloudflare Workers 的話，AI 需要一組 API 權杖（token）才能幫你部署。權杖在 Cloudflare 儀表板的「My Profile → API Tokens」建立，可以套用範本或自訂權限，還能限定只對某個帳號或資源有效、限制來源 IP 與有效期限。權杖建立後只會顯示一次。阿正老師的建議是只給部署 Workers 需要的權限，並限定在你自己的帳號，不要圖方便全部打勾，再設一個到期日。</p>
+<h3>2. 改壞了沒有版本可以回去</h3>
+<p>不用 Git 的人最怕的就是 AI 改著改著，原本好好的畫面壞掉。兩種主機的解法不太一樣：</p>
+<ul>
+<li><strong>Cloudflare Workers</strong>：每次部署都會留下版本，可以在儀表板的 Workers &amp; Pages → 你的 Worker → Deployments，從最近 100 個已發布版本中選一個回復（Rollback）。要注意回復的只有程式，KV、D1、Durable Objects 裡的資料不會跟著還原；如果這段期間刪除或修改過 KV、D1 等綁定的資源（binding），或做過 Durable Objects 的類別變更（migration），舊版可能就不能回復。狀態資料請另外備份。</li>
+<li><strong>Instabox</strong>：免費方案有 5 個快照，大改之前先拍一個。</li>
+<li>不管哪一種，都可以直接跟 AI 說「每次修改前先備份目前能用的程式和狀態資料，改壞就還原」，把這條寫進提示詞最省事。</li>
+</ul>
+<h3>3. 每個 bot 都要你親自核准一次</h3>
+<p>原作者特別提醒，用 Grok Bot 搭建時，在一個 bot 的視窗下指令，其他 bot 不一定會照轉述的命令做，你得到每個 bot 的視窗裡親自按核准，它們才會開始上報。Grok Bot 官方文件是否有相關說明，阿正老師還沒查到（待查證），先照原作者的經驗準備多花點時間逐一設定。</p>
+<h3>4. Cloudflare Workers 沒有可以存檔的硬碟</h3>
+<p>原作者是在自己的雲端機器上，把狀態寫進一個 state.json 檔案。但依 Cloudflare 官方文件，Workers 裡的暫存資料夾只存在記憶體，每次請求各自一份，請求結束就沒了，所以這招在 Workers 上行不通。請 AI 改用 Cloudflare 的存放服務：</p>
+<ul>
+<li><strong>Workers KV</strong>：最簡單，但免費版每天只能寫入 1,000 次，而且同一筆資料每秒最多寫一次，更新後也可能晚一點才在各地看到。</li>
+<li><strong>D1 或 Durable Objects</strong>：免費寫入額度多很多，Durable Objects 的資料一致性也比較好，阿正老師會建議 bot 多的人直接選這兩個。</li>
+</ul>
+<h3>5. 測試資料忘了清</h3>
+<p>原作者踩過的坑，測試時隨便報的假狀態會一直留在頁面上，上線前要記得叫 AI 清掉，不然公開頁面會掛著假資料。</p>
+<hr>
+<h2>七、隱私與安全：先定規矩再上報</h2>
+<p>這間辦公室最大的風險其實不在技術，而在「bot 會把什麼寫上去」。公開網頁上看得到每個 bot 正在做什麼、什麼時間做，等於把你的工作習慣和例行排程攤在網路上。</p>
+<h3>原作者給 bot 定的規矩</h3>
+<ul>
+<li>只寫任務類型和籠統描述，例如「整理資料」，不寫是哪個客戶的資料。</li>
+<li>不寫帳號、私訊內容、金額、還沒公開的計畫。</li>
+<li>只報開始和結束的狀態，不要過程中一直報。</li>
+</ul>
+<h3>原作者做了哪些技術防護</h3>
+<p>依原文，原作者請 AI 做了這些防護（以下是白話說明）：</p>
+<ul>
+<li>上報要帶密鑰，伺服器用安全的比對方式檢查；密鑰檔放在網頁資料夾以外、只有擁有者能讀。</li>
+<li>讀檔前檢查路徑，防止有人用奇怪的路徑偷讀其他檔案。</li>
+<li>過濾控制字元和特殊符號，任務摘要最多 80 字，網頁顯示時再轉義一次。</li>
+<li>每次上報內容不超過 4,096 位元組。</li>
+<li>限制頻率，每個 bot 每 2 秒最多 1 筆，全部加起來每分鐘最多 120 筆。</li>
+</ul>
+<div>
+<br>⚠️ 原作者自己也坦白說，這些都是程式碼層面的檢查，沒有做過真正的滲透測試。剩下的風險有兩個，一是 bot 自己沒守規矩把隱私寫進摘要，二是有人惡意狂刷頁面。照著做之前，請把這點放在心上。 
+</div>
+<h3>阿正老師的補充建議</h3>
+<ul>
+<li><strong>不需要公開就鎖起來</strong>：放在 Cloudflare Workers 的話，可以在 Worker 的 Access 分頁開啟 Cloudflare Access，設定只有你的 Email 能登入看（帳號要先啟用 Zero Trust）。要注意整個 Worker 鎖起來後，bot 的上報網址也會被擋住，請 AI 一併設定讓 bot 用 Access 的服務權杖（service token）通過，或把上報介面另外處理。</li>
+<li><strong>權杖只給最小權限</strong>：部署用的 Cloudflare 權杖和 bot 上報用的密鑰要分開，都不要貼在公開的地方。</li>
+<li><strong>摘要寫得越籠統越好</strong>：與其寫「回覆某某客戶的報價信」，不如只寫「處理信件」。</li>
+</ul>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<p>老實說，這間 3D 辦公室的娛樂和展示價值大於實用價值。它不會讓 bot 做事更快，但能讓你一眼看出誰在忙、誰卡住在等你，拿來當直播背景或跟朋友炫耀也很有梗。成本面，網頁和主機都能靠免費方案搞定，真正要算的是 AI 額度和你願意花多少時間調整。</p>
+<div>
+<p> bot 本來就共用一台雲端機器</p>
+<p>→ <strong>Instabox</strong>。上報指令直接放在同一台機器上，最接近原作者的做法。</p>
+</div>
+<div>
+<p> 想要長期開著、不怕休眠的看板</p>
+<p>→ <strong>Cloudflare Workers</strong>。狀態改存 D1 或 Durable Objects，再用 Cloudflare Access 鎖起來只給自己看。</p>
+</div>
+<div>
+<p> 進階玩法：把工作流程畫成「流水線辦公室」</p>
+<p>→ 如果你跟阿正老師一樣，用 Gitea 這類自架的程式碼代管平台管理 AI 寫稿流程，每篇稿子的狀態（撰寫中、審稿中、等人處理）本來就記在檔案裡。這只是構想，阿正老師還沒做：讓內網的一支小程式定時讀取這些狀態，只把「哪個 bot、什麼階段」上報到辦公室，就能看到寫手坐在工位打字、審稿的 bot 在會議室看稿。稿子內容不要上報，內網的機器位址也不要寫進公開網頁。</p>
+</div>
+<img alt="示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 5" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-pipeline.png"><figcaption>示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動</figcaption>
+<p>還不太懂 AI bot、多代理這些名詞的話，可以先看〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司</a>〉，用公司組織的比喻來理解，再回來看這間辦公室會更有感覺。喜歡用 AI 做 3D 網頁的人，也可以逛逛〈<a href="https://pcrookie.com/openai-showcase-free-ai-web-games/" target="_blank">OpenAI 官方免費遊樂場</a>〉找靈感。</p>
+<hr>
+<div>
+<p> 先定規矩，再開辦公室</p>
+<p>感謝 <a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">@btcup99（比特HODL）</a>分享完整做法。想動手的話，阿正老師建議先用演示模式把畫面做出來，確定好玩，再寫好隱私規則讓 bot 一個一個接上。你會想在辦公室裡放哪些 bot？會議室的電視又想顯示什麼？</p>
+<p>歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img post-id="8531" fifu-featured="1" alt="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-cover.png"></p>
+<p>手上的 AI bot 越來越多之後，阿正老師發現一個很實際的小困擾：每個 bot 都在各自的對話視窗裡忙，想知道誰在寫稿、誰卡住等我回覆，只能一個一個點開來看。等結果的時間也滿無聊的。</p>
+<p>最近 X 上的 <a href="https://x.com/btcup99" target="_blank">@btcup99（比特HODL）</a>在 2026 年 10 月 30 日發了一篇長文〈<a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">保姆級教程，手把手教你給 Grok Bot 團隊搭一間炫酷 3D 辦公室</a>〉，把這件事做成了一個 3D 網頁。每個 bot 是一個方塊小人，工作時坐在工位上打字，兩個 bot 協作時一起走進會議室，做完還會跳起來撒花。整個網頁幾乎都是叫 AI 自己寫出來的，作者只負責下指令跟定規矩。</p>
+<p>這篇就把原作者的做法整理成台灣讀者看得懂的版本，順便補上原文沒細講的費用、免費額度，以及公開上網前一定要想清楚的隱私問題<strong>，</strong>阿正老師也照著自己蓋一間，相當有趣喔！</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">3D 虛擬辦公室長什麼樣子？</a></li>
+<li><a href="#how">背後怎麼運作：狀態、上報指令與演示模式</a></li>
+<li><a href="#hosting">主機怎麼選：Instabox 與 Cloudflare Workers</a></li>
+<li><a href="#steps">照著做：把這段提示詞交給 AI</a></li>
+<li><a href="#cost">費用算一算：哪裡免費、哪裡會花錢</a></li>
+<li><a href="#pitfalls">一般人最容易卡關的地方</a></li>
+<li><a href="#privacy">隱私與安全：先定規矩再上報</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、3D 虛擬辦公室長什麼樣子？</h2>
+<p>原作者用 <a href="https://threejs.org/" target="_blank">Three.js</a>（一套在瀏覽器裡畫 3D 畫面的免費開源程式庫，採 MIT 授權）畫了一間方塊風格、斜上方俯視的辦公室，打開網頁就能看，不用安裝任何軟體。依原文的介紹，這間辦公室分成幾個區域：</p>
+<ul>
+<li><strong>總監室</strong>：坐著負責總調度的 Grok Bot。</li>
+<li><strong>會議室</strong>：電視即時顯示 BTC 價格，讀的是作者自己機器上的行情面板。</li>
+<li><strong>走道與茶水間</strong>：走道顯示 AI 剩餘額度，茶水間掛著「比特HODL ₿」霓虹燈牌。</li>
+<li><strong>工位區與休息區</strong>：每個 bot 一張工位，沒事做就去沙發晃。</li>
+</ul>
+<p>燈光會依時間切換白天、傍晚、夜晚（原作者用北京時間，台灣讀者請 AI 改成台灣時間 UTC+8 即可）。手機打開時，側邊資訊欄會變成從底部拉出的抽屜式面板。原作者還加了一個代表自己的「集團總裁」角色在辦公室裡巡視，很有當老闆視察的感覺。</p>
+<p>下圖就是阿正老師使用Grok Bot，照著作者的提示詞，實際做出來的3D虛擬辦公室，並且使用免費的CloudFlare方案來架設。</p>
+<p> <img fetchpriority="high" border="0" alt="一、3D 虛擬辦公室長什麼樣子？－AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！" src="https://image.pcrookie.com/2026/10/Grok-Bot-3D-_0968AEA2/image_4B128891.png">    </p>
+<div> <strong>阿正老師點評：</strong>配置不用照抄。原作者自己也說布局只是參考，阿正老師會建議把會議室電視換成自己真的會看的資訊，例如今天待審的文章數，比放行情更實用。     </div>
+<hr>
+<h2>二、背後怎麼運作：狀態、上報指令與演示模式</h2>
+<p>畫面看起來很熱鬧，原理其實很單純。每個 bot 做事前後，用一行指令跟網站「打卡」報告自己在幹嘛，網頁再依照這些狀態讓小人做出對應動作。</p>
+<img alt="示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 2" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-report-flow.png"><figcaption>示意圖：bot 上報狀態到網站、網頁讀取狀態後讓 3D 小人做動作的流程</figcaption>
+<h3>8 種狀態與小規則</h3>
+<p>原作者定了 8 種狀態，分別是寫程式、終端機作業中、瀏覽網頁、思考中、需要你（紅色閃爍）、出錯、閒置、已完成（會撒花）。每個 bot 的名字、角色、顏色和座位寫在一個名冊檔（roster.json），狀態另外存起來，重新開機也不會遺失。另外還有幾條讓畫面更像真的的小規則：</p>
+<ul>
+<li>30 分鐘沒上報，自動顯示「閒置」。</li>
+<li>晚上顯示「下班」，小人會走出門。</li>
+<li>兩個 bot 協作時，一起走去會議室。</li>
+</ul>
+<h3>上報指令長這樣</h3>
+<p>原作者的 bot 共用一台雲端機器，所以在上面放了一個共用指令，格式和範例如下：</p>
+<pre>office-report &lt;bot代號&gt; &lt;狀態&gt; "&lt;任務摘要&gt;" [協作的bot]
+office-report xstats browsing "抓取 ETF 資金流數據"</pre>
+<p>這個指令成功時不會有任何輸出，失敗也不會影響 bot 的主要工作。因為免費機器閒置會休眠，第一次請求可能要等它醒來，所以原作者把逾時設成 60 秒，失敗自動重試 2 次。</p>
+<h3>演示模式</h3>
+<p>剛上線時 bot 還沒開始做事，辦公室空蕩蕩的。原作者加了一段大約 1 分鐘、循環播放的模擬劇本，畫面上方會清楚標示「演示模式 · 模擬數據」，避免訪客以為是真實狀態。如果你的辦公室要公開給別人看，這個標示阿正老師覺得一定要留著。</p>
+<hr>
+<h2>三、主機怎麼選：Instabox 與 Cloudflare Workers</h2>
+<p>網頁總要放在某台機器上才能讓人連進來。原作者提了兩條路，一條是 Instabox 的免費雲端機器，另一條是不用自己顧主機的 Cloudflare Workers。兩者都有免費方案，差別在你想不想管一台「電腦」。</p>
+<h3>Instabox 免費雲端機器</h3>
+<p>Instabox 給你一台真正的 Linux 雲端機器，原作者的 bot 就共用這台機器，所以上報指令可以直接放在上面。依 Instabox 官方文件，免費方案規格如下：</p>
+<img alt="Instabox 官方方案頁面，可看到免費方案與付費方案的規格比較" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 3" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-instabox-pricing.png"><figcaption>圖片來源：instabox.sh</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://instabox.sh/" target="_blank">https://instabox.sh/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端 Linux 機器</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>1 台機器、4 vCPU／8 GiB 記憶體、20 GiB 硬碟、5 個快照、每月 100 GiB 對外流量</td>
+</tr>
+<tr>
+<td>使用限制</td>
+<td>閒置 30 分鐘自動暫停；單次最長連續運作 480 分鐘，之後進入 5～20 分鐘冷卻期，期間無法喚醒</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Pro 每月 20 美元、Builder 每月 100 美元、Team 每月 500 美元，另依用量計費</td>
+</tr>
+<tr>
+<td>申請方式</td>
+<td>原作者說用 Google 信箱排隊就能領到（待查證，官方文件未說明排隊流程）</td>
+</tr>
+<tr>
+<td>繁中介面／台灣可用性</td>
+<td>官方文件為英文，繁中介面待查證；台灣是否可申請待查證</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://instabox.sh/pricing" target="_blank">方案與價格</a>] [<a href="https://instabox.sh/docs/limits" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>是一台完整的機器，可以存檔案，bot 也能直接在上面執行上報指令</li>
+<li>免費方案有 5 個快照，改壞了可以還原</li>
+<li>有人打開公開網址時，閒置暫停的機器會自動醒來</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>閒置 30 分鐘就暫停，訪客第一次打開要等它醒來</li>
+<li>連續跑 480 分鐘會被強制冷卻，不適合要 24 小時穩定在線的看板</li>
+<li>原作者提到用 Tailscale 連線叫不醒機器，只有公開網址可以</li>
+</ul></div>
+</div>
+<h3>Cloudflare Workers 免費方案</h3>
+<p>如果手上沒有雲端機器，原作者推薦的另一條路是 Cloudflare Workers。它不用你管主機，程式丟上去就會在 Cloudflare 全球的節點上跑，還送一個公開網址（xxx.workers.dev），適合長期公開。</p>
+<img alt="Cloudflare Workers 官方價格頁面，可看到免費方案每日請求額度與付費方案價格" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 4" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-shot-workers-pricing-v3.png"><figcaption>圖片來源：developers.cloudflare.com</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://workers.cloudflare.com/" target="_blank">https://workers.cloudflare.com/</a></td>
+</tr>
+<tr>
+<td>類型</td>
+<td>雲端程式執行平台（不用自己架主機）</td>
+</tr>
+<tr>
+<td>免費方案</td>
+<td>每天 100,000 次請求、每次最多 10 毫秒 CPU 時間；網頁靜態檔案（3D 場景本身）的請求免費且不限次數</td>
+</tr>
+<tr>
+<td>付費方案</td>
+<td>Workers Paid 每月 5 美元起</td>
+</tr>
+<tr>
+<td>繁中介面</td>
+<td>儀表板可在個人設定切換語言，是否含繁體中文待查證</td>
+</tr>
+<tr>
+<td>台灣可用性</td>
+<td>台灣可用，Cloudflare 在台北設有機房（<a href="https://pcrookie.com/cloudflare-taipei/" target="_blank">本站舊文</a>）</td>
+</tr>
+<tr>
+<td>官方說明</td>
+<td>[<a href="https://developers.cloudflare.com/workers/platform/pricing/" target="_blank">價格</a>] [<a href="https://developers.cloudflare.com/workers/platform/limits/" target="_blank">使用限制</a>]</td>
+</tr>
+</tbody>
+</table>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>不會休眠，訪客打開就看得到</li>
+<li>每次部署都會留下程式版本，儀表板可以回復最近 100 個已發布版本，但只回復程式、不還原資料（限制見第六章）</li>
+<li>可搭配免費的 Cloudflare Access 把網頁鎖起來，只給自己看</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>沒有可以長期存檔的硬碟，原作者那種把狀態寫進 state.json 的做法要改（第六章說明）</li>
+<li>需要建立 Cloudflare API 權杖給 AI 部署，權限設定對新手有點門檻</li>
+<li>每天請求數超過免費額度會出現錯誤頁（Error 1027），要等世界標準時間午夜（台灣早上 8 點）重置</li>
+</ul></div>
+</div>
+<div>
+<br> <strong>阿正老師點評：</strong>你的 bot 本來就共用一台雲端機器（像原作者那樣），選 Instabox 最順；只是想要一個長期開著、不怕休眠的看板，阿正老師會選 Cloudflare Workers。 
+</div>
+<hr>
+<h2>四、照著做：把這段提示詞交給 AI</h2>
+<p>原作者的重點是「技術細節不用懂，交給 bot 處理」。整個過程其實不需要先學 Git 或 GitHub，把下面這段提示詞貼給你的 Grok Bot（或 Codex、Claude 等會寫程式的 AI），它會先列出計畫跟需要你提供的東西，你確認後它再開工。以下是阿正老師把原文提示詞轉成正體中文的版本，【】裡面換成你自己的資料：</p>
+<div> 請幫我建立一個可以公開瀏覽的 3D「AI 團隊虛擬辦公室」網頁，名稱叫「【暱稱】AI 工作室」。 
+<p>・用 Three.js 畫一間方塊風格、斜上方俯視的辦公室，我的每個 bot 坐在自己的工位，依即時狀態做動作（寫程式、思考、需要我、完成、閒置）。成員：【bot 名單】。</p>
+<p>・再加一個代表我的「集團總裁」角色，參考我提供的圖片，在辦公室裡來回巡視。</p>
+<p>・後端提供兩個介面，一個是公開唯讀的狀態介面，一個是 bot 回報狀態的介面，必須帶權杖（token）才能寫入。再給 bot 一個回報指令。部署在【我的雲端機器／Cloudflare Workers】上。</p>
+<p>・加分項目：會議室電視顯示即時資訊、依台灣時間切換白天與夜晚、演示模式、第一次瀏覽時跳出歡迎頁並播放輕音樂、手機版也要好用。</p>
+<p>・隱私和安全：bot 只回報籠統的任務類型，不寫帳號、私訊、金額；權杖不能外洩；所有輸入都要過濾並限制頻率。</p>
+<p>請先告訴我你的計畫和需要我提供什麼，我確認後再開始，完成後給我公開網址和截圖。<br>
+</p>
+</div>
+<p>整理原作者的做法，大概就是這 6 步：</p>
+<ol>
+<li>準備一台能開公開網址的雲端機器，或改用 Cloudflare Workers。</li>
+<li>讓 AI 用 Three.js 做出 3D 場景，打包成靜態網頁檔案。</li>
+<li>寫一個小服務，一個唯讀的狀態介面，加一個要權杖才能寫的上報介面。</li>
+<li>把網址公開出去（或用 Cloudflare Access 鎖起來，見第七章）。</li>
+<li>告訴每個 bot 什麼時候報、報什麼，並給它上報指令。</li>
+<li>最重要的一步：先定好隱私規則，再讓 bot 開始上報。</li>
+</ol>
+<div>
+<br>⚠️ 會議室電視要顯示行情或其他即時資料，得接外部的資料來源。原作者讀的是自己機器上的 BTC 面板，你要用哪個資料來源、是否免費、能不能公開顯示，請 AI 先查清楚該服務的使用規定（待查證）。 
+</div>
+<hr>
+<h2>五、費用算一算：哪裡免費、哪裡會花錢</h2>
+<p>先講結論，網頁本身幾乎不花錢，真正會用掉的是 AI 方案的額度。下面把每一塊拆開來看（價格皆為官方標示，未稅，查證日期 2026-10-31）：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>免費範圍</th>
+<th>什麼時候會花錢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Three.js</td>
+<td>MIT 開源授權，免費使用</td>
+<td>不會</td>
+</tr>
+<tr>
+<td>Cloudflare Workers</td>
+<td>每天 100,000 次請求，靜態檔案請求免費不限次數</td>
+<td>想突破每日額度才需要 Workers Paid，每月 5 美元起</td>
+</tr>
+<tr>
+<td>Workers KV（簡易存放區）</td>
+<td>每天讀取 100,000 次、寫入只有 1,000 次，容量 1 GB</td>
+<td>bot 多、上報頻繁時寫入次數容易用完</td>
+</tr>
+<tr>
+<td>D1／Durable Objects（資料庫）</td>
+<td>D1 每天寫入 100,000 列、容量 5 GB；Durable Objects 免費方案每天 100,000 次請求（限 SQLite 儲存）</td>
+<td>個人看板通常用不完</td>
+</tr>
+<tr>
+<td>Instabox</td>
+<td>免費 1 台機器（規格見第三章）</td>
+<td>要多台或更長運作時間，Pro 每月 20 美元起另加用量</td>
+</tr>
+<tr>
+<td>Cloudflare Access（網頁上鎖）</td>
+<td>Zero Trust 免費方案，最多 50 位使用者</td>
+<td>個人使用不會</td>
+</tr>
+<tr>
+<td>Grok Bot（AI 方案）</td>
+<td>The X Subscription 免費版與 Plus 不含 Grok Bot</td>
+<td>新訂戶 Premium 每月 30 美元起才含 Grok Bot，用量從每週共用額度扣</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>原作者說有人惡意狂刷頁面「最多讓機器一直醒著，免費版也不花錢」。這點在 Instabox 免費版成立，在 Cloudflare Workers 免費版則是超過每日請求額度後網頁暫時打不開，一樣不會自動扣款。</p>
+<p>比較需要留意的是 AI 額度。叫 AI 從零蓋一間 3D 辦公室，來回修改好幾輪是常態，每一輪都在消耗 Grok Bot 的每週用量；之後 bot 每次上報，也是它在任務裡多做的一個動作。整間辦公室蓋好大約會吃掉多少額度，官方沒有數字可參考（待查證），建議先從簡單版本做起，確定好玩再加裝潢。Grok Bot 的方案細節可以參考阿正老師之前寫的〈<a href="https://pcrookie.com/grok-bot-ai-agent-guide-2026/" target="_blank">Grok Bot 是什麼？費用與中文支援一次看懂</a>〉。</p>
+<hr>
+<h2>六、一般人最容易卡關的地方</h2>
+<p>原作者說「技術細節不用懂」，大方向沒錯，但阿正老師整理下來，非技術讀者大概會在這幾個地方停下來：</p>
+<h3>1. Cloudflare API 權杖要給多大權限</h3>
+<p>選 Cloudflare Workers 的話，AI 需要一組 API 權杖（token）才能幫你部署。權杖在 Cloudflare 儀表板的「My Profile → API Tokens」建立，可以套用範本或自訂權限，還能限定只對某個帳號或資源有效、限制來源 IP 與有效期限。權杖建立後只會顯示一次。阿正老師的建議是只給部署 Workers 需要的權限，並限定在你自己的帳號，不要圖方便全部打勾，再設一個到期日。</p>
+<h3>2. 改壞了沒有版本可以回去</h3>
+<p>不用 Git 的人最怕的就是 AI 改著改著，原本好好的畫面壞掉。兩種主機的解法不太一樣：</p>
+<ul>
+<li><strong>Cloudflare Workers</strong>：每次部署都會留下版本，可以在儀表板的 Workers &amp; Pages → 你的 Worker → Deployments，從最近 100 個已發布版本中選一個回復（Rollback）。要注意回復的只有程式，KV、D1、Durable Objects 裡的資料不會跟著還原；如果這段期間刪除或修改過 KV、D1 等綁定的資源（binding），或做過 Durable Objects 的類別變更（migration），舊版可能就不能回復。狀態資料請另外備份。</li>
+<li><strong>Instabox</strong>：免費方案有 5 個快照，大改之前先拍一個。</li>
+<li>不管哪一種，都可以直接跟 AI 說「每次修改前先備份目前能用的程式和狀態資料，改壞就還原」，把這條寫進提示詞最省事。</li>
+</ul>
+<h3>3. 每個 bot 都要你親自核准一次</h3>
+<p>原作者特別提醒，用 Grok Bot 搭建時，在一個 bot 的視窗下指令，其他 bot 不一定會照轉述的命令做，你得到每個 bot 的視窗裡親自按核准，它們才會開始上報。Grok Bot 官方文件是否有相關說明，阿正老師還沒查到（待查證），先照原作者的經驗準備多花點時間逐一設定。</p>
+<h3>4. Cloudflare Workers 沒有可以存檔的硬碟</h3>
+<p>原作者是在自己的雲端機器上，把狀態寫進一個 state.json 檔案。但依 Cloudflare 官方文件，Workers 裡的暫存資料夾只存在記憶體，每次請求各自一份，請求結束就沒了，所以這招在 Workers 上行不通。請 AI 改用 Cloudflare 的存放服務：</p>
+<ul>
+<li><strong>Workers KV</strong>：最簡單，但免費版每天只能寫入 1,000 次，而且同一筆資料每秒最多寫一次，更新後也可能晚一點才在各地看到。</li>
+<li><strong>D1 或 Durable Objects</strong>：免費寫入額度多很多，Durable Objects 的資料一致性也比較好，阿正老師會建議 bot 多的人直接選這兩個。</li>
+</ul>
+<h3>5. 測試資料忘了清</h3>
+<p>原作者踩過的坑，測試時隨便報的假狀態會一直留在頁面上，上線前要記得叫 AI 清掉，不然公開頁面會掛著假資料。</p>
+<hr>
+<h2>七、隱私與安全：先定規矩再上報</h2>
+<p>這間辦公室最大的風險其實不在技術，而在「bot 會把什麼寫上去」。公開網頁上看得到每個 bot 正在做什麼、什麼時間做，等於把你的工作習慣和例行排程攤在網路上。</p>
+<h3>原作者給 bot 定的規矩</h3>
+<ul>
+<li>只寫任務類型和籠統描述，例如「整理資料」，不寫是哪個客戶的資料。</li>
+<li>不寫帳號、私訊內容、金額、還沒公開的計畫。</li>
+<li>只報開始和結束的狀態，不要過程中一直報。</li>
+</ul>
+<h3>原作者做了哪些技術防護</h3>
+<p>依原文，原作者請 AI 做了這些防護（以下是白話說明）：</p>
+<ul>
+<li>上報要帶密鑰，伺服器用安全的比對方式檢查；密鑰檔放在網頁資料夾以外、只有擁有者能讀。</li>
+<li>讀檔前檢查路徑，防止有人用奇怪的路徑偷讀其他檔案。</li>
+<li>過濾控制字元和特殊符號，任務摘要最多 80 字，網頁顯示時再轉義一次。</li>
+<li>每次上報內容不超過 4,096 位元組。</li>
+<li>限制頻率，每個 bot 每 2 秒最多 1 筆，全部加起來每分鐘最多 120 筆。</li>
+</ul>
+<div>
+<br>⚠️ 原作者自己也坦白說，這些都是程式碼層面的檢查，沒有做過真正的滲透測試。剩下的風險有兩個，一是 bot 自己沒守規矩把隱私寫進摘要，二是有人惡意狂刷頁面。照著做之前，請把這點放在心上。 
+</div>
+<h3>阿正老師的補充建議</h3>
+<ul>
+<li><strong>不需要公開就鎖起來</strong>：放在 Cloudflare Workers 的話，可以在 Worker 的 Access 分頁開啟 Cloudflare Access，設定只有你的 Email 能登入看（帳號要先啟用 Zero Trust）。要注意整個 Worker 鎖起來後，bot 的上報網址也會被擋住，請 AI 一併設定讓 bot 用 Access 的服務權杖（service token）通過，或把上報介面另外處理。</li>
+<li><strong>權杖只給最小權限</strong>：部署用的 Cloudflare 權杖和 bot 上報用的密鑰要分開，都不要貼在公開的地方。</li>
+<li><strong>摘要寫得越籠統越好</strong>：與其寫「回覆某某客戶的報價信」，不如只寫「處理信件」。</li>
+</ul>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<p>老實說，這間 3D 辦公室的娛樂和展示價值大於實用價值。它不會讓 bot 做事更快，但能讓你一眼看出誰在忙、誰卡住在等你，拿來當直播背景或跟朋友炫耀也很有梗。成本面，網頁和主機都能靠免費方案搞定，真正要算的是 AI 額度和你願意花多少時間調整。</p>
+<div>
+<p> bot 本來就共用一台雲端機器</p>
+<p>→ <strong>Instabox</strong>。上報指令直接放在同一台機器上，最接近原作者的做法。</p>
+</div>
+<div>
+<p> 想要長期開著、不怕休眠的看板</p>
+<p>→ <strong>Cloudflare Workers</strong>。狀態改存 D1 或 Durable Objects，再用 Cloudflare Access 鎖起來只給自己看。</p>
+</div>
+<div>
+<p> 進階玩法：把工作流程畫成「流水線辦公室」</p>
+<p>→ 如果你跟阿正老師一樣，用 Gitea 這類自架的程式碼代管平台管理 AI 寫稿流程，每篇稿子的狀態（撰寫中、審稿中、等人處理）本來就記在檔案裡。這只是構想，阿正老師還沒做：讓內網的一支小程式定時讀取這些狀態，只把「哪個 bot、什麼階段」上報到辦公室，就能看到寫手坐在工位打字、審稿的 bot 在會議室看稿。稿子內容不要上報，內網的機器位址也不要寫進公開網頁。</p>
+</div>
+<img alt="示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動" title="AI機器人也能有自己的辦公室？ 教你架設免費的Grok Bot 3D 虛擬辦公室！ 5" src="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-pipeline.png"><figcaption>示意圖：流水線辦公室構想，稿件依撰寫、審稿、等人處理等階段在不同區域移動</figcaption>
+<p>還不太懂 AI bot、多代理這些名詞的話，可以先看〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司</a>〉，用公司組織的比喻來理解，再回來看這間辦公室會更有感覺。喜歡用 AI 做 3D 網頁的人，也可以逛逛〈<a href="https://pcrookie.com/openai-showcase-free-ai-web-games/" target="_blank">OpenAI 官方免費遊樂場</a>〉找靈感。</p>
+<hr>
+<div>
+<p> 先定規矩，再開辦公室</p>
+<p>感謝 <a href="https://x.com/btcup99/status/2116061235250884931" target="_blank">@btcup99（比特HODL）</a>分享完整做法。想動手的話，阿正老師建議先用演示模式把畫面做出來，確定好玩，再寫好隱私規則讓 bot 一個一個接上。你會想在辦公室裡放哪些 bot？會議室的電視又想顯示什麼？</p>
+<p>歡迎在下面留言跟阿正老師分享！</p>
+</div>]]></content:encoded>
+    <itunes:image href="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-cover.png"/>
+          <media:content url="https://image.pcrookie.com/2026/11/grok-bot-3d-virtual-office/grok-bot-3d-virtual-office-cover.png" medium="image"/>
+    <pubDate>Sat, 31 Oct 2026 09:04:00 +0000</pubDate>
+  </item><item>
     <title><![CDATA[AweSun 遠端桌面教學：免費遠控、手機玩電腦遊戲、AI 透過 MCP 遠控電腦一次看懂]]></title>
     <link>https://pcrookie.com/awesun/</link>
     <itunes:title><![CDATA[AweSun 遠端桌面教學：免費遠控、手機玩電腦遊戲、AI 透過 MCP 遠控電腦一次看懂]]></itunes:title>
@@ -9257,557 +10196,5 @@ hp 為 0～3 的整數；cores 為已收集數量（0～5 的整數）；timeLef
     <itunes:image href="https://image.pcrookie.com/2026/10/gemini-4-argon-intro-2026/gemini-4-argon-intro-2026-cover.jpg"/>
           <media:content url="https://image.pcrookie.com/2026/10/gemini-4-argon-intro-2026/gemini-4-argon-intro-2026-cover.jpg" medium="image"/>
     <pubDate>Tue, 13 Oct 2026 15:30:00 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[400 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）]]></title>
-    <link>https://pcrookie.com/lucian-uxui-prompt-free-ui-components-2026/</link>
-    <itunes:title><![CDATA[400 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）]]></itunes:title>
-    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><img post-id="8450" fifu-featured="1" alt="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" title="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/lucian-uxui-prompt-free-ui-components-2026/lucian-uxui-prompt-free-ui-components-2026-cover.png"></p>
-<p>現在用 Claude Code、Codex 這類 AI 工具做網站的人越來越多，大家口中的「vibe coding」（用聊天的方式叫 AI 寫程式），讓不太會寫程式的人也能做出一個能動的網頁。不過阿正老師發現一個共同問題：<strong>AI 做出來的畫面常常很「陽春」</strong>，按鈕就是一塊方塊、開關就是一個勾選框，功能有了，但看起來就是少了那麼一點精緻感。</p>
-<p>想要按鈕按下去會飛出紙飛機、開關切換時有日夜變化動畫，自己描述給 AI 聽常常講半天還做不出來。最近韓國開發者 Seokwoooo 釋出了一個開源專案「<strong>Lucian UX/UI Prompt</strong>」，一口氣免費放出 200 個會動的 UI 元件，挑好喜歡的，按一下「複製提示」貼給 AI，就能照原樣套進自己的網站，而且<strong>個人和商業用途都能免費使用</strong>。</p>
-<p>這篇阿正老師就帶大家看看它到底怎麼用、提示詞裡藏了什麼門道，以及使用前需要注意的地方。先說明：<strong>本文為官方資料整理，尚未實測</strong>，內容依據官方網站與 GitHub 公開資料，查證日期為 2026 年 10 月 12 日。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Lucian UX/UI Prompt 是什麼？</a></li>
-<li><a href="#elements">200 個元件有哪些？</a></li>
-<li><a href="#copy-prompt">用法一：複製提示詞貼給 AI</a></li>
-<li><a href="#skill">用法二：安裝 lucian-uxui 技能讓 AI 自己挑</a></li>
-<li><a href="#prompt-inside">提示詞裡到底寫了什麼？</a></li>
-<li><a href="#safety">授權與安全性注意事項</a></li>
-<li><a href="#review">優缺點與阿正老師點評</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Lucian UX/UI Prompt 是什麼？</h2>
-<p>Lucian UX/UI Prompt 是由 lucianLabs（開發者 Seokwoooo）在 2026 年 10 月推出的<strong>互動式 UI 元件庫</strong>。跟一般元件庫最大的不同是：它不是給你一包程式碼自己研究，而是把每個元件包成一段「<strong>可以直接貼給 AI 的提示詞</strong>」，裡面同時包含完整可執行的原始碼，以及要求 AI 如何移植的詳細指示。</p>
-<p>網站上的每個元件都是真的能動的，畫面捲到它時會自己示範動畫，你也可以直接用滑鼠或手指按按看，喜歡再帶走，不用先安裝任何東西。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Lucian UX/UI Prompt 是什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3332BD5A.png">      </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">https://lucianlabs.dev/uxui-prompt/</a></td>
-</tr>
-<tr>
-<td>目前規模</td>
-<td>200 個元件、14 個分類（2026 年 10 月），官方表示會持續增加；技能（skill）工具版本 1.1.0</td>
-</tr>
-<tr>
-<td>支援工具</td>
-<td>官方點名 Claude Code、Codex、Cursor 等 AI 程式工具；元件可轉成 React／Next.js、Vue、Svelte、Astro 或純 HTML</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>完全免費，MIT 開源授權，個人與商業用途皆可</td>
-</tr>
-<tr>
-<td>中文支援</td>
-<td>❌ 網站與元件文字只有英文、韓文兩種，沒有繁體中文（介面文字可請 AI 幫你換成中文）</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>✅ 網頁直接開啟即可使用，不需註冊帳號</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">官方網站</a>]（網頁服務，無安裝檔）；技能原始碼：[<a href="https://github.com/Seokwoooo/lucian-uxui" target="_blank">GitHub</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、200 個元件有哪些？</h2>
-<p>官方把 200 個元件分成兩大類，編號 001～100 是「網頁零件」，101～200 則是可以單獨當成一個功能來用的「小工具」。</p>
-<p> <img border="0" alt="二、200 個元件有哪些？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_05D7DC83.png">      </p>
-<p><strong>001～100：網頁零件</strong></p>
-<ul>
-<li>按鈕、開關與選擇器、輸入框與搜尋</li>
-<li>選單與分頁、卡片與內容區塊</li>
-<li>登入／註冊畫面、通知與回饋訊息</li>
-<li>載入中與進度條、空白頁與錯誤畫面</li>
-<li>小工具與圖表</li>
-</ul>
-<p><strong>101～200：可以獨立使用的小工具</strong></p>
-<ul>
-<li>空間、行程、設計類工具（例如平面圖、行事曆）</li>
-<li>文件與資料編輯器</li>
-<li>分析圖表</li>
-<li>任務與系統管理介面</li>
-</ul>
-<p>官方介紹頁展示的幾個代表作，像是按下去紙飛機沿著曲線飛走、中間畫出打勾的送出按鈕（#005）、拖動把手比較同一座城市白天與夜晚的滑桿（#060）、對半翻頁的翻牌計時器（#100）、播放時唱片從封套滑出來旋轉的音樂播放器（#055），都很有質感。所有元件都同時支援<strong>明亮模式與暗黑模式</strong>，也照顧到觸控、鍵盤操作，以及系統「減少動態效果」的設定。</p>
-<hr>
-<h2>三、用法一：複製提示詞貼給 AI</h2>
-<p>這是最簡單的用法，不需要安裝任何東西，適合偶爾想加一兩個元件的人。</p>
-<p> <img border="0" alt="三、用法一：複製提示詞貼給 AI－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3F9828B4.png">    </p>
-<ol>
-<li><strong>逛圖庫</strong>：打開 <a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">Lucian UX/UI Prompt 圖庫</a>，元件會自己示範動畫，也可以直接按按看。也可以切換明亮／暗黑模式比較效果。</li>
-<li><strong>複製提示</strong>：看到喜歡的元件，按一下「複製提示」按鈕，完整原始碼和套用指示會一起複製到剪貼簿。</li>
-<li><strong>貼給 AI</strong>：貼到 Claude Code、Codex 或 Cursor 裡，在提示詞最後的「插入位置」填上要放在哪個頁面，「替換對象」填上要換掉的舊元件（沒有就寫「沒有」）。</li>
-<li><strong>讓 AI 套用</strong>：AI 會先檢查你的網站是用什麼框架、怎麼處理暗黑模式，再把元件照原樣搬過去，最後回報改了哪些檔案。</li>
-</ol>
-<p>還不熟悉 Claude Code 的朋友，可以先看阿正老師之前寫的〈<a href="https://pcrookie.com/claude-code-beginner-guide/" target="_blank">Claude Code 新手教學（2026）：會打字就能用的 AI 助手</a>〉。</p>
-<div> 官方網站點名的是 Claude Code、Codex、Cursor 這類能直接修改專案檔案的 AI 工具。阿正老師會建議：如果你只是在一般聊天介面（例如 Claude 或 ChatGPT 網頁版）貼上，AI 看不到你的網站檔案，提示詞裡「先檢查專案」的步驟就沒辦法做，效果會打折扣，最好還是搭配能讀寫檔案的工具使用。     </div>
-<hr>
-<h2>四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑</h2>
-<p>如果你常常做網頁，一個一個複製會有點累。官方另外提供了一個「<strong>技能</strong>」（Agent Skill，可以想成教 AI 新本事的說明書加小工具），裝好之後只要用一句話描述需求，AI 就會自己去圖庫找合適的元件來用。對 Skill 這個概念還不太熟的話，可以參考〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司：一次搞懂 AI Agent、MCP、RAG、Memory、Skill</a>〉。</p>
-<p> <img border="0" alt="四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_16BEAB82.png">      </p>
-<p><strong>安裝方式（擇一）</strong></p>
-<p>通用安裝（Claude Code、Codex、Cursor 等支援 Agent Skills 的工具），在終端機輸入：</p>
-<pre>npx skills add Seokwoooo/lucian-uxui</pre>
-<p>如果是 Claude Code，也可以用外掛（plugin）方式安裝，在 Claude Code 裡依序輸入：</p>
-<pre>/plugin marketplace add Seokwoooo/lucian-uxui
-/plugin install lucian-uxui@lucian-uxui</pre>
-<p>環境需求是 <strong>Node.js 18 以上</strong>，並且要能連上 lucianlabs.dev（連不上時會自動改用 GitHub 備援）；沒有 Node.js 的話，AI 會改用 curl 下載。</p>
-<p><strong>使用方式</strong></p>
-<ul>
-<li><strong>用說的</strong>：「使用 lucian-uxui 技能，在我的首頁加入方案價格切換和常見問題 FAQ。」</li>
-<li><strong>指定編號</strong>：「用 lucian-uxui 技能把 056 號元件加到價格區塊。」在圖庫看到喜歡的，直接報編號或貼連結最準。</li>
-<li><strong>直接呼叫</strong>：Claude Code 輸入 <code>/lucian-uxui</code>（用外掛安裝則是 <code>/lucian-uxui:lucian-uxui</code>），Codex 輸入 <code>$lucian-uxui</code>。</li>
-</ul>
-<p>依照官方說明，技能啟動後 AI 會依序做五件事：讀取你的專案（框架、樣式、主題、網站語言）→ 把頁面拆成各個零件分別搜尋圖庫 → 只下載選中的元件 → 轉換成你專案的寫法並對接配色 → 回報用了哪些元件和示範連結。版面骨架還是由 AI 自己蓋，Lucian 負責提供那些會動的零件。</p>
-<p>這種「裝技能讓 AI 學新本事」的玩法，本站之前也介紹過〈<a href="https://pcrookie.com/kepano-obsidian-skills-guide-2026/" target="_blank">obsidian-skills 讓 Claude 秒懂你的筆記庫</a>〉和〈<a href="https://pcrookie.com/claude-remotion-motion-graphics-video-guide-2026/" target="_blank">用 Claude + Remotion 一句話生成動畫影片</a>〉，有興趣可以一起看。</p>
-<hr>
-<h2>五、提示詞裡到底寫了什麼？</h2>
-<p>阿正老師覺得這個專案最值得一看的，其實是它的提示詞寫法。它不是一句「幫我做一個會飛的按鈕」，而是一份分段清楚的施工說明書，就算不用這個元件庫，也很值得拿來參考怎麼跟 AI 下指令：</p>
-<p><img border="0" alt="五、提示詞裡到底寫了什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_01B69163.png"></p>
-<ul>
-<li><strong>先確認</strong>：要求 AI 先查清楚你的網站用什麼框架（React、Vue、純 HTML 等）、用什麼方式寫樣式、暗黑模式怎麼切換，並回報要插入的位置在哪裡被使用。</li>
-<li><strong>不准亂改設計</strong>：動畫的時間、曲線、延遲都要照原樣搬，明確寫著「不要自己猜測重新設計」。</li>
-<li><strong>保留原本的功能</strong>：原有的資料、事件、表單值、無障礙標籤都要留著，不能因為換外觀就把功能弄壞。</li>
-<li><strong>不污染全站</strong>：樣式只能寫在這個元件自己的範圍內，不能改到全站的 CSS 或程式。</li>
-<li><strong>明暗都要驗</strong>：配色要對接到你網站原有的主題變數，明亮、暗黑兩種模式都要檢查。</li>
-<li><strong>完成要回報</strong>：列出改了哪些檔案、跟原本有什麼不同、檢查了哪些項目，以及<strong>哪些沒檢查到</strong>。</li>
-</ul>
-<p>最後一點特別好，讓 AI 主動說出「我沒驗證到什麼」，比只會說「完成了！」可靠得多。元件程式碼本身都是純 HTML、CSS、JavaScript，<strong>不需要額外安裝任何外部函式庫</strong>。</p>
-<hr>
-<h2>六、授權與安全性注意事項</h2>
-<p>免費、可商用是真的，不過有幾件事使用前要先知道。</p>
-<div>
-<br>⚠️ <strong>授權條件：保留出處那一行。</strong>每個元件最上方都有一行註解，寫著元件編號、MIT 授權與作者網址，官方要求搬進你的專案時這一行要保留，這是 MIT 授權唯一的條件，商用也一樣。 
-</div>
-<div>
-<br>⚠️ <strong>技能是「即時從網路下載」元件。</strong>技能本身不內建元件，每次都是從作者的網站（或 GitHub 鏡像）抓最新的元件程式碼，再由 AI 寫進你的專案。好處是新元件不用更新技能就能用；但也代表你信任的是「作者網站上當下的內容」。如果是公司正式上線的網站，建議套用後還是要看一下 AI 加進來的 JavaScript，或請懂程式的同事把關。 
-</div>
-<p>從 GitHub 公開的技能原始碼來看，它的小工具只會「下載」元件與目錄檔案，<strong>沒有把你的專案內容上傳出去</strong>，也沒有統計追蹤，下載過的檔案會暫存在電腦的快取資料夾，重複使用時幾乎不再耗網路。比較進階的使用者，官方也提供 <code>LUCIAN_UXUI_BASE</code> 這個環境變數，可以改成指向自己下載保存的副本，等於把元件版本鎖住。</p>
-<p>另外要提醒，這是一個 <strong>2026 年 10 月才剛發布的全新專案</strong>，查證當天 GitHub 上幾乎還沒有社群回饋，長期會不會持續維護目前還說不準，200 個元件在各種手機上的表現也有待大家實際試用。</p>
-<hr>
-<h2>七、優缺點與阿正老師點評</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>完全免費、MIT 授權可商用</li>
-<li>網頁上直接試按，所見即所得</li>
-<li>提示詞寫得非常專業，AI 照搬不走樣</li>
-<li>全部支援明暗主題，不綁特定框架</li>
-<li>元件零依賴，不用另外裝函式庫</li>
-<li>技能版可一句話讓 AI 自動挑元件</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>沒有繁體中文，網站與元件文字只有英、韓文</li>
-<li>要搭配能改檔案的 AI 工具才好用</li>
-<li>技能安裝需要 Node.js 與終端機</li>
-<li>每次即時下載，需要信任作者網站</li>
-<li>剛發布的新專案，長期維護待觀察</li>
-</ul></div>
-</div>
-<div>
-<br> <strong>阿正老師點評：</strong>這是阿正老師近期看到最「有誠意」的免費 UI 資源之一，元件好看還在其次，真正厲害的是那份提示詞，把「怎麼讓 AI 照原樣搬、不亂改、做完要報告」都想好了。最適合已經在用 Claude Code、Codex 做網站，覺得畫面太陽春、想加一點質感的朋友；完全沒碰過 AI 寫程式的人，建議先從「複製提示詞」這條路開始玩，熟了再裝技能。 
-</div>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<div>
-<p> 只想幫網站加一兩個好看的按鈕或開關</p>
-<p>→ <strong>用法一：複製提示詞</strong>。不用安裝，逛圖庫挑好直接貼給 AI 就行。</p>
-</div>
-<div>
-<p> 常常用 AI 從零做整個頁面</p>
-<p>→ <strong>用法二：安裝 lucian-uxui 技能</strong>。一句話描述需求，AI 自己去圖庫找零件拼起來。</p>
-</div>
-<div>
-<p> 公司正式上線的商業網站</p>
-<p>→ <strong>可以用，但記得把關</strong>。保留授權註解，並檢查 AI 加進來的程式碼再上線。</p>
-</div>
-<div>
-<p> 想學怎麼寫出好的 AI 提示詞</p>
-<p>→ <strong>隨便複製一個元件的提示詞來看</strong>。「先確認、照原樣、要回報」的結構，套到其他任務也很好用。</p>
-</div>
-<hr>
-<div>
-<p> 讓 AI 做的網站不再陽春</p>
-<p>AI 寫程式越來越方便，但「好不好看」往往才是決定別人願不願意多停留幾秒的關鍵。Lucian UX/UI Prompt 把 200 個精緻的動態元件免費送給大家，還附上讓 AI 不走樣的施工說明書，有在做網站的朋友真的可以去逛逛。目前元件只有英韓文版本，套用時記得請 AI 順便把文字換成繁體中文。</p>
-<p>延伸閱讀：〈<a href="https://pcrookie.com/claude-marketplace-connectors-plugins-guide-2026/" target="_blank">Claude Marketplace 開張！2,000 多個連接器與外掛集中一站</a>〉</p>
-<p>你最喜歡哪一個元件？或是你用 AI 做網站時最頭痛的是什麼？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><img post-id="8450" fifu-featured="1" alt="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" title="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/lucian-uxui-prompt-free-ui-components-2026/lucian-uxui-prompt-free-ui-components-2026-cover.png"></p>
-<p>現在用 Claude Code、Codex 這類 AI 工具做網站的人越來越多，大家口中的「vibe coding」（用聊天的方式叫 AI 寫程式），讓不太會寫程式的人也能做出一個能動的網頁。不過阿正老師發現一個共同問題：<strong>AI 做出來的畫面常常很「陽春」</strong>，按鈕就是一塊方塊、開關就是一個勾選框，功能有了，但看起來就是少了那麼一點精緻感。</p>
-<p>想要按鈕按下去會飛出紙飛機、開關切換時有日夜變化動畫，自己描述給 AI 聽常常講半天還做不出來。最近韓國開發者 Seokwoooo 釋出了一個開源專案「<strong>Lucian UX/UI Prompt</strong>」，一口氣免費放出 200 個會動的 UI 元件，挑好喜歡的，按一下「複製提示」貼給 AI，就能照原樣套進自己的網站，而且<strong>個人和商業用途都能免費使用</strong>。</p>
-<p>這篇阿正老師就帶大家看看它到底怎麼用、提示詞裡藏了什麼門道，以及使用前需要注意的地方。先說明：<strong>本文為官方資料整理，尚未實測</strong>，內容依據官方網站與 GitHub 公開資料，查證日期為 2026 年 10 月 12 日。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Lucian UX/UI Prompt 是什麼？</a></li>
-<li><a href="#elements">200 個元件有哪些？</a></li>
-<li><a href="#copy-prompt">用法一：複製提示詞貼給 AI</a></li>
-<li><a href="#skill">用法二：安裝 lucian-uxui 技能讓 AI 自己挑</a></li>
-<li><a href="#prompt-inside">提示詞裡到底寫了什麼？</a></li>
-<li><a href="#safety">授權與安全性注意事項</a></li>
-<li><a href="#review">優缺點與阿正老師點評</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Lucian UX/UI Prompt 是什麼？</h2>
-<p>Lucian UX/UI Prompt 是由 lucianLabs（開發者 Seokwoooo）在 2026 年 10 月推出的<strong>互動式 UI 元件庫</strong>。跟一般元件庫最大的不同是：它不是給你一包程式碼自己研究，而是把每個元件包成一段「<strong>可以直接貼給 AI 的提示詞</strong>」，裡面同時包含完整可執行的原始碼，以及要求 AI 如何移植的詳細指示。</p>
-<p>網站上的每個元件都是真的能動的，畫面捲到它時會自己示範動畫，你也可以直接用滑鼠或手指按按看，喜歡再帶走，不用先安裝任何東西。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Lucian UX/UI Prompt 是什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3332BD5A.png">      </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">https://lucianlabs.dev/uxui-prompt/</a></td>
-</tr>
-<tr>
-<td>目前規模</td>
-<td>200 個元件、14 個分類（2026 年 10 月），官方表示會持續增加；技能（skill）工具版本 1.1.0</td>
-</tr>
-<tr>
-<td>支援工具</td>
-<td>官方點名 Claude Code、Codex、Cursor 等 AI 程式工具；元件可轉成 React／Next.js、Vue、Svelte、Astro 或純 HTML</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>完全免費，MIT 開源授權，個人與商業用途皆可</td>
-</tr>
-<tr>
-<td>中文支援</td>
-<td>❌ 網站與元件文字只有英文、韓文兩種，沒有繁體中文（介面文字可請 AI 幫你換成中文）</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>✅ 網頁直接開啟即可使用，不需註冊帳號</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">官方網站</a>]（網頁服務，無安裝檔）；技能原始碼：[<a href="https://github.com/Seokwoooo/lucian-uxui" target="_blank">GitHub</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、200 個元件有哪些？</h2>
-<p>官方把 200 個元件分成兩大類，編號 001～100 是「網頁零件」，101～200 則是可以單獨當成一個功能來用的「小工具」。</p>
-<p> <img border="0" alt="二、200 個元件有哪些？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_05D7DC83.png">      </p>
-<p><strong>001～100：網頁零件</strong></p>
-<ul>
-<li>按鈕、開關與選擇器、輸入框與搜尋</li>
-<li>選單與分頁、卡片與內容區塊</li>
-<li>登入／註冊畫面、通知與回饋訊息</li>
-<li>載入中與進度條、空白頁與錯誤畫面</li>
-<li>小工具與圖表</li>
-</ul>
-<p><strong>101～200：可以獨立使用的小工具</strong></p>
-<ul>
-<li>空間、行程、設計類工具（例如平面圖、行事曆）</li>
-<li>文件與資料編輯器</li>
-<li>分析圖表</li>
-<li>任務與系統管理介面</li>
-</ul>
-<p>官方介紹頁展示的幾個代表作，像是按下去紙飛機沿著曲線飛走、中間畫出打勾的送出按鈕（#005）、拖動把手比較同一座城市白天與夜晚的滑桿（#060）、對半翻頁的翻牌計時器（#100）、播放時唱片從封套滑出來旋轉的音樂播放器（#055），都很有質感。所有元件都同時支援<strong>明亮模式與暗黑模式</strong>，也照顧到觸控、鍵盤操作，以及系統「減少動態效果」的設定。</p>
-<hr>
-<h2>三、用法一：複製提示詞貼給 AI</h2>
-<p>這是最簡單的用法，不需要安裝任何東西，適合偶爾想加一兩個元件的人。</p>
-<p> <img border="0" alt="三、用法一：複製提示詞貼給 AI－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3F9828B4.png">    </p>
-<ol>
-<li><strong>逛圖庫</strong>：打開 <a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">Lucian UX/UI Prompt 圖庫</a>，元件會自己示範動畫，也可以直接按按看。也可以切換明亮／暗黑模式比較效果。</li>
-<li><strong>複製提示</strong>：看到喜歡的元件，按一下「複製提示」按鈕，完整原始碼和套用指示會一起複製到剪貼簿。</li>
-<li><strong>貼給 AI</strong>：貼到 Claude Code、Codex 或 Cursor 裡，在提示詞最後的「插入位置」填上要放在哪個頁面，「替換對象」填上要換掉的舊元件（沒有就寫「沒有」）。</li>
-<li><strong>讓 AI 套用</strong>：AI 會先檢查你的網站是用什麼框架、怎麼處理暗黑模式，再把元件照原樣搬過去，最後回報改了哪些檔案。</li>
-</ol>
-<p>還不熟悉 Claude Code 的朋友，可以先看阿正老師之前寫的〈<a href="https://pcrookie.com/claude-code-beginner-guide/" target="_blank">Claude Code 新手教學（2026）：會打字就能用的 AI 助手</a>〉。</p>
-<div> 官方網站點名的是 Claude Code、Codex、Cursor 這類能直接修改專案檔案的 AI 工具。阿正老師會建議：如果你只是在一般聊天介面（例如 Claude 或 ChatGPT 網頁版）貼上，AI 看不到你的網站檔案，提示詞裡「先檢查專案」的步驟就沒辦法做，效果會打折扣，最好還是搭配能讀寫檔案的工具使用。     </div>
-<hr>
-<h2>四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑</h2>
-<p>如果你常常做網頁，一個一個複製會有點累。官方另外提供了一個「<strong>技能</strong>」（Agent Skill，可以想成教 AI 新本事的說明書加小工具），裝好之後只要用一句話描述需求，AI 就會自己去圖庫找合適的元件來用。對 Skill 這個概念還不太熟的話，可以參考〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司：一次搞懂 AI Agent、MCP、RAG、Memory、Skill</a>〉。</p>
-<p> <img border="0" alt="四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_16BEAB82.png">      </p>
-<p><strong>安裝方式（擇一）</strong></p>
-<p>通用安裝（Claude Code、Codex、Cursor 等支援 Agent Skills 的工具），在終端機輸入：</p>
-<pre>npx skills add Seokwoooo/lucian-uxui</pre>
-<p>如果是 Claude Code，也可以用外掛（plugin）方式安裝，在 Claude Code 裡依序輸入：</p>
-<pre>/plugin marketplace add Seokwoooo/lucian-uxui
-/plugin install lucian-uxui@lucian-uxui</pre>
-<p>環境需求是 <strong>Node.js 18 以上</strong>，並且要能連上 lucianlabs.dev（連不上時會自動改用 GitHub 備援）；沒有 Node.js 的話，AI 會改用 curl 下載。</p>
-<p><strong>使用方式</strong></p>
-<ul>
-<li><strong>用說的</strong>：「使用 lucian-uxui 技能，在我的首頁加入方案價格切換和常見問題 FAQ。」</li>
-<li><strong>指定編號</strong>：「用 lucian-uxui 技能把 056 號元件加到價格區塊。」在圖庫看到喜歡的，直接報編號或貼連結最準。</li>
-<li><strong>直接呼叫</strong>：Claude Code 輸入 <code>/lucian-uxui</code>（用外掛安裝則是 <code>/lucian-uxui:lucian-uxui</code>），Codex 輸入 <code>$lucian-uxui</code>。</li>
-</ul>
-<p>依照官方說明，技能啟動後 AI 會依序做五件事：讀取你的專案（框架、樣式、主題、網站語言）→ 把頁面拆成各個零件分別搜尋圖庫 → 只下載選中的元件 → 轉換成你專案的寫法並對接配色 → 回報用了哪些元件和示範連結。版面骨架還是由 AI 自己蓋，Lucian 負責提供那些會動的零件。</p>
-<p>這種「裝技能讓 AI 學新本事」的玩法，本站之前也介紹過〈<a href="https://pcrookie.com/kepano-obsidian-skills-guide-2026/" target="_blank">obsidian-skills 讓 Claude 秒懂你的筆記庫</a>〉和〈<a href="https://pcrookie.com/claude-remotion-motion-graphics-video-guide-2026/" target="_blank">用 Claude + Remotion 一句話生成動畫影片</a>〉，有興趣可以一起看。</p>
-<hr>
-<h2>五、提示詞裡到底寫了什麼？</h2>
-<p>阿正老師覺得這個專案最值得一看的，其實是它的提示詞寫法。它不是一句「幫我做一個會飛的按鈕」，而是一份分段清楚的施工說明書，就算不用這個元件庫，也很值得拿來參考怎麼跟 AI 下指令：</p>
-<p><img border="0" alt="五、提示詞裡到底寫了什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_01B69163.png"></p>
-<ul>
-<li><strong>先確認</strong>：要求 AI 先查清楚你的網站用什麼框架（React、Vue、純 HTML 等）、用什麼方式寫樣式、暗黑模式怎麼切換，並回報要插入的位置在哪裡被使用。</li>
-<li><strong>不准亂改設計</strong>：動畫的時間、曲線、延遲都要照原樣搬，明確寫著「不要自己猜測重新設計」。</li>
-<li><strong>保留原本的功能</strong>：原有的資料、事件、表單值、無障礙標籤都要留著，不能因為換外觀就把功能弄壞。</li>
-<li><strong>不污染全站</strong>：樣式只能寫在這個元件自己的範圍內，不能改到全站的 CSS 或程式。</li>
-<li><strong>明暗都要驗</strong>：配色要對接到你網站原有的主題變數，明亮、暗黑兩種模式都要檢查。</li>
-<li><strong>完成要回報</strong>：列出改了哪些檔案、跟原本有什麼不同、檢查了哪些項目，以及<strong>哪些沒檢查到</strong>。</li>
-</ul>
-<p>最後一點特別好，讓 AI 主動說出「我沒驗證到什麼」，比只會說「完成了！」可靠得多。元件程式碼本身都是純 HTML、CSS、JavaScript，<strong>不需要額外安裝任何外部函式庫</strong>。</p>
-<hr>
-<h2>六、授權與安全性注意事項</h2>
-<p>免費、可商用是真的，不過有幾件事使用前要先知道。</p>
-<div>
-<br>⚠️ <strong>授權條件：保留出處那一行。</strong>每個元件最上方都有一行註解，寫著元件編號、MIT 授權與作者網址，官方要求搬進你的專案時這一行要保留，這是 MIT 授權唯一的條件，商用也一樣。 
-</div>
-<div>
-<br>⚠️ <strong>技能是「即時從網路下載」元件。</strong>技能本身不內建元件，每次都是從作者的網站（或 GitHub 鏡像）抓最新的元件程式碼，再由 AI 寫進你的專案。好處是新元件不用更新技能就能用；但也代表你信任的是「作者網站上當下的內容」。如果是公司正式上線的網站，建議套用後還是要看一下 AI 加進來的 JavaScript，或請懂程式的同事把關。 
-</div>
-<p>從 GitHub 公開的技能原始碼來看，它的小工具只會「下載」元件與目錄檔案，<strong>沒有把你的專案內容上傳出去</strong>，也沒有統計追蹤，下載過的檔案會暫存在電腦的快取資料夾，重複使用時幾乎不再耗網路。比較進階的使用者，官方也提供 <code>LUCIAN_UXUI_BASE</code> 這個環境變數，可以改成指向自己下載保存的副本，等於把元件版本鎖住。</p>
-<p>另外要提醒，這是一個 <strong>2026 年 10 月才剛發布的全新專案</strong>，查證當天 GitHub 上幾乎還沒有社群回饋，長期會不會持續維護目前還說不準，200 個元件在各種手機上的表現也有待大家實際試用。</p>
-<hr>
-<h2>七、優缺點與阿正老師點評</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>完全免費、MIT 授權可商用</li>
-<li>網頁上直接試按，所見即所得</li>
-<li>提示詞寫得非常專業，AI 照搬不走樣</li>
-<li>全部支援明暗主題，不綁特定框架</li>
-<li>元件零依賴，不用另外裝函式庫</li>
-<li>技能版可一句話讓 AI 自動挑元件</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>沒有繁體中文，網站與元件文字只有英、韓文</li>
-<li>要搭配能改檔案的 AI 工具才好用</li>
-<li>技能安裝需要 Node.js 與終端機</li>
-<li>每次即時下載，需要信任作者網站</li>
-<li>剛發布的新專案，長期維護待觀察</li>
-</ul></div>
-</div>
-<div>
-<br> <strong>阿正老師點評：</strong>這是阿正老師近期看到最「有誠意」的免費 UI 資源之一，元件好看還在其次，真正厲害的是那份提示詞，把「怎麼讓 AI 照原樣搬、不亂改、做完要報告」都想好了。最適合已經在用 Claude Code、Codex 做網站，覺得畫面太陽春、想加一點質感的朋友；完全沒碰過 AI 寫程式的人，建議先從「複製提示詞」這條路開始玩，熟了再裝技能。 
-</div>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<div>
-<p> 只想幫網站加一兩個好看的按鈕或開關</p>
-<p>→ <strong>用法一：複製提示詞</strong>。不用安裝，逛圖庫挑好直接貼給 AI 就行。</p>
-</div>
-<div>
-<p> 常常用 AI 從零做整個頁面</p>
-<p>→ <strong>用法二：安裝 lucian-uxui 技能</strong>。一句話描述需求，AI 自己去圖庫找零件拼起來。</p>
-</div>
-<div>
-<p> 公司正式上線的商業網站</p>
-<p>→ <strong>可以用，但記得把關</strong>。保留授權註解，並檢查 AI 加進來的程式碼再上線。</p>
-</div>
-<div>
-<p> 想學怎麼寫出好的 AI 提示詞</p>
-<p>→ <strong>隨便複製一個元件的提示詞來看</strong>。「先確認、照原樣、要回報」的結構，套到其他任務也很好用。</p>
-</div>
-<hr>
-<div>
-<p> 讓 AI 做的網站不再陽春</p>
-<p>AI 寫程式越來越方便，但「好不好看」往往才是決定別人願不願意多停留幾秒的關鍵。Lucian UX/UI Prompt 把 200 個精緻的動態元件免費送給大家，還附上讓 AI 不走樣的施工說明書，有在做網站的朋友真的可以去逛逛。目前元件只有英韓文版本，套用時記得請 AI 順便把文字換成繁體中文。</p>
-<p>延伸閱讀：〈<a href="https://pcrookie.com/claude-marketplace-connectors-plugins-guide-2026/" target="_blank">Claude Marketplace 開張！2,000 多個連接器與外掛集中一站</a>〉</p>
-<p>你最喜歡哪一個元件？或是你用 AI 做網站時最頭痛的是什麼？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><img post-id="8450" fifu-featured="1" alt="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" title="200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/lucian-uxui-prompt-free-ui-components-2026/lucian-uxui-prompt-free-ui-components-2026-cover.png"></p>
-<p>現在用 Claude Code、Codex 這類 AI 工具做網站的人越來越多，大家口中的「vibe coding」（用聊天的方式叫 AI 寫程式），讓不太會寫程式的人也能做出一個能動的網頁。不過阿正老師發現一個共同問題：<strong>AI 做出來的畫面常常很「陽春」</strong>，按鈕就是一塊方塊、開關就是一個勾選框，功能有了，但看起來就是少了那麼一點精緻感。</p>
-<p>想要按鈕按下去會飛出紙飛機、開關切換時有日夜變化動畫，自己描述給 AI 聽常常講半天還做不出來。最近韓國開發者 Seokwoooo 釋出了一個開源專案「<strong>Lucian UX/UI Prompt</strong>」，一口氣免費放出 200 個會動的 UI 元件，挑好喜歡的，按一下「複製提示」貼給 AI，就能照原樣套進自己的網站，而且<strong>個人和商業用途都能免費使用</strong>。</p>
-<p>這篇阿正老師就帶大家看看它到底怎麼用、提示詞裡藏了什麼門道，以及使用前需要注意的地方。先說明：<strong>本文為官方資料整理，尚未實測</strong>，內容依據官方網站與 GitHub 公開資料，查證日期為 2026 年 10 月 12 日。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Lucian UX/UI Prompt 是什麼？</a></li>
-<li><a href="#elements">200 個元件有哪些？</a></li>
-<li><a href="#copy-prompt">用法一：複製提示詞貼給 AI</a></li>
-<li><a href="#skill">用法二：安裝 lucian-uxui 技能讓 AI 自己挑</a></li>
-<li><a href="#prompt-inside">提示詞裡到底寫了什麼？</a></li>
-<li><a href="#safety">授權與安全性注意事項</a></li>
-<li><a href="#review">優缺點與阿正老師點評</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Lucian UX/UI Prompt 是什麼？</h2>
-<p>Lucian UX/UI Prompt 是由 lucianLabs（開發者 Seokwoooo）在 2026 年 10 月推出的<strong>互動式 UI 元件庫</strong>。跟一般元件庫最大的不同是：它不是給你一包程式碼自己研究，而是把每個元件包成一段「<strong>可以直接貼給 AI 的提示詞</strong>」，裡面同時包含完整可執行的原始碼，以及要求 AI 如何移植的詳細指示。</p>
-<p>網站上的每個元件都是真的能動的，畫面捲到它時會自己示範動畫，你也可以直接用滑鼠或手指按按看，喜歡再帶走，不用先安裝任何東西。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Lucian UX/UI Prompt 是什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3332BD5A.png">      </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">https://lucianlabs.dev/uxui-prompt/</a></td>
-</tr>
-<tr>
-<td>目前規模</td>
-<td>200 個元件、14 個分類（2026 年 10 月），官方表示會持續增加；技能（skill）工具版本 1.1.0</td>
-</tr>
-<tr>
-<td>支援工具</td>
-<td>官方點名 Claude Code、Codex、Cursor 等 AI 程式工具；元件可轉成 React／Next.js、Vue、Svelte、Astro 或純 HTML</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>完全免費，MIT 開源授權，個人與商業用途皆可</td>
-</tr>
-<tr>
-<td>中文支援</td>
-<td>❌ 網站與元件文字只有英文、韓文兩種，沒有繁體中文（介面文字可請 AI 幫你換成中文）</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>✅ 網頁直接開啟即可使用，不需註冊帳號</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">官方網站</a>]（網頁服務，無安裝檔）；技能原始碼：[<a href="https://github.com/Seokwoooo/lucian-uxui" target="_blank">GitHub</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、200 個元件有哪些？</h2>
-<p>官方把 200 個元件分成兩大類，編號 001～100 是「網頁零件」，101～200 則是可以單獨當成一個功能來用的「小工具」。</p>
-<p> <img border="0" alt="二、200 個元件有哪些？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_05D7DC83.png">      </p>
-<p><strong>001～100：網頁零件</strong></p>
-<ul>
-<li>按鈕、開關與選擇器、輸入框與搜尋</li>
-<li>選單與分頁、卡片與內容區塊</li>
-<li>登入／註冊畫面、通知與回饋訊息</li>
-<li>載入中與進度條、空白頁與錯誤畫面</li>
-<li>小工具與圖表</li>
-</ul>
-<p><strong>101～200：可以獨立使用的小工具</strong></p>
-<ul>
-<li>空間、行程、設計類工具（例如平面圖、行事曆）</li>
-<li>文件與資料編輯器</li>
-<li>分析圖表</li>
-<li>任務與系統管理介面</li>
-</ul>
-<p>官方介紹頁展示的幾個代表作，像是按下去紙飛機沿著曲線飛走、中間畫出打勾的送出按鈕（#005）、拖動把手比較同一座城市白天與夜晚的滑桿（#060）、對半翻頁的翻牌計時器（#100）、播放時唱片從封套滑出來旋轉的音樂播放器（#055），都很有質感。所有元件都同時支援<strong>明亮模式與暗黑模式</strong>，也照顧到觸控、鍵盤操作，以及系統「減少動態效果」的設定。</p>
-<hr>
-<h2>三、用法一：複製提示詞貼給 AI</h2>
-<p>這是最簡單的用法，不需要安裝任何東西，適合偶爾想加一兩個元件的人。</p>
-<p> <img border="0" alt="三、用法一：複製提示詞貼給 AI－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_3F9828B4.png">    </p>
-<ol>
-<li><strong>逛圖庫</strong>：打開 <a href="https://lucianlabs.dev/uxui-prompt/" target="_blank">Lucian UX/UI Prompt 圖庫</a>，元件會自己示範動畫，也可以直接按按看。也可以切換明亮／暗黑模式比較效果。</li>
-<li><strong>複製提示</strong>：看到喜歡的元件，按一下「複製提示」按鈕，完整原始碼和套用指示會一起複製到剪貼簿。</li>
-<li><strong>貼給 AI</strong>：貼到 Claude Code、Codex 或 Cursor 裡，在提示詞最後的「插入位置」填上要放在哪個頁面，「替換對象」填上要換掉的舊元件（沒有就寫「沒有」）。</li>
-<li><strong>讓 AI 套用</strong>：AI 會先檢查你的網站是用什麼框架、怎麼處理暗黑模式，再把元件照原樣搬過去，最後回報改了哪些檔案。</li>
-</ol>
-<p>還不熟悉 Claude Code 的朋友，可以先看阿正老師之前寫的〈<a href="https://pcrookie.com/claude-code-beginner-guide/" target="_blank">Claude Code 新手教學（2026）：會打字就能用的 AI 助手</a>〉。</p>
-<div> 官方網站點名的是 Claude Code、Codex、Cursor 這類能直接修改專案檔案的 AI 工具。阿正老師會建議：如果你只是在一般聊天介面（例如 Claude 或 ChatGPT 網頁版）貼上，AI 看不到你的網站檔案，提示詞裡「先檢查專案」的步驟就沒辦法做，效果會打折扣，最好還是搭配能讀寫檔案的工具使用。     </div>
-<hr>
-<h2>四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑</h2>
-<p>如果你常常做網頁，一個一個複製會有點累。官方另外提供了一個「<strong>技能</strong>」（Agent Skill，可以想成教 AI 新本事的說明書加小工具），裝好之後只要用一句話描述需求，AI 就會自己去圖庫找合適的元件來用。對 Skill 這個概念還不太熟的話，可以參考〈<a href="https://pcrookie.com/ai-agent-as-a-company-mcp-rag-memory-explained/" target="_blank">如果 AI Agent 是一間公司：一次搞懂 AI Agent、MCP、RAG、Memory、Skill</a>〉。</p>
-<p> <img border="0" alt="四、用法二：安裝 lucian-uxui 技能讓 AI 自己挑－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_16BEAB82.png">      </p>
-<p><strong>安裝方式（擇一）</strong></p>
-<p>通用安裝（Claude Code、Codex、Cursor 等支援 Agent Skills 的工具），在終端機輸入：</p>
-<pre>npx skills add Seokwoooo/lucian-uxui</pre>
-<p>如果是 Claude Code，也可以用外掛（plugin）方式安裝，在 Claude Code 裡依序輸入：</p>
-<pre>/plugin marketplace add Seokwoooo/lucian-uxui
-/plugin install lucian-uxui@lucian-uxui</pre>
-<p>環境需求是 <strong>Node.js 18 以上</strong>，並且要能連上 lucianlabs.dev（連不上時會自動改用 GitHub 備援）；沒有 Node.js 的話，AI 會改用 curl 下載。</p>
-<p><strong>使用方式</strong></p>
-<ul>
-<li><strong>用說的</strong>：「使用 lucian-uxui 技能，在我的首頁加入方案價格切換和常見問題 FAQ。」</li>
-<li><strong>指定編號</strong>：「用 lucian-uxui 技能把 056 號元件加到價格區塊。」在圖庫看到喜歡的，直接報編號或貼連結最準。</li>
-<li><strong>直接呼叫</strong>：Claude Code 輸入 <code>/lucian-uxui</code>（用外掛安裝則是 <code>/lucian-uxui:lucian-uxui</code>），Codex 輸入 <code>$lucian-uxui</code>。</li>
-</ul>
-<p>依照官方說明，技能啟動後 AI 會依序做五件事：讀取你的專案（框架、樣式、主題、網站語言）→ 把頁面拆成各個零件分別搜尋圖庫 → 只下載選中的元件 → 轉換成你專案的寫法並對接配色 → 回報用了哪些元件和示範連結。版面骨架還是由 AI 自己蓋，Lucian 負責提供那些會動的零件。</p>
-<p>這種「裝技能讓 AI 學新本事」的玩法，本站之前也介紹過〈<a href="https://pcrookie.com/kepano-obsidian-skills-guide-2026/" target="_blank">obsidian-skills 讓 Claude 秒懂你的筆記庫</a>〉和〈<a href="https://pcrookie.com/claude-remotion-motion-graphics-video-guide-2026/" target="_blank">用 Claude + Remotion 一句話生成動畫影片</a>〉，有興趣可以一起看。</p>
-<hr>
-<h2>五、提示詞裡到底寫了什麼？</h2>
-<p>阿正老師覺得這個專案最值得一看的，其實是它的提示詞寫法。它不是一句「幫我做一個會飛的按鈕」，而是一份分段清楚的施工說明書，就算不用這個元件庫，也很值得拿來參考怎麼跟 AI 下指令：</p>
-<p><img border="0" alt="五、提示詞裡到底寫了什麼？－200 個免費動態 UI 一鍵帶走！Lucian UX/UI Prompt 複製提示詞貼給 Claude Code、Codex 就能套用（2026 教學）" src="https://image.pcrookie.com/2026/10/200--UI-Lucian-UXUI-Prompt--Claude-CodeC_04B68591/image_01B69163.png"></p>
-<ul>
-<li><strong>先確認</strong>：要求 AI 先查清楚你的網站用什麼框架（React、Vue、純 HTML 等）、用什麼方式寫樣式、暗黑模式怎麼切換，並回報要插入的位置在哪裡被使用。</li>
-<li><strong>不准亂改設計</strong>：動畫的時間、曲線、延遲都要照原樣搬，明確寫著「不要自己猜測重新設計」。</li>
-<li><strong>保留原本的功能</strong>：原有的資料、事件、表單值、無障礙標籤都要留著，不能因為換外觀就把功能弄壞。</li>
-<li><strong>不污染全站</strong>：樣式只能寫在這個元件自己的範圍內，不能改到全站的 CSS 或程式。</li>
-<li><strong>明暗都要驗</strong>：配色要對接到你網站原有的主題變數，明亮、暗黑兩種模式都要檢查。</li>
-<li><strong>完成要回報</strong>：列出改了哪些檔案、跟原本有什麼不同、檢查了哪些項目，以及<strong>哪些沒檢查到</strong>。</li>
-</ul>
-<p>最後一點特別好，讓 AI 主動說出「我沒驗證到什麼」，比只會說「完成了！」可靠得多。元件程式碼本身都是純 HTML、CSS、JavaScript，<strong>不需要額外安裝任何外部函式庫</strong>。</p>
-<hr>
-<h2>六、授權與安全性注意事項</h2>
-<p>免費、可商用是真的，不過有幾件事使用前要先知道。</p>
-<div>
-<br>⚠️ <strong>授權條件：保留出處那一行。</strong>每個元件最上方都有一行註解，寫著元件編號、MIT 授權與作者網址，官方要求搬進你的專案時這一行要保留，這是 MIT 授權唯一的條件，商用也一樣。 
-</div>
-<div>
-<br>⚠️ <strong>技能是「即時從網路下載」元件。</strong>技能本身不內建元件，每次都是從作者的網站（或 GitHub 鏡像）抓最新的元件程式碼，再由 AI 寫進你的專案。好處是新元件不用更新技能就能用；但也代表你信任的是「作者網站上當下的內容」。如果是公司正式上線的網站，建議套用後還是要看一下 AI 加進來的 JavaScript，或請懂程式的同事把關。 
-</div>
-<p>從 GitHub 公開的技能原始碼來看，它的小工具只會「下載」元件與目錄檔案，<strong>沒有把你的專案內容上傳出去</strong>，也沒有統計追蹤，下載過的檔案會暫存在電腦的快取資料夾，重複使用時幾乎不再耗網路。比較進階的使用者，官方也提供 <code>LUCIAN_UXUI_BASE</code> 這個環境變數，可以改成指向自己下載保存的副本，等於把元件版本鎖住。</p>
-<p>另外要提醒，這是一個 <strong>2026 年 10 月才剛發布的全新專案</strong>，查證當天 GitHub 上幾乎還沒有社群回饋，長期會不會持續維護目前還說不準，200 個元件在各種手機上的表現也有待大家實際試用。</p>
-<hr>
-<h2>七、優缺點與阿正老師點評</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>完全免費、MIT 授權可商用</li>
-<li>網頁上直接試按，所見即所得</li>
-<li>提示詞寫得非常專業，AI 照搬不走樣</li>
-<li>全部支援明暗主題，不綁特定框架</li>
-<li>元件零依賴，不用另外裝函式庫</li>
-<li>技能版可一句話讓 AI 自動挑元件</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>沒有繁體中文，網站與元件文字只有英、韓文</li>
-<li>要搭配能改檔案的 AI 工具才好用</li>
-<li>技能安裝需要 Node.js 與終端機</li>
-<li>每次即時下載，需要信任作者網站</li>
-<li>剛發布的新專案，長期維護待觀察</li>
-</ul></div>
-</div>
-<div>
-<br> <strong>阿正老師點評：</strong>這是阿正老師近期看到最「有誠意」的免費 UI 資源之一，元件好看還在其次，真正厲害的是那份提示詞，把「怎麼讓 AI 照原樣搬、不亂改、做完要報告」都想好了。最適合已經在用 Claude Code、Codex 做網站，覺得畫面太陽春、想加一點質感的朋友；完全沒碰過 AI 寫程式的人，建議先從「複製提示詞」這條路開始玩，熟了再裝技能。 
-</div>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<div>
-<p> 只想幫網站加一兩個好看的按鈕或開關</p>
-<p>→ <strong>用法一：複製提示詞</strong>。不用安裝，逛圖庫挑好直接貼給 AI 就行。</p>
-</div>
-<div>
-<p> 常常用 AI 從零做整個頁面</p>
-<p>→ <strong>用法二：安裝 lucian-uxui 技能</strong>。一句話描述需求，AI 自己去圖庫找零件拼起來。</p>
-</div>
-<div>
-<p> 公司正式上線的商業網站</p>
-<p>→ <strong>可以用，但記得把關</strong>。保留授權註解，並檢查 AI 加進來的程式碼再上線。</p>
-</div>
-<div>
-<p> 想學怎麼寫出好的 AI 提示詞</p>
-<p>→ <strong>隨便複製一個元件的提示詞來看</strong>。「先確認、照原樣、要回報」的結構，套到其他任務也很好用。</p>
-</div>
-<hr>
-<div>
-<p> 讓 AI 做的網站不再陽春</p>
-<p>AI 寫程式越來越方便，但「好不好看」往往才是決定別人願不願意多停留幾秒的關鍵。Lucian UX/UI Prompt 把 200 個精緻的動態元件免費送給大家，還附上讓 AI 不走樣的施工說明書，有在做網站的朋友真的可以去逛逛。目前元件只有英韓文版本，套用時記得請 AI 順便把文字換成繁體中文。</p>
-<p>延伸閱讀：〈<a href="https://pcrookie.com/claude-marketplace-connectors-plugins-guide-2026/" target="_blank">Claude Marketplace 開張！2,000 多個連接器與外掛集中一站</a>〉</p>
-<p>你最喜歡哪一個元件？或是你用 AI 做網站時最頭痛的是什麼？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]></content:encoded>
-    <itunes:image href="https://image.pcrookie.com/2026/10/lucian-uxui-prompt-free-ui-components-2026/lucian-uxui-prompt-free-ui-components-2026-cover.png"/>
-          <media:content url="https://image.pcrookie.com/2026/10/lucian-uxui-prompt-free-ui-components-2026/lucian-uxui-prompt-free-ui-components-2026-cover.png" medium="image"/>
-    <pubDate>Mon, 12 Oct 2026 16:43:00 +0000</pubDate>
   </item></channel>
 </rss>

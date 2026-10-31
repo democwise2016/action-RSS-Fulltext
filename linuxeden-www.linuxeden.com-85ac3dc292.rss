@@ -30,6 +30,132 @@
     </itunes:owner>
     <itunes:image href="http://www.linuxeden.com/image/logonew2009.gif"/>
 <item>
+    <title><![CDATA[Linux 7.4 一项用于降低 AI 噪声的新特性，因被开发者称为“疯狂巨兽”的严重问题，已被回滚]]></title>
+    <link>http://www.linuxeden.com/a/166975</link>
+    <itunes:title><![CDATA[Linux 7.4 一项用于降低 AI 噪声的新特性，因被开发者称为“疯狂巨兽”的严重问题，已被回滚]]></itunes:title>
+    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-30a192f38c.png" alt="Linux 7.4 一项用于降低 AI 噪声的新特性，因被开发者称为“疯狂巨兽”的严重问题，已被回滚"></p>
+<p>上周合入 Linux 7.4、用于减少 AI/大模型生成的无效/无关测试配置噪声的一项新特性，现已因 VFIO 子系统中的一头“疯狂巨兽”被回滚。</p>
+<p>早在 9 月，Greg Kroah-Hartman 就设计了 <code>TAINT_FORCED_BIND</code> 选项：一旦使用 Linux 的 bind/unbind sysfs 接口，就会给运行中的内核打上污染标记。该接口原本支持任意绑定/解绑硬件与指定驱动，在 AI/大模型时代，它被 Syzbot 等工具滥用，尝试将硬件绑定到完全无关的驱动上，由此产生大量与内核合法用例完全不符的无效 Bug 报告噪声。</p>
+<p>借助 <code>TAINT_FORCED_BIND</code>，内核开发者就能在 Bug 报告中一眼识别出 sysfs bind/unbind 曾被调用，快速判断该报告可能不具备实际参考价值。</p>
+<p>这项特性上周正式合入 Linux 7.4，Greg KH 称其是为了应对近期针对内核的大规模模糊测试“攻击”。</p>
+<p>但 <code>TAINT_FORCED_BIND</code> 上线后，大家才发现 VFIO 代码在合法场景中也依赖 bind/unbind 行为。在回滚补丁中，Greg 形容 VFIO 的使用场景是一头“疯狂巨兽”：<br>
+“事实证明，vfio 是一头疯狂巨兽，用户一直‘依赖’bind/unbind 这个调试特性，把它作为将设备透传至虚拟机实例的常规手段。正因如此（对应 https://xkcd.com/1172/），我们先暂时回滚该特性，直到找到更稳妥的方案，让常规工作流不会意外污染内核。”</p>
+<p>后续大概率会采用 Uwe 提出的方案推进：<br>
+https://lore.kernel.org/lkml/cover.1790612298.git.u.kleine-koenig@baylibre.com/<br>
+这会是最可行的方向，相关工作将在 Linux 7.4 之后重新启动。</p>
+<p>该特性的初衷是堵住大量无效模糊测试报告：这类报告来自随机将设备绑定到无关驱动、最终必然触发异常的测试行为。目前主站 syzbot 已经停止了这类操作，希望不会再有其他人重启这类测试（但在如今大模型的狂热氛围下，谁也没法打包票）。</p>
+<p>VFIO 依赖 bind/unbind 操作，将 PCIe 设备从 Linux 宿主机驱动解绑，再挂载到 vfio-pci 上供虚拟机使用。</p>
+<p>本次回滚已于周五晚间正式合入主线。</p>
+<p>Uwe Kleine-König 的方案是仅在使用 driver_override 时触发 <code>TAINT_DRIVER_OVERRIDE</code> 标记，同时默认禁用 driver_override，允许 Linux 驱动自行选择是否开放该功能。目前来看该方案大概率会被 Linux 7.5 采纳，但对于明天就将关闭合并窗口的 Linux 7.4 来说，已经来不及落地。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Drops-Taint-Bind">New Linux 7.4 Feature For Reducing AI Noise Already Reverted Due To A “Crazy Beast” – Phoronix</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-30a192f38c.png" alt="Linux 7.4 一项用于降低 AI 噪声的新特性，因被开发者称为“疯狂巨兽”的严重问题，已被回滚"></p>
+<p>上周合入 Linux 7.4、用于减少 AI/大模型生成的无效/无关测试配置噪声的一项新特性，现已因 VFIO 子系统中的一头“疯狂巨兽”被回滚。</p>
+<p>早在 9 月，Greg Kroah-Hartman 就设计了 <code>TAINT_FORCED_BIND</code> 选项：一旦使用 Linux 的 bind/unbind sysfs 接口，就会给运行中的内核打上污染标记。该接口原本支持任意绑定/解绑硬件与指定驱动，在 AI/大模型时代，它被 Syzbot 等工具滥用，尝试将硬件绑定到完全无关的驱动上，由此产生大量与内核合法用例完全不符的无效 Bug 报告噪声。</p>
+<p>借助 <code>TAINT_FORCED_BIND</code>，内核开发者就能在 Bug 报告中一眼识别出 sysfs bind/unbind 曾被调用，快速判断该报告可能不具备实际参考价值。</p>
+<p>这项特性上周正式合入 Linux 7.4，Greg KH 称其是为了应对近期针对内核的大规模模糊测试“攻击”。</p>
+<p>但 <code>TAINT_FORCED_BIND</code> 上线后，大家才发现 VFIO 代码在合法场景中也依赖 bind/unbind 行为。在回滚补丁中，Greg 形容 VFIO 的使用场景是一头“疯狂巨兽”：<br>
+“事实证明，vfio 是一头疯狂巨兽，用户一直‘依赖’bind/unbind 这个调试特性，把它作为将设备透传至虚拟机实例的常规手段。正因如此（对应 https://xkcd.com/1172/），我们先暂时回滚该特性，直到找到更稳妥的方案，让常规工作流不会意外污染内核。”</p>
+<p>后续大概率会采用 Uwe 提出的方案推进：<br>
+https://lore.kernel.org/lkml/cover.1790612298.git.u.kleine-koenig@baylibre.com/<br>
+这会是最可行的方向，相关工作将在 Linux 7.4 之后重新启动。</p>
+<p>该特性的初衷是堵住大量无效模糊测试报告：这类报告来自随机将设备绑定到无关驱动、最终必然触发异常的测试行为。目前主站 syzbot 已经停止了这类操作，希望不会再有其他人重启这类测试（但在如今大模型的狂热氛围下，谁也没法打包票）。</p>
+<p>VFIO 依赖 bind/unbind 操作，将 PCIe 设备从 Linux 宿主机驱动解绑，再挂载到 vfio-pci 上供虚拟机使用。</p>
+<p>本次回滚已于周五晚间正式合入主线。</p>
+<p>Uwe Kleine-König 的方案是仅在使用 driver_override 时触发 <code>TAINT_DRIVER_OVERRIDE</code> 标记，同时默认禁用 driver_override，允许 Linux 驱动自行选择是否开放该功能。目前来看该方案大概率会被 Linux 7.5 采纳，但对于明天就将关闭合并窗口的 Linux 7.4 来说，已经来不及落地。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Drops-Taint-Bind">New Linux 7.4 Feature For Reducing AI Noise Already Reverted Due To A “Crazy Beast” – Phoronix</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-30a192f38c.png" alt="Linux 7.4 一项用于降低 AI 噪声的新特性，因被开发者称为“疯狂巨兽”的严重问题，已被回滚"></p>
+<p>上周合入 Linux 7.4、用于减少 AI/大模型生成的无效/无关测试配置噪声的一项新特性，现已因 VFIO 子系统中的一头“疯狂巨兽”被回滚。</p>
+<p>早在 9 月，Greg Kroah-Hartman 就设计了 <code>TAINT_FORCED_BIND</code> 选项：一旦使用 Linux 的 bind/unbind sysfs 接口，就会给运行中的内核打上污染标记。该接口原本支持任意绑定/解绑硬件与指定驱动，在 AI/大模型时代，它被 Syzbot 等工具滥用，尝试将硬件绑定到完全无关的驱动上，由此产生大量与内核合法用例完全不符的无效 Bug 报告噪声。</p>
+<p>借助 <code>TAINT_FORCED_BIND</code>，内核开发者就能在 Bug 报告中一眼识别出 sysfs bind/unbind 曾被调用，快速判断该报告可能不具备实际参考价值。</p>
+<p>这项特性上周正式合入 Linux 7.4，Greg KH 称其是为了应对近期针对内核的大规模模糊测试“攻击”。</p>
+<p>但 <code>TAINT_FORCED_BIND</code> 上线后，大家才发现 VFIO 代码在合法场景中也依赖 bind/unbind 行为。在回滚补丁中，Greg 形容 VFIO 的使用场景是一头“疯狂巨兽”：<br>
+“事实证明，vfio 是一头疯狂巨兽，用户一直‘依赖’bind/unbind 这个调试特性，把它作为将设备透传至虚拟机实例的常规手段。正因如此（对应 https://xkcd.com/1172/），我们先暂时回滚该特性，直到找到更稳妥的方案，让常规工作流不会意外污染内核。”</p>
+<p>后续大概率会采用 Uwe 提出的方案推进：<br>
+https://lore.kernel.org/lkml/cover.1790612298.git.u.kleine-koenig@baylibre.com/<br>
+这会是最可行的方向，相关工作将在 Linux 7.4 之后重新启动。</p>
+<p>该特性的初衷是堵住大量无效模糊测试报告：这类报告来自随机将设备绑定到无关驱动、最终必然触发异常的测试行为。目前主站 syzbot 已经停止了这类操作，希望不会再有其他人重启这类测试（但在如今大模型的狂热氛围下，谁也没法打包票）。</p>
+<p>VFIO 依赖 bind/unbind 操作，将 PCIe 设备从 Linux 宿主机驱动解绑，再挂载到 vfio-pci 上供虚拟机使用。</p>
+<p>本次回滚已于周五晚间正式合入主线。</p>
+<p>Uwe Kleine-König 的方案是仅在使用 driver_override 时触发 <code>TAINT_DRIVER_OVERRIDE</code> 标记，同时默认禁用 driver_override，允许 Linux 驱动自行选择是否开放该功能。目前来看该方案大概率会被 Linux 7.5 采纳，但对于明天就将关闭合并窗口的 Linux 7.4 来说，已经来不及落地。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Drops-Taint-Bind">New Linux 7.4 Feature For Reducing AI Noise Already Reverted Due To A “Crazy Beast” – Phoronix</a></p>]]></content:encoded>
+    
+    <pubDate>Sat, 31 Oct 2026 15:04:38 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[‌KDE Plasma 6.9 落地多项全新性能优化‌]]></title>
+    <link>http://www.linuxeden.com/a/166972</link>
+    <itunes:title><![CDATA[‌KDE Plasma 6.9 落地多项全新性能优化‌]]></itunes:title>
+    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>我向来钟爱扎实的性能优化，本周随着 Plasma 6.9 的开发推进，KDE 生态里就迎来了好几项这类优化。</p>
+<p>《Plasma 本周动态》最新一期已发布，在十月临近收尾之际，集中展示了 KDE 的最新变更。</p>
+<p>对于使用 KWin 缩放特效的用户，Plasma 6.9 中该特效的性能开销将大幅降低。缩放插件现在会跳过低对比度像素（比如纯色、平坦区域）的处理，由此带来了显著的速度提升：<br>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-beebe1b1c6.png" alt="‌KDE Plasma 6.9 落地多项全新性能优化‌"></p>
+<p>Plasma 6.9 还会清理配置文件中桌面文件与文件夹位置的陈旧条目，避免配置文件随时间无限制膨胀，进而拖慢整个 Plasma 的运行速度。这项改动源自 2023 年的一份 Bug 报告——当时配置文件里的屏幕映射条目会无限增长，最终拖慢 Plasma 外壳甚至引发崩溃。</p>
+<p>在 Plasma 6.9 中，Discover 软件中心现在支持复制和分享本地已安装 Flatpak 软件包的 appstream:// 链接。</p>
+<p>与此同时，本周发布的 Plasma 6.8.2 版本修复了若干崩溃问题，也解决了其他回归缺陷。不过 Plasma 6.8.2 本身也引入了一项可能降低游戏性能的 KWin 回归问题，目前已通过“在 DRM 色彩管线不支持时禁用后混合卸载”的方式完成修复。Plasma 6.8.3 将于 11 月带来更多崩溃与回归问题的修复。</p>
+<p>本周修复工作中另一项值得关注的进展是，KDE Frameworks 终于解决了一个存在 15 年之久的 USB 存储设备文件补全相关 Bug。</p>
+<p>你可以通过《Plasma 本周动态》了解这些变更的更多细节。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/KDE-Plasma-6.9-More-Performance">KDE Plasma 6.9 Lands Some New Performance Optimizations – Phoronix</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>我向来钟爱扎实的性能优化，本周随着 Plasma 6.9 的开发推进，KDE 生态里就迎来了好几项这类优化。</p>
+<p>《Plasma 本周动态》最新一期已发布，在十月临近收尾之际，集中展示了 KDE 的最新变更。</p>
+<p>对于使用 KWin 缩放特效的用户，Plasma 6.9 中该特效的性能开销将大幅降低。缩放插件现在会跳过低对比度像素（比如纯色、平坦区域）的处理，由此带来了显著的速度提升：<br>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-beebe1b1c6.png" alt="‌KDE Plasma 6.9 落地多项全新性能优化‌"></p>
+<p>Plasma 6.9 还会清理配置文件中桌面文件与文件夹位置的陈旧条目，避免配置文件随时间无限制膨胀，进而拖慢整个 Plasma 的运行速度。这项改动源自 2023 年的一份 Bug 报告——当时配置文件里的屏幕映射条目会无限增长，最终拖慢 Plasma 外壳甚至引发崩溃。</p>
+<p>在 Plasma 6.9 中，Discover 软件中心现在支持复制和分享本地已安装 Flatpak 软件包的 appstream:// 链接。</p>
+<p>与此同时，本周发布的 Plasma 6.8.2 版本修复了若干崩溃问题，也解决了其他回归缺陷。不过 Plasma 6.8.2 本身也引入了一项可能降低游戏性能的 KWin 回归问题，目前已通过“在 DRM 色彩管线不支持时禁用后混合卸载”的方式完成修复。Plasma 6.8.3 将于 11 月带来更多崩溃与回归问题的修复。</p>
+<p>本周修复工作中另一项值得关注的进展是，KDE Frameworks 终于解决了一个存在 15 年之久的 USB 存储设备文件补全相关 Bug。</p>
+<p>你可以通过《Plasma 本周动态》了解这些变更的更多细节。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/KDE-Plasma-6.9-More-Performance">KDE Plasma 6.9 Lands Some New Performance Optimizations – Phoronix</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>我向来钟爱扎实的性能优化，本周随着 Plasma 6.9 的开发推进，KDE 生态里就迎来了好几项这类优化。</p>
+<p>《Plasma 本周动态》最新一期已发布，在十月临近收尾之际，集中展示了 KDE 的最新变更。</p>
+<p>对于使用 KWin 缩放特效的用户，Plasma 6.9 中该特效的性能开销将大幅降低。缩放插件现在会跳过低对比度像素（比如纯色、平坦区域）的处理，由此带来了显著的速度提升：<br>
+<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-beebe1b1c6.png" alt="‌KDE Plasma 6.9 落地多项全新性能优化‌"></p>
+<p>Plasma 6.9 还会清理配置文件中桌面文件与文件夹位置的陈旧条目，避免配置文件随时间无限制膨胀，进而拖慢整个 Plasma 的运行速度。这项改动源自 2023 年的一份 Bug 报告——当时配置文件里的屏幕映射条目会无限增长，最终拖慢 Plasma 外壳甚至引发崩溃。</p>
+<p>在 Plasma 6.9 中，Discover 软件中心现在支持复制和分享本地已安装 Flatpak 软件包的 appstream:// 链接。</p>
+<p>与此同时，本周发布的 Plasma 6.8.2 版本修复了若干崩溃问题，也解决了其他回归缺陷。不过 Plasma 6.8.2 本身也引入了一项可能降低游戏性能的 KWin 回归问题，目前已通过“在 DRM 色彩管线不支持时禁用后混合卸载”的方式完成修复。Plasma 6.8.3 将于 11 月带来更多崩溃与回归问题的修复。</p>
+<p>本周修复工作中另一项值得关注的进展是，KDE Frameworks 终于解决了一个存在 15 年之久的 USB 存储设备文件补全相关 Bug。</p>
+<p>你可以通过《Plasma 本周动态》了解这些变更的更多细节。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/KDE-Plasma-6.9-More-Performance">KDE Plasma 6.9 Lands Some New Performance Optimizations – Phoronix</a></p>]]></content:encoded>
+    
+    <pubDate>Sat, 31 Oct 2026 14:44:09 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[‌Linux 7.4 中的 Ceph 新增了用于 Lazy I/O 的全局挂载选项‌]]></title>
+    <link>http://www.linuxeden.com/a/166969</link>
+    <itunes:title><![CDATA[‌Linux 7.4 中的 Ceph 新增了用于 Lazy I/O 的全局挂载选项‌]]></itunes:title>
+    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Ceph 内核客户端的相关变更已提交至 Linux 7.4，而该版本的合并窗口预计将于周日结束。</p>
+<p>此前 Ceph 一直通过一个 ioctl 接口，支持在单文件粒度上启用惰性 I/O；而 Linux 7.4 的新代码则新增了名为“lazyio”的挂载选项，支持全局开启惰性 I/O。Ceph 的惰性 I/O 模式会在打开所有普通文件时自动启用该特性。该模式允许通过页缓存进行缓冲 I/O，即便多个客户端同时以写模式打开同一个文件也不受限制。这种场景专为 HPC 工作负载及其他能够适配宽松缓存一致性要求的场景设计。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-dca59fb02e.png" alt="‌Linux 7.4 中的 Ceph 新增了用于 Lazy I/O 的全局挂载选项‌"></p>
+<p>除了新增 Ceph 的“lazyio”挂载选项外，一项已存在十余年、长期处于实验状态且自 2020 年起就被标记为废弃的内联数据特性，目前正处于移除流程中。针对 Linux 7.4，内核新增了一个默认关闭的 Kconfig 选项 <code>CEPH_FS_INLINE_DATA</code>。因此，仍在依赖 Ceph 内联数据支持的用户，现在需要手动设置 <code>CEPH_FS_INLINE_DATA=Y</code> 才能继续使用该功能。而在未来的某个内核版本中，官方计划彻底移除这段已废弃的代码。Ceph 内联数据支持最早在 2014 年的 Linux 3.19 版本中加入，该特性允许将小文件直接存储在文件的 inode 或元数据结构中，而非独立的 RADOS 对象里。</p>
+<p>本次 Ceph 的拉取请求还为 Linux 7.4 带来了大量 Bug 修复以及其他代码清理工作。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Ceph">Ceph In Linux 7.4 Adds Global Mount Option For Lazy I/O – Phoronix</a></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Ceph 内核客户端的相关变更已提交至 Linux 7.4，而该版本的合并窗口预计将于周日结束。</p>
+<p>此前 Ceph 一直通过一个 ioctl 接口，支持在单文件粒度上启用惰性 I/O；而 Linux 7.4 的新代码则新增了名为“lazyio”的挂载选项，支持全局开启惰性 I/O。Ceph 的惰性 I/O 模式会在打开所有普通文件时自动启用该特性。该模式允许通过页缓存进行缓冲 I/O，即便多个客户端同时以写模式打开同一个文件也不受限制。这种场景专为 HPC 工作负载及其他能够适配宽松缓存一致性要求的场景设计。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-dca59fb02e.png" alt="‌Linux 7.4 中的 Ceph 新增了用于 Lazy I/O 的全局挂载选项‌"></p>
+<p>除了新增 Ceph 的“lazyio”挂载选项外，一项已存在十余年、长期处于实验状态且自 2020 年起就被标记为废弃的内联数据特性，目前正处于移除流程中。针对 Linux 7.4，内核新增了一个默认关闭的 Kconfig 选项 <code>CEPH_FS_INLINE_DATA</code>。因此，仍在依赖 Ceph 内联数据支持的用户，现在需要手动设置 <code>CEPH_FS_INLINE_DATA=Y</code> 才能继续使用该功能。而在未来的某个内核版本中，官方计划彻底移除这段已废弃的代码。Ceph 内联数据支持最早在 2014 年的 Linux 3.19 版本中加入，该特性允许将小文件直接存储在文件的 inode 或元数据结构中，而非独立的 RADOS 对象里。</p>
+<p>本次 Ceph 的拉取请求还为 Linux 7.4 带来了大量 Bug 修复以及其他代码清理工作。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Ceph">Ceph In Linux 7.4 Adds Global Mount Option For Lazy I/O – Phoronix</a></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Ceph 内核客户端的相关变更已提交至 Linux 7.4，而该版本的合并窗口预计将于周日结束。</p>
+<p>此前 Ceph 一直通过一个 ioctl 接口，支持在单文件粒度上启用惰性 I/O；而 Linux 7.4 的新代码则新增了名为“lazyio”的挂载选项，支持全局开启惰性 I/O。Ceph 的惰性 I/O 模式会在打开所有普通文件时自动启用该特性。该模式允许通过页缓存进行缓冲 I/O，即便多个客户端同时以写模式打开同一个文件也不受限制。这种场景专为 HPC 工作负载及其他能够适配宽松缓存一致性要求的场景设计。</p>
+<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-dca59fb02e.png" alt="‌Linux 7.4 中的 Ceph 新增了用于 Lazy I/O 的全局挂载选项‌"></p>
+<p>除了新增 Ceph 的“lazyio”挂载选项外，一项已存在十余年、长期处于实验状态且自 2020 年起就被标记为废弃的内联数据特性，目前正处于移除流程中。针对 Linux 7.4，内核新增了一个默认关闭的 Kconfig 选项 <code>CEPH_FS_INLINE_DATA</code>。因此，仍在依赖 Ceph 内联数据支持的用户，现在需要手动设置 <code>CEPH_FS_INLINE_DATA=Y</code> 才能继续使用该功能。而在未来的某个内核版本中，官方计划彻底移除这段已废弃的代码。Ceph 内联数据支持最早在 2014 年的 Linux 3.19 版本中加入，该特性允许将小文件直接存储在文件的 inode 或元数据结构中，而非独立的 RADOS 对象里。</p>
+<p>本次 Ceph 的拉取请求还为 Linux 7.4 带来了大量 Bug 修复以及其他代码清理工作。</p>
+<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-Ceph">Ceph In Linux 7.4 Adds Global Mount Option For Lazy I/O – Phoronix</a></p>]]></content:encoded>
+    
+    <pubDate>Sat, 31 Oct 2026 14:32:37 +0000</pubDate>
+  </item><item>
     <title><![CDATA[1344万元！龙芯首次杀入中石化年度框架集采：2400台终端入围]]></title>
     <link>http://www.linuxeden.com/a/166964</link>
     <itunes:title><![CDATA[1344万元！龙芯首次杀入中石化年度框架集采：2400台终端入围]]></itunes:title>
@@ -264,155 +390,5 @@
 <p>转自&nbsp;<a href="https://www.phoronix.com/news/Ubuntu-27.04-Opens-For-Dev">Ubuntu 27.04 “Tenacious T-Rex” Opens For Development – Phoronix</a></p>]]></content:encoded>
     
     <pubDate>Fri, 30 Oct 2026 23:18:21 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[‌Shelly 3.1.10：AUR 构建更稳定，新增“Shell”进度条‌]]></title>
-    <link>http://www.linuxeden.com/a/166946</link>
-    <itunes:title><![CDATA[‌Shelly 3.1.10：AUR 构建更稳定，新增“Shell”进度条‌]]></itunes:title>
-    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-3a52440011.jpg" alt="‌Shelly 3.1.10：AUR 构建更稳定，新增“Shell”进度条‌"></p>
-<p>Shelly 3.1.10 今日正式发布，作为这款面向 Arch Linux 及其衍生发行版的现代开源免费 pacman 替代工具，在 3.1 系列中推出的又一个维护版本，重点优化了 AUR 包的构建与升级体验。</p>
-<p>距 Shelly 3.1.9 发布仅一周，3.1.10 版本进一步优化 AUR 构建逻辑：在 <code>prepare()</code> 函数执行前就自动识别并安装所有构建依赖，即便某个 AUR 包的编译需要依赖其他 AUR 包，也能正常完成前置准备。</p>
-<p>除此之外，本次更新还支持对带引号的索引数组元素进行前后缀裁剪；在写入 PKGINFO 文件时自动合并多行软件包描述字段中的多余空白；同时放宽了下载过程中 HTTP 响应头的大小限制，解决了 GitHub 安全头与重定向场景下的下载失败问题。</p>
-<p>Shelly 3.1.7 版本引入的 RLPM 原生包引擎，在本次更新中优化了错误提示逻辑：针对配置异常、数据库锁、下载失败、文件系统操作错误、钩子脚本与脚本片段执行失败等场景，都提供了更清晰的报错信息；文件冲突提示现在会完整展示冲突路径和对应的所属包信息。</p>
-<p>命令行端新增了名为“Shell”的全新进度条样式，进度推进时会动态展示一个小型 ASCII 外壳的开合动画。在没有保存过自定义进度条样式的环境下，它会自动成为默认样式，你也可以通过 <code>shelly config set ProgressBarStyle Shell</code> 命令手动切换启用。</p>
-<p>同时 CLI 界面新增了 <code>--names-only</code> 参数，可用于标准包、AUR 包列表查询以及常规软件包搜索场景；Bash、Fish、Zsh 三方的自动补全脚本现在改为直接调用 Shelly 自身接口，不再依赖 pacman 提供补全能力。</p>
-<p>从本版本开始，<code>shelly install standard --upgrade</code> 命令会将系统全量升级和用户显式指定的仓库包安装操作合并为单条事务执行，彻底解决了目标软件包与其依赖的更新库文件需要同步升级时出现的依赖校验失败问题。</p>
-<p>Shelly 图形界面优化了键盘导航体验：每个页面都新增了可无障碍聚焦的焦点停靠点，首次启动向导会自动将焦点跳转至每一个新打开的页面；软件包列表页的展示精度也得到提升，不会再将外来包和仅本地存在的包误识别为官方仓库包。</p>
-<p>正如上周披露的消息，Shelly 开发团队基于 Arch Linux 自研了名为 ‌<strong><span>Devario<i></i></span></strong>‌ 的发行版，将 Shelly 作为默认包管理器。从本次版本开始，Devario 系统在升级过程中不再拉取和展示 Arch Linux 的官方新闻推送。</p>
-<p>底层技术层面，Shelly 3.1.10 将所有原生组件和构建脚本迁移至 ‌<strong><span>Zig 0.17.0<i></i></span></strong>‌ 版本，这意味着从源码编译安装该工具时，必须使用该指定版本的 Zig 编程语言；同时项目将所有内置的依赖副本替换为通过 URL 和内容哈希锁定的上游官方依赖源。</p>
-<p>本次更新还新增了专门面向 ‌<strong><span>CachyOS<i></i></span></strong>‌ 的打包配置目录。你可以前往项目的 GitHub 页面查看完整发布说明，同时在该页面下载 Shelly 3.1.10 的预编译二进制包或源码压缩包；Arch Linux 系列发行版用户也可以直接执行 <code>sudo pacman -S shelly</code> 命令完成安装或升级。</p>
-<p>喜欢这篇内容？欢迎通过 ko-fi.com 请作者喝杯咖啡。</p>
-<p>转自&nbsp;<a href="https://9to5linux.com/shelly-3-1-10-brings-more-reliable-aur-builds-and-a-new-shell-progress-bar">Shelly 3.1.10 Brings More Reliable AUR Builds and a New “Shell” Progress Bar – 9to5Linux</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-3a52440011.jpg" alt="‌Shelly 3.1.10：AUR 构建更稳定，新增“Shell”进度条‌"></p>
-<p>Shelly 3.1.10 今日正式发布，作为这款面向 Arch Linux 及其衍生发行版的现代开源免费 pacman 替代工具，在 3.1 系列中推出的又一个维护版本，重点优化了 AUR 包的构建与升级体验。</p>
-<p>距 Shelly 3.1.9 发布仅一周，3.1.10 版本进一步优化 AUR 构建逻辑：在 <code>prepare()</code> 函数执行前就自动识别并安装所有构建依赖，即便某个 AUR 包的编译需要依赖其他 AUR 包，也能正常完成前置准备。</p>
-<p>除此之外，本次更新还支持对带引号的索引数组元素进行前后缀裁剪；在写入 PKGINFO 文件时自动合并多行软件包描述字段中的多余空白；同时放宽了下载过程中 HTTP 响应头的大小限制，解决了 GitHub 安全头与重定向场景下的下载失败问题。</p>
-<p>Shelly 3.1.7 版本引入的 RLPM 原生包引擎，在本次更新中优化了错误提示逻辑：针对配置异常、数据库锁、下载失败、文件系统操作错误、钩子脚本与脚本片段执行失败等场景，都提供了更清晰的报错信息；文件冲突提示现在会完整展示冲突路径和对应的所属包信息。</p>
-<p>命令行端新增了名为“Shell”的全新进度条样式，进度推进时会动态展示一个小型 ASCII 外壳的开合动画。在没有保存过自定义进度条样式的环境下，它会自动成为默认样式，你也可以通过 <code>shelly config set ProgressBarStyle Shell</code> 命令手动切换启用。</p>
-<p>同时 CLI 界面新增了 <code>--names-only</code> 参数，可用于标准包、AUR 包列表查询以及常规软件包搜索场景；Bash、Fish、Zsh 三方的自动补全脚本现在改为直接调用 Shelly 自身接口，不再依赖 pacman 提供补全能力。</p>
-<p>从本版本开始，<code>shelly install standard --upgrade</code> 命令会将系统全量升级和用户显式指定的仓库包安装操作合并为单条事务执行，彻底解决了目标软件包与其依赖的更新库文件需要同步升级时出现的依赖校验失败问题。</p>
-<p>Shelly 图形界面优化了键盘导航体验：每个页面都新增了可无障碍聚焦的焦点停靠点，首次启动向导会自动将焦点跳转至每一个新打开的页面；软件包列表页的展示精度也得到提升，不会再将外来包和仅本地存在的包误识别为官方仓库包。</p>
-<p>正如上周披露的消息，Shelly 开发团队基于 Arch Linux 自研了名为 ‌<strong><span>Devario<i></i></span></strong>‌ 的发行版，将 Shelly 作为默认包管理器。从本次版本开始，Devario 系统在升级过程中不再拉取和展示 Arch Linux 的官方新闻推送。</p>
-<p>底层技术层面，Shelly 3.1.10 将所有原生组件和构建脚本迁移至 ‌<strong><span>Zig 0.17.0<i></i></span></strong>‌ 版本，这意味着从源码编译安装该工具时，必须使用该指定版本的 Zig 编程语言；同时项目将所有内置的依赖副本替换为通过 URL 和内容哈希锁定的上游官方依赖源。</p>
-<p>本次更新还新增了专门面向 ‌<strong><span>CachyOS<i></i></span></strong>‌ 的打包配置目录。你可以前往项目的 GitHub 页面查看完整发布说明，同时在该页面下载 Shelly 3.1.10 的预编译二进制包或源码压缩包；Arch Linux 系列发行版用户也可以直接执行 <code>sudo pacman -S shelly</code> 命令完成安装或升级。</p>
-<p>喜欢这篇内容？欢迎通过 ko-fi.com 请作者喝杯咖啡。</p>
-<p>转自&nbsp;<a href="https://9to5linux.com/shelly-3-1-10-brings-more-reliable-aur-builds-and-a-new-shell-progress-bar">Shelly 3.1.10 Brings More Reliable AUR Builds and a New “Shell” Progress Bar – 9to5Linux</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-3a52440011.jpg" alt="‌Shelly 3.1.10：AUR 构建更稳定，新增“Shell”进度条‌"></p>
-<p>Shelly 3.1.10 今日正式发布，作为这款面向 Arch Linux 及其衍生发行版的现代开源免费 pacman 替代工具，在 3.1 系列中推出的又一个维护版本，重点优化了 AUR 包的构建与升级体验。</p>
-<p>距 Shelly 3.1.9 发布仅一周，3.1.10 版本进一步优化 AUR 构建逻辑：在 <code>prepare()</code> 函数执行前就自动识别并安装所有构建依赖，即便某个 AUR 包的编译需要依赖其他 AUR 包，也能正常完成前置准备。</p>
-<p>除此之外，本次更新还支持对带引号的索引数组元素进行前后缀裁剪；在写入 PKGINFO 文件时自动合并多行软件包描述字段中的多余空白；同时放宽了下载过程中 HTTP 响应头的大小限制，解决了 GitHub 安全头与重定向场景下的下载失败问题。</p>
-<p>Shelly 3.1.7 版本引入的 RLPM 原生包引擎，在本次更新中优化了错误提示逻辑：针对配置异常、数据库锁、下载失败、文件系统操作错误、钩子脚本与脚本片段执行失败等场景，都提供了更清晰的报错信息；文件冲突提示现在会完整展示冲突路径和对应的所属包信息。</p>
-<p>命令行端新增了名为“Shell”的全新进度条样式，进度推进时会动态展示一个小型 ASCII 外壳的开合动画。在没有保存过自定义进度条样式的环境下，它会自动成为默认样式，你也可以通过 <code>shelly config set ProgressBarStyle Shell</code> 命令手动切换启用。</p>
-<p>同时 CLI 界面新增了 <code>--names-only</code> 参数，可用于标准包、AUR 包列表查询以及常规软件包搜索场景；Bash、Fish、Zsh 三方的自动补全脚本现在改为直接调用 Shelly 自身接口，不再依赖 pacman 提供补全能力。</p>
-<p>从本版本开始，<code>shelly install standard --upgrade</code> 命令会将系统全量升级和用户显式指定的仓库包安装操作合并为单条事务执行，彻底解决了目标软件包与其依赖的更新库文件需要同步升级时出现的依赖校验失败问题。</p>
-<p>Shelly 图形界面优化了键盘导航体验：每个页面都新增了可无障碍聚焦的焦点停靠点，首次启动向导会自动将焦点跳转至每一个新打开的页面；软件包列表页的展示精度也得到提升，不会再将外来包和仅本地存在的包误识别为官方仓库包。</p>
-<p>正如上周披露的消息，Shelly 开发团队基于 Arch Linux 自研了名为 ‌<strong><span>Devario<i></i></span></strong>‌ 的发行版，将 Shelly 作为默认包管理器。从本次版本开始，Devario 系统在升级过程中不再拉取和展示 Arch Linux 的官方新闻推送。</p>
-<p>底层技术层面，Shelly 3.1.10 将所有原生组件和构建脚本迁移至 ‌<strong><span>Zig 0.17.0<i></i></span></strong>‌ 版本，这意味着从源码编译安装该工具时，必须使用该指定版本的 Zig 编程语言；同时项目将所有内置的依赖副本替换为通过 URL 和内容哈希锁定的上游官方依赖源。</p>
-<p>本次更新还新增了专门面向 ‌<strong><span>CachyOS<i></i></span></strong>‌ 的打包配置目录。你可以前往项目的 GitHub 页面查看完整发布说明，同时在该页面下载 Shelly 3.1.10 的预编译二进制包或源码压缩包；Arch Linux 系列发行版用户也可以直接执行 <code>sudo pacman -S shelly</code> 命令完成安装或升级。</p>
-<p>喜欢这篇内容？欢迎通过 ko-fi.com 请作者喝杯咖啡。</p>
-<p>转自&nbsp;<a href="https://9to5linux.com/shelly-3-1-10-brings-more-reliable-aur-builds-and-a-new-shell-progress-bar">Shelly 3.1.10 Brings More Reliable AUR Builds and a New “Shell” Progress Bar – 9to5Linux</a></p>]]></content:encoded>
-    
-    <pubDate>Fri, 30 Oct 2026 23:01:28 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建]]></title>
-    <link>http://www.linuxeden.com/a/166941</link>
-    <itunes:title><![CDATA[继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建]]></itunes:title>
-    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>快科技10月30日消息，<strong>开源防火墙软件IPFire维护者Michael Tremer近日在官方博客发布公告，IPFire已开始同步发行龙架构（LoongArch）的测试镜像。</strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-9469331824.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p><strong>龙架构由此成为继x86、ARM和RISC-V之后，IPFire支持的第4个处理器架构，也是该项目今年新增支持的第二个架构。</strong></p>
-<p>IPFire是基于Linux的开源防火墙系统，以配置简便和高安全性著称，集成了状态检测防火墙、内容过滤引擎、服务质量（QoS）等功能，可从源代码构建并持续跟进安全更新，广泛应用于各类企业网络与安全网关场景。</p>
-<p><strong>此次移植工作的支撑平台是龙芯3A6000主机。Tremer表示，整体性能和可用性表现良好，约两小时即可完成IPFire系统的全局构建。</strong></p>
-<p>对于一个包含完整工具链与软件包的操作系统级项目而言，这一构建效率意味着龙架构的编译工具链与依赖关系已经足够成熟，不会成为开发者的日常障碍。</p>
-<p>Tremer对龙架构的上游化支持程度给出了罕见的高评价。他在博客中写道，龙架构是IPFire至今最简单的移植项目，部分原因在于功课做得足：支持已在Linux内核、GCC和其他工具链组件以及各类必要组件上实现了上游化。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-7cf4529dda.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p>他同时强调，<strong>龙架构不是什么新兴架构，它已经来到我们身边。</strong></p>
-<p>这一评价的份量在于，IPFire并非通用发行版，而是一个特化应用型操作系统。通用发行版适配龙架构，验证的是基础兼容性；IPFire这类垂直项目的加入，验证的是龙架构在安全网关、网络设备等专业场景中的实际可用性。</p>
-<p>继Debian、Alpine等通用Linux发行版之后，IPFire为龙架构的生态版图补上了网络安全这一垂直拼图。</p>
-<p>更早之前的9月，容器虚拟化套件LXC也已在其容器模板服务器正式上线龙架构模板，成为继x86-64、AArch64、ARMv7、RISC-V之后第五个获得官方支持的架构，Alpine、Debian、Arch Linux等主流发行版的龙架构容器模板已可调用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-90a3a2a5b7.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<div>
-<p>【本文结束】如需转载请务必注明出处：快科技</p>
-<p>责任编辑：红茶</p>
-<p>转自&nbsp;<a href="https://news.mydrivers.com/1/1161/1161809.htm">继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建–快科技–科技改变未来</a></p>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>快科技10月30日消息，<strong>开源防火墙软件IPFire维护者Michael Tremer近日在官方博客发布公告，IPFire已开始同步发行龙架构（LoongArch）的测试镜像。</strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-9469331824.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p><strong>龙架构由此成为继x86、ARM和RISC-V之后，IPFire支持的第4个处理器架构，也是该项目今年新增支持的第二个架构。</strong></p>
-<p>IPFire是基于Linux的开源防火墙系统，以配置简便和高安全性著称，集成了状态检测防火墙、内容过滤引擎、服务质量（QoS）等功能，可从源代码构建并持续跟进安全更新，广泛应用于各类企业网络与安全网关场景。</p>
-<p><strong>此次移植工作的支撑平台是龙芯3A6000主机。Tremer表示，整体性能和可用性表现良好，约两小时即可完成IPFire系统的全局构建。</strong></p>
-<p>对于一个包含完整工具链与软件包的操作系统级项目而言，这一构建效率意味着龙架构的编译工具链与依赖关系已经足够成熟，不会成为开发者的日常障碍。</p>
-<p>Tremer对龙架构的上游化支持程度给出了罕见的高评价。他在博客中写道，龙架构是IPFire至今最简单的移植项目，部分原因在于功课做得足：支持已在Linux内核、GCC和其他工具链组件以及各类必要组件上实现了上游化。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-7cf4529dda.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p>他同时强调，<strong>龙架构不是什么新兴架构，它已经来到我们身边。</strong></p>
-<p>这一评价的份量在于，IPFire并非通用发行版，而是一个特化应用型操作系统。通用发行版适配龙架构，验证的是基础兼容性；IPFire这类垂直项目的加入，验证的是龙架构在安全网关、网络设备等专业场景中的实际可用性。</p>
-<p>继Debian、Alpine等通用Linux发行版之后，IPFire为龙架构的生态版图补上了网络安全这一垂直拼图。</p>
-<p>更早之前的9月，容器虚拟化套件LXC也已在其容器模板服务器正式上线龙架构模板，成为继x86-64、AArch64、ARMv7、RISC-V之后第五个获得官方支持的架构，Alpine、Debian、Arch Linux等主流发行版的龙架构容器模板已可调用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-90a3a2a5b7.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<div>
-<p>【本文结束】如需转载请务必注明出处：快科技</p>
-<p>责任编辑：红茶</p>
-<p>转自&nbsp;<a href="https://news.mydrivers.com/1/1161/1161809.htm">继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建–快科技–科技改变未来</a></p>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p>快科技10月30日消息，<strong>开源防火墙软件IPFire维护者Michael Tremer近日在官方博客发布公告，IPFire已开始同步发行龙架构（LoongArch）的测试镜像。</strong></p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-9469331824.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p><strong>龙架构由此成为继x86、ARM和RISC-V之后，IPFire支持的第4个处理器架构，也是该项目今年新增支持的第二个架构。</strong></p>
-<p>IPFire是基于Linux的开源防火墙系统，以配置简便和高安全性著称，集成了状态检测防火墙、内容过滤引擎、服务质量（QoS）等功能，可从源代码构建并持续跟进安全更新，广泛应用于各类企业网络与安全网关场景。</p>
-<p><strong>此次移植工作的支撑平台是龙芯3A6000主机。Tremer表示，整体性能和可用性表现良好，约两小时即可完成IPFire系统的全局构建。</strong></p>
-<p>对于一个包含完整工具链与软件包的操作系统级项目而言，这一构建效率意味着龙架构的编译工具链与依赖关系已经足够成熟，不会成为开发者的日常障碍。</p>
-<p>Tremer对龙架构的上游化支持程度给出了罕见的高评价。他在博客中写道，龙架构是IPFire至今最简单的移植项目，部分原因在于功课做得足：支持已在Linux内核、GCC和其他工具链组件以及各类必要组件上实现了上游化。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-7cf4529dda.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<p>他同时强调，<strong>龙架构不是什么新兴架构，它已经来到我们身边。</strong></p>
-<p>这一评价的份量在于，IPFire并非通用发行版，而是一个特化应用型操作系统。通用发行版适配龙架构，验证的是基础兼容性；IPFire这类垂直项目的加入，验证的是龙架构在安全网关、网络设备等专业场景中的实际可用性。</p>
-<p>继Debian、Alpine等通用Linux发行版之后，IPFire为龙架构的生态版图补上了网络安全这一垂直拼图。</p>
-<p>更早之前的9月，容器虚拟化套件LXC也已在其容器模板服务器正式上线龙架构模板，成为继x86-64、AArch64、ARMv7、RISC-V之后第五个获得官方支持的架构，Alpine、Debian、Arch Linux等主流发行版的龙架构容器模板已可调用。</p>
-<p><img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-90a3a2a5b7.png" alt="继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建"></p>
-<div>
-<p>【本文结束】如需转载请务必注明出处：快科技</p>
-<p>责任编辑：红茶</p>
-<p>转自&nbsp;<a href="https://news.mydrivers.com/1/1161/1161809.htm">继x86/ARM/RISC-V之后！龙架构获国际开源生态支持：龙芯3A6000两小时完成全局构建–快科技–科技改变未来</a></p>
-</div>]]></content:encoded>
-    
-    <pubDate>Fri, 30 Oct 2026 22:48:39 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[‌AMD PerfOpt 正式合入 Linux 7.4，为 AMD 核显带来显著性能提升‌]]></title>
-    <link>http://www.linuxeden.com/a/166936</link>
-    <itunes:title><![CDATA[‌AMD PerfOpt 正式合入 Linux 7.4，为 AMD 核显带来显著性能提升‌]]></itunes:title>
-    <itunes:author><![CDATA[Linuxeden开源社区[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>正如此前预期，AMD PerfOpt 特性已正式合入 Linux 7.4 内核。多项 Phoronix 基准测试结果显示，该特性能为 AMD 集成显卡带来显著性能提升，在 AI 工作负载场景下增益尤为突出。</p>
-<p>AMD PerfOpt 特性允许核显在直接访问系统内存时绕过 IOMMU 地址翻译单元。在搭载 Radeon 集成显卡的系统上，AMDGPU 内核图形驱动会默认启用该功能。</p>
-<p>我此前已在两篇评测中完成了性能基准测试，量化了 AMD PerfOpt 的实际收益：《Linux 7.4 与 AMD PerfOpt 助力 Radeon 核显 AI/大语言模型性能提升 18~23%》，以及《AMD PerfOpt 为前代锐龙 APU AI 性能提速》。<br>
-<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-c2cb02d70f.png" alt="‌AMD PerfOpt 正式合入 Linux 7.4，为 AMD 核显带来显著性能提升‌"></p>
-<p>在 Linux 7.4 及以上版本系统中，你可以通过 dmesg 内核输出检索“PerfOpt”关键词，确认该功能是否已随 AMDGPU 驱动正常激活。</p>
-<p>本次 IOMMU 子系统合入不仅带来了 PerfOpt 支持，还同步修复了若干 AMD IOMMU 相关问题、完成了代码清理工作。新增 Broadcom BCM2712 IOMMU 支持，适配树莓派 5 的显示与多媒体设备；微软也贡献了全新的半虚拟化 IOMMU 驱动，用于 Hyper-V 虚拟化场景。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-IOMMU">AMD PerfOpt Makes it Into Linux 7.4 As A Nice Performance Boost For AMD iGPUs – Phoronix</a></p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>正如此前预期，AMD PerfOpt 特性已正式合入 Linux 7.4 内核。多项 Phoronix 基准测试结果显示，该特性能为 AMD 集成显卡带来显著性能提升，在 AI 工作负载场景下增益尤为突出。</p>
-<p>AMD PerfOpt 特性允许核显在直接访问系统内存时绕过 IOMMU 地址翻译单元。在搭载 Radeon 集成显卡的系统上，AMDGPU 内核图形驱动会默认启用该功能。</p>
-<p>我此前已在两篇评测中完成了性能基准测试，量化了 AMD PerfOpt 的实际收益：《Linux 7.4 与 AMD PerfOpt 助力 Radeon 核显 AI/大语言模型性能提升 18~23%》，以及《AMD PerfOpt 为前代锐龙 APU AI 性能提速》。<br>
-<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-c2cb02d70f.png" alt="‌AMD PerfOpt 正式合入 Linux 7.4，为 AMD 核显带来显著性能提升‌"></p>
-<p>在 Linux 7.4 及以上版本系统中，你可以通过 dmesg 内核输出检索“PerfOpt”关键词，确认该功能是否已随 AMDGPU 驱动正常激活。</p>
-<p>本次 IOMMU 子系统合入不仅带来了 PerfOpt 支持，还同步修复了若干 AMD IOMMU 相关问题、完成了代码清理工作。新增 Broadcom BCM2712 IOMMU 支持，适配树莓派 5 的显示与多媒体设备；微软也贡献了全新的半虚拟化 IOMMU 驱动，用于 Hyper-V 虚拟化场景。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-IOMMU">AMD PerfOpt Makes it Into Linux 7.4 As A Nice Performance Boost For AMD iGPUs – Phoronix</a></p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>正如此前预期，AMD PerfOpt 特性已正式合入 Linux 7.4 内核。多项 Phoronix 基准测试结果显示，该特性能为 AMD 集成显卡带来显著性能提升，在 AI 工作负载场景下增益尤为突出。</p>
-<p>AMD PerfOpt 特性允许核显在直接访问系统内存时绕过 IOMMU 地址翻译单元。在搭载 Radeon 集成显卡的系统上，AMDGPU 内核图形驱动会默认启用该功能。</p>
-<p>我此前已在两篇评测中完成了性能基准测试，量化了 AMD PerfOpt 的实际收益：《Linux 7.4 与 AMD PerfOpt 助力 Radeon 核显 AI/大语言模型性能提升 18~23%》，以及《AMD PerfOpt 为前代锐龙 APU AI 性能提速》。<br>
-<img src="https://democwise2016.github.io/action-RSS-Fulltext/file-cache/www.linuxeden.com-c2cb02d70f.png" alt="‌AMD PerfOpt 正式合入 Linux 7.4，为 AMD 核显带来显著性能提升‌"></p>
-<p>在 Linux 7.4 及以上版本系统中，你可以通过 dmesg 内核输出检索“PerfOpt”关键词，确认该功能是否已随 AMDGPU 驱动正常激活。</p>
-<p>本次 IOMMU 子系统合入不仅带来了 PerfOpt 支持，还同步修复了若干 AMD IOMMU 相关问题、完成了代码清理工作。新增 Broadcom BCM2712 IOMMU 支持，适配树莓派 5 的显示与多媒体设备；微软也贡献了全新的半虚拟化 IOMMU 驱动，用于 Hyper-V 虚拟化场景。</p>
-<p>转自&nbsp;<a href="https://www.phoronix.com/news/Linux-7.4-IOMMU">AMD PerfOpt Makes it Into Linux 7.4 As A Nice Performance Boost For AMD iGPUs – Phoronix</a></p>]]></content:encoded>
-    
-    <pubDate>Fri, 30 Oct 2026 12:15:25 +0000</pubDate>
   </item></channel>
 </rss>
