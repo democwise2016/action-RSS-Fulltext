@@ -30,6 +30,165 @@
     </itunes:owner>
     <itunes:image href="https://blogger.googleusercontent.com/img/a/AVvXsEh8KyFU8q9VBYbldI_qsuqPS4uFb3dbmQQR4LmjV8hbz9I1zHeSoVc2KStLIDD45r4iEsw5jO_rEOg33zvOOqcaAJ_Q3UKKE_p0Nl2dQIswqzPZug5Pt9duk5kzGbZGMHJq5xl0VzWMTBdqyPYfeLXMSJNIjrnTzklW7-KgS9gxuAT71FPGayV2_A"/>
 <item>
+    <title><![CDATA[一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone]]></title>
+    <link>https://www.kocpc.com.tw/archives/701928</link>
+    <itunes:title><![CDATA[一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" target="_blank"><img src="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" /></a></p>
+<p>應該很多人都希望 AI 代理幫你操作手機，比如說比價、每日任務打卡、查資料、發訊息…，但一直無法實現。過去想做這件事得先過三道關卡：安裝命令列工具、配對裝置、處理系統權限。不過開源專案 phone-harness 近日推出官方 MCP 伺服器，把整條流程壓縮成一個網址。任何支援 MCP 的代理，包括 Claude、ChatGPT、Cursor、Codex、Hermes，只要貼上 <code>https://mcp.phone-harness.com/mcp</code> 並完成登入，就能讓AI 看見雲端真機的畫面，接著點擊、輸入、滑動，像使用者本人一樣操作。</p>
+<blockquote data-status="hidden">
+<p lang="en" dir="ltr">Introducing: Phone Harness MCP 🔌</p>
+<p>Any agent that supports MCP can now control a real iPhone or Android in the cloud:</p>
+<p>&gt; works in Claude, ChatGPT, Cursor, Codex, and more as a custom connector<br>
+&gt; nothing to install, just paste a URL and sign in<br>
+&gt; sees the screen, taps, types, and swipes like you do</p>
+<p>Available in phone-harness 0.3.3.</p>
+<p>https://t.co/88u1gSgvtS</p>
+<p>— shawn (@shawn_pana) <a href="https://x.com/shawn_pana/status/2117308255517249597?ref_src=twsrc%5Etfw">November 2, 2026</a></p></blockquote>
+<h3>它註冊了哪些工具</h3>
+<p>託管伺服器一共註冊 14 個工具，命名沿用行動自動化專案 mobile-mcp 的習慣，讓用過同類工具的代理不必重新學習。除了前兩個之外，每個工具都要帶一組裝置代號，該代號由 <code>phone_list_available_devices</code> 取得。</p>
+<ul>
+<li><strong>裝置生命週期</strong>：<code>phone_start_device</code> 啟動手機並等到就緒，<code>phone_stop_device</code> 結束工作階段，未存檔的內容會遺失，雲端 Android 的計費也在停止後結束。</li>
+<li><strong>讀取畫面</strong>：<code>phone_take_screenshot</code> 回傳 JPEG，並附上一行換算資訊，把圖片座標轉成螢幕座標；<code>phone_list_elements_on_screen</code> 列出畫面上看得見的文字與可點擊中心點。</li>
+<li><strong>操作輸入</strong>：點擊、長按、滑動、輸入文字，以及 HOME、BACK、APP_SWITCHER 等系統鍵。</li>
+<li><strong>App 管理</strong>：列出已安裝的 App，並以圖示名稱或套件代號開啟，也能查詢目前前景是哪個 App。</li>
+</ul>
+<p>說明文件裡標註了一件事，這組工具沒有開啟網址的功能。本機端的 stdio 版本另外提供 <code>phone_save_screenshot</code>，能把畫面存成檔案。</p>
+<h3>設定方式與客戶端限制</h3>
+<p>傳輸走 Streamable HTTP，登入用 OAuth，要求的權限範圍是 <code>phone:drive</code>，也可以改送 API 金鑰作為 bearer token。README 逐一列出 Claude、Cursor、ChatGPT、Codex、Claude Code、VS Code、Windsurf、Grok、Devin、Gemini CLI、GitHub Copilot、Perplexity、Warp、Raycast、Manus、Zed 與 OpenClaw 的設定步驟，多數只需一行指令或一段 JSON。ChatGPT 端有額外門檻：網頁版的自訂 MCP 伺服器只開放 Business、Enterprise 與 Edu 工作區，Pro 帳號能連的僅限讀取與抓取類工具，要真的驅動手機得用前者。</p>
+<h3>命令列版與 MCP 版的分工</h3>
+<p>兩個版本在 PyPI 上是各自獨立的套件。命令列版 phone-harness 目前是 0.3.3，涵蓋本機 iPhone 鏡像、本機 Android 與雲端裝置三條路線，其中，本機 iPhone 需要 macOS 15 以上、配對過的 iPhone 鏡像，並為執行代理的程式開啟輔助使用與螢幕錄製權限；本機 Android 則可在 Windows、macOS 或 Linux 上透過 adb 與 USB 或無線偵錯連接。MCP 版 phone-harness-mcp 是 0.1.0，只連雲端，官方說法是「不需配對、不需 adb、不需 Mac，任何作業系統都能用」。兩者共用同一組底層能力，差別在於誰來呼叫：命令列版讓代理自己寫腳本，MCP 版把動作拆成一次次工具呼叫。除了 MCP，主專案也提供代理外掛，Hermes Agent 與 OpenClaw 都有官方整合套件。</p>
+<p><video autoplay="autoplay" loop="loop" muted=""><span data-mce-type="bookmark">﻿</span><span data-mce-type="bookmark">﻿</span> 您的瀏覽器不支援影片播放。</video></p>
+<h3>Windows＋Android 本機實測：直接控制自己的手機</h3>
+<p>「只支援雲端」指的是本文介紹的 <code>phone-harness-mcp</code>，並非整個 Phone Harness 專案。另一個命令列套件 <code>phone-harness</code> 支援直接控制使用者自己的手機：Android 可在 Windows、macOS 或 Linux 上透過 ADB，以 USB 或無線偵錯連接；本機 iPhone 則需要 Mac 與 iPhone 鏡像功能。詳細需求可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/install.md" target="_blank">官方安裝說明</a>。</p>
+<p>我們實測使用 Windows 電腦，準備好 uv、ADB 與 Phone Harness，再將 Android 手機透過 USB 連接並授權偵錯，就能讓 AI Agent 開啟 X、瀏覽指定帳號的公開貼文。實際控制路徑是「AI Agent → Windows 上的 Phone Harness → ADB／USB → 自己的 Android 手機」，使用的是手機上既有的 App 與登入狀態，過程不需登入 Phone Harness Cloud，也沒有產生該服務的雲端手機租用費用。</p>
+<p>相較於貼上網址就能連接的雲端 MCP，本機模式需要自行準備工具、完成手機授權，並維持連線；手機鎖定後，也需要使用者親自解鎖才能繼續操作。Android 使用者可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/setup/android.md" target="_blank">官方 USB 與無線偵錯設定說明</a>。</p>
+<p>這裡的「本機模式」指手機控制程式在自己的電腦執行；AI 模型是否在本機運算，取決於使用的代理與模型，並不代表整套流程完全離線。自行使用的 AI 服務也可能另有訂閱或 API 費用。</p>
+<h3>雲端手機的價格與型態</h3>
+<p>MCP 版目前只支援雲端裝置，本機的 iPhone 鏡像與 adb 不在其中。雲端 Android 模擬器免費啟動，之後<a href="https://phone-harness.com/#pricing" target="_blank">每分鐘 0.05 美元</a>（約新台幣 1.63 元），新帳號附 5 美元額度（約新台幣 163 元）。雲端 iPhone 走月租制：原價每月 80 美元（約新台幣 2,607 元），年繳打八折為每月 64 美元（約新台幣 2,086 元）；加上 eSIM 則分別是 100 美元與 80 美元（約新台幣 3,259 元與 2,607 元）。官網強調真機不按分鐘計費，只有模擬器才這樣算。真機方案主打 App 會把操作視為真人、可收簡訊與 2FA 驗證碼、登入狀態跨次保留。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261105032815_0_0f16f6.jpg" alt="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" title="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>模擬器每次工作階段給一台全新的 Android，也可以指定一台已存檔的手機，讓 App 與登入狀態留著。雲端 iPhone 是配給帳號的真機，從任何作業系統透過 HTTPS 驅動。兩者都能在瀏覽器裡開一個即時檢視視窗，邊看代理操作邊介入。官網首頁用一組情境示意這種能力：代理代替使用者傳訊息給家人、叫一輛 Waymo、把洗髮精加進 Amazon 購物車，以及核准一次 GitHub 登入。</p>
+<h3>底層怎麼運作</h3>
+<p>主專案的技術路線分成四種：iPhone 走 macOS 的鏡像視窗，截圖後交給 Apple Vision 框架做文字辨識，再以 HID 層級的 CGEvent 送出觸控；Android 以 adb 為傳輸，截圖用 screencap，文字取自手機本身的無障礙樹，輸入交給 input 指令，USB 或 Wi-Fi 都能跑；雲端 Android 是同一條路搬到託管手機；雲端 iPhone 改走 HTTPS。四種裝置共用同一組 helper 函式，寫給 iPhone 的腳本能直接拿到 Android 上跑。</p>
+<h3><a href="https://github.com/phone-harness/mcp" target="_blank">Phone Harness MCP</a></h3>
+<h3>限制與資安考量</h3>
+<p>專案在 README 裡把極限寫得直白：</p>
+<ul>
+<li>解鎖實體手機會讓鏡像暫停，設定 PIN 碼的 Android 得靠使用者親自解鎖。</li>
+<li>OCR 只認文字不認圖示，沒有標籤的按鈕需要截圖加上能看圖的模型。</li>
+<li>不支援多點觸控、相機與 Face ID 流程，DRM 影片會呈現全黑。</li>
+<li>連接手機永遠是使用者自己的工作。</li>
+</ul>
+<h3>總結</h3>
+<p>Phone Harness MCP 讓代理操作手機的門檻，壓到只剩一個網址與一次登入。代價是每分鐘計費的模擬器、月租真機，以及必須自己把關的審批設定。想測試行動自動化流程的團隊，5 美元額度足夠跑完一輪驗證；要正式上線，得先想清楚誰有權按下那個「允許」。</p>
+<blockquote data-secret="vb4AuN03KK"><p><a href="https://www.kocpc.com.tw/archives/664727">免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone — 電腦王阿達" src="about:blank" data-secret="vb4AuN03KK" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/664727/embed#?secret=HQ7e4jmgLC#?secret=vb4AuN03KK"></iframe></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" target="_blank"><img src="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" /></a></p>
+<p>應該很多人都希望 AI 代理幫你操作手機，比如說比價、每日任務打卡、查資料、發訊息…，但一直無法實現。過去想做這件事得先過三道關卡：安裝命令列工具、配對裝置、處理系統權限。不過開源專案 phone-harness 近日推出官方 MCP 伺服器，把整條流程壓縮成一個網址。任何支援 MCP 的代理，包括 Claude、ChatGPT、Cursor、Codex、Hermes，只要貼上 <code>https://mcp.phone-harness.com/mcp</code> 並完成登入，就能讓AI 看見雲端真機的畫面，接著點擊、輸入、滑動，像使用者本人一樣操作。</p>
+<blockquote data-status="hidden">
+<p lang="en" dir="ltr">Introducing: Phone Harness MCP 🔌</p>
+<p>Any agent that supports MCP can now control a real iPhone or Android in the cloud:</p>
+<p>&gt; works in Claude, ChatGPT, Cursor, Codex, and more as a custom connector<br>
+&gt; nothing to install, just paste a URL and sign in<br>
+&gt; sees the screen, taps, types, and swipes like you do</p>
+<p>Available in phone-harness 0.3.3.</p>
+<p>https://t.co/88u1gSgvtS</p>
+<p>— shawn (@shawn_pana) <a href="https://x.com/shawn_pana/status/2117308255517249597?ref_src=twsrc%5Etfw">November 2, 2026</a></p></blockquote>
+<h3>它註冊了哪些工具</h3>
+<p>託管伺服器一共註冊 14 個工具，命名沿用行動自動化專案 mobile-mcp 的習慣，讓用過同類工具的代理不必重新學習。除了前兩個之外，每個工具都要帶一組裝置代號，該代號由 <code>phone_list_available_devices</code> 取得。</p>
+<ul>
+<li><strong>裝置生命週期</strong>：<code>phone_start_device</code> 啟動手機並等到就緒，<code>phone_stop_device</code> 結束工作階段，未存檔的內容會遺失，雲端 Android 的計費也在停止後結束。</li>
+<li><strong>讀取畫面</strong>：<code>phone_take_screenshot</code> 回傳 JPEG，並附上一行換算資訊，把圖片座標轉成螢幕座標；<code>phone_list_elements_on_screen</code> 列出畫面上看得見的文字與可點擊中心點。</li>
+<li><strong>操作輸入</strong>：點擊、長按、滑動、輸入文字，以及 HOME、BACK、APP_SWITCHER 等系統鍵。</li>
+<li><strong>App 管理</strong>：列出已安裝的 App，並以圖示名稱或套件代號開啟，也能查詢目前前景是哪個 App。</li>
+</ul>
+<p>說明文件裡標註了一件事，這組工具沒有開啟網址的功能。本機端的 stdio 版本另外提供 <code>phone_save_screenshot</code>，能把畫面存成檔案。</p>
+<h3>設定方式與客戶端限制</h3>
+<p>傳輸走 Streamable HTTP，登入用 OAuth，要求的權限範圍是 <code>phone:drive</code>，也可以改送 API 金鑰作為 bearer token。README 逐一列出 Claude、Cursor、ChatGPT、Codex、Claude Code、VS Code、Windsurf、Grok、Devin、Gemini CLI、GitHub Copilot、Perplexity、Warp、Raycast、Manus、Zed 與 OpenClaw 的設定步驟，多數只需一行指令或一段 JSON。ChatGPT 端有額外門檻：網頁版的自訂 MCP 伺服器只開放 Business、Enterprise 與 Edu 工作區，Pro 帳號能連的僅限讀取與抓取類工具，要真的驅動手機得用前者。</p>
+<h3>命令列版與 MCP 版的分工</h3>
+<p>兩個版本在 PyPI 上是各自獨立的套件。命令列版 phone-harness 目前是 0.3.3，涵蓋本機 iPhone 鏡像、本機 Android 與雲端裝置三條路線，其中，本機 iPhone 需要 macOS 15 以上、配對過的 iPhone 鏡像，並為執行代理的程式開啟輔助使用與螢幕錄製權限；本機 Android 則可在 Windows、macOS 或 Linux 上透過 adb 與 USB 或無線偵錯連接。MCP 版 phone-harness-mcp 是 0.1.0，只連雲端，官方說法是「不需配對、不需 adb、不需 Mac，任何作業系統都能用」。兩者共用同一組底層能力，差別在於誰來呼叫：命令列版讓代理自己寫腳本，MCP 版把動作拆成一次次工具呼叫。除了 MCP，主專案也提供代理外掛，Hermes Agent 與 OpenClaw 都有官方整合套件。</p>
+<p><video autoplay="autoplay" loop="loop" muted=""><span data-mce-type="bookmark">﻿</span><span data-mce-type="bookmark">﻿</span> 您的瀏覽器不支援影片播放。</video></p>
+<h3>Windows＋Android 本機實測：直接控制自己的手機</h3>
+<p>「只支援雲端」指的是本文介紹的 <code>phone-harness-mcp</code>，並非整個 Phone Harness 專案。另一個命令列套件 <code>phone-harness</code> 支援直接控制使用者自己的手機：Android 可在 Windows、macOS 或 Linux 上透過 ADB，以 USB 或無線偵錯連接；本機 iPhone 則需要 Mac 與 iPhone 鏡像功能。詳細需求可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/install.md" target="_blank">官方安裝說明</a>。</p>
+<p>我們實測使用 Windows 電腦，準備好 uv、ADB 與 Phone Harness，再將 Android 手機透過 USB 連接並授權偵錯，就能讓 AI Agent 開啟 X、瀏覽指定帳號的公開貼文。實際控制路徑是「AI Agent → Windows 上的 Phone Harness → ADB／USB → 自己的 Android 手機」，使用的是手機上既有的 App 與登入狀態，過程不需登入 Phone Harness Cloud，也沒有產生該服務的雲端手機租用費用。</p>
+<p>相較於貼上網址就能連接的雲端 MCP，本機模式需要自行準備工具、完成手機授權，並維持連線；手機鎖定後，也需要使用者親自解鎖才能繼續操作。Android 使用者可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/setup/android.md" target="_blank">官方 USB 與無線偵錯設定說明</a>。</p>
+<p>這裡的「本機模式」指手機控制程式在自己的電腦執行；AI 模型是否在本機運算，取決於使用的代理與模型，並不代表整套流程完全離線。自行使用的 AI 服務也可能另有訂閱或 API 費用。</p>
+<h3>雲端手機的價格與型態</h3>
+<p>MCP 版目前只支援雲端裝置，本機的 iPhone 鏡像與 adb 不在其中。雲端 Android 模擬器免費啟動，之後<a href="https://phone-harness.com/#pricing" target="_blank">每分鐘 0.05 美元</a>（約新台幣 1.63 元），新帳號附 5 美元額度（約新台幣 163 元）。雲端 iPhone 走月租制：原價每月 80 美元（約新台幣 2,607 元），年繳打八折為每月 64 美元（約新台幣 2,086 元）；加上 eSIM 則分別是 100 美元與 80 美元（約新台幣 3,259 元與 2,607 元）。官網強調真機不按分鐘計費，只有模擬器才這樣算。真機方案主打 App 會把操作視為真人、可收簡訊與 2FA 驗證碼、登入狀態跨次保留。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261105032815_0_0f16f6.jpg" alt="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" title="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>模擬器每次工作階段給一台全新的 Android，也可以指定一台已存檔的手機，讓 App 與登入狀態留著。雲端 iPhone 是配給帳號的真機，從任何作業系統透過 HTTPS 驅動。兩者都能在瀏覽器裡開一個即時檢視視窗，邊看代理操作邊介入。官網首頁用一組情境示意這種能力：代理代替使用者傳訊息給家人、叫一輛 Waymo、把洗髮精加進 Amazon 購物車，以及核准一次 GitHub 登入。</p>
+<h3>底層怎麼運作</h3>
+<p>主專案的技術路線分成四種：iPhone 走 macOS 的鏡像視窗，截圖後交給 Apple Vision 框架做文字辨識，再以 HID 層級的 CGEvent 送出觸控；Android 以 adb 為傳輸，截圖用 screencap，文字取自手機本身的無障礙樹，輸入交給 input 指令，USB 或 Wi-Fi 都能跑；雲端 Android 是同一條路搬到託管手機；雲端 iPhone 改走 HTTPS。四種裝置共用同一組 helper 函式，寫給 iPhone 的腳本能直接拿到 Android 上跑。</p>
+<h3><a href="https://github.com/phone-harness/mcp" target="_blank">Phone Harness MCP</a></h3>
+<h3>限制與資安考量</h3>
+<p>專案在 README 裡把極限寫得直白：</p>
+<ul>
+<li>解鎖實體手機會讓鏡像暫停，設定 PIN 碼的 Android 得靠使用者親自解鎖。</li>
+<li>OCR 只認文字不認圖示，沒有標籤的按鈕需要截圖加上能看圖的模型。</li>
+<li>不支援多點觸控、相機與 Face ID 流程，DRM 影片會呈現全黑。</li>
+<li>連接手機永遠是使用者自己的工作。</li>
+</ul>
+<h3>總結</h3>
+<p>Phone Harness MCP 讓代理操作手機的門檻，壓到只剩一個網址與一次登入。代價是每分鐘計費的模擬器、月租真機，以及必須自己把關的審批設定。想測試行動自動化流程的團隊，5 美元額度足夠跑完一輪驗證；要正式上線，得先想清楚誰有權按下那個「允許」。</p>
+<blockquote data-secret="vb4AuN03KK"><p><a href="https://www.kocpc.com.tw/archives/664727">免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone — 電腦王阿達" src="about:blank" data-secret="vb4AuN03KK" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/664727/embed#?secret=HQ7e4jmgLC#?secret=vb4AuN03KK"></iframe></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" target="_blank"><img src="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" /></a></p>
+<p>應該很多人都希望 AI 代理幫你操作手機，比如說比價、每日任務打卡、查資料、發訊息…，但一直無法實現。過去想做這件事得先過三道關卡：安裝命令列工具、配對裝置、處理系統權限。不過開源專案 phone-harness 近日推出官方 MCP 伺服器，把整條流程壓縮成一個網址。任何支援 MCP 的代理，包括 Claude、ChatGPT、Cursor、Codex、Hermes，只要貼上 <code>https://mcp.phone-harness.com/mcp</code> 並完成登入，就能讓AI 看見雲端真機的畫面，接著點擊、輸入、滑動，像使用者本人一樣操作。</p>
+<blockquote data-status="hidden">
+<p lang="en" dir="ltr">Introducing: Phone Harness MCP 🔌</p>
+<p>Any agent that supports MCP can now control a real iPhone or Android in the cloud:</p>
+<p>&gt; works in Claude, ChatGPT, Cursor, Codex, and more as a custom connector<br>
+&gt; nothing to install, just paste a URL and sign in<br>
+&gt; sees the screen, taps, types, and swipes like you do</p>
+<p>Available in phone-harness 0.3.3.</p>
+<p>https://t.co/88u1gSgvtS</p>
+<p>— shawn (@shawn_pana) <a href="https://x.com/shawn_pana/status/2117308255517249597?ref_src=twsrc%5Etfw">November 2, 2026</a></p></blockquote>
+<h3>它註冊了哪些工具</h3>
+<p>託管伺服器一共註冊 14 個工具，命名沿用行動自動化專案 mobile-mcp 的習慣，讓用過同類工具的代理不必重新學習。除了前兩個之外，每個工具都要帶一組裝置代號，該代號由 <code>phone_list_available_devices</code> 取得。</p>
+<ul>
+<li><strong>裝置生命週期</strong>：<code>phone_start_device</code> 啟動手機並等到就緒，<code>phone_stop_device</code> 結束工作階段，未存檔的內容會遺失，雲端 Android 的計費也在停止後結束。</li>
+<li><strong>讀取畫面</strong>：<code>phone_take_screenshot</code> 回傳 JPEG，並附上一行換算資訊，把圖片座標轉成螢幕座標；<code>phone_list_elements_on_screen</code> 列出畫面上看得見的文字與可點擊中心點。</li>
+<li><strong>操作輸入</strong>：點擊、長按、滑動、輸入文字，以及 HOME、BACK、APP_SWITCHER 等系統鍵。</li>
+<li><strong>App 管理</strong>：列出已安裝的 App，並以圖示名稱或套件代號開啟，也能查詢目前前景是哪個 App。</li>
+</ul>
+<p>說明文件裡標註了一件事，這組工具沒有開啟網址的功能。本機端的 stdio 版本另外提供 <code>phone_save_screenshot</code>，能把畫面存成檔案。</p>
+<h3>設定方式與客戶端限制</h3>
+<p>傳輸走 Streamable HTTP，登入用 OAuth，要求的權限範圍是 <code>phone:drive</code>，也可以改送 API 金鑰作為 bearer token。README 逐一列出 Claude、Cursor、ChatGPT、Codex、Claude Code、VS Code、Windsurf、Grok、Devin、Gemini CLI、GitHub Copilot、Perplexity、Warp、Raycast、Manus、Zed 與 OpenClaw 的設定步驟，多數只需一行指令或一段 JSON。ChatGPT 端有額外門檻：網頁版的自訂 MCP 伺服器只開放 Business、Enterprise 與 Edu 工作區，Pro 帳號能連的僅限讀取與抓取類工具，要真的驅動手機得用前者。</p>
+<h3>命令列版與 MCP 版的分工</h3>
+<p>兩個版本在 PyPI 上是各自獨立的套件。命令列版 phone-harness 目前是 0.3.3，涵蓋本機 iPhone 鏡像、本機 Android 與雲端裝置三條路線，其中，本機 iPhone 需要 macOS 15 以上、配對過的 iPhone 鏡像，並為執行代理的程式開啟輔助使用與螢幕錄製權限；本機 Android 則可在 Windows、macOS 或 Linux 上透過 adb 與 USB 或無線偵錯連接。MCP 版 phone-harness-mcp 是 0.1.0，只連雲端，官方說法是「不需配對、不需 adb、不需 Mac，任何作業系統都能用」。兩者共用同一組底層能力，差別在於誰來呼叫：命令列版讓代理自己寫腳本，MCP 版把動作拆成一次次工具呼叫。除了 MCP，主專案也提供代理外掛，Hermes Agent 與 OpenClaw 都有官方整合套件。</p>
+<p><video autoplay="autoplay" loop="loop" muted=""><span data-mce-type="bookmark">﻿</span><span data-mce-type="bookmark">﻿</span> 您的瀏覽器不支援影片播放。</video></p>
+<h3>Windows＋Android 本機實測：直接控制自己的手機</h3>
+<p>「只支援雲端」指的是本文介紹的 <code>phone-harness-mcp</code>，並非整個 Phone Harness 專案。另一個命令列套件 <code>phone-harness</code> 支援直接控制使用者自己的手機：Android 可在 Windows、macOS 或 Linux 上透過 ADB，以 USB 或無線偵錯連接；本機 iPhone 則需要 Mac 與 iPhone 鏡像功能。詳細需求可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/install.md" target="_blank">官方安裝說明</a>。</p>
+<p>我們實測使用 Windows 電腦，準備好 uv、ADB 與 Phone Harness，再將 Android 手機透過 USB 連接並授權偵錯，就能讓 AI Agent 開啟 X、瀏覽指定帳號的公開貼文。實際控制路徑是「AI Agent → Windows 上的 Phone Harness → ADB／USB → 自己的 Android 手機」，使用的是手機上既有的 App 與登入狀態，過程不需登入 Phone Harness Cloud，也沒有產生該服務的雲端手機租用費用。</p>
+<p>相較於貼上網址就能連接的雲端 MCP，本機模式需要自行準備工具、完成手機授權，並維持連線；手機鎖定後，也需要使用者親自解鎖才能繼續操作。Android 使用者可參考<a href="https://github.com/phone-harness/phone-harness/blob/main/setup/android.md" target="_blank">官方 USB 與無線偵錯設定說明</a>。</p>
+<p>這裡的「本機模式」指手機控制程式在自己的電腦執行；AI 模型是否在本機運算，取決於使用的代理與模型，並不代表整套流程完全離線。自行使用的 AI 服務也可能另有訂閱或 API 費用。</p>
+<h3>雲端手機的價格與型態</h3>
+<p>MCP 版目前只支援雲端裝置，本機的 iPhone 鏡像與 adb 不在其中。雲端 Android 模擬器免費啟動，之後<a href="https://phone-harness.com/#pricing" target="_blank">每分鐘 0.05 美元</a>（約新台幣 1.63 元），新帳號附 5 美元額度（約新台幣 163 元）。雲端 iPhone 走月租制：原價每月 80 美元（約新台幣 2,607 元），年繳打八折為每月 64 美元（約新台幣 2,086 元）；加上 eSIM 則分別是 100 美元與 80 美元（約新台幣 3,259 元與 2,607 元）。官網強調真機不按分鐘計費，只有模擬器才這樣算。真機方案主打 App 會把操作視為真人、可收簡訊與 2FA 驗證碼、登入狀態跨次保留。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261105032815_0_0f16f6.jpg" alt="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" title="一個網址就能遙控手機：Phone Harness MCP 讓 AI Agent 直接操作雲端 iPhone - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>模擬器每次工作階段給一台全新的 Android，也可以指定一台已存檔的手機，讓 App 與登入狀態留著。雲端 iPhone 是配給帳號的真機，從任何作業系統透過 HTTPS 驅動。兩者都能在瀏覽器裡開一個即時檢視視窗，邊看代理操作邊介入。官網首頁用一組情境示意這種能力：代理代替使用者傳訊息給家人、叫一輛 Waymo、把洗髮精加進 Amazon 購物車，以及核准一次 GitHub 登入。</p>
+<h3>底層怎麼運作</h3>
+<p>主專案的技術路線分成四種：iPhone 走 macOS 的鏡像視窗，截圖後交給 Apple Vision 框架做文字辨識，再以 HID 層級的 CGEvent 送出觸控；Android 以 adb 為傳輸，截圖用 screencap，文字取自手機本身的無障礙樹，輸入交給 input 指令，USB 或 Wi-Fi 都能跑；雲端 Android 是同一條路搬到託管手機；雲端 iPhone 改走 HTTPS。四種裝置共用同一組 helper 函式，寫給 iPhone 的腳本能直接拿到 Android 上跑。</p>
+<h3><a href="https://github.com/phone-harness/mcp" target="_blank">Phone Harness MCP</a></h3>
+<h3>限制與資安考量</h3>
+<p>專案在 README 裡把極限寫得直白：</p>
+<ul>
+<li>解鎖實體手機會讓鏡像暫停，設定 PIN 碼的 Android 得靠使用者親自解鎖。</li>
+<li>OCR 只認文字不認圖示，沒有標籤的按鈕需要截圖加上能看圖的模型。</li>
+<li>不支援多點觸控、相機與 Face ID 流程，DRM 影片會呈現全黑。</li>
+<li>連接手機永遠是使用者自己的工作。</li>
+</ul>
+<h3>總結</h3>
+<p>Phone Harness MCP 讓代理操作手機的門檻，壓到只剩一個網址與一次登入。代價是每分鐘計費的模擬器、月租真機，以及必須自己把關的審批設定。想測試行動自動化流程的團隊，5 美元額度足夠跑完一輪驗證；要正式上線，得先想清楚誰有權按下那個「允許」。</p>
+<blockquote data-secret="vb4AuN03KK"><p><a href="https://www.kocpc.com.tw/archives/664727">免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="免越獄、免 Xcode！開源 phone-harness 讓 AI 代理直接「動手」操控你的 iPhone — 電腦王阿達" src="about:blank" data-secret="vb4AuN03KK" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/664727/embed#?secret=HQ7e4jmgLC#?secret=vb4AuN03KK"></iframe></p>]]></content:encoded>
+    <itunes:image href="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4"/>
+          <media:content url="https://phone-harness.com/brand/demo/waymo-demo-1280.mp4" medium="image"/>
+    <pubDate>Wed, 04 Nov 2026 19:51:19 +0000</pubDate>
+  </item><item>
     <title><![CDATA[enerpad UFO 極速系列 GLA-10000 固態磁吸行動電源推出「櫻桃紅、石墨黑」雙新色!]]></title>
     <link>https://www.kocpc.com.tw/archives/701985</link>
     <itunes:title><![CDATA[enerpad UFO 極速系列 GLA-10000 固態磁吸行動電源推出「櫻桃紅、石墨黑」雙新色!]]></itunes:title>
@@ -1361,68 +1520,5 @@
     <itunes:image href="https://www.youtube.com/embed/Pbz6qtKGrjs"/>
           <media:content url="https://www.youtube.com/embed/Pbz6qtKGrjs" medium="image"/>
     <pubDate>Wed, 04 Nov 2026 01:52:03 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載]]></title>
-    <link>https://www.kocpc.com.tw/archives/701910</link>
-    <itunes:title><![CDATA[Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>近期不少 Pixel Watch 用戶陸續反映智慧手錶出現異常耗電情況，原本可維持一天以上甚至接近兩天的續航力，卻突然大幅縮水至半天左右，引起社群熱烈討論。面對用戶的抱怨與疑慮，Google 上週正式承認問題存在，並表示正在尋找解決方案。如今官方已兌現承諾，開始向受影響的 Pixel Watch 裝置推送修復更新，希望盡快恢復正常的電池表現。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819160038_0_ec4032.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<h2>Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載</h2>
-<p>Google 在提供給媒體的聲明中指出，針對部分 Pixel Watch 用戶遭遇的電池異常消耗問題，修正程式已經開始分階段釋出，預計未來數天內完成全面推送。受到影響的用戶無須等待新的 Wear OS 系統版本，只需更新手錶上的相關應用程式即可獲得修復。</p>
-<p>官方建議用戶按下 Pixel Watch 表冠後進入 Play 商店，前往「管理應用程式」頁面，並選擇更新所有可更新的應用程式。完成更新後，Google 也建議重新啟動裝置，以確保修復內容能夠正確生效。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819164306_0_260c7d.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>值得注意的是，這次的修正並非透過 Wear OS 系統更新推送，而是以應用程式更新的方式完成。這也意味著導致耗電異常的根本原因，很可能來自某個預載的系統應用程式或背景服務，而非作業系統本身的核心問題。雖然 Google 尚未進一步說明是哪個應用程式出現漏洞，也沒有公開技術細節，但從修復方式來看，問題來源應該已經被鎖定。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109155530_0_2e91e5.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p><div></div>
-<p>由於修復更新採取逐步推送策略，因此部分用戶可能無法立即看到更新通知。如果進入 Play 商店後沒有發現待更新項目，也不代表裝置正常無誤，而是更新可能尚未推送到該裝置。Google 建議用戶耐心等待，並於未來幾天再次檢查是否有新的應用程式版本可供安裝。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109125614_0_777cc8.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>根據用戶回報，這次受影響範圍並不限於單一型號，從 Pixel Watch 2 到最新的 Pixel Watch 5，幾乎所有目前仍獲官方支援的 Pixel Watch 系列產品都有案例傳出。部分裝置原本一次充電可使用接近兩天，但在問題出現後，續航時間卻驟降至僅剩 12 至 16 小時，對仰賴全天候佩戴手錶追蹤健康數據、接收通知與記錄運動的用戶造成不小困擾。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114552_0_4d603d.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>Google 強調，這項異常耗電問題僅影響少部分使用者，而非所有 Pixel Watch 都會出現相同狀況。不過對於實際受影響的用戶而言，體驗落差相當明顯。有使用者表示，自己的 Pixel Watch 4 過去在充滿電後通常能維持約一天半的使用時間，但近期電量消耗速度明顯異常，即使使用習慣沒有改變，也常常無法撐過 12 個小時。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114701_0_b7d0f8.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>在 Google 正式承認問題之前，不少用戶一度懷疑是電池老化或健康度下降所導致。然而，續航能力在短時間內出現如此劇烈的衰退並不符合正常情況，因此當官方證實存在系統漏洞後，也讓許多用戶鬆了一口氣。這不僅代表硬體本身並未損壞，也意味著問題有機會透過軟體更新獲得徹底解決。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109130620_0_d6b06d.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>隨著修復程式陸續推送，外界也期待 Pixel Watch 系列能夠盡快恢復原有續航表現。如果更新順利發揮作用，多數受影響的用戶應能重新獲得一天以上的電池續航能力，讓 Pixel Watch 回到原本穩定可靠的使用體驗。對於近期飽受耗電問題困擾的使用者而言，這次更新無疑是一項值得期待的好消息。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>近期不少 Pixel Watch 用戶陸續反映智慧手錶出現異常耗電情況，原本可維持一天以上甚至接近兩天的續航力，卻突然大幅縮水至半天左右，引起社群熱烈討論。面對用戶的抱怨與疑慮，Google 上週正式承認問題存在，並表示正在尋找解決方案。如今官方已兌現承諾，開始向受影響的 Pixel Watch 裝置推送修復更新，希望盡快恢復正常的電池表現。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819160038_0_ec4032.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<h2>Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載</h2>
-<p>Google 在提供給媒體的聲明中指出，針對部分 Pixel Watch 用戶遭遇的電池異常消耗問題，修正程式已經開始分階段釋出，預計未來數天內完成全面推送。受到影響的用戶無須等待新的 Wear OS 系統版本，只需更新手錶上的相關應用程式即可獲得修復。</p>
-<p>官方建議用戶按下 Pixel Watch 表冠後進入 Play 商店，前往「管理應用程式」頁面，並選擇更新所有可更新的應用程式。完成更新後，Google 也建議重新啟動裝置，以確保修復內容能夠正確生效。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819164306_0_260c7d.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>值得注意的是，這次的修正並非透過 Wear OS 系統更新推送，而是以應用程式更新的方式完成。這也意味著導致耗電異常的根本原因，很可能來自某個預載的系統應用程式或背景服務，而非作業系統本身的核心問題。雖然 Google 尚未進一步說明是哪個應用程式出現漏洞，也沒有公開技術細節，但從修復方式來看，問題來源應該已經被鎖定。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109155530_0_2e91e5.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p><div></div>
-<p>由於修復更新採取逐步推送策略，因此部分用戶可能無法立即看到更新通知。如果進入 Play 商店後沒有發現待更新項目，也不代表裝置正常無誤，而是更新可能尚未推送到該裝置。Google 建議用戶耐心等待，並於未來幾天再次檢查是否有新的應用程式版本可供安裝。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109125614_0_777cc8.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>根據用戶回報，這次受影響範圍並不限於單一型號，從 Pixel Watch 2 到最新的 Pixel Watch 5，幾乎所有目前仍獲官方支援的 Pixel Watch 系列產品都有案例傳出。部分裝置原本一次充電可使用接近兩天，但在問題出現後，續航時間卻驟降至僅剩 12 至 16 小時，對仰賴全天候佩戴手錶追蹤健康數據、接收通知與記錄運動的用戶造成不小困擾。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114552_0_4d603d.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>Google 強調，這項異常耗電問題僅影響少部分使用者，而非所有 Pixel Watch 都會出現相同狀況。不過對於實際受影響的用戶而言，體驗落差相當明顯。有使用者表示，自己的 Pixel Watch 4 過去在充滿電後通常能維持約一天半的使用時間，但近期電量消耗速度明顯異常，即使使用習慣沒有改變，也常常無法撐過 12 個小時。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114701_0_b7d0f8.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>在 Google 正式承認問題之前，不少用戶一度懷疑是電池老化或健康度下降所導致。然而，續航能力在短時間內出現如此劇烈的衰退並不符合正常情況，因此當官方證實存在系統漏洞後，也讓許多用戶鬆了一口氣。這不僅代表硬體本身並未損壞，也意味著問題有機會透過軟體更新獲得徹底解決。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109130620_0_d6b06d.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>隨著修復程式陸續推送，外界也期待 Pixel Watch 系列能夠盡快恢復原有續航表現。如果更新順利發揮作用，多數受影響的用戶應能重新獲得一天以上的電池續航能力，讓 Pixel Watch 回到原本穩定可靠的使用體驗。對於近期飽受耗電問題困擾的使用者而言，這次更新無疑是一項值得期待的好消息。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>近期不少 Pixel Watch 用戶陸續反映智慧手錶出現異常耗電情況，原本可維持一天以上甚至接近兩天的續航力，卻突然大幅縮水至半天左右，引起社群熱烈討論。面對用戶的抱怨與疑慮，Google 上週正式承認問題存在，並表示正在尋找解決方案。如今官方已兌現承諾，開始向受影響的 Pixel Watch 裝置推送修復更新，希望盡快恢復正常的電池表現。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819160038_0_ec4032.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<h2>Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載</h2>
-<p>Google 在提供給媒體的聲明中指出，針對部分 Pixel Watch 用戶遭遇的電池異常消耗問題，修正程式已經開始分階段釋出，預計未來數天內完成全面推送。受到影響的用戶無須等待新的 Wear OS 系統版本，只需更新手錶上的相關應用程式即可獲得修復。</p>
-<p>官方建議用戶按下 Pixel Watch 表冠後進入 Play 商店，前往「管理應用程式」頁面，並選擇更新所有可更新的應用程式。完成更新後，Google 也建議重新啟動裝置，以確保修復內容能夠正確生效。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819164306_0_260c7d.jpg" alt="Google Pixel Watch 5 開箱實測：智慧體驗，健康有感 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>值得注意的是，這次的修正並非透過 Wear OS 系統更新推送，而是以應用程式更新的方式完成。這也意味著導致耗電異常的根本原因，很可能來自某個預載的系統應用程式或背景服務，而非作業系統本身的核心問題。雖然 Google 尚未進一步說明是哪個應用程式出現漏洞，也沒有公開技術細節，但從修復方式來看，問題來源應該已經被鎖定。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109155530_0_2e91e5.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p><div></div>
-<p>由於修復更新採取逐步推送策略，因此部分用戶可能無法立即看到更新通知。如果進入 Play 商店後沒有發現待更新項目，也不代表裝置正常無誤，而是更新可能尚未推送到該裝置。Google 建議用戶耐心等待，並於未來幾天再次檢查是否有新的應用程式版本可供安裝。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109125614_0_777cc8.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>根據用戶回報，這次受影響範圍並不限於單一型號，從 Pixel Watch 2 到最新的 Pixel Watch 5，幾乎所有目前仍獲官方支援的 Pixel Watch 系列產品都有案例傳出。部分裝置原本一次充電可使用接近兩天，但在問題出現後，續航時間卻驟降至僅剩 12 至 16 小時，對仰賴全天候佩戴手錶追蹤健康數據、接收通知與記錄運動的用戶造成不小困擾。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114552_0_4d603d.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>Google 強調，這項異常耗電問題僅影響少部分使用者，而非所有 Pixel Watch 都會出現相同狀況。不過對於實際受影響的用戶而言，體驗落差相當明顯。有使用者表示，自己的 Pixel Watch 4 過去在充滿電後通常能維持約一天半的使用時間，但近期電量消耗速度明顯異常，即使使用習慣沒有改變，也常常無法撐過 12 個小時。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/07/20260724114701_0_b7d0f8.jpg" alt="Pixel Watch 5 規格洩露，晶片不變但記憶體更大 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>在 Google 正式承認問題之前，不少用戶一度懷疑是電池老化或健康度下降所導致。然而，續航能力在短時間內出現如此劇烈的衰退並不符合正常情況，因此當官方證實存在系統漏洞後，也讓許多用戶鬆了一口氣。這不僅代表硬體本身並未損壞，也意味著問題有機會透過軟體更新獲得徹底解決。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2025/11/20251109130620_0_d6b06d.jpg" alt="Google Pixel Watch 4 實測：簡約漂亮的生活助理 - 電腦王阿達" title="Google 釋出 Pixel Watch 電池修復程式，在 Play 商店中可下載 - 電腦王阿達"></p>
-<p>隨著修復程式陸續推送，外界也期待 Pixel Watch 系列能夠盡快恢復原有續航表現。如果更新順利發揮作用，多數受影響的用戶應能重新獲得一天以上的電池續航能力，讓 Pixel Watch 回到原本穩定可靠的使用體驗。對於近期飽受耗電問題困擾的使用者而言，這次更新無疑是一項值得期待的好消息。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819160038_0_ec4032.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260819160038_0_ec4032.jpg" medium="image"/>
-    <pubDate>Wed, 04 Nov 2026 01:25:46 +0000</pubDate>
   </item></channel>
 </rss>
