@@ -30,6 +30,573 @@
     </itunes:owner>
     <itunes:image href="https://blogger.googleusercontent.com/img/a/AVvXsEh8KyFU8q9VBYbldI_qsuqPS4uFb3dbmQQR4LmjV8hbz9I1zHeSoVc2KStLIDD45r4iEsw5jO_rEOg33zvOOqcaAJ_Q3UKKE_p0Nl2dQIswqzPZug5Pt9duk5kzGbZGMHJq5xl0VzWMTBdqyPYfeLXMSJNIjrnTzklW7-KgS9gxuAT71FPGayV2_A"/>
 <item>
+    <title><![CDATA[超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測]]></title>
+    <link>https://www.kocpc.com.tw/archives/702394</link>
+    <itunes:title><![CDATA[超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/Nini5RAja4A" target="_blank"><img src="https://www.youtube.com/embed/Nini5RAja4A" /></a></p>
+<p>之前我們介紹過<a href="https://www.kocpc.com.tw/archives/670501">透過 Codex 呼叫 Google Colab，使用 MiniMax H3 生成影片的方法</a>。這次阿達換了一套不同作者的開源工具：<strong>dseditor (也是知名的 AI 老師「松音」)開源的 H3 多模態生成 Skill</strong>。它把生圖、圖片編輯、影片生成、影片延伸與 TTS 配音整合成工作流程，讓 AI 處理開機、上傳、推論、下載和關機。這篇除了整理安裝方式，也實際做一組「原創角色圖 → 換場景 → 角色影片」的連續案例，看看它能做到哪裡、要等多久，以及額度怎麼算。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107034137_0_a7561b.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h2>讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill</h2>
+<p>先釐清一點：這個 Skill 是讓 Agent 自動操作 Google Colab GPU 來用 MiniMax H2 製作影片的工具與流程，不是用 Google 直接提供的影片生成服務。真正的生成在你自己訂閱的 AI Pro 方案免費給的點數在 Colab GPU 上執行。可透過目前各種主流 AI Agent，如 Codex、Claude Code、Antigravity 或 Hermes，本範例由 Codex 操作；本機電腦負責準備素材、送工作和接收成品。比之前那個教學流程更加的簡單，只要貼上命令，一路授權就完成了，而且不只能生成影片、圖片、配音、延伸都可以。</p>
+<p><iframe src="about:blank" frameborder="0" scrolling="no" allowfullscreen="allowfullscreen" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.facebook.com/plugins/post.php?href=https%3A%2F%2Fwww.facebook.com%2Fdseditorlab%2Fposts%2Fpfbid0YKvNcYkXvG6fH4eASUN2GCGFKbNttcCTksQurSawpEdNwJRmpmtU4h1XSBNswzdrl&amp;show_text=true&amp;width=500"></iframe></p>
+<figcaption></figcaption>
+<h3>跟上一篇教學有什麼不同？這是另一套 Skill</h3>
+<p>兩個專案都借用 Google Colab GPU 運算，完成後把 MP4 下載回本機。上一篇介紹的是 <code>killkli/minimax-h3-colab-skill</code>，以 H3 參考影片流程為主；這次是 <code>dseditor/h3-colab-skill</code>，安裝後的技能名稱為 <code>h3-multimodal-colab</code>，功能更多使用更簡單。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>上一篇介紹的工具</th>
+<th>本篇使用的工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>專案</td>
+<td>killkli/minimax-h3-colab-skill</td>
+<td>dseditor/h3-colab-skill</td>
+</tr>
+<tr>
+<td>主要操作範圍</td>
+<td>角色參考影片；目前文件也列有首幀模式</td>
+<td>生圖、改圖、影片、延伸、TTS</td>
+</tr>
+<tr>
+<td>執行方式</td>
+<td>runner 執行隨附的 Colab 推論 Notebook</td>
+<td>runner 在 Colab 部署 ComfyUI 與 H3 Toybox，再提交生成工作</td>
+</tr>
+<tr>
+<td>GPU 選擇</td>
+<td>Shell 啟動器預設 A100 高記憶體，可調整</td>
+<td>預設 L4，也可依需求選其他支援的 GPU</td>
+</tr>
+</tbody>
+</table>
+<p>本篇文章所生成的影片均使用 <strong>L4／PRISM INT8／8 步&nbsp;</strong>組合；圖片則走這個專案提供的 P-H3-Image 路線。</p>
+<h3><strong><a href="https://github.com/dseditor/h3-colab-skill" target="_blank">松音 H3 多模態生成 Skill（請去按小星星）</a></strong></h3>
+<h3>需要準備什麼？先確認有額度的 Google 帳號</h3>
+<p>準備一個能在本機操作指令、安裝技能的 AI 工具，以及可使用 Colab GPU 的 Google 帳號。本篇使用 Windows 上的 Codex 與既有 WSL 環境；專案也提供 Windows、macOS、Linux 的安裝方式。本機並不需要先裝 H3 模型或也不需要你安裝高階顯示卡，所有的模型權重都下載到 Colab 的暫存環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022232_0_bb9f6f.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 985px) 100vw, 985px"></p>
+<p><strong>要注意的是就算你有 Google AI 會員，不等於目前登入的每個帳號都有 Colab 運算單元。</strong>Google <a href="https://support.google.com/googleone/answer/14534406?hl=zh-Hant" target="_blank">官方的 AI Pro 說明</a>把 Colab 福利列為「<strong>只有</strong>」家庭方案管理員可用，家庭帳號會顯示 0 CU 可調用，所以你的 AI Pro 如果是跟別人共享的就可能無法使用。</p>
+<h2>安裝方式：把這段話貼給 Codex</h2>
+<p>開啟能操作本機的 AI Agent，這邊以 Codex&nbsp;為例，貼上以下內容。安裝前讓它說明會下載什麼、在哪裡執行，以及 Google 授權的用途：</p>
+<blockquote>
+<p>請照 https://github.com/dseditor/h3-colab-skill/blob/main/INSTALL_FOR_AGENTS.md 幫我安裝 h3-multimodal-colab 這個 skill：開始之前先跟我說明它會做什麼、要什麼訂閱、何時要登入，我同意後再安裝。我要優先使用 Google Colab，先以 L4 測試；也要使用生圖功能。</p>
+</blockquote>
+<p>專案安裝流程會準備技能、Python 與 Google Colab CLI。官方安裝文件目前指定已驗證的 CLI 0.7.4；如果日後版本有變動，請讓 AI 依文件核對相容性安裝，原則上都是自動完成。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025643_0_9bbac7.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 987px) 100vw, 987px"></p>
+<h3>Google 授權由你本人完成</h3>
+<p>第一次使用時，AI 會提供 Google 授權網址。請核對網址與要登入的帳號，自己完成密碼、二階段驗證和權限確認，再依工具流程完成授權。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030147_0_c86f64.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 963px) 100vw, 963px"></p>
+<p>完成後，將下方的 Token 金鑰交給 AI&nbsp;助理就完成設定了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030730_0_50a465.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達"></p>
+<p>可以請 AI 執行下面的檢查，回報帳號是否正確、剩多少 CU，以及有沒有還在運作的 GPU（非必要）。若你也有多個 Google 帳號，請它把正確帳號與使用的登入環境記進自己的 SKILL，往後每次檢查和生成都沿用同一套環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030901_0_add4c5.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 986px) 100vw, 986px"></p>
+<h2>能力測試</h2>
+<h3>實測案例一：從文字生成圖片</h3>
+<p>首先測試文生圖功能，不用現成的知名角色，我選擇做一隻橘色配送機器人（可自行設定，以下僅為示範）：深青色螢幕臉、兩個白色圓眼、三指機械手、橡膠腳，以及一個棕色斜背配送包。先讓外觀有幾個容易辨識的重點，下一階段才能檢查它是否維持同一個角色。</p>
+<blockquote>
+<p>提示詞：用雲端 H3 生圖功能，生成一隻原創橘色配送機器人，深青色螢幕臉、兩個白色圓眼、三指機械手、棕色斜背包。暖白攝影棚背景，完整角色入鏡，精緻 3D 動畫風格，16:9、2K，不要文字、Logo 或浮水印。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025255_0_2d7471.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px">
+<h3>實測案例二：保留角色，設定指定場景（圖生圖）</h3>
+<p>接下來直接把上一張結果當圖片編輯的輸入，要求保留機器人幾何、配色、眼睛與包包，把背景換成台北藍調時刻的雨後街道。這裡比單純換一張新圖更有意義：要看角色能否在換背景後仍被辨識，而不是只看單張漂亮不漂亮。</p>
+<blockquote>
+<p>提示詞：以上一張機器人為角色參考，保留外形、橘色機身、青色螢幕、眼睛與棕色包包。換到台北雨後的行人街道，旁邊是暖光咖啡店櫥窗，地面有濕潤反光，角色完整入鏡，16:9、2K。不要可讀招牌文字。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025847_0_e0ba24.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br><figcaption>案例二：以上一張圖當輸入，改變場景、光線與姿勢。</figcaption><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>實測案例三：兩張參考圖接著生成 8 秒影片（圖生影片）</h3>
+<p>第三步把將剛剛的攝影棚角色圖與雨夜場景圖一起給 AI 並輸入提示詞。</p>
+<blockquote>
+<p>提示詞：使用這兩張圖製作 8 秒、16:9、720P 級影片。第一張鎖定機器人的外觀，第二張提供雨夜咖啡店場景。機器人向暖光走一小步，轉向鏡頭揮手兩次，再放下手。保留包包與配色，鏡頭緩慢靠近，搭配細雨、機械關節聲與輕柔配樂，不要台詞和字幕。使用 Colab L4，完成後下載並關閉本次 GPU。</p>
+</blockquote>
+<p>送出後，Agent 會把需求整理為 H3 的英文提示詞，補齊參考角色、場景、時間順序、環境音與配樂，AI 會使用 MiniMax H3 自動處理到完成並交付成果：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p"></div></div>
+<h3>同場加映：真人風格舞蹈影片（圖生影片）</h3>
+<div>
+<p>我給 AI 一個角色圖片，叫它製作一段 15&nbsp;秒的跳舞影片，還原度很不錯：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p（圖生影片）"></div></div>
+</div>
+<h2>到底等多久、花多少 CU？把生成時間與整批時間分開看</h2>
+<p>接下來分享一下使用的 CU&nbsp;（<strong>Compute Units；運算單元：</strong>可以理解成 Google Colab 的「運算點數」）與使用時間。裡面還包含啟動、安裝、模型下載、素材傳送與收檔。額度差額為開始與關機後顯示值相減，帶有顯示四捨五入，不能精算成每秒費率。</p>
+<table>
+<thead>
+<tr>
+<th>測試</th>
+<th>單項生成耗時</th>
+<th>整批／額度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇角色文生圖，2K</td>
+<td>112.5 秒</td>
+<td rowspan="3">本篇三項共用一台 L4，整批與 CU 見下方實測紀錄</td>
+</tr>
+<tr>
+<td>本篇參考圖改場景，2K</td>
+<td>48.2 秒</td>
+</tr>
+<tr>
+<td>本篇角色影片，8 秒、720P 級</td>
+<td>380.8 秒</td>
+</tr>
+<tr>
+<td>先前舞蹈，10 秒、直式720P級</td>
+<td>456.9 秒（約7分37秒）</td>
+<td>整批約12分鐘／約0.29 CU</td>
+</tr>
+<tr>
+<td>先前小幅舞蹈，15 秒、直式720P級</td>
+<td>729.3 秒（約12分9秒）</td>
+<td>整批約16.4分鐘／約0.43 CU</td>
+</tr>
+</tbody>
+</table>
+<h2>小結</h2>
+<p><code>dseditor/h3-colab-skill</code>專案還提供獨立 TTS、參考音色與影片延伸等功能，也支持接本機 ComfyUI Desktop。本篇聚焦在新增實測生圖、改圖與參考影片，有興趣的朋友可以自己跟 AI Agent 一起做看看。如果你的目標是短片提案、角色設計或小段社群素材，這種交給 AI 管理 Colab 的方式很方便，而且不用花大錢買硬體就能生圖生影片。不過前提是你要有 AI Pro 會員，我個人是覺得很值得買啦，因為還有 YouTube 無廣告、AntiGravity 額度、Google Drive 雲端空間、更多的 Gemini 使用額度…都是多給的福利，雖然 Google 目前 AI 模型普遍被戲稱為「可愛龍」，但一般人使用還是夠用的，快點試試看吧！</p>
+<blockquote data-secret="Ph0GhRfj5o"><p><a href="https://www.kocpc.com.tw/archives/670501">Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片 — 電腦王阿達" src="about:blank" data-secret="Ph0GhRfj5o" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670501/embed#?secret=XYyIykKP7E#?secret=Ph0GhRfj5o"></iframe></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/Nini5RAja4A" target="_blank"><img src="https://www.youtube.com/embed/Nini5RAja4A" /></a></p>
+<p>之前我們介紹過<a href="https://www.kocpc.com.tw/archives/670501">透過 Codex 呼叫 Google Colab，使用 MiniMax H3 生成影片的方法</a>。這次阿達換了一套不同作者的開源工具：<strong>dseditor (也是知名的 AI 老師「松音」)開源的 H3 多模態生成 Skill</strong>。它把生圖、圖片編輯、影片生成、影片延伸與 TTS 配音整合成工作流程，讓 AI 處理開機、上傳、推論、下載和關機。這篇除了整理安裝方式，也實際做一組「原創角色圖 → 換場景 → 角色影片」的連續案例，看看它能做到哪裡、要等多久，以及額度怎麼算。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107034137_0_a7561b.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h2>讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill</h2>
+<p>先釐清一點：這個 Skill 是讓 Agent 自動操作 Google Colab GPU 來用 MiniMax H2 製作影片的工具與流程，不是用 Google 直接提供的影片生成服務。真正的生成在你自己訂閱的 AI Pro 方案免費給的點數在 Colab GPU 上執行。可透過目前各種主流 AI Agent，如 Codex、Claude Code、Antigravity 或 Hermes，本範例由 Codex 操作；本機電腦負責準備素材、送工作和接收成品。比之前那個教學流程更加的簡單，只要貼上命令，一路授權就完成了，而且不只能生成影片、圖片、配音、延伸都可以。</p>
+<p><iframe src="about:blank" frameborder="0" scrolling="no" allowfullscreen="allowfullscreen" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.facebook.com/plugins/post.php?href=https%3A%2F%2Fwww.facebook.com%2Fdseditorlab%2Fposts%2Fpfbid0YKvNcYkXvG6fH4eASUN2GCGFKbNttcCTksQurSawpEdNwJRmpmtU4h1XSBNswzdrl&amp;show_text=true&amp;width=500"></iframe></p>
+<figcaption></figcaption>
+<h3>跟上一篇教學有什麼不同？這是另一套 Skill</h3>
+<p>兩個專案都借用 Google Colab GPU 運算，完成後把 MP4 下載回本機。上一篇介紹的是 <code>killkli/minimax-h3-colab-skill</code>，以 H3 參考影片流程為主；這次是 <code>dseditor/h3-colab-skill</code>，安裝後的技能名稱為 <code>h3-multimodal-colab</code>，功能更多使用更簡單。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>上一篇介紹的工具</th>
+<th>本篇使用的工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>專案</td>
+<td>killkli/minimax-h3-colab-skill</td>
+<td>dseditor/h3-colab-skill</td>
+</tr>
+<tr>
+<td>主要操作範圍</td>
+<td>角色參考影片；目前文件也列有首幀模式</td>
+<td>生圖、改圖、影片、延伸、TTS</td>
+</tr>
+<tr>
+<td>執行方式</td>
+<td>runner 執行隨附的 Colab 推論 Notebook</td>
+<td>runner 在 Colab 部署 ComfyUI 與 H3 Toybox，再提交生成工作</td>
+</tr>
+<tr>
+<td>GPU 選擇</td>
+<td>Shell 啟動器預設 A100 高記憶體，可調整</td>
+<td>預設 L4，也可依需求選其他支援的 GPU</td>
+</tr>
+</tbody>
+</table>
+<p>本篇文章所生成的影片均使用 <strong>L4／PRISM INT8／8 步&nbsp;</strong>組合；圖片則走這個專案提供的 P-H3-Image 路線。</p>
+<h3><strong><a href="https://github.com/dseditor/h3-colab-skill" target="_blank">松音 H3 多模態生成 Skill（請去按小星星）</a></strong></h3>
+<h3>需要準備什麼？先確認有額度的 Google 帳號</h3>
+<p>準備一個能在本機操作指令、安裝技能的 AI 工具，以及可使用 Colab GPU 的 Google 帳號。本篇使用 Windows 上的 Codex 與既有 WSL 環境；專案也提供 Windows、macOS、Linux 的安裝方式。本機並不需要先裝 H3 模型或也不需要你安裝高階顯示卡，所有的模型權重都下載到 Colab 的暫存環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022232_0_bb9f6f.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 985px) 100vw, 985px"></p>
+<p><strong>要注意的是就算你有 Google AI 會員，不等於目前登入的每個帳號都有 Colab 運算單元。</strong>Google <a href="https://support.google.com/googleone/answer/14534406?hl=zh-Hant" target="_blank">官方的 AI Pro 說明</a>把 Colab 福利列為「<strong>只有</strong>」家庭方案管理員可用，家庭帳號會顯示 0 CU 可調用，所以你的 AI Pro 如果是跟別人共享的就可能無法使用。</p>
+<h2>安裝方式：把這段話貼給 Codex</h2>
+<p>開啟能操作本機的 AI Agent，這邊以 Codex&nbsp;為例，貼上以下內容。安裝前讓它說明會下載什麼、在哪裡執行，以及 Google 授權的用途：</p>
+<blockquote>
+<p>請照 https://github.com/dseditor/h3-colab-skill/blob/main/INSTALL_FOR_AGENTS.md 幫我安裝 h3-multimodal-colab 這個 skill：開始之前先跟我說明它會做什麼、要什麼訂閱、何時要登入，我同意後再安裝。我要優先使用 Google Colab，先以 L4 測試；也要使用生圖功能。</p>
+</blockquote>
+<p>專案安裝流程會準備技能、Python 與 Google Colab CLI。官方安裝文件目前指定已驗證的 CLI 0.7.4；如果日後版本有變動，請讓 AI 依文件核對相容性安裝，原則上都是自動完成。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025643_0_9bbac7.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 987px) 100vw, 987px"></p>
+<h3>Google 授權由你本人完成</h3>
+<p>第一次使用時，AI 會提供 Google 授權網址。請核對網址與要登入的帳號，自己完成密碼、二階段驗證和權限確認，再依工具流程完成授權。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030147_0_c86f64.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 963px) 100vw, 963px"></p>
+<p>完成後，將下方的 Token 金鑰交給 AI&nbsp;助理就完成設定了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030730_0_50a465.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達"></p>
+<p>可以請 AI 執行下面的檢查，回報帳號是否正確、剩多少 CU，以及有沒有還在運作的 GPU（非必要）。若你也有多個 Google 帳號，請它把正確帳號與使用的登入環境記進自己的 SKILL，往後每次檢查和生成都沿用同一套環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030901_0_add4c5.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 986px) 100vw, 986px"></p>
+<h2>能力測試</h2>
+<h3>實測案例一：從文字生成圖片</h3>
+<p>首先測試文生圖功能，不用現成的知名角色，我選擇做一隻橘色配送機器人（可自行設定，以下僅為示範）：深青色螢幕臉、兩個白色圓眼、三指機械手、橡膠腳，以及一個棕色斜背配送包。先讓外觀有幾個容易辨識的重點，下一階段才能檢查它是否維持同一個角色。</p>
+<blockquote>
+<p>提示詞：用雲端 H3 生圖功能，生成一隻原創橘色配送機器人，深青色螢幕臉、兩個白色圓眼、三指機械手、棕色斜背包。暖白攝影棚背景，完整角色入鏡，精緻 3D 動畫風格，16:9、2K，不要文字、Logo 或浮水印。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025255_0_2d7471.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px">
+<h3>實測案例二：保留角色，設定指定場景（圖生圖）</h3>
+<p>接下來直接把上一張結果當圖片編輯的輸入，要求保留機器人幾何、配色、眼睛與包包，把背景換成台北藍調時刻的雨後街道。這裡比單純換一張新圖更有意義：要看角色能否在換背景後仍被辨識，而不是只看單張漂亮不漂亮。</p>
+<blockquote>
+<p>提示詞：以上一張機器人為角色參考，保留外形、橘色機身、青色螢幕、眼睛與棕色包包。換到台北雨後的行人街道，旁邊是暖光咖啡店櫥窗，地面有濕潤反光，角色完整入鏡，16:9、2K。不要可讀招牌文字。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025847_0_e0ba24.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br><figcaption>案例二：以上一張圖當輸入，改變場景、光線與姿勢。</figcaption><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>實測案例三：兩張參考圖接著生成 8 秒影片（圖生影片）</h3>
+<p>第三步把將剛剛的攝影棚角色圖與雨夜場景圖一起給 AI 並輸入提示詞。</p>
+<blockquote>
+<p>提示詞：使用這兩張圖製作 8 秒、16:9、720P 級影片。第一張鎖定機器人的外觀，第二張提供雨夜咖啡店場景。機器人向暖光走一小步，轉向鏡頭揮手兩次，再放下手。保留包包與配色，鏡頭緩慢靠近，搭配細雨、機械關節聲與輕柔配樂，不要台詞和字幕。使用 Colab L4，完成後下載並關閉本次 GPU。</p>
+</blockquote>
+<p>送出後，Agent 會把需求整理為 H3 的英文提示詞，補齊參考角色、場景、時間順序、環境音與配樂，AI 會使用 MiniMax H3 自動處理到完成並交付成果：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p"></div></div>
+<h3>同場加映：真人風格舞蹈影片（圖生影片）</h3>
+<div>
+<p>我給 AI 一個角色圖片，叫它製作一段 15&nbsp;秒的跳舞影片，還原度很不錯：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p（圖生影片）"></div></div>
+</div>
+<h2>到底等多久、花多少 CU？把生成時間與整批時間分開看</h2>
+<p>接下來分享一下使用的 CU&nbsp;（<strong>Compute Units；運算單元：</strong>可以理解成 Google Colab 的「運算點數」）與使用時間。裡面還包含啟動、安裝、模型下載、素材傳送與收檔。額度差額為開始與關機後顯示值相減，帶有顯示四捨五入，不能精算成每秒費率。</p>
+<table>
+<thead>
+<tr>
+<th>測試</th>
+<th>單項生成耗時</th>
+<th>整批／額度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇角色文生圖，2K</td>
+<td>112.5 秒</td>
+<td rowspan="3">本篇三項共用一台 L4，整批與 CU 見下方實測紀錄</td>
+</tr>
+<tr>
+<td>本篇參考圖改場景，2K</td>
+<td>48.2 秒</td>
+</tr>
+<tr>
+<td>本篇角色影片，8 秒、720P 級</td>
+<td>380.8 秒</td>
+</tr>
+<tr>
+<td>先前舞蹈，10 秒、直式720P級</td>
+<td>456.9 秒（約7分37秒）</td>
+<td>整批約12分鐘／約0.29 CU</td>
+</tr>
+<tr>
+<td>先前小幅舞蹈，15 秒、直式720P級</td>
+<td>729.3 秒（約12分9秒）</td>
+<td>整批約16.4分鐘／約0.43 CU</td>
+</tr>
+</tbody>
+</table>
+<h2>小結</h2>
+<p><code>dseditor/h3-colab-skill</code>專案還提供獨立 TTS、參考音色與影片延伸等功能，也支持接本機 ComfyUI Desktop。本篇聚焦在新增實測生圖、改圖與參考影片，有興趣的朋友可以自己跟 AI Agent 一起做看看。如果你的目標是短片提案、角色設計或小段社群素材，這種交給 AI 管理 Colab 的方式很方便，而且不用花大錢買硬體就能生圖生影片。不過前提是你要有 AI Pro 會員，我個人是覺得很值得買啦，因為還有 YouTube 無廣告、AntiGravity 額度、Google Drive 雲端空間、更多的 Gemini 使用額度…都是多給的福利，雖然 Google 目前 AI 模型普遍被戲稱為「可愛龍」，但一般人使用還是夠用的，快點試試看吧！</p>
+<blockquote data-secret="Ph0GhRfj5o"><p><a href="https://www.kocpc.com.tw/archives/670501">Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片 — 電腦王阿達" src="about:blank" data-secret="Ph0GhRfj5o" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670501/embed#?secret=XYyIykKP7E#?secret=Ph0GhRfj5o"></iframe></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/Nini5RAja4A" target="_blank"><img src="https://www.youtube.com/embed/Nini5RAja4A" /></a></p>
+<p>之前我們介紹過<a href="https://www.kocpc.com.tw/archives/670501">透過 Codex 呼叫 Google Colab，使用 MiniMax H3 生成影片的方法</a>。這次阿達換了一套不同作者的開源工具：<strong>dseditor (也是知名的 AI 老師「松音」)開源的 H3 多模態生成 Skill</strong>。它把生圖、圖片編輯、影片生成、影片延伸與 TTS 配音整合成工作流程，讓 AI 處理開機、上傳、推論、下載和關機。這篇除了整理安裝方式，也實際做一組「原創角色圖 → 換場景 → 角色影片」的連續案例，看看它能做到哪裡、要等多久，以及額度怎麼算。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107034137_0_a7561b.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h2>讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill</h2>
+<p>先釐清一點：這個 Skill 是讓 Agent 自動操作 Google Colab GPU 來用 MiniMax H2 製作影片的工具與流程，不是用 Google 直接提供的影片生成服務。真正的生成在你自己訂閱的 AI Pro 方案免費給的點數在 Colab GPU 上執行。可透過目前各種主流 AI Agent，如 Codex、Claude Code、Antigravity 或 Hermes，本範例由 Codex 操作；本機電腦負責準備素材、送工作和接收成品。比之前那個教學流程更加的簡單，只要貼上命令，一路授權就完成了，而且不只能生成影片、圖片、配音、延伸都可以。</p>
+<p><iframe src="about:blank" frameborder="0" scrolling="no" allowfullscreen="allowfullscreen" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.facebook.com/plugins/post.php?href=https%3A%2F%2Fwww.facebook.com%2Fdseditorlab%2Fposts%2Fpfbid0YKvNcYkXvG6fH4eASUN2GCGFKbNttcCTksQurSawpEdNwJRmpmtU4h1XSBNswzdrl&amp;show_text=true&amp;width=500"></iframe></p>
+<figcaption></figcaption>
+<h3>跟上一篇教學有什麼不同？這是另一套 Skill</h3>
+<p>兩個專案都借用 Google Colab GPU 運算，完成後把 MP4 下載回本機。上一篇介紹的是 <code>killkli/minimax-h3-colab-skill</code>，以 H3 參考影片流程為主；這次是 <code>dseditor/h3-colab-skill</code>，安裝後的技能名稱為 <code>h3-multimodal-colab</code>，功能更多使用更簡單。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>上一篇介紹的工具</th>
+<th>本篇使用的工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>專案</td>
+<td>killkli/minimax-h3-colab-skill</td>
+<td>dseditor/h3-colab-skill</td>
+</tr>
+<tr>
+<td>主要操作範圍</td>
+<td>角色參考影片；目前文件也列有首幀模式</td>
+<td>生圖、改圖、影片、延伸、TTS</td>
+</tr>
+<tr>
+<td>執行方式</td>
+<td>runner 執行隨附的 Colab 推論 Notebook</td>
+<td>runner 在 Colab 部署 ComfyUI 與 H3 Toybox，再提交生成工作</td>
+</tr>
+<tr>
+<td>GPU 選擇</td>
+<td>Shell 啟動器預設 A100 高記憶體，可調整</td>
+<td>預設 L4，也可依需求選其他支援的 GPU</td>
+</tr>
+</tbody>
+</table>
+<p>本篇文章所生成的影片均使用 <strong>L4／PRISM INT8／8 步&nbsp;</strong>組合；圖片則走這個專案提供的 P-H3-Image 路線。</p>
+<h3><strong><a href="https://github.com/dseditor/h3-colab-skill" target="_blank">松音 H3 多模態生成 Skill（請去按小星星）</a></strong></h3>
+<h3>需要準備什麼？先確認有額度的 Google 帳號</h3>
+<p>準備一個能在本機操作指令、安裝技能的 AI 工具，以及可使用 Colab GPU 的 Google 帳號。本篇使用 Windows 上的 Codex 與既有 WSL 環境；專案也提供 Windows、macOS、Linux 的安裝方式。本機並不需要先裝 H3 模型或也不需要你安裝高階顯示卡，所有的模型權重都下載到 Colab 的暫存環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022232_0_bb9f6f.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 985px) 100vw, 985px"></p>
+<p><strong>要注意的是就算你有 Google AI 會員，不等於目前登入的每個帳號都有 Colab 運算單元。</strong>Google <a href="https://support.google.com/googleone/answer/14534406?hl=zh-Hant" target="_blank">官方的 AI Pro 說明</a>把 Colab 福利列為「<strong>只有</strong>」家庭方案管理員可用，家庭帳號會顯示 0 CU 可調用，所以你的 AI Pro 如果是跟別人共享的就可能無法使用。</p>
+<h2>安裝方式：把這段話貼給 Codex</h2>
+<p>開啟能操作本機的 AI Agent，這邊以 Codex&nbsp;為例，貼上以下內容。安裝前讓它說明會下載什麼、在哪裡執行，以及 Google 授權的用途：</p>
+<blockquote>
+<p>請照 https://github.com/dseditor/h3-colab-skill/blob/main/INSTALL_FOR_AGENTS.md 幫我安裝 h3-multimodal-colab 這個 skill：開始之前先跟我說明它會做什麼、要什麼訂閱、何時要登入，我同意後再安裝。我要優先使用 Google Colab，先以 L4 測試；也要使用生圖功能。</p>
+</blockquote>
+<p>專案安裝流程會準備技能、Python 與 Google Colab CLI。官方安裝文件目前指定已驗證的 CLI 0.7.4；如果日後版本有變動，請讓 AI 依文件核對相容性安裝，原則上都是自動完成。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025643_0_9bbac7.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 987px) 100vw, 987px"></p>
+<h3>Google 授權由你本人完成</h3>
+<p>第一次使用時，AI 會提供 Google 授權網址。請核對網址與要登入的帳號，自己完成密碼、二階段驗證和權限確認，再依工具流程完成授權。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030147_0_c86f64.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 963px) 100vw, 963px"></p>
+<p>完成後，將下方的 Token 金鑰交給 AI&nbsp;助理就完成設定了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030730_0_50a465.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達"></p>
+<p>可以請 AI 執行下面的檢查，回報帳號是否正確、剩多少 CU，以及有沒有還在運作的 GPU（非必要）。若你也有多個 Google 帳號，請它把正確帳號與使用的登入環境記進自己的 SKILL，往後每次檢查和生成都沿用同一套環境。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107030901_0_add4c5.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 986px) 100vw, 986px"></p>
+<h2>能力測試</h2>
+<h3>實測案例一：從文字生成圖片</h3>
+<p>首先測試文生圖功能，不用現成的知名角色，我選擇做一隻橘色配送機器人（可自行設定，以下僅為示範）：深青色螢幕臉、兩個白色圓眼、三指機械手、橡膠腳，以及一個棕色斜背配送包。先讓外觀有幾個容易辨識的重點，下一階段才能檢查它是否維持同一個角色。</p>
+<blockquote>
+<p>提示詞：用雲端 H3 生圖功能，生成一隻原創橘色配送機器人，深青色螢幕臉、兩個白色圓眼、三指機械手、棕色斜背包。暖白攝影棚背景，完整角色入鏡，精緻 3D 動畫風格，16:9、2K，不要文字、Logo 或浮水印。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025255_0_2d7471.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px">
+<h3>實測案例二：保留角色，設定指定場景（圖生圖）</h3>
+<p>接下來直接把上一張結果當圖片編輯的輸入，要求保留機器人幾何、配色、眼睛與包包，把背景換成台北藍調時刻的雨後街道。這裡比單純換一張新圖更有意義：要看角色能否在換背景後仍被辨識，而不是只看單張漂亮不漂亮。</p>
+<blockquote>
+<p>提示詞：以上一張機器人為角色參考，保留外形、橘色機身、青色螢幕、眼睛與棕色包包。換到台北雨後的行人街道，旁邊是暖光咖啡店櫥窗，地面有濕潤反光，角色完整入鏡，16:9、2K。不要可讀招牌文字。</p>
+</blockquote>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107025847_0_e0ba24.jpg" alt="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" title="超簡單、完全免費！讓 AI Agent 幫你生圖、做影片！松音 H3 多模態生成 Skill 安裝教學與實測 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br><figcaption>案例二：以上一張圖當輸入，改變場景、光線與姿勢。</figcaption><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>實測案例三：兩張參考圖接著生成 8 秒影片（圖生影片）</h3>
+<p>第三步把將剛剛的攝影棚角色圖與雨夜場景圖一起給 AI 並輸入提示詞。</p>
+<blockquote>
+<p>提示詞：使用這兩張圖製作 8 秒、16:9、720P 級影片。第一張鎖定機器人的外觀，第二張提供雨夜咖啡店場景。機器人向暖光走一小步，轉向鏡頭揮手兩次，再放下手。保留包包與配色，鏡頭緩慢靠近，搭配細雨、機械關節聲與輕柔配樂，不要台詞和字幕。使用 Colab L4，完成後下載並關閉本次 GPU。</p>
+</blockquote>
+<p>送出後，Agent 會把需求整理為 H3 的英文提示詞，補齊參考角色、場景、時間順序、環境音與配樂，AI 會使用 MiniMax H3 自動處理到完成並交付成果：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p"></div></div>
+<h3>同場加映：真人風格舞蹈影片（圖生影片）</h3>
+<div>
+<p>我給 AI 一個角色圖片，叫它製作一段 15&nbsp;秒的跳舞影片，還原度很不錯：</p>
+<div><div data-alt="Google Colab MiniMax H3 影片生成測試 720p（圖生影片）"></div></div>
+</div>
+<h2>到底等多久、花多少 CU？把生成時間與整批時間分開看</h2>
+<p>接下來分享一下使用的 CU&nbsp;（<strong>Compute Units；運算單元：</strong>可以理解成 Google Colab 的「運算點數」）與使用時間。裡面還包含啟動、安裝、模型下載、素材傳送與收檔。額度差額為開始與關機後顯示值相減，帶有顯示四捨五入，不能精算成每秒費率。</p>
+<table>
+<thead>
+<tr>
+<th>測試</th>
+<th>單項生成耗時</th>
+<th>整批／額度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇角色文生圖，2K</td>
+<td>112.5 秒</td>
+<td rowspan="3">本篇三項共用一台 L4，整批與 CU 見下方實測紀錄</td>
+</tr>
+<tr>
+<td>本篇參考圖改場景，2K</td>
+<td>48.2 秒</td>
+</tr>
+<tr>
+<td>本篇角色影片，8 秒、720P 級</td>
+<td>380.8 秒</td>
+</tr>
+<tr>
+<td>先前舞蹈，10 秒、直式720P級</td>
+<td>456.9 秒（約7分37秒）</td>
+<td>整批約12分鐘／約0.29 CU</td>
+</tr>
+<tr>
+<td>先前小幅舞蹈，15 秒、直式720P級</td>
+<td>729.3 秒（約12分9秒）</td>
+<td>整批約16.4分鐘／約0.43 CU</td>
+</tr>
+</tbody>
+</table>
+<h2>小結</h2>
+<p><code>dseditor/h3-colab-skill</code>專案還提供獨立 TTS、參考音色與影片延伸等功能，也支持接本機 ComfyUI Desktop。本篇聚焦在新增實測生圖、改圖與參考影片，有興趣的朋友可以自己跟 AI Agent 一起做看看。如果你的目標是短片提案、角色設計或小段社群素材，這種交給 AI 管理 Colab 的方式很方便，而且不用花大錢買硬體就能生圖生影片。不過前提是你要有 AI Pro 會員，我個人是覺得很值得買啦，因為還有 YouTube 無廣告、AntiGravity 額度、Google Drive 雲端空間、更多的 Gemini 使用額度…都是多給的福利，雖然 Google 目前 AI 模型普遍被戲稱為「可愛龍」，但一般人使用還是夠用的，快點試試看吧！</p>
+<blockquote data-secret="Ph0GhRfj5o"><p><a href="https://www.kocpc.com.tw/archives/670501">Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="Google AI 訂閱多送 Colab GPU 額度！透過這個技能，就能讓 Codex 呼叫 Colab 生成 MiniMax H3 影片 — 電腦王阿達" src="about:blank" data-secret="Ph0GhRfj5o" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/670501/embed#?secret=XYyIykKP7E#?secret=Ph0GhRfj5o"></iframe></p>]]></content:encoded>
+    <itunes:image href="https://www.youtube.com/embed/Nini5RAja4A"/>
+          <media:content url="https://www.youtube.com/embed/Nini5RAja4A" medium="image"/>
+    <pubDate>Fri, 06 Nov 2026 19:42:21 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點]]></title>
+    <link>https://www.kocpc.com.tw/archives/702377</link>
+    <itunes:title><![CDATA[PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/ry8SmU1NhnQ" target="_blank"><img src="https://www.youtube.com/embed/ry8SmU1NhnQ" /></a></p>
+<p>Apple 在 10 月 28 日發表首款支援觸控的 PROLED XDR MacBook Pro，正式名稱 MacBook Pro with PROLED XDR Display，同時換上雙層串聯 OLED 螢幕與動態島。觸控螢幕是這代機器最吸睛的改變，中國科技頻道極客灣 Geekerwan 在 11 月 6 日發表的實測卻認為這台機器最不重要的升級反而是觸控。極客灣實測的結果是，這台筆電的重點是：減重兩百克以上之後，性能釋放沒有退步，噪音還更低了，合蓋外接螢幕時的持續性能更是大幅提升。<br>
+<img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012353_0_e09015.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<h3>重量：減掉的三百克是實感最直接的改變</h3>
+<p>飄哥最先提到的是重量，前代 MacBook Pro 自 2021 年發表以來，重量始終是使用者抱怨的重點，尤其是 14 吋 1.6 公斤的配置，擋掉不少想從 MacBook Air 升級的使用者。這次的 14 吋減重超過 200 克，來到 1.4 公斤，幾乎回到老款 MacBook Pro 13 吋的水準，比 MacBook Air 重不到 200 克，也比同為 14 吋高效能的 ROG 幻14 Air 更輕。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012954_0_2f01db.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>16 吋版從 2.15 公斤掉到 1.84 公斤，甩掉 300 克，回到 2016 款 15 吋的重量。Apple 官方的說法是 14 吋 3 磅、16 吋 4 磅，比前代輕了半磅與 0.7 磅。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013030_0_8c8e33.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>Apple 把減重歸因於 OLED 顯示堆疊更精簡，同時提到散熱架構重新設計，讓熱風不再吹向螢幕。飄哥也點出，這代機器沒有少接口，也沒有蝶式鍵盤那種設計。</p>
+<h3>續航：雙層 OLED 的優勢所在</h3>
+<p>減重之後最直接的疑慮是性能與續航會不會退。飄哥先回應續航，依極客灣自建的筆電續航模型測試，結果是表現非常優秀。數字上，16 吋 M5 Max 比前代多了一個多小時（15：19）；14 吋 M5 Max 則接近前代 M5 Pro 的水準（12：50）。飄哥特別說明 M5 Max 因為記憶體位寬高很多，續航本來就會比 M5 Pro 機型低，同處理器的新款一定優於舊款。上面的續航成績是極客灣使用自家的流程測得的，Apple 官方給的數字是最高 24 小時。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013554_0_4b2c2a.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p>
+<p>續航增加的原因出在螢幕，飄哥以相同 M5 Max 機型、300 nit 全螢幕白色亮度測量螢幕功耗，新款的數字顯著低於老款。他在影片中提到，雙層 OLED 在這方面比 miniLED 有巨大優勢，這點已經在 iPad Pro 上驗證過。Apple 的規格數字是 PROLED XDR 採用雙層自發光像素層，尖峰亮度最高 2,000 尼特，對比度 10,000,000:1，重新整理率 10Hz 到 120Hz 可變，並支援 P3 與 Adobe RGB 色域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013711_0_347e4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>性能釋放：變輕沒有變慢</h3>
+<p>至於性能，飄哥的結論是「完全不會」因為變輕而犧牲，這次的性能釋放水準還比前代稍微強一點。Cinebench 三代測試中，新款與老款的峰值性能幾乎沒有差別。接著做 15 輪 Cinebench R23 循環測試，同樣開啟高電量模式，新款 16 吋與老款 16 吋都能維持接近峰值的釋放，新款 14 吋比老款還要強一些，性能更接近 16 吋機型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013811_0_b55b44.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>其他應用測試的結論一致。3DMark 中相同配置的 16 吋仍比 14 吋強一些，但新舊款頂配之間沒有性能差距；Blender 新舊款頂配同樣沒差別，7Zip 幾款新機型跑出相同水準且都優於老款 14 吋；Adobe 三件套測試中，同配置的 14 吋與 16 吋基本沒有區別，16 吋頂配與前代頂配也沒有差別。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013925_0_6d101b.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013923_0_e86725.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013924_0_c2af6e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>遊戲部分測了《Cyberpunk 2077》，分風扇拉滿與風扇自動兩種情況，連跑三輪取第四輪成績以呈現熱機降頻後的狀態。風扇拉滿時同配置的 14 吋仍稍弱於 16 吋，整機功耗也更低，但同頂配的前後兩代成績基本沒差別。風扇自動時 14 吋的持續性能被 16 吋明顯拉開，而 16 吋 32 核 GPU 的新款低配版已接近老款頂配版的幀率。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014201_0_5b9d14.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>本地 AI 跑分：M5 Max 的另一個賣點</h3>
+<p>飄哥特別提到 MacBook Pro 對本地 AI 使用者的吸引力，並用 128GB 記憶體頂配機型跑 IQ4 量化版的 Qwen3.8-Flash-Next 模型。拉滿風扇的情況下新款仍有一定性能優勢，他歸因於散熱能力的改進。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014304_0_8dc04e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>36GB 記憶體機型測的是 MiniCPM-v4.7-35B-A3B 模型的 Q4 量化版本，結果是 36GB 版 M5 Max 性能比滿血版低一點，理由是 GPU 規模與顯示記憶體頻寬都有縮減，Prefill 與 Decode 速度因此有差距。自動風扇模式下，16 吋機型與風扇全開維持相同性能水準，14 吋稍微弱一點但差距有限，兩台機型風扇噪音都很輕微。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014337_0_676781.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<h3>散熱與噪音：風扇轉得更快卻更安靜</h3>
+<p>雙烤測試是全篇最硬的部分。負載為 Cinebench R23 循環加上 3DMark SNL 壓力測試，分別在風扇手動拉滿、高性能電源模式、自動模式三種情況下測試性能釋放與噪音。</p>
+<p>風扇拉滿時，新款 14 吋 SoC 功耗穩定在 69W 與老款相當，但風扇轉速比老款更高，其中一顆甚至超過 9,000 轉。然而滿轉噪音反而比前代更低，從 50dB 降到 48dB 左右。16 吋 SoC 功耗穩定在 87W，整機輸入功率 135W，幾乎跑滿 140W 適配器，超大核 2.6GHz、大核 3.6GHz、GPU 1.48GHz，兩顆風扇分別是 6,250 轉與 6,750 轉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014809_0_f6ae68.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>自動模式下差距拉開。新款 14 吋約 8 分鐘後接近滿轉並維持 69W，老款持續功耗只有 60W，但噪音反而更高，來到 49dB 左右；16 吋兩顆風扇跑在 5,800 轉與 6,300 轉，功耗維持 87W，噪音 46.2dB，比 14 吋更安靜。切到全自動模式，新款 14 吋 46W 的性能釋放優於老款 43W，噪音從 38dB 左右降到 36dB 左右；16 吋性能釋放來到 60W，高於老款 54W。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107015920_0_0a2496.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥另外做了固定噪音對照，把兩台機器都鎖在 36dB，新風扇能跑到 5,500 轉出頭，老款只有 4,700 多轉，新款的解熱能力與持續功耗都更好。由於是 Apple 借給媒體的首發機型，飄哥無法拆機，風道與風扇的內部構造仍是未知數。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107023358_0_b49bcc.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>風道改版帶來的合蓋性能提升</h3>
+<p>風道是這代散熱改進的關鍵。MacBook Pro 十幾年來沿用側邊進風、尾部出風的邏輯，但過往出風口分成朝螢幕與朝機身後兩個方向，這次改為只向機身後部出風。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020050_0_5465a2.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥還注意到，前代的轉軸在大角度開啟時會擋住尾部出風口，這次的螢幕轉軸做了針對性設計，始終能為出風口留出空間。側邊進風口的割手感也終於改善了。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020123_0_b59701.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>這項改進的實際意義在合蓋使用。相較於讓散熱極限能力變強，讓外接螢幕時的性能不受影響更為實用。飄哥用新老兩款頂配 M5 Max 16 吋做雙烤對照。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020301_0_160c4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>風扇拉滿時差別不大，新款開蓋與合蓋都能跑到 87W 左右，老款開蓋同樣 87W、合蓋小幅降到 85W。差異出現在 36dB 目標噪音的自動電源模式。新款開蓋有 62W 釋放、合蓋仍能維持 60W；老款開蓋只有 54W，合蓋後直接掉到 46W。兩者在合蓋自動電源模式下的持續功耗差出 14W，反映到頻率上差距超過 10%，性能差距相當明顯。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020239_0_dbecd7.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020617_0_bd8f8d.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>觸控：最吸睛但感知最弱的改變</h3>
+<p>飄哥對觸控的評價並不客氣。他說 Windows 陣營的筆電引入觸控設計這麼久，自己依然極少使用筆電觸控，因為立著使用觸控在他看來從來沒有吸引力。他也承認觸控帶來一些新互動，例如可以套用一部分 iPad 上的操作邏輯，但同時指出現在最適合觸控的 LaunchPad 已經被新的 macOS 砍掉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020839_0_6e9b81.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>Apple 官方對觸控的描述集中在專業情境：設計師可以把整個螢幕當畫布、不再受限於觸控板大小，音樂人能在螢幕上演奏軟體樂器，App 開發者可直接在 MacBook Pro 上測試 iOS 與 iPadOS App 的觸控表現。硬體上觸控感測器直接做在顯示面板內而非疊在上方以降低延遲，並搭配新設計的鉸鏈提升穩定度。既有 App 不必改寫就能運作，因為 macOS 會自動把觸碰轉換成點擊。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261029020701_0_ea7be8.jpg" alt="Apple 推出首台可觸控筆電 PROLED XDR 螢幕 MacBook Pro，配備動態島、發光 Apple 標誌也回來了 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<p>其他測試項目內容其實還很多，大家可以直接看下面的影片，<a href="https://www.apple.com/newsroom/2026/10/apple-introduces-the-new-14-inch-macbook-pro-with-m6/" target="_blank">B站版本</a>還有音響測試（YouTube 可能中了版權砲）長度也比較長，個人推薦看 B 站版本：</p>
+<div><div data-alt="全新MacBook Pro评测：触屏不重要，轻薄/散热/续航才是升级重点！"></div></div>
+<h3><a href="https://apple.sjv.io/k4EkaM" target="_blank">PROLED XDR 螢幕 Macbook Pro&nbsp;官網</a></h3>
+<h3>PROLED XDR MacBook Pro 總結</h3>
+<p>飄哥的最後總結是，這台機器在晶片沒變的情況下，把其他能升級的地方幾乎升了一遍：史詩級減重、發光的蘋果標誌、功耗更低且效果更好的雙層 OLED、不割手的進風口，再加上觸控支援，另有散熱風道設計與噪音更低風量更大的風扇改進，尤其是大幅提升了合蓋時的持續性能表現。他認為這台機器集合了前三代 MacBook Pro 的優點，唯一的問題是作為全新機型還沒用上更新的處理器。這也是影片結尾留下的懸念，他期待這套新模具搭配更新處理器後還能帶來什麼驚喜。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022942_0_8ef006.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>從實測結果來看，觸控確實不是這代最能感受到的部分。減重兩百克以上、噪音降低、同樣晶片下性能釋放持平、合蓋時持續功耗多出 14W，這幾項才是改變日常使用體驗的地方。至於觸控能撐起多少實用價值，Apple 與媒體的說法都還停留在「專業創作者的工作流」層面，實際上手體驗如何，則有待更多長期測試。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/ry8SmU1NhnQ" target="_blank"><img src="https://www.youtube.com/embed/ry8SmU1NhnQ" /></a></p>
+<p>Apple 在 10 月 28 日發表首款支援觸控的 PROLED XDR MacBook Pro，正式名稱 MacBook Pro with PROLED XDR Display，同時換上雙層串聯 OLED 螢幕與動態島。觸控螢幕是這代機器最吸睛的改變，中國科技頻道極客灣 Geekerwan 在 11 月 6 日發表的實測卻認為這台機器最不重要的升級反而是觸控。極客灣實測的結果是，這台筆電的重點是：減重兩百克以上之後，性能釋放沒有退步，噪音還更低了，合蓋外接螢幕時的持續性能更是大幅提升。<br>
+<img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012353_0_e09015.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<h3>重量：減掉的三百克是實感最直接的改變</h3>
+<p>飄哥最先提到的是重量，前代 MacBook Pro 自 2021 年發表以來，重量始終是使用者抱怨的重點，尤其是 14 吋 1.6 公斤的配置，擋掉不少想從 MacBook Air 升級的使用者。這次的 14 吋減重超過 200 克，來到 1.4 公斤，幾乎回到老款 MacBook Pro 13 吋的水準，比 MacBook Air 重不到 200 克，也比同為 14 吋高效能的 ROG 幻14 Air 更輕。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012954_0_2f01db.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>16 吋版從 2.15 公斤掉到 1.84 公斤，甩掉 300 克，回到 2016 款 15 吋的重量。Apple 官方的說法是 14 吋 3 磅、16 吋 4 磅，比前代輕了半磅與 0.7 磅。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013030_0_8c8e33.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>Apple 把減重歸因於 OLED 顯示堆疊更精簡，同時提到散熱架構重新設計，讓熱風不再吹向螢幕。飄哥也點出，這代機器沒有少接口，也沒有蝶式鍵盤那種設計。</p>
+<h3>續航：雙層 OLED 的優勢所在</h3>
+<p>減重之後最直接的疑慮是性能與續航會不會退。飄哥先回應續航，依極客灣自建的筆電續航模型測試，結果是表現非常優秀。數字上，16 吋 M5 Max 比前代多了一個多小時（15：19）；14 吋 M5 Max 則接近前代 M5 Pro 的水準（12：50）。飄哥特別說明 M5 Max 因為記憶體位寬高很多，續航本來就會比 M5 Pro 機型低，同處理器的新款一定優於舊款。上面的續航成績是極客灣使用自家的流程測得的，Apple 官方給的數字是最高 24 小時。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013554_0_4b2c2a.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p>
+<p>續航增加的原因出在螢幕，飄哥以相同 M5 Max 機型、300 nit 全螢幕白色亮度測量螢幕功耗，新款的數字顯著低於老款。他在影片中提到，雙層 OLED 在這方面比 miniLED 有巨大優勢，這點已經在 iPad Pro 上驗證過。Apple 的規格數字是 PROLED XDR 採用雙層自發光像素層，尖峰亮度最高 2,000 尼特，對比度 10,000,000:1，重新整理率 10Hz 到 120Hz 可變，並支援 P3 與 Adobe RGB 色域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013711_0_347e4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>性能釋放：變輕沒有變慢</h3>
+<p>至於性能，飄哥的結論是「完全不會」因為變輕而犧牲，這次的性能釋放水準還比前代稍微強一點。Cinebench 三代測試中，新款與老款的峰值性能幾乎沒有差別。接著做 15 輪 Cinebench R23 循環測試，同樣開啟高電量模式，新款 16 吋與老款 16 吋都能維持接近峰值的釋放，新款 14 吋比老款還要強一些，性能更接近 16 吋機型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013811_0_b55b44.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>其他應用測試的結論一致。3DMark 中相同配置的 16 吋仍比 14 吋強一些，但新舊款頂配之間沒有性能差距；Blender 新舊款頂配同樣沒差別，7Zip 幾款新機型跑出相同水準且都優於老款 14 吋；Adobe 三件套測試中，同配置的 14 吋與 16 吋基本沒有區別，16 吋頂配與前代頂配也沒有差別。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013925_0_6d101b.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013923_0_e86725.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013924_0_c2af6e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>遊戲部分測了《Cyberpunk 2077》，分風扇拉滿與風扇自動兩種情況，連跑三輪取第四輪成績以呈現熱機降頻後的狀態。風扇拉滿時同配置的 14 吋仍稍弱於 16 吋，整機功耗也更低，但同頂配的前後兩代成績基本沒差別。風扇自動時 14 吋的持續性能被 16 吋明顯拉開，而 16 吋 32 核 GPU 的新款低配版已接近老款頂配版的幀率。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014201_0_5b9d14.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>本地 AI 跑分：M5 Max 的另一個賣點</h3>
+<p>飄哥特別提到 MacBook Pro 對本地 AI 使用者的吸引力，並用 128GB 記憶體頂配機型跑 IQ4 量化版的 Qwen3.8-Flash-Next 模型。拉滿風扇的情況下新款仍有一定性能優勢，他歸因於散熱能力的改進。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014304_0_8dc04e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>36GB 記憶體機型測的是 MiniCPM-v4.7-35B-A3B 模型的 Q4 量化版本，結果是 36GB 版 M5 Max 性能比滿血版低一點，理由是 GPU 規模與顯示記憶體頻寬都有縮減，Prefill 與 Decode 速度因此有差距。自動風扇模式下，16 吋機型與風扇全開維持相同性能水準，14 吋稍微弱一點但差距有限，兩台機型風扇噪音都很輕微。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014337_0_676781.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<h3>散熱與噪音：風扇轉得更快卻更安靜</h3>
+<p>雙烤測試是全篇最硬的部分。負載為 Cinebench R23 循環加上 3DMark SNL 壓力測試，分別在風扇手動拉滿、高性能電源模式、自動模式三種情況下測試性能釋放與噪音。</p>
+<p>風扇拉滿時，新款 14 吋 SoC 功耗穩定在 69W 與老款相當，但風扇轉速比老款更高，其中一顆甚至超過 9,000 轉。然而滿轉噪音反而比前代更低，從 50dB 降到 48dB 左右。16 吋 SoC 功耗穩定在 87W，整機輸入功率 135W，幾乎跑滿 140W 適配器，超大核 2.6GHz、大核 3.6GHz、GPU 1.48GHz，兩顆風扇分別是 6,250 轉與 6,750 轉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014809_0_f6ae68.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>自動模式下差距拉開。新款 14 吋約 8 分鐘後接近滿轉並維持 69W，老款持續功耗只有 60W，但噪音反而更高，來到 49dB 左右；16 吋兩顆風扇跑在 5,800 轉與 6,300 轉，功耗維持 87W，噪音 46.2dB，比 14 吋更安靜。切到全自動模式，新款 14 吋 46W 的性能釋放優於老款 43W，噪音從 38dB 左右降到 36dB 左右；16 吋性能釋放來到 60W，高於老款 54W。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107015920_0_0a2496.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥另外做了固定噪音對照，把兩台機器都鎖在 36dB，新風扇能跑到 5,500 轉出頭，老款只有 4,700 多轉，新款的解熱能力與持續功耗都更好。由於是 Apple 借給媒體的首發機型，飄哥無法拆機，風道與風扇的內部構造仍是未知數。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107023358_0_b49bcc.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>風道改版帶來的合蓋性能提升</h3>
+<p>風道是這代散熱改進的關鍵。MacBook Pro 十幾年來沿用側邊進風、尾部出風的邏輯，但過往出風口分成朝螢幕與朝機身後兩個方向，這次改為只向機身後部出風。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020050_0_5465a2.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥還注意到，前代的轉軸在大角度開啟時會擋住尾部出風口，這次的螢幕轉軸做了針對性設計，始終能為出風口留出空間。側邊進風口的割手感也終於改善了。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020123_0_b59701.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>這項改進的實際意義在合蓋使用。相較於讓散熱極限能力變強，讓外接螢幕時的性能不受影響更為實用。飄哥用新老兩款頂配 M5 Max 16 吋做雙烤對照。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020301_0_160c4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>風扇拉滿時差別不大，新款開蓋與合蓋都能跑到 87W 左右，老款開蓋同樣 87W、合蓋小幅降到 85W。差異出現在 36dB 目標噪音的自動電源模式。新款開蓋有 62W 釋放、合蓋仍能維持 60W；老款開蓋只有 54W，合蓋後直接掉到 46W。兩者在合蓋自動電源模式下的持續功耗差出 14W，反映到頻率上差距超過 10%，性能差距相當明顯。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020239_0_dbecd7.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020617_0_bd8f8d.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>觸控：最吸睛但感知最弱的改變</h3>
+<p>飄哥對觸控的評價並不客氣。他說 Windows 陣營的筆電引入觸控設計這麼久，自己依然極少使用筆電觸控，因為立著使用觸控在他看來從來沒有吸引力。他也承認觸控帶來一些新互動，例如可以套用一部分 iPad 上的操作邏輯，但同時指出現在最適合觸控的 LaunchPad 已經被新的 macOS 砍掉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020839_0_6e9b81.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>Apple 官方對觸控的描述集中在專業情境：設計師可以把整個螢幕當畫布、不再受限於觸控板大小，音樂人能在螢幕上演奏軟體樂器，App 開發者可直接在 MacBook Pro 上測試 iOS 與 iPadOS App 的觸控表現。硬體上觸控感測器直接做在顯示面板內而非疊在上方以降低延遲，並搭配新設計的鉸鏈提升穩定度。既有 App 不必改寫就能運作，因為 macOS 會自動把觸碰轉換成點擊。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261029020701_0_ea7be8.jpg" alt="Apple 推出首台可觸控筆電 PROLED XDR 螢幕 MacBook Pro，配備動態島、發光 Apple 標誌也回來了 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<p>其他測試項目內容其實還很多，大家可以直接看下面的影片，<a href="https://www.apple.com/newsroom/2026/10/apple-introduces-the-new-14-inch-macbook-pro-with-m6/" target="_blank">B站版本</a>還有音響測試（YouTube 可能中了版權砲）長度也比較長，個人推薦看 B 站版本：</p>
+<div><div data-alt="全新MacBook Pro评测：触屏不重要，轻薄/散热/续航才是升级重点！"></div></div>
+<h3><a href="https://apple.sjv.io/k4EkaM" target="_blank">PROLED XDR 螢幕 Macbook Pro&nbsp;官網</a></h3>
+<h3>PROLED XDR MacBook Pro 總結</h3>
+<p>飄哥的最後總結是，這台機器在晶片沒變的情況下，把其他能升級的地方幾乎升了一遍：史詩級減重、發光的蘋果標誌、功耗更低且效果更好的雙層 OLED、不割手的進風口，再加上觸控支援，另有散熱風道設計與噪音更低風量更大的風扇改進，尤其是大幅提升了合蓋時的持續性能表現。他認為這台機器集合了前三代 MacBook Pro 的優點，唯一的問題是作為全新機型還沒用上更新的處理器。這也是影片結尾留下的懸念，他期待這套新模具搭配更新處理器後還能帶來什麼驚喜。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022942_0_8ef006.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>從實測結果來看，觸控確實不是這代最能感受到的部分。減重兩百克以上、噪音降低、同樣晶片下性能釋放持平、合蓋時持續功耗多出 14W，這幾項才是改變日常使用體驗的地方。至於觸控能撐起多少實用價值，Apple 與媒體的說法都還停留在「專業創作者的工作流」層面，實際上手體驗如何，則有待更多長期測試。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/ry8SmU1NhnQ" target="_blank"><img src="https://www.youtube.com/embed/ry8SmU1NhnQ" /></a></p>
+<p>Apple 在 10 月 28 日發表首款支援觸控的 PROLED XDR MacBook Pro，正式名稱 MacBook Pro with PROLED XDR Display，同時換上雙層串聯 OLED 螢幕與動態島。觸控螢幕是這代機器最吸睛的改變，中國科技頻道極客灣 Geekerwan 在 11 月 6 日發表的實測卻認為這台機器最不重要的升級反而是觸控。極客灣實測的結果是，這台筆電的重點是：減重兩百克以上之後，性能釋放沒有退步，噪音還更低了，合蓋外接螢幕時的持續性能更是大幅提升。<br>
+<img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012353_0_e09015.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<h3>重量：減掉的三百克是實感最直接的改變</h3>
+<p>飄哥最先提到的是重量，前代 MacBook Pro 自 2021 年發表以來，重量始終是使用者抱怨的重點，尤其是 14 吋 1.6 公斤的配置，擋掉不少想從 MacBook Air 升級的使用者。這次的 14 吋減重超過 200 克，來到 1.4 公斤，幾乎回到老款 MacBook Pro 13 吋的水準，比 MacBook Air 重不到 200 克，也比同為 14 吋高效能的 ROG 幻14 Air 更輕。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107012954_0_2f01db.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>16 吋版從 2.15 公斤掉到 1.84 公斤，甩掉 300 克，回到 2016 款 15 吋的重量。Apple 官方的說法是 14 吋 3 磅、16 吋 4 磅，比前代輕了半磅與 0.7 磅。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013030_0_8c8e33.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>Apple 把減重歸因於 OLED 顯示堆疊更精簡，同時提到散熱架構重新設計，讓熱風不再吹向螢幕。飄哥也點出，這代機器沒有少接口，也沒有蝶式鍵盤那種設計。</p>
+<h3>續航：雙層 OLED 的優勢所在</h3>
+<p>減重之後最直接的疑慮是性能與續航會不會退。飄哥先回應續航，依極客灣自建的筆電續航模型測試，結果是表現非常優秀。數字上，16 吋 M5 Max 比前代多了一個多小時（15：19）；14 吋 M5 Max 則接近前代 M5 Pro 的水準（12：50）。飄哥特別說明 M5 Max 因為記憶體位寬高很多，續航本來就會比 M5 Pro 機型低，同處理器的新款一定優於舊款。上面的續航成績是極客灣使用自家的流程測得的，Apple 官方給的數字是最高 24 小時。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013554_0_4b2c2a.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p>
+<p>續航增加的原因出在螢幕，飄哥以相同 M5 Max 機型、300 nit 全螢幕白色亮度測量螢幕功耗，新款的數字顯著低於老款。他在影片中提到，雙層 OLED 在這方面比 miniLED 有巨大優勢，這點已經在 iPad Pro 上驗證過。Apple 的規格數字是 PROLED XDR 採用雙層自發光像素層，尖峰亮度最高 2,000 尼特，對比度 10,000,000:1，重新整理率 10Hz 到 120Hz 可變，並支援 P3 與 Adobe RGB 色域。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013711_0_347e4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>性能釋放：變輕沒有變慢</h3>
+<p>至於性能，飄哥的結論是「完全不會」因為變輕而犧牲，這次的性能釋放水準還比前代稍微強一點。Cinebench 三代測試中，新款與老款的峰值性能幾乎沒有差別。接著做 15 輪 Cinebench R23 循環測試，同樣開啟高電量模式，新款 16 吋與老款 16 吋都能維持接近峰值的釋放，新款 14 吋比老款還要強一些，性能更接近 16 吋機型。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013811_0_b55b44.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>其他應用測試的結論一致。3DMark 中相同配置的 16 吋仍比 14 吋強一些，但新舊款頂配之間沒有性能差距；Blender 新舊款頂配同樣沒差別，7Zip 幾款新機型跑出相同水準且都優於老款 14 吋；Adobe 三件套測試中，同配置的 14 吋與 16 吋基本沒有區別，16 吋頂配與前代頂配也沒有差別。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013925_0_6d101b.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013923_0_e86725.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"> <img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107013924_0_c2af6e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>遊戲部分測了《Cyberpunk 2077》，分風扇拉滿與風扇自動兩種情況，連跑三輪取第四輪成績以呈現熱機降頻後的狀態。風扇拉滿時同配置的 14 吋仍稍弱於 16 吋，整機功耗也更低，但同頂配的前後兩代成績基本沒差別。風扇自動時 14 吋的持續性能被 16 吋明顯拉開，而 16 吋 32 核 GPU 的新款低配版已接近老款頂配版的幀率。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014201_0_5b9d14.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>本地 AI 跑分：M5 Max 的另一個賣點</h3>
+<p>飄哥特別提到 MacBook Pro 對本地 AI 使用者的吸引力，並用 128GB 記憶體頂配機型跑 IQ4 量化版的 Qwen3.8-Flash-Next 模型。拉滿風扇的情況下新款仍有一定性能優勢，他歸因於散熱能力的改進。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014304_0_8dc04e.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>36GB 記憶體機型測的是 MiniCPM-v4.7-35B-A3B 模型的 Q4 量化版本，結果是 36GB 版 M5 Max 性能比滿血版低一點，理由是 GPU 規模與顯示記憶體頻寬都有縮減，Prefill 與 Decode 速度因此有差距。自動風扇模式下，16 吋機型與風扇全開維持相同性能水準，14 吋稍微弱一點但差距有限，兩台機型風扇噪音都很輕微。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014337_0_676781.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<h3>散熱與噪音：風扇轉得更快卻更安靜</h3>
+<p>雙烤測試是全篇最硬的部分。負載為 Cinebench R23 循環加上 3DMark SNL 壓力測試，分別在風扇手動拉滿、高性能電源模式、自動模式三種情況下測試性能釋放與噪音。</p>
+<p>風扇拉滿時，新款 14 吋 SoC 功耗穩定在 69W 與老款相當，但風扇轉速比老款更高，其中一顆甚至超過 9,000 轉。然而滿轉噪音反而比前代更低，從 50dB 降到 48dB 左右。16 吋 SoC 功耗穩定在 87W，整機輸入功率 135W，幾乎跑滿 140W 適配器，超大核 2.6GHz、大核 3.6GHz、GPU 1.48GHz，兩顆風扇分別是 6,250 轉與 6,750 轉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107014809_0_f6ae68.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>自動模式下差距拉開。新款 14 吋約 8 分鐘後接近滿轉並維持 69W，老款持續功耗只有 60W，但噪音反而更高，來到 49dB 左右；16 吋兩顆風扇跑在 5,800 轉與 6,300 轉，功耗維持 87W，噪音 46.2dB，比 14 吋更安靜。切到全自動模式，新款 14 吋 46W 的性能釋放優於老款 43W，噪音從 38dB 左右降到 36dB 左右；16 吋性能釋放來到 60W，高於老款 54W。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107015920_0_0a2496.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥另外做了固定噪音對照，把兩台機器都鎖在 36dB，新風扇能跑到 5,500 轉出頭，老款只有 4,700 多轉，新款的解熱能力與持續功耗都更好。由於是 Apple 借給媒體的首發機型，飄哥無法拆機，風道與風扇的內部構造仍是未知數。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107023358_0_b49bcc.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>風道改版帶來的合蓋性能提升</h3>
+<p>風道是這代散熱改進的關鍵。MacBook Pro 十幾年來沿用側邊進風、尾部出風的邏輯，但過往出風口分成朝螢幕與朝機身後兩個方向，這次改為只向機身後部出風。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020050_0_5465a2.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>飄哥還注意到，前代的轉軸在大角度開啟時會擋住尾部出風口，這次的螢幕轉軸做了針對性設計，始終能為出風口留出空間。側邊進風口的割手感也終於改善了。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020123_0_b59701.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>這項改進的實際意義在合蓋使用。相較於讓散熱極限能力變強，讓外接螢幕時的性能不受影響更為實用。飄哥用新老兩款頂配 M5 Max 16 吋做雙烤對照。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020301_0_160c4c.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>風扇拉滿時差別不大，新款開蓋與合蓋都能跑到 87W 左右，老款開蓋同樣 87W、合蓋小幅降到 85W。差異出現在 36dB 目標噪音的自動電源模式。新款開蓋有 62W 釋放、合蓋仍能維持 60W；老款開蓋只有 54W，合蓋後直接掉到 46W。兩者在合蓋自動電源模式下的持續功耗差出 14W，反映到頻率上差距超過 10%，性能差距相當明顯。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020239_0_dbecd7.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"><br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020617_0_bd8f8d.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>觸控：最吸睛但感知最弱的改變</h3>
+<p>飄哥對觸控的評價並不客氣。他說 Windows 陣營的筆電引入觸控設計這麼久，自己依然極少使用筆電觸控，因為立著使用觸控在他看來從來沒有吸引力。他也承認觸控帶來一些新互動，例如可以套用一部分 iPad 上的操作邏輯，但同時指出現在最適合觸控的 LaunchPad 已經被新的 macOS 砍掉。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107020839_0_6e9b81.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>Apple 官方對觸控的描述集中在專業情境：設計師可以把整個螢幕當畫布、不再受限於觸控板大小，音樂人能在螢幕上演奏軟體樂器，App 開發者可直接在 MacBook Pro 上測試 iOS 與 iPadOS App 的觸控表現。硬體上觸控感測器直接做在顯示面板內而非疊在上方以降低延遲，並搭配新設計的鉸鏈提升穩定度。既有 App 不必改寫就能運作，因為 macOS 會自動把觸碰轉換成點擊。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/10/20261029020701_0_ea7be8.jpg" alt="Apple 推出首台可觸控筆電 PROLED XDR 螢幕 MacBook Pro，配備動態島、發光 Apple 標誌也回來了 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達"></p>
+<p>其他測試項目內容其實還很多，大家可以直接看下面的影片，<a href="https://www.apple.com/newsroom/2026/10/apple-introduces-the-new-14-inch-macbook-pro-with-m6/" target="_blank">B站版本</a>還有音響測試（YouTube 可能中了版權砲）長度也比較長，個人推薦看 B 站版本：</p>
+<div><div data-alt="全新MacBook Pro评测：触屏不重要，轻薄/散热/续航才是升级重点！"></div></div>
+<h3><a href="https://apple.sjv.io/k4EkaM" target="_blank">PROLED XDR 螢幕 Macbook Pro&nbsp;官網</a></h3>
+<h3>PROLED XDR MacBook Pro 總結</h3>
+<p>飄哥的最後總結是，這台機器在晶片沒變的情況下，把其他能升級的地方幾乎升了一遍：史詩級減重、發光的蘋果標誌、功耗更低且效果更好的雙層 OLED、不割手的進風口，再加上觸控支援，另有散熱風道設計與噪音更低風量更大的風扇改進，尤其是大幅提升了合蓋時的持續性能表現。他認為這台機器集合了前三代 MacBook Pro 的優點，唯一的問題是作為全新機型還沒用上更新的處理器。這也是影片結尾留下的懸念，他期待這套新模具搭配更新處理器後還能帶來什麼驚喜。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261107022942_0_8ef006.jpg" alt="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" title="PROLED XDR MacBook Pro 實測：觸控不是重點，減重 300 克、噪音降低才是升級重點 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>從實測結果來看，觸控確實不是這代最能感受到的部分。減重兩百克以上、噪音降低、同樣晶片下性能釋放持平、合蓋時持續功耗多出 14W，這幾項才是改變日常使用體驗的地方。至於觸控能撐起多少實用價值，Apple 與媒體的說法都還停留在「專業創作者的工作流」層面，實際上手體驗如何，則有待更多長期測試。</p>]]></content:encoded>
+    <itunes:image href="https://www.youtube.com/embed/ry8SmU1NhnQ"/>
+          <media:content url="https://www.youtube.com/embed/ry8SmU1NhnQ" medium="image"/>
+    <pubDate>Fri, 06 Nov 2026 18:32:14 +0000</pubDate>
+  </item><item>
     <title><![CDATA[YTPullBox 免費 YouTube 影片下載工具，支援 4K、Shorts，也能下載 Instagram Reels]]></title>
     <link>https://www.kocpc.com.tw/archives/702362</link>
     <itunes:title><![CDATA[YTPullBox 免費 YouTube 影片下載工具，支援 4K、Shorts，也能下載 Instagram Reels]]></itunes:title>
@@ -692,137 +1259,5 @@
     <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106101336_0_af7a1e.jpeg"/>
           <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106101336_0_af7a1e.jpeg" medium="image"/>
     <pubDate>Fri, 06 Nov 2026 02:14:29 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯]]></title>
-    <link>https://www.kocpc.com.tw/archives/702264</link>
-    <itunes:title><![CDATA[Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>對經常使用 AI 生成影片的創作者來說，最熟悉的挫折莫過於故事正要進入高潮時，畫面卻戛然而止。如今，Google 希望改善這個問題。該公司正式推出新一代 AI 影音生成模型 Gemini Omni 1.2 Flash，不僅延長影片生成時長，也進一步強化後製編輯與畫面一致性能力，讓 AI 影片創作流程更貼近專業製作需求。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106092416_0_4207d3.jpg" alt="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" title="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯</h2>
-<p>相較於前代 Omni 1.1 僅支援最長 10 秒的影片輸出，Gemini Omni 1.2 Flash 將生成時長提升至 15 秒，使用者還能在 3 至 15 秒之間自由選擇影片長度，並以 1 秒為單位進行調整。雖然距離完整的短影音廣告或品牌敘事仍有一段距離，但對創作者而言，影片時長增加 50%，已能有效提升情節鋪陳與鏡頭表現空間。</p>
-<blockquote>
-<p dir="ltr" lang="en">Today we are rolling out Gemini Omni Flash 1.2, with: – longer video generation (15 seconds) – deeper cinematic controls for camera pov – support for multi-turn conversation editing – less visual drift – 30% lower price than Omni Flash 1.1 Read more: https://t.co/U0VgGTGcmW</p>
-<p>— Logan Kilpatrick (@OfficialLoganK) <a href="https://x.com/OfficialLoganK/status/2118390838434693281?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>然而，真正值得關注的升級並非只有片長。Google 將更多心力放在影片編輯體驗上，讓使用者能透過自然語言與 AI 模型互動，直接調整影片中的背景、天氣效果、場景元素，甚至重新設定畫面比例，而不必從頭生成整段影片。這項能力大幅降低反覆重製內容的成本，特別是在只需修正單一細節的情況下，更能節省大量運算資源與時間。</p>
-<p>在內容一致性方面，Gemini Omni 1.2 Flash 也展現顯著進步。使用者只需提供特定角色、產品或品牌素材圖片，再搭配最長三秒的音訊提示或動作參考片段，系統便能在不同鏡頭之間維持服裝、包裝設計、品牌色彩等視覺元素的一致性，避免 AI 影片常見的人物外觀漂移或品牌識別錯亂問題。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash, our updated video generation model from @GoogleDeepMind 🎬 Get stronger consistency, more creative control, and faster, more cost-effective video creation at scale: ⚡ Fast &amp; 30% lower cost: Draft at 360p or 720p ($0.07/s) and upscale to 1080p or 4K ⏱️ Longer clips: Generate and edit videos up to 15s, or pick any exact length from 3s to 15s 💬 Edit in conversation: Swap backgrounds, subjects, or lighting turn by turn without starting over from scratch 🗣️ More natural speech: Create fluid, multi-speaker dialogue with clearer lip-sync 🎬 More controllable shots: Direct continuous camera moves with fewer jump cuts See these updates in action ↓</p>
-<p>— Google (@Google) <a href="https://x.com/Google/status/2118390406316728555?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>影片品質同樣有所提升。Google 表示，新模型能更自然地呈現無人機空拍、環繞運鏡等複雜鏡頭運動，降低畫面切換時的突兀感。同時，在人物對話場景中，唇形同步準確度也獲得改善，即使是多角色對話，多聲部聲音的辨識度與分離效果也更加清晰。</p>
-<p>價格方面，Google 將 Omni 1.1 的生成成本下調 30%，720p 解析度影片每秒僅需 0.07 美元。以此計算，一支完整的 15 秒影片生成費用約為 1.05 美元。目前官方尚未公布 1080p 或 4K 版本的定價策略，但對創作者而言，先以較低解析度完成初版內容，再將最終成品升級至高畫質輸出，仍是兼顧成本與效率的實務做法。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash ⚡️ We’ve made the model more cost-effective, bumped the video generation and editing limit up to 15 seconds, and made updates to how scenes hold together over time. We’ve also given character speech an upgrade, reduced visual glitches like jump cuts, and made sure the model stays even truer to any reference assets you upload. So… what does all of that actually mean for you? It gives you more room to tell your story. With up to 15 seconds to work with, you have more flexibility to create what you need — videos look more cinematic and smooth, offering stronger consistency that keeps objects anchored from start to finish. And when characters speak, the dialogue sounds more fluid and natural. Creators and everyday users can start directing scenes and multi-turn edits in @FlowbyGoogle, generating 15-second clips at no additional cost in Google Vids, or creating 15-second videos in the @GeminiApp. Plus, for developers and businesses building with the API, we’ve dropped the price by 30% from the previous generation, making it available at just $0.07 per second for 720p video. Watch the model in action as it turns a single style frame into a 4-shot, 15-second macro science explainer of a living beehive ↓</p>
-<p>— Google AI (@GoogleAI) <a href="https://x.com/GoogleAI/status/2118389961426874879?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>在部署與使用管道上，開發者可透過 Google AI Studio 與 Gemini API 存取 Gemini Omni 1.2 Flash，企業用戶則能在 Google Cloud 平台透過預留運算資源進行規模化應用。此外，Flow、Google Ads 與 Google Vids 等服務也已整合這項技術。一般使用者只要擁有 Google 帳戶或 Workspace 訂閱，即可免費體驗最長 15 秒的 AI 影片生成，而訂閱 AI Ultra 方案的用戶，則能直接在 Gemini 應用程式中使用相關功能。</p>
-<p>隨著影片長度、編輯能力與內容一致性同步升級，Gemini Omni 1.2 Flash 顯示 Google 正積極縮短 AI 生成內容與專業影音製作之間的距離，也讓 AI 影片創作邁向更實用的新階段。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>對經常使用 AI 生成影片的創作者來說，最熟悉的挫折莫過於故事正要進入高潮時，畫面卻戛然而止。如今，Google 希望改善這個問題。該公司正式推出新一代 AI 影音生成模型 Gemini Omni 1.2 Flash，不僅延長影片生成時長，也進一步強化後製編輯與畫面一致性能力，讓 AI 影片創作流程更貼近專業製作需求。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106092416_0_4207d3.jpg" alt="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" title="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯</h2>
-<p>相較於前代 Omni 1.1 僅支援最長 10 秒的影片輸出，Gemini Omni 1.2 Flash 將生成時長提升至 15 秒，使用者還能在 3 至 15 秒之間自由選擇影片長度，並以 1 秒為單位進行調整。雖然距離完整的短影音廣告或品牌敘事仍有一段距離，但對創作者而言，影片時長增加 50%，已能有效提升情節鋪陳與鏡頭表現空間。</p>
-<blockquote>
-<p dir="ltr" lang="en">Today we are rolling out Gemini Omni Flash 1.2, with: – longer video generation (15 seconds) – deeper cinematic controls for camera pov – support for multi-turn conversation editing – less visual drift – 30% lower price than Omni Flash 1.1 Read more: https://t.co/U0VgGTGcmW</p>
-<p>— Logan Kilpatrick (@OfficialLoganK) <a href="https://x.com/OfficialLoganK/status/2118390838434693281?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>然而，真正值得關注的升級並非只有片長。Google 將更多心力放在影片編輯體驗上，讓使用者能透過自然語言與 AI 模型互動，直接調整影片中的背景、天氣效果、場景元素，甚至重新設定畫面比例，而不必從頭生成整段影片。這項能力大幅降低反覆重製內容的成本，特別是在只需修正單一細節的情況下，更能節省大量運算資源與時間。</p>
-<p>在內容一致性方面，Gemini Omni 1.2 Flash 也展現顯著進步。使用者只需提供特定角色、產品或品牌素材圖片，再搭配最長三秒的音訊提示或動作參考片段，系統便能在不同鏡頭之間維持服裝、包裝設計、品牌色彩等視覺元素的一致性，避免 AI 影片常見的人物外觀漂移或品牌識別錯亂問題。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash, our updated video generation model from @GoogleDeepMind 🎬 Get stronger consistency, more creative control, and faster, more cost-effective video creation at scale: ⚡ Fast &amp; 30% lower cost: Draft at 360p or 720p ($0.07/s) and upscale to 1080p or 4K ⏱️ Longer clips: Generate and edit videos up to 15s, or pick any exact length from 3s to 15s 💬 Edit in conversation: Swap backgrounds, subjects, or lighting turn by turn without starting over from scratch 🗣️ More natural speech: Create fluid, multi-speaker dialogue with clearer lip-sync 🎬 More controllable shots: Direct continuous camera moves with fewer jump cuts See these updates in action ↓</p>
-<p>— Google (@Google) <a href="https://x.com/Google/status/2118390406316728555?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>影片品質同樣有所提升。Google 表示，新模型能更自然地呈現無人機空拍、環繞運鏡等複雜鏡頭運動，降低畫面切換時的突兀感。同時，在人物對話場景中，唇形同步準確度也獲得改善，即使是多角色對話，多聲部聲音的辨識度與分離效果也更加清晰。</p>
-<p>價格方面，Google 將 Omni 1.1 的生成成本下調 30%，720p 解析度影片每秒僅需 0.07 美元。以此計算，一支完整的 15 秒影片生成費用約為 1.05 美元。目前官方尚未公布 1080p 或 4K 版本的定價策略，但對創作者而言，先以較低解析度完成初版內容，再將最終成品升級至高畫質輸出，仍是兼顧成本與效率的實務做法。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash ⚡️ We’ve made the model more cost-effective, bumped the video generation and editing limit up to 15 seconds, and made updates to how scenes hold together over time. We’ve also given character speech an upgrade, reduced visual glitches like jump cuts, and made sure the model stays even truer to any reference assets you upload. So… what does all of that actually mean for you? It gives you more room to tell your story. With up to 15 seconds to work with, you have more flexibility to create what you need — videos look more cinematic and smooth, offering stronger consistency that keeps objects anchored from start to finish. And when characters speak, the dialogue sounds more fluid and natural. Creators and everyday users can start directing scenes and multi-turn edits in @FlowbyGoogle, generating 15-second clips at no additional cost in Google Vids, or creating 15-second videos in the @GeminiApp. Plus, for developers and businesses building with the API, we’ve dropped the price by 30% from the previous generation, making it available at just $0.07 per second for 720p video. Watch the model in action as it turns a single style frame into a 4-shot, 15-second macro science explainer of a living beehive ↓</p>
-<p>— Google AI (@GoogleAI) <a href="https://x.com/GoogleAI/status/2118389961426874879?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>在部署與使用管道上，開發者可透過 Google AI Studio 與 Gemini API 存取 Gemini Omni 1.2 Flash，企業用戶則能在 Google Cloud 平台透過預留運算資源進行規模化應用。此外，Flow、Google Ads 與 Google Vids 等服務也已整合這項技術。一般使用者只要擁有 Google 帳戶或 Workspace 訂閱，即可免費體驗最長 15 秒的 AI 影片生成，而訂閱 AI Ultra 方案的用戶，則能直接在 Gemini 應用程式中使用相關功能。</p>
-<p>隨著影片長度、編輯能力與內容一致性同步升級，Gemini Omni 1.2 Flash 顯示 Google 正積極縮短 AI 生成內容與專業影音製作之間的距離，也讓 AI 影片創作邁向更實用的新階段。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>對經常使用 AI 生成影片的創作者來說，最熟悉的挫折莫過於故事正要進入高潮時，畫面卻戛然而止。如今，Google 希望改善這個問題。該公司正式推出新一代 AI 影音生成模型 Gemini Omni 1.2 Flash，不僅延長影片生成時長，也進一步強化後製編輯與畫面一致性能力，讓 AI 影片創作流程更貼近專業製作需求。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106092416_0_4207d3.jpg" alt="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" title="Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<h2>Gemini Omni 1.2 Flash 讓 AI 影片生成變得更長、更便宜也更容易編輯</h2>
-<p>相較於前代 Omni 1.1 僅支援最長 10 秒的影片輸出，Gemini Omni 1.2 Flash 將生成時長提升至 15 秒，使用者還能在 3 至 15 秒之間自由選擇影片長度，並以 1 秒為單位進行調整。雖然距離完整的短影音廣告或品牌敘事仍有一段距離，但對創作者而言，影片時長增加 50%，已能有效提升情節鋪陳與鏡頭表現空間。</p>
-<blockquote>
-<p dir="ltr" lang="en">Today we are rolling out Gemini Omni Flash 1.2, with: – longer video generation (15 seconds) – deeper cinematic controls for camera pov – support for multi-turn conversation editing – less visual drift – 30% lower price than Omni Flash 1.1 Read more: https://t.co/U0VgGTGcmW</p>
-<p>— Logan Kilpatrick (@OfficialLoganK) <a href="https://x.com/OfficialLoganK/status/2118390838434693281?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>然而，真正值得關注的升級並非只有片長。Google 將更多心力放在影片編輯體驗上，讓使用者能透過自然語言與 AI 模型互動，直接調整影片中的背景、天氣效果、場景元素，甚至重新設定畫面比例，而不必從頭生成整段影片。這項能力大幅降低反覆重製內容的成本，特別是在只需修正單一細節的情況下，更能節省大量運算資源與時間。</p>
-<p>在內容一致性方面，Gemini Omni 1.2 Flash 也展現顯著進步。使用者只需提供特定角色、產品或品牌素材圖片，再搭配最長三秒的音訊提示或動作參考片段，系統便能在不同鏡頭之間維持服裝、包裝設計、品牌色彩等視覺元素的一致性，避免 AI 影片常見的人物外觀漂移或品牌識別錯亂問題。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash, our updated video generation model from @GoogleDeepMind 🎬 Get stronger consistency, more creative control, and faster, more cost-effective video creation at scale: ⚡ Fast &amp; 30% lower cost: Draft at 360p or 720p ($0.07/s) and upscale to 1080p or 4K ⏱️ Longer clips: Generate and edit videos up to 15s, or pick any exact length from 3s to 15s 💬 Edit in conversation: Swap backgrounds, subjects, or lighting turn by turn without starting over from scratch 🗣️ More natural speech: Create fluid, multi-speaker dialogue with clearer lip-sync 🎬 More controllable shots: Direct continuous camera moves with fewer jump cuts See these updates in action ↓</p>
-<p>— Google (@Google) <a href="https://x.com/Google/status/2118390406316728555?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>影片品質同樣有所提升。Google 表示，新模型能更自然地呈現無人機空拍、環繞運鏡等複雜鏡頭運動，降低畫面切換時的突兀感。同時，在人物對話場景中，唇形同步準確度也獲得改善，即使是多角色對話，多聲部聲音的辨識度與分離效果也更加清晰。</p>
-<p>價格方面，Google 將 Omni 1.1 的生成成本下調 30%，720p 解析度影片每秒僅需 0.07 美元。以此計算，一支完整的 15 秒影片生成費用約為 1.05 美元。目前官方尚未公布 1080p 或 4K 版本的定價策略，但對創作者而言，先以較低解析度完成初版內容，再將最終成品升級至高畫質輸出，仍是兼顧成本與效率的實務做法。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini Omni 1.2 Flash ⚡️ We’ve made the model more cost-effective, bumped the video generation and editing limit up to 15 seconds, and made updates to how scenes hold together over time. We’ve also given character speech an upgrade, reduced visual glitches like jump cuts, and made sure the model stays even truer to any reference assets you upload. So… what does all of that actually mean for you? It gives you more room to tell your story. With up to 15 seconds to work with, you have more flexibility to create what you need — videos look more cinematic and smooth, offering stronger consistency that keeps objects anchored from start to finish. And when characters speak, the dialogue sounds more fluid and natural. Creators and everyday users can start directing scenes and multi-turn edits in @FlowbyGoogle, generating 15-second clips at no additional cost in Google Vids, or creating 15-second videos in the @GeminiApp. Plus, for developers and businesses building with the API, we’ve dropped the price by 30% from the previous generation, making it available at just $0.07 per second for 720p video. Watch the model in action as it turns a single style frame into a 4-shot, 15-second macro science explainer of a living beehive ↓</p>
-<p>— Google AI (@GoogleAI) <a href="https://x.com/GoogleAI/status/2118389961426874879?ref_src=twsrc%5Etfw">November 5, 2026</a></p></blockquote>
-<p>在部署與使用管道上，開發者可透過 Google AI Studio 與 Gemini API 存取 Gemini Omni 1.2 Flash，企業用戶則能在 Google Cloud 平台透過預留運算資源進行規模化應用。此外，Flow、Google Ads 與 Google Vids 等服務也已整合這項技術。一般使用者只要擁有 Google 帳戶或 Workspace 訂閱，即可免費體驗最長 15 秒的 AI 影片生成，而訂閱 AI Ultra 方案的用戶，則能直接在 Gemini 應用程式中使用相關功能。</p>
-<p>隨著影片長度、編輯能力與內容一致性同步升級，Gemini Omni 1.2 Flash 顯示 Google 正積極縮短 AI 生成內容與專業影音製作之間的距離，也讓 AI 影片創作邁向更實用的新階段。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106092416_0_4207d3.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106092416_0_4207d3.jpg" medium="image"/>
-    <pubDate>Fri, 06 Nov 2026 01:25:09 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體]]></title>
-    <link>https://www.kocpc.com.tw/archives/702234</link>
-    <itunes:title><![CDATA[MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/xJWNuPgInpk" target="_blank"><img src="https://www.youtube.com/embed/xJWNuPgInpk" /></a></p>
-<p>微星科技宣布「MSI 雙十一購物慶」將於 2026 年 11 月 6 日至 11 月 29 日登場，三款熱銷機款給出限定價，指定款電競筆電再享記憶體免費升級至 24GB。活動期間購買任一款筆電或電競掌機，登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034658_0_bc02b7.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>MSI 雙十一購物慶三款主打機款與優惠價</h3>
-<p><strong>Cyborg 15 Max（C2WF-007TW）</strong>：原價 NT$54,900，雙十一優惠價 NT$44,999，現省近萬元。這台 15.6 吋輕量電競筆電搭載 Intel Core 7 處理器 240H（系列 2），官方產品頁顯示最高可上 GeForce RTX 5070 筆記型電腦 GPU（8GB GDDR7），螢幕為 FHD 144Hz、100% sRGB 的 IPS 等級面板，機身 2kg、最薄 21mm，整機最高支援 140W 總功耗輸出，散熱走雙風扇三導管的 Cooler Boost 配置。外觀是 Cyborg 系列的 Cyberpunk 風格，上蓋、掌托與腳墊處有由 C 與 Y 組成的心形標誌，另有 Wi-Fi 6E 無線網路。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034757_0_d9251f.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p><strong>Prestige 16 AI+（C3MG-233TW）</strong>：原價 NT$74,900，雙十一優惠價 NT$64,999，同樣現省近萬元。新聞稿列出的這款搭載 Intel Core Ultra X7 處理器 358H，官方產品頁顯示全系列最高可上到 Core Ultra X9 388H（系列 3）。這台 Copilot+ PC 配備 OLED 面板（低藍光、無閃頻認證），機身最薄 11.9mm，官方標稱最高 24 小時電池續航，支援 100W PD 3.0 快充，並有 UV 鍍膜鍵帽與加寬全能觸控板。官方頁還標出 50 NPU TOPS 的 AI 算力與最高 Intel Arc GPU B390，散熱採內吹式均溫板設計。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034912_0_3ecdcd.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p><strong>Claw A8 極地白限定版（BZ2EM-012TW）</strong>：原價 NT$39,900，雙十一優惠價 NT$29,999，折扣一萬元。這是 MSI 首款搭載 AMD Ryzen Z2 Extreme 的電競掌機，8 吋 FHD+ 120Hz 觸控面板支援 VRR，80Whr 電池官方標稱 1080p 影片播放可達 19 小時、省電模式遊玩約 3.5 小時，配備霍爾效應搖桿與扳機，並支援 Xbox 全螢幕體驗與 MSI Center M 整合。Z2 Extreme 對上代 Z1 Extreme，1080p 低畫質下手動模式的遊戲 FPS 最高提升 29%、CPU 效能提升 15%。</p>
-<div><div data-alt="MSI CLAW A8 開箱評測：微星首款搭載AMD Ryzen Z2 Extreme處理器遊戲掌機（vs CALW8 AI+）"></div></div>
-<h3>指定機款免費升級記憶體至 24GB</h3>
-<p>11 月 2 日至 11 月 30 日，於微星官方授權的實體門市或購物網選購指定機款 Cyborg 15（C13WEO-264TW、C13WFO-288TWNN），至官網完成產品註冊與活動登錄後，即可到 MSI 指定展示服務中心進行免費記憶體兌換與加裝服務，記憶體容量由 8GB 升到 24GB。</p>
-<h3>登錄贈品、抽獎與卡廸那聯名</h3>
-<p>11 月 6 日至 29 日活動期間，購買任一款 MSI 筆電或電競掌機，完成產品註冊與活動登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱，贈品數量有限送完為止。MSI 今年也與聯華食品合作：即日起至 12 月 31 日，購買卡廸那全系列任一品項並完成發票登錄，<a href="https://cadina95.lianhwa.com.tw/cc-14" target="_blank">月月抽 MSI 高效能筆電</a>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106035133_0_3b0805.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>總結</h3>
-<p>三款主打機款的優惠幅度都在萬元上下，Claw A8 的折扣最深（一萬元），Cyborg 15 Max 與 Prestige 16 AI+ 各現省近萬元。活動網頁（tw.msi.com/Promotion/20261111/nb）在截稿時尚未上線，將隨活動在 11 月 6 日開跑後開放；要搶記憶體升級的名額則已從 11 月 2 日開始，記得先上官網完成註冊與登錄。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/xJWNuPgInpk" target="_blank"><img src="https://www.youtube.com/embed/xJWNuPgInpk" /></a></p>
-<p>微星科技宣布「MSI 雙十一購物慶」將於 2026 年 11 月 6 日至 11 月 29 日登場，三款熱銷機款給出限定價，指定款電競筆電再享記憶體免費升級至 24GB。活動期間購買任一款筆電或電競掌機，登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034658_0_bc02b7.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>MSI 雙十一購物慶三款主打機款與優惠價</h3>
-<p><strong>Cyborg 15 Max（C2WF-007TW）</strong>：原價 NT$54,900，雙十一優惠價 NT$44,999，現省近萬元。這台 15.6 吋輕量電競筆電搭載 Intel Core 7 處理器 240H（系列 2），官方產品頁顯示最高可上 GeForce RTX 5070 筆記型電腦 GPU（8GB GDDR7），螢幕為 FHD 144Hz、100% sRGB 的 IPS 等級面板，機身 2kg、最薄 21mm，整機最高支援 140W 總功耗輸出，散熱走雙風扇三導管的 Cooler Boost 配置。外觀是 Cyborg 系列的 Cyberpunk 風格，上蓋、掌托與腳墊處有由 C 與 Y 組成的心形標誌，另有 Wi-Fi 6E 無線網路。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034757_0_d9251f.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p><strong>Prestige 16 AI+（C3MG-233TW）</strong>：原價 NT$74,900，雙十一優惠價 NT$64,999，同樣現省近萬元。新聞稿列出的這款搭載 Intel Core Ultra X7 處理器 358H，官方產品頁顯示全系列最高可上到 Core Ultra X9 388H（系列 3）。這台 Copilot+ PC 配備 OLED 面板（低藍光、無閃頻認證），機身最薄 11.9mm，官方標稱最高 24 小時電池續航，支援 100W PD 3.0 快充，並有 UV 鍍膜鍵帽與加寬全能觸控板。官方頁還標出 50 NPU TOPS 的 AI 算力與最高 Intel Arc GPU B390，散熱採內吹式均溫板設計。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034912_0_3ecdcd.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p><strong>Claw A8 極地白限定版（BZ2EM-012TW）</strong>：原價 NT$39,900，雙十一優惠價 NT$29,999，折扣一萬元。這是 MSI 首款搭載 AMD Ryzen Z2 Extreme 的電競掌機，8 吋 FHD+ 120Hz 觸控面板支援 VRR，80Whr 電池官方標稱 1080p 影片播放可達 19 小時、省電模式遊玩約 3.5 小時，配備霍爾效應搖桿與扳機，並支援 Xbox 全螢幕體驗與 MSI Center M 整合。Z2 Extreme 對上代 Z1 Extreme，1080p 低畫質下手動模式的遊戲 FPS 最高提升 29%、CPU 效能提升 15%。</p>
-<div><div data-alt="MSI CLAW A8 開箱評測：微星首款搭載AMD Ryzen Z2 Extreme處理器遊戲掌機（vs CALW8 AI+）"></div></div>
-<h3>指定機款免費升級記憶體至 24GB</h3>
-<p>11 月 2 日至 11 月 30 日，於微星官方授權的實體門市或購物網選購指定機款 Cyborg 15（C13WEO-264TW、C13WFO-288TWNN），至官網完成產品註冊與活動登錄後，即可到 MSI 指定展示服務中心進行免費記憶體兌換與加裝服務，記憶體容量由 8GB 升到 24GB。</p>
-<h3>登錄贈品、抽獎與卡廸那聯名</h3>
-<p>11 月 6 日至 29 日活動期間，購買任一款 MSI 筆電或電競掌機，完成產品註冊與活動登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱，贈品數量有限送完為止。MSI 今年也與聯華食品合作：即日起至 12 月 31 日，購買卡廸那全系列任一品項並完成發票登錄，<a href="https://cadina95.lianhwa.com.tw/cc-14" target="_blank">月月抽 MSI 高效能筆電</a>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106035133_0_3b0805.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>總結</h3>
-<p>三款主打機款的優惠幅度都在萬元上下，Claw A8 的折扣最深（一萬元），Cyborg 15 Max 與 Prestige 16 AI+ 各現省近萬元。活動網頁（tw.msi.com/Promotion/20261111/nb）在截稿時尚未上線，將隨活動在 11 月 6 日開跑後開放；要搶記憶體升級的名額則已從 11 月 2 日開始，記得先上官網完成註冊與登錄。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/xJWNuPgInpk" target="_blank"><img src="https://www.youtube.com/embed/xJWNuPgInpk" /></a></p>
-<p>微星科技宣布「MSI 雙十一購物慶」將於 2026 年 11 月 6 日至 11 月 29 日登場，三款熱銷機款給出限定價，指定款電競筆電再享記憶體免費升級至 24GB。活動期間購買任一款筆電或電競掌機，登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034658_0_bc02b7.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>MSI 雙十一購物慶三款主打機款與優惠價</h3>
-<p><strong>Cyborg 15 Max（C2WF-007TW）</strong>：原價 NT$54,900，雙十一優惠價 NT$44,999，現省近萬元。這台 15.6 吋輕量電競筆電搭載 Intel Core 7 處理器 240H（系列 2），官方產品頁顯示最高可上 GeForce RTX 5070 筆記型電腦 GPU（8GB GDDR7），螢幕為 FHD 144Hz、100% sRGB 的 IPS 等級面板，機身 2kg、最薄 21mm，整機最高支援 140W 總功耗輸出，散熱走雙風扇三導管的 Cooler Boost 配置。外觀是 Cyborg 系列的 Cyberpunk 風格，上蓋、掌托與腳墊處有由 C 與 Y 組成的心形標誌，另有 Wi-Fi 6E 無線網路。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034757_0_d9251f.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p><strong>Prestige 16 AI+（C3MG-233TW）</strong>：原價 NT$74,900，雙十一優惠價 NT$64,999，同樣現省近萬元。新聞稿列出的這款搭載 Intel Core Ultra X7 處理器 358H，官方產品頁顯示全系列最高可上到 Core Ultra X9 388H（系列 3）。這台 Copilot+ PC 配備 OLED 面板（低藍光、無閃頻認證），機身最薄 11.9mm，官方標稱最高 24 小時電池續航，支援 100W PD 3.0 快充，並有 UV 鍍膜鍵帽與加寬全能觸控板。官方頁還標出 50 NPU TOPS 的 AI 算力與最高 Intel Arc GPU B390，散熱採內吹式均溫板設計。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106034912_0_3ecdcd.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p><strong>Claw A8 極地白限定版（BZ2EM-012TW）</strong>：原價 NT$39,900，雙十一優惠價 NT$29,999，折扣一萬元。這是 MSI 首款搭載 AMD Ryzen Z2 Extreme 的電競掌機，8 吋 FHD+ 120Hz 觸控面板支援 VRR，80Whr 電池官方標稱 1080p 影片播放可達 19 小時、省電模式遊玩約 3.5 小時，配備霍爾效應搖桿與扳機，並支援 Xbox 全螢幕體驗與 MSI Center M 整合。Z2 Extreme 對上代 Z1 Extreme，1080p 低畫質下手動模式的遊戲 FPS 最高提升 29%、CPU 效能提升 15%。</p>
-<div><div data-alt="MSI CLAW A8 開箱評測：微星首款搭載AMD Ryzen Z2 Extreme處理器遊戲掌機（vs CALW8 AI+）"></div></div>
-<h3>指定機款免費升級記憶體至 24GB</h3>
-<p>11 月 2 日至 11 月 30 日，於微星官方授權的實體門市或購物網選購指定機款 Cyborg 15（C13WEO-264TW、C13WFO-288TWNN），至官網完成產品註冊與活動登錄後，即可到 MSI 指定展示服務中心進行免費記憶體兌換與加裝服務，記憶體容量由 8GB 升到 24GB。</p>
-<h3>登錄贈品、抽獎與卡廸那聯名</h3>
-<p>11 月 6 日至 29 日活動期間，購買任一款 MSI 筆電或電競掌機，完成產品註冊與活動登錄送「Lucky 植絨手機座」（市價 NT$890），再抽 NT$11,111 電子現金與卡廸那零食箱，贈品數量有限送完為止。MSI 今年也與聯華食品合作：即日起至 12 月 31 日，購買卡廸那全系列任一品項並完成發票登錄，<a href="https://cadina95.lianhwa.com.tw/cc-14" target="_blank">月月抽 MSI 高效能筆電</a>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261106035133_0_3b0805.jpg" alt="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" title="MSI 雙十一購物慶 11/6 開跑：Cyborg 15 Max、Prestige 16 AI+、Claw A8 現省近萬元，指定機款免費升級 24GB 記憶體 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<h3>總結</h3>
-<p>三款主打機款的優惠幅度都在萬元上下，Claw A8 的折扣最深（一萬元），Cyborg 15 Max 與 Prestige 16 AI+ 各現省近萬元。活動網頁（tw.msi.com/Promotion/20261111/nb）在截稿時尚未上線，將隨活動在 11 月 6 日開跑後開放；要搶記憶體升級的名額則已從 11 月 2 日開始，記得先上官網完成註冊與登錄。</p>]]></content:encoded>
-    <itunes:image href="https://www.youtube.com/embed/xJWNuPgInpk"/>
-          <media:content url="https://www.youtube.com/embed/xJWNuPgInpk" medium="image"/>
-    <pubDate>Thu, 05 Nov 2026 19:53:11 +0000</pubDate>
   </item></channel>
 </rss>
