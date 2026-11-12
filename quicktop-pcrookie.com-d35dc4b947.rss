@@ -30,6 +30,375 @@
     </itunes:owner>
     <itunes:image href="https://pcrookie.com/wp-content/uploads/2019/11/blog-LOGO-2.png"/>
 <item>
+    <title><![CDATA[GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體]]></title>
+    <link>https://pcrookie.com/gputaskman-gpu-memory-guide/</link>
+    <itunes:title><![CDATA[GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體]]></itunes:title>
+    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<img post-id="8583" fifu-featured="1" alt="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-cover.png">
+<p>顯示卡明明沒在跑遊戲，顯示記憶體怎麼還被占用？開了遠端桌面、瀏覽器、錄影工具，再加上本地 AI，光看 GPU 使用率，常常很難知道下一步該查哪個程式。</p>
+<p>阿正老師這次介紹的 <strong>GPU Taskman（專案名稱 gputaskman）</strong>，就是 Scott Hanselman 放在 GitHub 的免費開源工具。看到 4Gamers 的介紹後，我們直接對照官方專案，再搭配阿正老師提供的兩張 Windows 實測畫面，看看它到底能幫忙找出哪些線索。</p>
+<p>先說清楚，Windows 工作管理員本身也能查看程序的 GPU 與顯示記憶體資訊。GPU Taskman 值得看的地方，是把這些數據、執行環境線索及部分 AI 模型資訊放在一起。本文的實測解說限於兩張截圖可見的內容，Linux、Mac 與 AI 模型拆解則依官方文件整理。</p>
+<hr>
+<div>
+<p>📋 文章目錄</p>
+<ol>
+<li><a href="#intro">GPU Taskman 是什麼？</a></li>
+<li><a href="#download">下載與第一次執行</a></li>
+<li><a href="#screenshot">實測畫面：RustDesk 也會用到顯示記憶體</a></li>
+<li><a href="#na">N/A 是什麼？別把虛擬介面當成三張顯卡</a></li>
+<li><a href="#ai">跑本地 AI 時，可以多看哪些資訊？</a></li>
+<li><a href="#tips">操作快捷鍵與常見問題</a></li>
+<li><a href="#summary">阿正老師的使用建議</a></li>
+</ol>
+</div>
+<hr>
+<h2>一、GPU Taskman 是什麼？</h2>
+<p>這是一款在終端機裡操作的 GPU 監控工具，畫面以彩色長條、歷史圖表和程序清單組成。你可以選取一個程式，看它用了多少顯示記憶體、有哪些 GPU 引擎活動，以及工具辨識到的執行環境。</p>
+<p>它不會替你釋放 VRAM，也不是顯卡加速器。比較適合拿來回答「這段時間是哪個程式在用顯卡？」或「載入模型前後，哪部分記憶體增加了？」。官方仍將它定位為早期實驗性軟體，分類與部分拆解數字是推估，不能一律當成直接量測。</p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://github.com/shanselman/gputaskman" target="_blank">GitHub：shanselman/gputaskman</a></td>
+</tr>
+<tr>
+<td>最新版本</td>
+<td><span data-software-id="331">0.4.0</span>（發布日期：<span data-software-id="331">2026-11-11</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows 10／11 64 位元；原生 Linux（NVIDIA／AMD／Intel）、WSL（僅 NVIDIA）；macOS 限 Apple Silicon</td>
+</tr>
+<tr>
+<td>費用與授權</td>
+<td>免費開源，MIT 授權</td>
+</tr>
+<tr>
+<td>介面</td>
+<td>本文截圖為英文介面</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://pcrookie.com/download/details.php?id=331" target="_blank">本站下載點</a>；<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a></td>
+</tr>
+</tbody>
+</table>
+<p>支援平台也要分開看。Windows 使用說明以 NVIDIA、AMD 與相容驅動為主；原生 Linux 支援 NVIDIA／AMD／Intel，WSL 則僅支援 NVIDIA。macOS 限 Apple Silicon，目前沒有可攜版，需依官方說明安裝；下文 Spill／Paged 的欄位解說只適用 Windows，不能直接套用其他平台。</p>
+<hr>
+<h2>二、下載與第一次執行</h2>
+<p>一般 Windows 使用者可以先到官方 Releases 查看可攜版，不必為了監控功能另外裝 CUDA Toolkit 或下載 AI 模型。以下流程依官方說明整理，並非本文另外完成的安裝測試。</p>
+<ol>
+<li>前往 <a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>，展開該版本的 Assets。</li>
+<li>一般 Intel／AMD 處理器的 Windows 電腦選擇檔名含 <code>windows-x64.zip</code> 的套件；Windows ARM 電腦則選 <code>windows-arm64.zip</code>。這裡的 x64 指處理器架構，並不是顯卡品牌。</li>
+<li>將 ZIP <strong>完整解壓縮</strong>，保留 <code>_internal</code> 資料夾與 <code>gputaskman.exe</code> 的相對位置，不要只抽出 EXE。</li>
+<li>在解壓縮的資料夾開啟 Windows Terminal 或 PowerShell，輸入下方指令。</li>
+</ol>
+<pre><code>.\gputaskman.exe</code></pre>
+<p>官方目前說明可攜版尚未簽章；遇到系統提示時，先確認來源確實是作者的 Releases，亦可核對隨版本提供的 SHA-256 檢查碼，不要下載不明鏡像或關閉整套防護。</p>
+<p>如果原本就有使用 uv，也能依官方 PyPI 安裝方式執行：</p>
+<pre><code>uv tool install gputaskman
+gputaskman</code></pre>
+<p>這條路需要 Python 3.11 以上的相容環境；Windows 可攜版則不需要另外安裝 Python。想從原始碼啟動的人，可依 README 使用 Git 與 <code>uv run --locked gputaskman</code>。</p>
+<hr>
+<h2>三、實測畫面：RustDesk 也會用到顯示記憶體</h2>
+<p>先看阿正老師的第一張截圖。上半部是系統資源及 GPU 歷史圖表，中間列出各個程序，底下則是目前選取程序的詳細說明。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png" target="_blank"><img alt="GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 2" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png"></a><figcaption>▲ GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面選到的是 <code>RustDesk.exe</code>，當下顯示 <strong>VRAM 862 MB、Spill 123 MB、Paged 158 MB</strong>，分類是 <code>video</code>，並列出 <code>OpenGL D3D11</code>。這說明除了遊戲，遠端桌面程式同樣可能占用顯示記憶體；不過分類和執行環境是工具提供的辨識線索，不能據此還原每一筆配置。</p>
+<p>圖表上的 GPU 0 當下為 12%、溫度 44°C、功率 33 W，VRAM 顯示 38%。這些都是截圖那一刻的讀值，<strong>不是平均效能、壓力測試成績，也不是這台電腦固定會有的占用量</strong>。</p>
+<p>程序清單裡也能看到 <code>dwm.exe</code>、Snagit、瀏覽器與 NVIDIA Overlay。碰到 VRAM 比預期高的情況，可以先從清單挑出大戶，再一次關掉一個不需要的應用程式，比較前後變化。別直接把系統程序結束掉。</p>
+<p><strong>各程序的 VRAM 數字不宜直接加總</strong>。共享畫面可能同時列在應用程式、<code>csrss.exe</code> 與 <code>dwm.exe</code> 等程序底下，加總會重複計算；整體用量以上方 GPU 的 VRAM 總量為準。</p>
+<h3>VRAM、Spill、Paged，三個欄位怎麼讀？</h3>
+<ul>
+<li><strong>VRAM</strong>：此 Windows 畫面中，工具歸給該程序的本地 GPU 記憶體用量。</li>
+<li><strong>Spill</strong>：這裡對應非本地 GPU 記憶體用量，也就是放在系統 RAM 的部分。看見數字並不代表已經證明顯卡記憶體爆滿，也不等於程式出錯。</li>
+<li><strong>Paged</strong>：以承諾配置量與本地／非本地用量差額推估的非駐留部分。<strong>不是實際硬碟讀寫量，也不能拿來證明 Windows 正在把這些資料換頁到磁碟</strong>。</li>
+</ul>
+<p>你可以看到底部橘字特別提醒，這筆 158 MB 是估計，不能證明資料已被驅逐或寫入磁碟。先讀這段說明，再判斷數字，會比看到 Paged 就認定電腦卡頓來得可靠。</p>
+<hr>
+<h2>四、N/A 是什麼？別把虛擬介面當成三張顯卡</h2>
+<p>第二張截圖往上呈現了其他顯示介面的資訊。這也是遠端桌面使用者很容易遇到、卻不一定看得懂的畫面。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png" target="_blank"><img alt="GPU Taskman 列出虛擬顯示介面並提示計數器無法對應" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 3" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png"></a><figcaption>▲ GPU Taskman 列出虛擬顯示介面並提示計數器無法對應。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面列出 <code>DeskIn Virtual Display Adapter</code> 與 <code>OrayIddDriver Device</code>，並顯示 N/A 和計數器無法對應的說明。因此，<strong>GPU 0、GPU 1、GPU 2 是工具列出的介面編號，不能光憑編號就說電腦裝了三張實體顯卡</strong>。</p>
+<p>官方說明指出，當 Windows 的 GPU 計數器無法安全對應到選取的介面時，工具會把用量與程序資料標成不可用。截圖能證明的是這次未取得可對應的讀值，無法單憑它判定是驅動故障，也不能把 N/A 解讀成「完全沒用到 GPU」。</p>
+<p>這張畫面的系統 RAM 是 20.72 GB／31.91 GB，CPU 是 29%；第一張則分別是 20.99 GB 與 24%。兩張截圖來自不同瞬間，數字不同很正常，也不能用這個差異推算 GPU Taskman 本身的效能負擔。</p>
+<hr>
+<h2>五、跑本地 AI 時，可以多看哪些資訊？</h2>
+<p>依官方文件，GPU Taskman 會結合程序載入的執行環境、模型檔案與部分執行紀錄，協助辨識本地 AI 工作。對相容的 GGUF 模型與執行環境，還可能呈現模型權重、KV cache（保留對話運算資訊的快取）與運算緩衝區的拆解。</p>
+<p>例如想知道調大對話長度後，記憶體增加在哪裡，可以保存前後 JSON 快照，再用 <code>diff</code> 比較。官方會把量測數據、執行環境回報及估計資訊分開；看到模型檔案名稱，也不代表已證明整份模型都放在 GPU。</p>
+<p><strong>這兩張實測截圖沒有 AI 模型拆解畫面</strong>，因此本文不宣稱已測過 Ollama 或其他模型。工具也無法列出遊戲裡每張材質的名稱，不會直接告訴你「哪個貼圖占了多少」，更不會自動調整遊戲設定。</p>
+<hr>
+<h2>六、操作快捷鍵與常見問題</h2>
+<p>不必背一長串指令，先記住畫面底下的幾個按鍵就能開始查看：</p>
+<ul>
+<li><code>↑／↓</code>：選取程序，查看底下的詳細資訊。</li>
+<li><code>s</code>：輪流切換排序欄位，例如 VRAM、GPU 使用率、Spill、Paged、RAM 或 CPU。</li>
+<li><code>c</code>：切換圖表，也可以點 Charts 下拉選單。</li>
+<li><code>a</code>：在顯示前幾項程序（Top）與全部已收集程序（All）之間切換。</li>
+<li><code>m</code>：切換完整診斷與精簡監控畫面。</li>
+<li><code>p</code>：暫停或恢復取樣；<code>?</code> 查看欄位解說；<code>q</code> 離開。</li>
+</ul>
+<h3>畫面很擠怎麼辦？</h3>
+<p>把終端機視窗拉寬，必要時縮小字體。官方建議約 140 欄以上較容易閱讀完整表格；視窗高度不足時，上半部儀表板與底下檢視區可以捲動。想少看一些硬體細節，可按 <code>m</code>。</p>
+<h3>為什麼某些欄位讀不到？</h3>
+<p>先讀畫面上的原因說明，確認選到的介面與顯卡驅動。不同平台、驅動、虛擬顯示介面及權限，能提供的數據本來就不同。更新相容驅動或重新啟動工具後仍有問題，可附上版本與環境到官方 Issues 回報；分享資料前先檢查程序路徑、模型名稱等資訊。</p>
+<h3>它能讓遊戲變快嗎？</h3>
+<p>它負責觀察，不會自動加速。找到占用來源後，仍要由你決定關閉背景應用程式、調低遊戲材質設定，或調整 AI 模型與對話長度。本文沒有測量開啟工具前後的遊戲效能，也沒有監控工具的負載測試。</p>
+<hr>
+<h2>七、阿正老師的使用建議</h2>
+<p>以這兩張畫面來看，GPU Taskman 最實用的用途，是把「哪個程式占用多少」和「這個數字能不能相信」一起呈現。像 RustDesk 的影片相關活動、虛擬顯示介面的 N/A，以及 Paged 的估計提醒，都比只盯著一個百分比更有助於縮小問題範圍。</p>
+<p>阿正老師會建議，有在跑本地 AI、錄影、遠端桌面，或常常疑惑顯示記憶體被誰占用的人，可以下載試試。若只是偶爾看溫度與整體使用率，先用熟悉的工作管理員就好；需要繼續追查程序與記憶體線索時，再開 GPU Taskman。</p>
+<p>資料來源：<a href="https://github.com/shanselman/gputaskman" target="_blank">官方 GitHub README</a>、<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>、<a href="https://www.4gamers.com.tw/news/detail/83231/microsoft-vp-built-gpu-taskman" target="_blank">4Gamers 參考報導</a>。查閱日期為 2026-11-11；實測圖片由阿正老師提供。</p>
+<div>
+<p>📌 你的顯示記憶體都用在哪裡？</p>
+<p>打開程序清單，看看遠端桌面、瀏覽器或本地 AI 各占了多少；遇到 N/A 或估計值，記得先讀工具的說明。</p>
+<p>歡迎在下面留言跟阿正老師分享！😊</p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<img post-id="8583" fifu-featured="1" alt="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-cover.png">
+<p>顯示卡明明沒在跑遊戲，顯示記憶體怎麼還被占用？開了遠端桌面、瀏覽器、錄影工具，再加上本地 AI，光看 GPU 使用率，常常很難知道下一步該查哪個程式。</p>
+<p>阿正老師這次介紹的 <strong>GPU Taskman（專案名稱 gputaskman）</strong>，就是 Scott Hanselman 放在 GitHub 的免費開源工具。看到 4Gamers 的介紹後，我們直接對照官方專案，再搭配阿正老師提供的兩張 Windows 實測畫面，看看它到底能幫忙找出哪些線索。</p>
+<p>先說清楚，Windows 工作管理員本身也能查看程序的 GPU 與顯示記憶體資訊。GPU Taskman 值得看的地方，是把這些數據、執行環境線索及部分 AI 模型資訊放在一起。本文的實測解說限於兩張截圖可見的內容，Linux、Mac 與 AI 模型拆解則依官方文件整理。</p>
+<hr>
+<div>
+<p>📋 文章目錄</p>
+<ol>
+<li><a href="#intro">GPU Taskman 是什麼？</a></li>
+<li><a href="#download">下載與第一次執行</a></li>
+<li><a href="#screenshot">實測畫面：RustDesk 也會用到顯示記憶體</a></li>
+<li><a href="#na">N/A 是什麼？別把虛擬介面當成三張顯卡</a></li>
+<li><a href="#ai">跑本地 AI 時，可以多看哪些資訊？</a></li>
+<li><a href="#tips">操作快捷鍵與常見問題</a></li>
+<li><a href="#summary">阿正老師的使用建議</a></li>
+</ol>
+</div>
+<hr>
+<h2>一、GPU Taskman 是什麼？</h2>
+<p>這是一款在終端機裡操作的 GPU 監控工具，畫面以彩色長條、歷史圖表和程序清單組成。你可以選取一個程式，看它用了多少顯示記憶體、有哪些 GPU 引擎活動，以及工具辨識到的執行環境。</p>
+<p>它不會替你釋放 VRAM，也不是顯卡加速器。比較適合拿來回答「這段時間是哪個程式在用顯卡？」或「載入模型前後，哪部分記憶體增加了？」。官方仍將它定位為早期實驗性軟體，分類與部分拆解數字是推估，不能一律當成直接量測。</p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://github.com/shanselman/gputaskman" target="_blank">GitHub：shanselman/gputaskman</a></td>
+</tr>
+<tr>
+<td>最新版本</td>
+<td><span data-software-id="331">0.4.0</span>（發布日期：<span data-software-id="331">2026-11-11</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows 10／11 64 位元；原生 Linux（NVIDIA／AMD／Intel）、WSL（僅 NVIDIA）；macOS 限 Apple Silicon</td>
+</tr>
+<tr>
+<td>費用與授權</td>
+<td>免費開源，MIT 授權</td>
+</tr>
+<tr>
+<td>介面</td>
+<td>本文截圖為英文介面</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://pcrookie.com/download/details.php?id=331" target="_blank">本站下載點</a>；<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a></td>
+</tr>
+</tbody>
+</table>
+<p>支援平台也要分開看。Windows 使用說明以 NVIDIA、AMD 與相容驅動為主；原生 Linux 支援 NVIDIA／AMD／Intel，WSL 則僅支援 NVIDIA。macOS 限 Apple Silicon，目前沒有可攜版，需依官方說明安裝；下文 Spill／Paged 的欄位解說只適用 Windows，不能直接套用其他平台。</p>
+<hr>
+<h2>二、下載與第一次執行</h2>
+<p>一般 Windows 使用者可以先到官方 Releases 查看可攜版，不必為了監控功能另外裝 CUDA Toolkit 或下載 AI 模型。以下流程依官方說明整理，並非本文另外完成的安裝測試。</p>
+<ol>
+<li>前往 <a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>，展開該版本的 Assets。</li>
+<li>一般 Intel／AMD 處理器的 Windows 電腦選擇檔名含 <code>windows-x64.zip</code> 的套件；Windows ARM 電腦則選 <code>windows-arm64.zip</code>。這裡的 x64 指處理器架構，並不是顯卡品牌。</li>
+<li>將 ZIP <strong>完整解壓縮</strong>，保留 <code>_internal</code> 資料夾與 <code>gputaskman.exe</code> 的相對位置，不要只抽出 EXE。</li>
+<li>在解壓縮的資料夾開啟 Windows Terminal 或 PowerShell，輸入下方指令。</li>
+</ol>
+<pre><code>.\gputaskman.exe</code></pre>
+<p>官方目前說明可攜版尚未簽章；遇到系統提示時，先確認來源確實是作者的 Releases，亦可核對隨版本提供的 SHA-256 檢查碼，不要下載不明鏡像或關閉整套防護。</p>
+<p>如果原本就有使用 uv，也能依官方 PyPI 安裝方式執行：</p>
+<pre><code>uv tool install gputaskman
+gputaskman</code></pre>
+<p>這條路需要 Python 3.11 以上的相容環境；Windows 可攜版則不需要另外安裝 Python。想從原始碼啟動的人，可依 README 使用 Git 與 <code>uv run --locked gputaskman</code>。</p>
+<hr>
+<h2>三、實測畫面：RustDesk 也會用到顯示記憶體</h2>
+<p>先看阿正老師的第一張截圖。上半部是系統資源及 GPU 歷史圖表，中間列出各個程序，底下則是目前選取程序的詳細說明。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png" target="_blank"><img alt="GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 2" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png"></a><figcaption>▲ GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面選到的是 <code>RustDesk.exe</code>，當下顯示 <strong>VRAM 862 MB、Spill 123 MB、Paged 158 MB</strong>，分類是 <code>video</code>，並列出 <code>OpenGL D3D11</code>。這說明除了遊戲，遠端桌面程式同樣可能占用顯示記憶體；不過分類和執行環境是工具提供的辨識線索，不能據此還原每一筆配置。</p>
+<p>圖表上的 GPU 0 當下為 12%、溫度 44°C、功率 33 W，VRAM 顯示 38%。這些都是截圖那一刻的讀值，<strong>不是平均效能、壓力測試成績，也不是這台電腦固定會有的占用量</strong>。</p>
+<p>程序清單裡也能看到 <code>dwm.exe</code>、Snagit、瀏覽器與 NVIDIA Overlay。碰到 VRAM 比預期高的情況，可以先從清單挑出大戶，再一次關掉一個不需要的應用程式，比較前後變化。別直接把系統程序結束掉。</p>
+<p><strong>各程序的 VRAM 數字不宜直接加總</strong>。共享畫面可能同時列在應用程式、<code>csrss.exe</code> 與 <code>dwm.exe</code> 等程序底下，加總會重複計算；整體用量以上方 GPU 的 VRAM 總量為準。</p>
+<h3>VRAM、Spill、Paged，三個欄位怎麼讀？</h3>
+<ul>
+<li><strong>VRAM</strong>：此 Windows 畫面中，工具歸給該程序的本地 GPU 記憶體用量。</li>
+<li><strong>Spill</strong>：這裡對應非本地 GPU 記憶體用量，也就是放在系統 RAM 的部分。看見數字並不代表已經證明顯卡記憶體爆滿，也不等於程式出錯。</li>
+<li><strong>Paged</strong>：以承諾配置量與本地／非本地用量差額推估的非駐留部分。<strong>不是實際硬碟讀寫量，也不能拿來證明 Windows 正在把這些資料換頁到磁碟</strong>。</li>
+</ul>
+<p>你可以看到底部橘字特別提醒，這筆 158 MB 是估計，不能證明資料已被驅逐或寫入磁碟。先讀這段說明，再判斷數字，會比看到 Paged 就認定電腦卡頓來得可靠。</p>
+<hr>
+<h2>四、N/A 是什麼？別把虛擬介面當成三張顯卡</h2>
+<p>第二張截圖往上呈現了其他顯示介面的資訊。這也是遠端桌面使用者很容易遇到、卻不一定看得懂的畫面。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png" target="_blank"><img alt="GPU Taskman 列出虛擬顯示介面並提示計數器無法對應" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 3" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png"></a><figcaption>▲ GPU Taskman 列出虛擬顯示介面並提示計數器無法對應。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面列出 <code>DeskIn Virtual Display Adapter</code> 與 <code>OrayIddDriver Device</code>，並顯示 N/A 和計數器無法對應的說明。因此，<strong>GPU 0、GPU 1、GPU 2 是工具列出的介面編號，不能光憑編號就說電腦裝了三張實體顯卡</strong>。</p>
+<p>官方說明指出，當 Windows 的 GPU 計數器無法安全對應到選取的介面時，工具會把用量與程序資料標成不可用。截圖能證明的是這次未取得可對應的讀值，無法單憑它判定是驅動故障，也不能把 N/A 解讀成「完全沒用到 GPU」。</p>
+<p>這張畫面的系統 RAM 是 20.72 GB／31.91 GB，CPU 是 29%；第一張則分別是 20.99 GB 與 24%。兩張截圖來自不同瞬間，數字不同很正常，也不能用這個差異推算 GPU Taskman 本身的效能負擔。</p>
+<hr>
+<h2>五、跑本地 AI 時，可以多看哪些資訊？</h2>
+<p>依官方文件，GPU Taskman 會結合程序載入的執行環境、模型檔案與部分執行紀錄，協助辨識本地 AI 工作。對相容的 GGUF 模型與執行環境，還可能呈現模型權重、KV cache（保留對話運算資訊的快取）與運算緩衝區的拆解。</p>
+<p>例如想知道調大對話長度後，記憶體增加在哪裡，可以保存前後 JSON 快照，再用 <code>diff</code> 比較。官方會把量測數據、執行環境回報及估計資訊分開；看到模型檔案名稱，也不代表已證明整份模型都放在 GPU。</p>
+<p><strong>這兩張實測截圖沒有 AI 模型拆解畫面</strong>，因此本文不宣稱已測過 Ollama 或其他模型。工具也無法列出遊戲裡每張材質的名稱，不會直接告訴你「哪個貼圖占了多少」，更不會自動調整遊戲設定。</p>
+<hr>
+<h2>六、操作快捷鍵與常見問題</h2>
+<p>不必背一長串指令，先記住畫面底下的幾個按鍵就能開始查看：</p>
+<ul>
+<li><code>↑／↓</code>：選取程序，查看底下的詳細資訊。</li>
+<li><code>s</code>：輪流切換排序欄位，例如 VRAM、GPU 使用率、Spill、Paged、RAM 或 CPU。</li>
+<li><code>c</code>：切換圖表，也可以點 Charts 下拉選單。</li>
+<li><code>a</code>：在顯示前幾項程序（Top）與全部已收集程序（All）之間切換。</li>
+<li><code>m</code>：切換完整診斷與精簡監控畫面。</li>
+<li><code>p</code>：暫停或恢復取樣；<code>?</code> 查看欄位解說；<code>q</code> 離開。</li>
+</ul>
+<h3>畫面很擠怎麼辦？</h3>
+<p>把終端機視窗拉寬，必要時縮小字體。官方建議約 140 欄以上較容易閱讀完整表格；視窗高度不足時，上半部儀表板與底下檢視區可以捲動。想少看一些硬體細節，可按 <code>m</code>。</p>
+<h3>為什麼某些欄位讀不到？</h3>
+<p>先讀畫面上的原因說明，確認選到的介面與顯卡驅動。不同平台、驅動、虛擬顯示介面及權限，能提供的數據本來就不同。更新相容驅動或重新啟動工具後仍有問題，可附上版本與環境到官方 Issues 回報；分享資料前先檢查程序路徑、模型名稱等資訊。</p>
+<h3>它能讓遊戲變快嗎？</h3>
+<p>它負責觀察，不會自動加速。找到占用來源後，仍要由你決定關閉背景應用程式、調低遊戲材質設定，或調整 AI 模型與對話長度。本文沒有測量開啟工具前後的遊戲效能，也沒有監控工具的負載測試。</p>
+<hr>
+<h2>七、阿正老師的使用建議</h2>
+<p>以這兩張畫面來看，GPU Taskman 最實用的用途，是把「哪個程式占用多少」和「這個數字能不能相信」一起呈現。像 RustDesk 的影片相關活動、虛擬顯示介面的 N/A，以及 Paged 的估計提醒，都比只盯著一個百分比更有助於縮小問題範圍。</p>
+<p>阿正老師會建議，有在跑本地 AI、錄影、遠端桌面，或常常疑惑顯示記憶體被誰占用的人，可以下載試試。若只是偶爾看溫度與整體使用率，先用熟悉的工作管理員就好；需要繼續追查程序與記憶體線索時，再開 GPU Taskman。</p>
+<p>資料來源：<a href="https://github.com/shanselman/gputaskman" target="_blank">官方 GitHub README</a>、<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>、<a href="https://www.4gamers.com.tw/news/detail/83231/microsoft-vp-built-gpu-taskman" target="_blank">4Gamers 參考報導</a>。查閱日期為 2026-11-11；實測圖片由阿正老師提供。</p>
+<div>
+<p>📌 你的顯示記憶體都用在哪裡？</p>
+<p>打開程序清單，看看遠端桌面、瀏覽器或本地 AI 各占了多少；遇到 N/A 或估計值，記得先讀工具的說明。</p>
+<p>歡迎在下面留言跟阿正老師分享！😊</p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<img post-id="8583" fifu-featured="1" alt="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-cover.png">
+<p>顯示卡明明沒在跑遊戲，顯示記憶體怎麼還被占用？開了遠端桌面、瀏覽器、錄影工具，再加上本地 AI，光看 GPU 使用率，常常很難知道下一步該查哪個程式。</p>
+<p>阿正老師這次介紹的 <strong>GPU Taskman（專案名稱 gputaskman）</strong>，就是 Scott Hanselman 放在 GitHub 的免費開源工具。看到 4Gamers 的介紹後，我們直接對照官方專案，再搭配阿正老師提供的兩張 Windows 實測畫面，看看它到底能幫忙找出哪些線索。</p>
+<p>先說清楚，Windows 工作管理員本身也能查看程序的 GPU 與顯示記憶體資訊。GPU Taskman 值得看的地方，是把這些數據、執行環境線索及部分 AI 模型資訊放在一起。本文的實測解說限於兩張截圖可見的內容，Linux、Mac 與 AI 模型拆解則依官方文件整理。</p>
+<hr>
+<div>
+<p>📋 文章目錄</p>
+<ol>
+<li><a href="#intro">GPU Taskman 是什麼？</a></li>
+<li><a href="#download">下載與第一次執行</a></li>
+<li><a href="#screenshot">實測畫面：RustDesk 也會用到顯示記憶體</a></li>
+<li><a href="#na">N/A 是什麼？別把虛擬介面當成三張顯卡</a></li>
+<li><a href="#ai">跑本地 AI 時，可以多看哪些資訊？</a></li>
+<li><a href="#tips">操作快捷鍵與常見問題</a></li>
+<li><a href="#summary">阿正老師的使用建議</a></li>
+</ol>
+</div>
+<hr>
+<h2>一、GPU Taskman 是什麼？</h2>
+<p>這是一款在終端機裡操作的 GPU 監控工具，畫面以彩色長條、歷史圖表和程序清單組成。你可以選取一個程式，看它用了多少顯示記憶體、有哪些 GPU 引擎活動，以及工具辨識到的執行環境。</p>
+<p>它不會替你釋放 VRAM，也不是顯卡加速器。比較適合拿來回答「這段時間是哪個程式在用顯卡？」或「載入模型前後，哪部分記憶體增加了？」。官方仍將它定位為早期實驗性軟體，分類與部分拆解數字是推估，不能一律當成直接量測。</p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://github.com/shanselman/gputaskman" target="_blank">GitHub：shanselman/gputaskman</a></td>
+</tr>
+<tr>
+<td>最新版本</td>
+<td><span data-software-id="331">0.4.0</span>（發布日期：<span data-software-id="331">2026-11-11</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows 10／11 64 位元；原生 Linux（NVIDIA／AMD／Intel）、WSL（僅 NVIDIA）；macOS 限 Apple Silicon</td>
+</tr>
+<tr>
+<td>費用與授權</td>
+<td>免費開源，MIT 授權</td>
+</tr>
+<tr>
+<td>介面</td>
+<td>本文截圖為英文介面</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://pcrookie.com/download/details.php?id=331" target="_blank">本站下載點</a>；<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a></td>
+</tr>
+</tbody>
+</table>
+<p>支援平台也要分開看。Windows 使用說明以 NVIDIA、AMD 與相容驅動為主；原生 Linux 支援 NVIDIA／AMD／Intel，WSL 則僅支援 NVIDIA。macOS 限 Apple Silicon，目前沒有可攜版，需依官方說明安裝；下文 Spill／Paged 的欄位解說只適用 Windows，不能直接套用其他平台。</p>
+<hr>
+<h2>二、下載與第一次執行</h2>
+<p>一般 Windows 使用者可以先到官方 Releases 查看可攜版，不必為了監控功能另外裝 CUDA Toolkit 或下載 AI 模型。以下流程依官方說明整理，並非本文另外完成的安裝測試。</p>
+<ol>
+<li>前往 <a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>，展開該版本的 Assets。</li>
+<li>一般 Intel／AMD 處理器的 Windows 電腦選擇檔名含 <code>windows-x64.zip</code> 的套件；Windows ARM 電腦則選 <code>windows-arm64.zip</code>。這裡的 x64 指處理器架構，並不是顯卡品牌。</li>
+<li>將 ZIP <strong>完整解壓縮</strong>，保留 <code>_internal</code> 資料夾與 <code>gputaskman.exe</code> 的相對位置，不要只抽出 EXE。</li>
+<li>在解壓縮的資料夾開啟 Windows Terminal 或 PowerShell，輸入下方指令。</li>
+</ol>
+<pre><code>.\gputaskman.exe</code></pre>
+<p>官方目前說明可攜版尚未簽章；遇到系統提示時，先確認來源確實是作者的 Releases，亦可核對隨版本提供的 SHA-256 檢查碼，不要下載不明鏡像或關閉整套防護。</p>
+<p>如果原本就有使用 uv，也能依官方 PyPI 安裝方式執行：</p>
+<pre><code>uv tool install gputaskman
+gputaskman</code></pre>
+<p>這條路需要 Python 3.11 以上的相容環境；Windows 可攜版則不需要另外安裝 Python。想從原始碼啟動的人，可依 README 使用 Git 與 <code>uv run --locked gputaskman</code>。</p>
+<hr>
+<h2>三、實測畫面：RustDesk 也會用到顯示記憶體</h2>
+<p>先看阿正老師的第一張截圖。上半部是系統資源及 GPU 歷史圖表，中間列出各個程序，底下則是目前選取程序的詳細說明。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png" target="_blank"><img alt="GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 2" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-1.png"></a><figcaption>▲ GPU Taskman 顯示 RustDesk 的 VRAM、Spill、Paged 與 GPU 活動。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面選到的是 <code>RustDesk.exe</code>，當下顯示 <strong>VRAM 862 MB、Spill 123 MB、Paged 158 MB</strong>，分類是 <code>video</code>，並列出 <code>OpenGL D3D11</code>。這說明除了遊戲，遠端桌面程式同樣可能占用顯示記憶體；不過分類和執行環境是工具提供的辨識線索，不能據此還原每一筆配置。</p>
+<p>圖表上的 GPU 0 當下為 12%、溫度 44°C、功率 33 W，VRAM 顯示 38%。這些都是截圖那一刻的讀值，<strong>不是平均效能、壓力測試成績，也不是這台電腦固定會有的占用量</strong>。</p>
+<p>程序清單裡也能看到 <code>dwm.exe</code>、Snagit、瀏覽器與 NVIDIA Overlay。碰到 VRAM 比預期高的情況，可以先從清單挑出大戶，再一次關掉一個不需要的應用程式，比較前後變化。別直接把系統程序結束掉。</p>
+<p><strong>各程序的 VRAM 數字不宜直接加總</strong>。共享畫面可能同時列在應用程式、<code>csrss.exe</code> 與 <code>dwm.exe</code> 等程序底下，加總會重複計算；整體用量以上方 GPU 的 VRAM 總量為準。</p>
+<h3>VRAM、Spill、Paged，三個欄位怎麼讀？</h3>
+<ul>
+<li><strong>VRAM</strong>：此 Windows 畫面中，工具歸給該程序的本地 GPU 記憶體用量。</li>
+<li><strong>Spill</strong>：這裡對應非本地 GPU 記憶體用量，也就是放在系統 RAM 的部分。看見數字並不代表已經證明顯卡記憶體爆滿，也不等於程式出錯。</li>
+<li><strong>Paged</strong>：以承諾配置量與本地／非本地用量差額推估的非駐留部分。<strong>不是實際硬碟讀寫量，也不能拿來證明 Windows 正在把這些資料換頁到磁碟</strong>。</li>
+</ul>
+<p>你可以看到底部橘字特別提醒，這筆 158 MB 是估計，不能證明資料已被驅逐或寫入磁碟。先讀這段說明，再判斷數字，會比看到 Paged 就認定電腦卡頓來得可靠。</p>
+<hr>
+<h2>四、N/A 是什麼？別把虛擬介面當成三張顯卡</h2>
+<p>第二張截圖往上呈現了其他顯示介面的資訊。這也是遠端桌面使用者很容易遇到、卻不一定看得懂的畫面。</p>
+<a href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png" target="_blank"><img alt="GPU Taskman 列出虛擬顯示介面並提示計數器無法對應" title="GPU Taskman 免費開源顯卡監控工具：用兩張實測截圖，看懂誰在占用顯示記憶體 3" src="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-screenshot-2.png"></a><figcaption>▲ GPU Taskman 列出虛擬顯示介面並提示計數器無法對應。圖片來源：阿正老師實測截圖，點圖可查看原尺寸。</figcaption>
+<p>畫面列出 <code>DeskIn Virtual Display Adapter</code> 與 <code>OrayIddDriver Device</code>，並顯示 N/A 和計數器無法對應的說明。因此，<strong>GPU 0、GPU 1、GPU 2 是工具列出的介面編號，不能光憑編號就說電腦裝了三張實體顯卡</strong>。</p>
+<p>官方說明指出，當 Windows 的 GPU 計數器無法安全對應到選取的介面時，工具會把用量與程序資料標成不可用。截圖能證明的是這次未取得可對應的讀值，無法單憑它判定是驅動故障，也不能把 N/A 解讀成「完全沒用到 GPU」。</p>
+<p>這張畫面的系統 RAM 是 20.72 GB／31.91 GB，CPU 是 29%；第一張則分別是 20.99 GB 與 24%。兩張截圖來自不同瞬間，數字不同很正常，也不能用這個差異推算 GPU Taskman 本身的效能負擔。</p>
+<hr>
+<h2>五、跑本地 AI 時，可以多看哪些資訊？</h2>
+<p>依官方文件，GPU Taskman 會結合程序載入的執行環境、模型檔案與部分執行紀錄，協助辨識本地 AI 工作。對相容的 GGUF 模型與執行環境，還可能呈現模型權重、KV cache（保留對話運算資訊的快取）與運算緩衝區的拆解。</p>
+<p>例如想知道調大對話長度後，記憶體增加在哪裡，可以保存前後 JSON 快照，再用 <code>diff</code> 比較。官方會把量測數據、執行環境回報及估計資訊分開；看到模型檔案名稱，也不代表已證明整份模型都放在 GPU。</p>
+<p><strong>這兩張實測截圖沒有 AI 模型拆解畫面</strong>，因此本文不宣稱已測過 Ollama 或其他模型。工具也無法列出遊戲裡每張材質的名稱，不會直接告訴你「哪個貼圖占了多少」，更不會自動調整遊戲設定。</p>
+<hr>
+<h2>六、操作快捷鍵與常見問題</h2>
+<p>不必背一長串指令，先記住畫面底下的幾個按鍵就能開始查看：</p>
+<ul>
+<li><code>↑／↓</code>：選取程序，查看底下的詳細資訊。</li>
+<li><code>s</code>：輪流切換排序欄位，例如 VRAM、GPU 使用率、Spill、Paged、RAM 或 CPU。</li>
+<li><code>c</code>：切換圖表，也可以點 Charts 下拉選單。</li>
+<li><code>a</code>：在顯示前幾項程序（Top）與全部已收集程序（All）之間切換。</li>
+<li><code>m</code>：切換完整診斷與精簡監控畫面。</li>
+<li><code>p</code>：暫停或恢復取樣；<code>?</code> 查看欄位解說；<code>q</code> 離開。</li>
+</ul>
+<h3>畫面很擠怎麼辦？</h3>
+<p>把終端機視窗拉寬，必要時縮小字體。官方建議約 140 欄以上較容易閱讀完整表格；視窗高度不足時，上半部儀表板與底下檢視區可以捲動。想少看一些硬體細節，可按 <code>m</code>。</p>
+<h3>為什麼某些欄位讀不到？</h3>
+<p>先讀畫面上的原因說明，確認選到的介面與顯卡驅動。不同平台、驅動、虛擬顯示介面及權限，能提供的數據本來就不同。更新相容驅動或重新啟動工具後仍有問題，可附上版本與環境到官方 Issues 回報；分享資料前先檢查程序路徑、模型名稱等資訊。</p>
+<h3>它能讓遊戲變快嗎？</h3>
+<p>它負責觀察，不會自動加速。找到占用來源後，仍要由你決定關閉背景應用程式、調低遊戲材質設定，或調整 AI 模型與對話長度。本文沒有測量開啟工具前後的遊戲效能，也沒有監控工具的負載測試。</p>
+<hr>
+<h2>七、阿正老師的使用建議</h2>
+<p>以這兩張畫面來看，GPU Taskman 最實用的用途，是把「哪個程式占用多少」和「這個數字能不能相信」一起呈現。像 RustDesk 的影片相關活動、虛擬顯示介面的 N/A，以及 Paged 的估計提醒，都比只盯著一個百分比更有助於縮小問題範圍。</p>
+<p>阿正老師會建議，有在跑本地 AI、錄影、遠端桌面，或常常疑惑顯示記憶體被誰占用的人，可以下載試試。若只是偶爾看溫度與整體使用率，先用熟悉的工作管理員就好；需要繼續追查程序與記憶體線索時，再開 GPU Taskman。</p>
+<p>資料來源：<a href="https://github.com/shanselman/gputaskman" target="_blank">官方 GitHub README</a>、<a href="https://github.com/shanselman/gputaskman/releases" target="_blank">官方 Releases</a>、<a href="https://www.4gamers.com.tw/news/detail/83231/microsoft-vp-built-gpu-taskman" target="_blank">4Gamers 參考報導</a>。查閱日期為 2026-11-11；實測圖片由阿正老師提供。</p>
+<div>
+<p>📌 你的顯示記憶體都用在哪裡？</p>
+<p>打開程序清單，看看遠端桌面、瀏覽器或本地 AI 各占了多少；遇到 N/A 或估計值，記得先讀工具的說明。</p>
+<p>歡迎在下面留言跟阿正老師分享！😊</p>
+</div>]]></content:encoded>
+    <itunes:image href="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-cover.png"/>
+          <media:content url="https://image.pcrookie.com/2026/11/gputaskman-gpu-memory-guide/gputaskman-gpu-memory-guide-cover.png" medium="image"/>
+    <pubDate>Thu, 12 Nov 2026 06:04:56 +0000</pubDate>
+  </item><item>
     <title><![CDATA[T3 Code 是什麼？免費開源 AI 寫程式控制台，Claude Code、Codex、Antigravity 一起管]]></title>
     <link>https://pcrookie.com/t3-code-guide/</link>
     <itunes:title><![CDATA[T3 Code 是什麼？免費開源 AI 寫程式控制台，Claude Code、Codex、Antigravity 一起管]]></itunes:title>
@@ -8522,212 +8891,5 @@ office-report xstats browsing "抓取 ETF 資金流數據"</pre>
     <itunes:image href="https://image.pcrookie.com/2026/10/grok-bot-ai-agent-guide/grok-bot-ai-agent-guide-cover-v2.png"/>
           <media:content url="https://image.pcrookie.com/2026/10/grok-bot-ai-agent-guide/grok-bot-ai-agent-guide-cover-v2.png" medium="image"/>
     <pubDate>Sat, 24 Oct 2026 08:01:00 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[VS Code 1.143 更新：模型比較與本機 AI 限制]]></title>
-    <link>https://pcrookie.com/vscode-1-139-update-guide-2026/</link>
-    <itunes:title><![CDATA[VS Code 1.143 更新：模型比較與本機 AI 限制]]></itunes:title>
-    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><img post-id="8328" fifu-featured="1" alt="VS Code 1.143 更新：模型比較與本機 AI 限制" title="VS Code 1.143 更新：模型比較與本機 AI 限制" src="https://image.pcrookie.com/2026/10/vscode-1-139-update-guide-2026/vscode-1-139-update-guide-2026-cover-v2.png"></p>
-<div>
-<p>還在看 VS Code 1.139 更新文的讀者，這篇已改為 1.143 系列整理。這次重點是 AI 任務的操作方式，包含比較模型、清理工作目錄，以及有硬體門檻的本機模型。</p>
-<p>阿正老師把預覽與實驗功能標出來，方便大家判斷哪些值得先試。本文為官方資料整理，尚未實測。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#info">一、版本與下載資訊</a></li>
-<li><a href="#copilot">二、新對話預設採用 Copilot 執行架構</a></li>
-<li><a href="#compare">三、比較不同模型的結果（預覽）</a></li>
-<li><a href="#local">四、本機 AI 的門檻很高（實驗）</a></li>
-<li><a href="#cleanup">五、清理舊任務的工作目錄（實驗）</a></li>
-<li><a href="#download">六、適合誰更新</a></li>
-</ol></div>
-<hr>
-<h2>一、版本與下載資訊</h2>
-<p>官方目前的 1.143 更新頁已列出 1.143.1 修正版。本文整理 1.143 系列重點；下載時請選官方提供的穩定版。</p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://code.visualstudio.com/" target="_blank">Visual Studio Code</a></td>
-</tr>
-<tr>
-<td>最新版本</td>
-<td><span data-software-id="318">1.143.1</span>（發布日期：<span data-software-id="318">2026-10-23</span>）</td>
-</tr>
-<tr>
-<td>支援系統</td>
-<td>Windows、macOS、Linux</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>VS Code 免費；AI 功能依 GitHub Copilot 方案</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://pcrookie.com/download/details.php?id=318" target="_blank">本站下載點</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、新對話預設採用 Copilot 執行架構</h2>
-<p>新開的 Copilot 工作階段預設採用以 Copilot SDK 建立的執行架構（harness），負責讓 AI 助手使用工具及處理任務。同一個工作階段可以從編輯器或 Agents 視窗存取。</p>
-<hr>
-<h2>三、比較不同模型的結果（預覽）</h2>
-<p>在 Agents 視窗啟用 <code>sessions.chat.compareAgents.enabled</code>，再從模型選單選 Compare Models，可以讓不同模型分別處理同一個任務，再查看結果。阿正老師會建議先挑一個範圍小、能驗證成果的修改來比較。</p>
-<hr>
-<h2>四、本機 AI 的門檻很高（實驗）</h2>
-<p>本機執行 MAI Code 1.1 Flash 是實驗功能，需要 GitHub 登入、支援模型的 llama.cpp，以及至少 96 GB GPU 記憶體的 NVIDIA GPU。這是 On-device models 實驗功能的門檻，不是安裝 VS Code 的一般需求。官方舉例包含採用 NVIDIA RTX Spark、使用統一記憶體的筆電，重點是 GPU 可用記憶體是否達到要求。一般桌機不能把系統 RAM 算進獨立顯示卡記憶體，阿正老師的 RTX 5070 12GB 不符合這個條件。</p>
-<hr>
-<h2>五、清理舊任務的工作目錄（實驗）</h2>
-<p>在 Agents 視窗透過命令面板執行 <code>Chat: Open Worktree Cleanup</code>，可以檢查並清理不再使用的工作目錄。Worktree 是讓不同任務各自修改程式的工作目錄，清理前先確認成果是否已保存。</p>
-<hr>
-<h2>六、適合誰更新</h2>
-<p>常用 AI 任務的讀者可以先試模型比較；日常只用來編輯檔案的讀者，照原本習慣使用即可。已有安裝可使用 Check for Updates 檢查更新。預覽與實驗功能條件可能調整，操作前請再查看官方說明。</p>
-<p>資料來源：<a href="https://code.visualstudio.com/updates/v1_143" target="_blank">VS Code 官方 1.143 更新說明</a>，查證日期 2026-10-24。</p>
-<div> <strong>阿正老師點評：</strong>先用一個小任務觀察哪個模型的修改能通過檢查，再決定是否把更多工作交給它，不必為了實驗功能更換硬體。</div>
-<div>
-<p> 先試小任務，再決定怎麼用 AI</p>
-<p>你平常只用 VS Code 編輯檔案，還是也會交給 AI 修改專案？</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><img post-id="8328" fifu-featured="1" alt="VS Code 1.143 更新：模型比較與本機 AI 限制" title="VS Code 1.143 更新：模型比較與本機 AI 限制" src="https://image.pcrookie.com/2026/10/vscode-1-139-update-guide-2026/vscode-1-139-update-guide-2026-cover-v2.png"></p>
-<div>
-<p>還在看 VS Code 1.139 更新文的讀者，這篇已改為 1.143 系列整理。這次重點是 AI 任務的操作方式，包含比較模型、清理工作目錄，以及有硬體門檻的本機模型。</p>
-<p>阿正老師把預覽與實驗功能標出來，方便大家判斷哪些值得先試。本文為官方資料整理，尚未實測。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#info">一、版本與下載資訊</a></li>
-<li><a href="#copilot">二、新對話預設採用 Copilot 執行架構</a></li>
-<li><a href="#compare">三、比較不同模型的結果（預覽）</a></li>
-<li><a href="#local">四、本機 AI 的門檻很高（實驗）</a></li>
-<li><a href="#cleanup">五、清理舊任務的工作目錄（實驗）</a></li>
-<li><a href="#download">六、適合誰更新</a></li>
-</ol></div>
-<hr>
-<h2>一、版本與下載資訊</h2>
-<p>官方目前的 1.143 更新頁已列出 1.143.1 修正版。本文整理 1.143 系列重點；下載時請選官方提供的穩定版。</p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://code.visualstudio.com/" target="_blank">Visual Studio Code</a></td>
-</tr>
-<tr>
-<td>最新版本</td>
-<td><span data-software-id="318">1.143.1</span>（發布日期：<span data-software-id="318">2026-10-23</span>）</td>
-</tr>
-<tr>
-<td>支援系統</td>
-<td>Windows、macOS、Linux</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>VS Code 免費；AI 功能依 GitHub Copilot 方案</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://pcrookie.com/download/details.php?id=318" target="_blank">本站下載點</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、新對話預設採用 Copilot 執行架構</h2>
-<p>新開的 Copilot 工作階段預設採用以 Copilot SDK 建立的執行架構（harness），負責讓 AI 助手使用工具及處理任務。同一個工作階段可以從編輯器或 Agents 視窗存取。</p>
-<hr>
-<h2>三、比較不同模型的結果（預覽）</h2>
-<p>在 Agents 視窗啟用 <code>sessions.chat.compareAgents.enabled</code>，再從模型選單選 Compare Models，可以讓不同模型分別處理同一個任務，再查看結果。阿正老師會建議先挑一個範圍小、能驗證成果的修改來比較。</p>
-<hr>
-<h2>四、本機 AI 的門檻很高（實驗）</h2>
-<p>本機執行 MAI Code 1.1 Flash 是實驗功能，需要 GitHub 登入、支援模型的 llama.cpp，以及至少 96 GB GPU 記憶體的 NVIDIA GPU。這是 On-device models 實驗功能的門檻，不是安裝 VS Code 的一般需求。官方舉例包含採用 NVIDIA RTX Spark、使用統一記憶體的筆電，重點是 GPU 可用記憶體是否達到要求。一般桌機不能把系統 RAM 算進獨立顯示卡記憶體，阿正老師的 RTX 5070 12GB 不符合這個條件。</p>
-<hr>
-<h2>五、清理舊任務的工作目錄（實驗）</h2>
-<p>在 Agents 視窗透過命令面板執行 <code>Chat: Open Worktree Cleanup</code>，可以檢查並清理不再使用的工作目錄。Worktree 是讓不同任務各自修改程式的工作目錄，清理前先確認成果是否已保存。</p>
-<hr>
-<h2>六、適合誰更新</h2>
-<p>常用 AI 任務的讀者可以先試模型比較；日常只用來編輯檔案的讀者，照原本習慣使用即可。已有安裝可使用 Check for Updates 檢查更新。預覽與實驗功能條件可能調整，操作前請再查看官方說明。</p>
-<p>資料來源：<a href="https://code.visualstudio.com/updates/v1_143" target="_blank">VS Code 官方 1.143 更新說明</a>，查證日期 2026-10-24。</p>
-<div> <strong>阿正老師點評：</strong>先用一個小任務觀察哪個模型的修改能通過檢查，再決定是否把更多工作交給它，不必為了實驗功能更換硬體。</div>
-<div>
-<p> 先試小任務，再決定怎麼用 AI</p>
-<p>你平常只用 VS Code 編輯檔案，還是也會交給 AI 修改專案？</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><img post-id="8328" fifu-featured="1" alt="VS Code 1.143 更新：模型比較與本機 AI 限制" title="VS Code 1.143 更新：模型比較與本機 AI 限制" src="https://image.pcrookie.com/2026/10/vscode-1-139-update-guide-2026/vscode-1-139-update-guide-2026-cover-v2.png"></p>
-<div>
-<p>還在看 VS Code 1.139 更新文的讀者，這篇已改為 1.143 系列整理。這次重點是 AI 任務的操作方式，包含比較模型、清理工作目錄，以及有硬體門檻的本機模型。</p>
-<p>阿正老師把預覽與實驗功能標出來，方便大家判斷哪些值得先試。本文為官方資料整理，尚未實測。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#info">一、版本與下載資訊</a></li>
-<li><a href="#copilot">二、新對話預設採用 Copilot 執行架構</a></li>
-<li><a href="#compare">三、比較不同模型的結果（預覽）</a></li>
-<li><a href="#local">四、本機 AI 的門檻很高（實驗）</a></li>
-<li><a href="#cleanup">五、清理舊任務的工作目錄（實驗）</a></li>
-<li><a href="#download">六、適合誰更新</a></li>
-</ol></div>
-<hr>
-<h2>一、版本與下載資訊</h2>
-<p>官方目前的 1.143 更新頁已列出 1.143.1 修正版。本文整理 1.143 系列重點；下載時請選官方提供的穩定版。</p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://code.visualstudio.com/" target="_blank">Visual Studio Code</a></td>
-</tr>
-<tr>
-<td>最新版本</td>
-<td><span data-software-id="318">1.143.1</span>（發布日期：<span data-software-id="318">2026-10-23</span>）</td>
-</tr>
-<tr>
-<td>支援系統</td>
-<td>Windows、macOS、Linux</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>VS Code 免費；AI 功能依 GitHub Copilot 方案</td>
-</tr>
-<tr>
-<td>軟體下載</td>
-<td>[<a href="https://pcrookie.com/download/details.php?id=318" target="_blank">本站下載點</a>]</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>二、新對話預設採用 Copilot 執行架構</h2>
-<p>新開的 Copilot 工作階段預設採用以 Copilot SDK 建立的執行架構（harness），負責讓 AI 助手使用工具及處理任務。同一個工作階段可以從編輯器或 Agents 視窗存取。</p>
-<hr>
-<h2>三、比較不同模型的結果（預覽）</h2>
-<p>在 Agents 視窗啟用 <code>sessions.chat.compareAgents.enabled</code>，再從模型選單選 Compare Models，可以讓不同模型分別處理同一個任務，再查看結果。阿正老師會建議先挑一個範圍小、能驗證成果的修改來比較。</p>
-<hr>
-<h2>四、本機 AI 的門檻很高（實驗）</h2>
-<p>本機執行 MAI Code 1.1 Flash 是實驗功能，需要 GitHub 登入、支援模型的 llama.cpp，以及至少 96 GB GPU 記憶體的 NVIDIA GPU。這是 On-device models 實驗功能的門檻，不是安裝 VS Code 的一般需求。官方舉例包含採用 NVIDIA RTX Spark、使用統一記憶體的筆電，重點是 GPU 可用記憶體是否達到要求。一般桌機不能把系統 RAM 算進獨立顯示卡記憶體，阿正老師的 RTX 5070 12GB 不符合這個條件。</p>
-<hr>
-<h2>五、清理舊任務的工作目錄（實驗）</h2>
-<p>在 Agents 視窗透過命令面板執行 <code>Chat: Open Worktree Cleanup</code>，可以檢查並清理不再使用的工作目錄。Worktree 是讓不同任務各自修改程式的工作目錄，清理前先確認成果是否已保存。</p>
-<hr>
-<h2>六、適合誰更新</h2>
-<p>常用 AI 任務的讀者可以先試模型比較；日常只用來編輯檔案的讀者，照原本習慣使用即可。已有安裝可使用 Check for Updates 檢查更新。預覽與實驗功能條件可能調整，操作前請再查看官方說明。</p>
-<p>資料來源：<a href="https://code.visualstudio.com/updates/v1_143" target="_blank">VS Code 官方 1.143 更新說明</a>，查證日期 2026-10-24。</p>
-<div> <strong>阿正老師點評：</strong>先用一個小任務觀察哪個模型的修改能通過檢查，再決定是否把更多工作交給它，不必為了實驗功能更換硬體。</div>
-<div>
-<p> 先試小任務，再決定怎麼用 AI</p>
-<p>你平常只用 VS Code 編輯檔案，還是也會交給 AI 修改專案？</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>
-</div>]]></content:encoded>
-    <itunes:image href="https://image.pcrookie.com/2026/10/vscode-1-139-update-guide-2026/vscode-1-139-update-guide-2026-cover-v2.png"/>
-          <media:content url="https://image.pcrookie.com/2026/10/vscode-1-139-update-guide-2026/vscode-1-139-update-guide-2026-cover-v2.png" medium="image"/>
-    <pubDate>Fri, 23 Oct 2026 23:45:00 +0000</pubDate>
   </item></channel>
 </rss>
