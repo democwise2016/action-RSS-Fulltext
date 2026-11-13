@@ -30,6 +30,921 @@
     </itunes:owner>
     <itunes:image href="https://blogger.googleusercontent.com/img/a/AVvXsEh8KyFU8q9VBYbldI_qsuqPS4uFb3dbmQQR4LmjV8hbz9I1zHeSoVc2KStLIDD45r4iEsw5jO_rEOg33zvOOqcaAJ_Q3UKKE_p0Nl2dQIswqzPZug5Pt9duk5kzGbZGMHJq5xl0VzWMTBdqyPYfeLXMSJNIjrnTzklW7-KgS9gxuAT71FPGayV2_A"/>
 <item>
+    <title><![CDATA[CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖]]></title>
+    <link>https://www.kocpc.com.tw/archives/703311</link>
+    <itunes:title><![CDATA[CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>本站之前曾報導過 CMP 170HX 這張卡<a href="https://www.kocpc.com.tw/archives/661540" target="_blank">被純軟體破解的消息</a>，當時研究團隊利用漏洞，攻破三層信任棧中最上層的簽名校驗，取得 HS 模式權限後改寫特權級掩碼，修改後 FP32 從 0.39 TFLOPS 拉高到 94 TFLOPS，約 31 倍提升，記憶體從 10GB 擴到 80GB，這也讓 170 HX 的價格在短短幾天之內爆漲好幾倍。但當時也留下三個明確的天花板：PCIe Gen3 一直無法啟用，PCB 上省略的 12 根 lane 交流耦合電容必須手動補焊 24 顆 100nF 電容才能恢復 x16 實體連線，HBM 模式暫存器與片上 ECC 也一樣被源 ID 鎖住。論文作者當時說得很謹慎，這些限制的狀態是「沒找到方法」，而非「證明不可破」。近日美國硬體研究者 Kate 在個人部落格公開了 GA100 晶片上電壓故障注入漏洞，她利用這個漏洞燒斷 NVIDIA 用來封鎖功能的熔絲，把一張原本僅有 8GB 的 CMP 170HX 礦卡改成 80GB 記憶體、120 個以上 SM 計算單元的加速卡，FP16 效能達到 85.9 TFLOPS，AI&nbsp;效能還跑贏售價兩萬美元的零售 A100。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022321_0_153f5c.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 945px) 100vw, 945px"></p>
+<p>這套方法的開源碼碼、STM32 韌體與硬體設計圖也一併公開在 GitHub，而那塊負責製造電壓脈衝的控制板，線路圖是由 GPT-6 Astra 協助設計的。</p>
+<h3><a href="https://github.com/kate-land/ga100vfi" target="_blank">GA100VFI：GA100 voltage glitch resources – GitHub</a></h3>
+<h3>從軟體解鎖到硬體攻擊</h3>
+<p>Kate 的做法直接從硬體層切入，把那三道天花板一起推過去。她發現 NVIDIA 在 GA100 上的熔絲設計有個結構性問題：GA100 的熔絲控制器含 16,384 顆 eFuse，構成 512 列乘 32 的陣列。其中有個特殊的「無熔絲熔絲」區塊，採用類似 JTAG 鏈的記錄格式，開機時由控制器依序重播來決定最終選項字串的數值。</p>
+<p>這裡的關鍵是記錄採覆蓋寫入。只要寫入一筆新的記錄指向同一個位置，舊的限制就會被清除，實體熔絲並不需要被「吹回未熔斷」。正常設計裡熔絲燒斷只能收緊權限，GA100 上燒更多反而放寬限制，Kate 用一句話總結 NVIDIA 的設計有多不安全：燒斷熔絲能給你更多功能，不是更少。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023723_0_3bc38f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>要燒這些熔絲得先解除一道閘門。控制器有個 <code>OPT_SECURED_BURN_FEATURE_ENABLE</code> 選項字串，所有量產卡都是開啟的，開啟時只有特定範圍的熔絲能寫，無熔絲熔絲區完全鎖死。Kate 靠電壓故障注入觸發了一個她稱為 Goldilock 的 glitch 狀態，讓控制列衍生的選項字串全部讀成零，再用 <code>SENSE_CTRL</code> 指令讓它們回到熔絲原值，但保留 <code>DISABLE_SW_OVERRIDE</code> 為零，這樣就能用軟體覆寫把那道閘門關掉。</p>
+<h3>那塊由 GPT-6 Astra 協助設計的板子</h3>
+<p>整個攻擊的執行工具是一塊自己畫的 STM32G431 控制板，Kate 在文中說明，她是請 GPT-6 Astra 設計一個能接入 PWMVID 訊號的 STM32G4 板子。PWMVID 是 NVIDIA 對穩壓器的標準通訊協定，這塊板子攔截 GA100 晶片送出的 PWM 訊號，轉而餵自己的波形給 MP2888B 穩壓器驅動 IC，讓顯示卡自己的 VRM 製造出時間精準的電壓脈衝。</p>
+<p>安裝方式相當原始。整個裝置只對 PCB 做兩處連線，一條量測 NVVDD 電壓，一條接入 PWMVID 訊號，理想狀態是用磁鐵吸住的漆包線。唯一必須動烙鐵的地方，是拔掉一顆 0402 規格的 0 歐姆電阻，切斷 GA100 的 PWM 輸出腳與穩壓器之間的連線。晶片本身大約 8 美元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023802_0_4c187f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>每次嘗試的流程是這樣：斷電、重新上電、用比較器偵測 NVVDD 通過 225mV 的瞬間啟動計時器、依計時送出設計好的電壓波形、觀察顯示卡反應。她用 ACPI 的 S0 到 S3 再回 S0 的電源狀態切換來完成斷電與重啟，每幾秒就能循環一次。一張卡通常要 glitch 一到 48 小時才會成功。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023830_0_04fda1.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>跑贏 A100 的數字，以及它的極限</h3>
+<p>Kate 在文中附上的比較表，是這次最值得看的部分：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022808_0_2f880a.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 932px) 100vw, 932px"></p>
+<ul>
+<li><strong>8GB 版記憶體</strong>：出廠 8GB，軟體解鎖 64GB，電壓攻擊後 64 到 80GB</li>
+<li><strong>10GB 版記憶體</strong>：出廠 10GB，軟體解鎖 40GB，電壓攻擊後 40 到 48GB</li>
+<li><strong>SM 計算單元</strong>：出廠 70，軟體解鎖 70，電壓攻擊後 120 到 128</li>
+<li><strong>PCIe 世代</strong>：出廠 Gen1，軟體解鎖 Gen2，電壓攻擊後 Gen4</li>
+<li><strong>NVLink、ECC、多執行個體 GPU</strong>：前兩者皆無，電壓攻擊後開啟</li>
+</ul>
+<p>效能數字來自 ProjectPhysX 的 OpenCL 基準測試，軟體解鎖後是 50.1 TFLOPS FP16，零售 A100 是 72.5，電壓攻擊後的礦卡是 85.9，約為 A100 的 1.18 倍、軟體解鎖版的 1.7 倍。Kate 說 vLLM 與 SGLang 這類實際推理框架都能在完整的 80GB 上跑。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023933_0_4abc10.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>算力能超越 A100 的原因在晶圓良率。GA100 出廠時有 128 個 SM，NVIDIA 為了確保良率，所有量產 A100 只開 108 個。這些被判定不良的 SM 在晶片上多數是好的，只是被熔絲關掉，Kate 的解鎖讓它們重新上線，數量依晶圓批次落在 120 到 126 之間。</p>
+<h3>三個限制必須講清楚</h3>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114024009_0_f35e66.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p><strong>第一，80GB 只適用於 8GB 版本。</strong> Kate 在腳註說明，10GB 版本封裝的是 4 組 HBM stack，8GB 版本是 6 組，這是兩種不同的實體配置。社群維護的 CMP 170HX 技術 wiki 也明確標示，8GB 卡解鎖後是 64GB 且穩定，10GB 卡解鎖後是 40GB 且穩定，兩者不能互相取代。同一份 wiki 記載，社群曾嘗試讓 10GB 卡衝到 81920 MiB，但在 40 GiB 處會發生摺疊，超過 39GB 的記憶體驗證從未能重複，會觸發 Xid 錯誤讓 GPU 當場消失。Kate 自己的腳註也說，〈Canary in the Crypto Mine〉論文宣稱 10GB 版能穩定跑 80GB，但幾乎沒有卡達成，證據稀少。</p>
+<p><strong>第二，成功率沒有百分之百。</strong> Kate 檢查的 10 張 8GB 卡中，9 張具備完整的 80GB 記憶體，剩下 1 張出廠就只有 64GB 可用，而那張卡即使解鎖成功，記憶體容量也沒有任何增加。</p>
+<p><strong>第三，NVLink 還要再動一次烙鐵。</strong> 清除 NVLink 禁用字串只是第一步，CMP 170HX 的 PCB 缺少 U11 這顆連接 PCIe 3.3V 到 NVLink 橋接腳位的 IC，量產板無法讓橋接器的參考時鐘產生器啟動，需要把該位置的兩個腳位短路跳線才能解決。Kate 提醒，這會把不同電源供應器的卡片的 3.3V 電源軌接在一起，除非其中一張卡保持 U11 不焊。PCIe 要達到 Gen4 x16 同樣需要搭配解耦電容改裝。</p>
+<h3>必須知道的價差與風險</h3>
+<p>台灣市場上，零售 A100 80GB PCIe 的價格相當透明。AUTOBUY 購物中心的客訂商品標價是 735,000 元，蝦皮與 Yahoo 拍賣的平台上，台灣公司貨報價落在 46.2 萬到 65.2 萬元之間。台灣代理商益登科技列出的 A100 80GB PCIe 規格是 80GB HBM2e、1,935 GB/s 記憶體頻寬、最大功耗 300W，採用被動散熱設計需要機箱風扇協助。</p>
+<p>對照之下，8GB 的 CMP 170HX 二手價在台灣與全球市場都已經翻漲。Tom’s Hardware 報導時的行情是 8GB 版本約 3,000 美元、10GB 版本約 2,500 美元，這已經是 2021 年那張卡上市時 5,000 美元單卡價格的六折水準。社群在 X 上追蹤的價格曲線則是去年約 200 美元、上月 1,500 美元、本月突破 3,000 美元。本站 8 月那篇報導當時記錄的數字是中國二手市場成交價約人民幣 3,000 到 4,000 元，eBay 掛牌約 1,500 美元。</p>
+<p>算下來，一張 3,000 美元的礦卡加上一套自行焊接的改裝，硬體成本大約是零售 A100 80GB 的六分之一到十分之一，代價是每張卡要花一到兩天通電、可能永久燒毀，且必須自己承擔焊接與改 BIOS 的風險。</p>
+<h3>結語</h3>
+<p>這次公開的意義在於可重現性。Kate 交出的是一份 29KB 的技術文件加上完整開源碼，內含 KiCad 原理圖、STM32G431 應用程式韌體、自訂 USB bootloader、PWMVID 主控工具、GA100 暫存器擷取引擎與 glitch 實驗流程。任何有能力焊接的人都能照著做，唯一的門檻是時間與焊接的手藝。</p>
+<p>而這也意味著 NVIDIA 的產品區隔策略出現了一個難以補上的破口。GA100 晶片上有 128 個 SM 卻只開 108 個，8GB 礦卡上封裝 80GB 記憶體卻只開放 8GB，這些都是當年為了成本控制與良率管理做的決定。當封鎖機制可以被幾百美元的設備破解，市場上每一張被降級出貨的晶片都變成了一張隱藏的高階產品。</p>
+<p>對台灣的 AI 運算使用者來說，眼前最實際的訊息是價格。零售 A100 80GB 要 46 萬到 73 萬新台幣，同時記憶體市場因為 AI 需求而持續吃緊，在這樣的供需結構下，會焊接的人手裡多了一條取得大記憶體的灰色管道。會用的人早就知道這些礦卡的存在，接下來會發生的是價格繼續往上，以及更多沒有耐心焊接的人直接買二手礦卡回去結果發現自己搞不定浪費錢的情況，我們個人不建議大家冒險嘗試。</p>
+<blockquote data-secret="pADIg5TIPM"><p><a href="https://www.kocpc.com.tw/archives/661540">最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍 — 電腦王阿達" src="about:blank" data-secret="pADIg5TIPM" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/661540/embed#?secret=kchZY2oV93#?secret=pADIg5TIPM"></iframe></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>本站之前曾報導過 CMP 170HX 這張卡<a href="https://www.kocpc.com.tw/archives/661540" target="_blank">被純軟體破解的消息</a>，當時研究團隊利用漏洞，攻破三層信任棧中最上層的簽名校驗，取得 HS 模式權限後改寫特權級掩碼，修改後 FP32 從 0.39 TFLOPS 拉高到 94 TFLOPS，約 31 倍提升，記憶體從 10GB 擴到 80GB，這也讓 170 HX 的價格在短短幾天之內爆漲好幾倍。但當時也留下三個明確的天花板：PCIe Gen3 一直無法啟用，PCB 上省略的 12 根 lane 交流耦合電容必須手動補焊 24 顆 100nF 電容才能恢復 x16 實體連線，HBM 模式暫存器與片上 ECC 也一樣被源 ID 鎖住。論文作者當時說得很謹慎，這些限制的狀態是「沒找到方法」，而非「證明不可破」。近日美國硬體研究者 Kate 在個人部落格公開了 GA100 晶片上電壓故障注入漏洞，她利用這個漏洞燒斷 NVIDIA 用來封鎖功能的熔絲，把一張原本僅有 8GB 的 CMP 170HX 礦卡改成 80GB 記憶體、120 個以上 SM 計算單元的加速卡，FP16 效能達到 85.9 TFLOPS，AI&nbsp;效能還跑贏售價兩萬美元的零售 A100。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022321_0_153f5c.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 945px) 100vw, 945px"></p>
+<p>這套方法的開源碼碼、STM32 韌體與硬體設計圖也一併公開在 GitHub，而那塊負責製造電壓脈衝的控制板，線路圖是由 GPT-6 Astra 協助設計的。</p>
+<h3><a href="https://github.com/kate-land/ga100vfi" target="_blank">GA100VFI：GA100 voltage glitch resources – GitHub</a></h3>
+<h3>從軟體解鎖到硬體攻擊</h3>
+<p>Kate 的做法直接從硬體層切入，把那三道天花板一起推過去。她發現 NVIDIA 在 GA100 上的熔絲設計有個結構性問題：GA100 的熔絲控制器含 16,384 顆 eFuse，構成 512 列乘 32 的陣列。其中有個特殊的「無熔絲熔絲」區塊，採用類似 JTAG 鏈的記錄格式，開機時由控制器依序重播來決定最終選項字串的數值。</p>
+<p>這裡的關鍵是記錄採覆蓋寫入。只要寫入一筆新的記錄指向同一個位置，舊的限制就會被清除，實體熔絲並不需要被「吹回未熔斷」。正常設計裡熔絲燒斷只能收緊權限，GA100 上燒更多反而放寬限制，Kate 用一句話總結 NVIDIA 的設計有多不安全：燒斷熔絲能給你更多功能，不是更少。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023723_0_3bc38f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>要燒這些熔絲得先解除一道閘門。控制器有個 <code>OPT_SECURED_BURN_FEATURE_ENABLE</code> 選項字串，所有量產卡都是開啟的，開啟時只有特定範圍的熔絲能寫，無熔絲熔絲區完全鎖死。Kate 靠電壓故障注入觸發了一個她稱為 Goldilock 的 glitch 狀態，讓控制列衍生的選項字串全部讀成零，再用 <code>SENSE_CTRL</code> 指令讓它們回到熔絲原值，但保留 <code>DISABLE_SW_OVERRIDE</code> 為零，這樣就能用軟體覆寫把那道閘門關掉。</p>
+<h3>那塊由 GPT-6 Astra 協助設計的板子</h3>
+<p>整個攻擊的執行工具是一塊自己畫的 STM32G431 控制板，Kate 在文中說明，她是請 GPT-6 Astra 設計一個能接入 PWMVID 訊號的 STM32G4 板子。PWMVID 是 NVIDIA 對穩壓器的標準通訊協定，這塊板子攔截 GA100 晶片送出的 PWM 訊號，轉而餵自己的波形給 MP2888B 穩壓器驅動 IC，讓顯示卡自己的 VRM 製造出時間精準的電壓脈衝。</p>
+<p>安裝方式相當原始。整個裝置只對 PCB 做兩處連線，一條量測 NVVDD 電壓，一條接入 PWMVID 訊號，理想狀態是用磁鐵吸住的漆包線。唯一必須動烙鐵的地方，是拔掉一顆 0402 規格的 0 歐姆電阻，切斷 GA100 的 PWM 輸出腳與穩壓器之間的連線。晶片本身大約 8 美元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023802_0_4c187f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>每次嘗試的流程是這樣：斷電、重新上電、用比較器偵測 NVVDD 通過 225mV 的瞬間啟動計時器、依計時送出設計好的電壓波形、觀察顯示卡反應。她用 ACPI 的 S0 到 S3 再回 S0 的電源狀態切換來完成斷電與重啟，每幾秒就能循環一次。一張卡通常要 glitch 一到 48 小時才會成功。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023830_0_04fda1.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>跑贏 A100 的數字，以及它的極限</h3>
+<p>Kate 在文中附上的比較表，是這次最值得看的部分：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022808_0_2f880a.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 932px) 100vw, 932px"></p>
+<ul>
+<li><strong>8GB 版記憶體</strong>：出廠 8GB，軟體解鎖 64GB，電壓攻擊後 64 到 80GB</li>
+<li><strong>10GB 版記憶體</strong>：出廠 10GB，軟體解鎖 40GB，電壓攻擊後 40 到 48GB</li>
+<li><strong>SM 計算單元</strong>：出廠 70，軟體解鎖 70，電壓攻擊後 120 到 128</li>
+<li><strong>PCIe 世代</strong>：出廠 Gen1，軟體解鎖 Gen2，電壓攻擊後 Gen4</li>
+<li><strong>NVLink、ECC、多執行個體 GPU</strong>：前兩者皆無，電壓攻擊後開啟</li>
+</ul>
+<p>效能數字來自 ProjectPhysX 的 OpenCL 基準測試，軟體解鎖後是 50.1 TFLOPS FP16，零售 A100 是 72.5，電壓攻擊後的礦卡是 85.9，約為 A100 的 1.18 倍、軟體解鎖版的 1.7 倍。Kate 說 vLLM 與 SGLang 這類實際推理框架都能在完整的 80GB 上跑。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023933_0_4abc10.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>算力能超越 A100 的原因在晶圓良率。GA100 出廠時有 128 個 SM，NVIDIA 為了確保良率，所有量產 A100 只開 108 個。這些被判定不良的 SM 在晶片上多數是好的，只是被熔絲關掉，Kate 的解鎖讓它們重新上線，數量依晶圓批次落在 120 到 126 之間。</p>
+<h3>三個限制必須講清楚</h3>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114024009_0_f35e66.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p><strong>第一，80GB 只適用於 8GB 版本。</strong> Kate 在腳註說明，10GB 版本封裝的是 4 組 HBM stack，8GB 版本是 6 組，這是兩種不同的實體配置。社群維護的 CMP 170HX 技術 wiki 也明確標示，8GB 卡解鎖後是 64GB 且穩定，10GB 卡解鎖後是 40GB 且穩定，兩者不能互相取代。同一份 wiki 記載，社群曾嘗試讓 10GB 卡衝到 81920 MiB，但在 40 GiB 處會發生摺疊，超過 39GB 的記憶體驗證從未能重複，會觸發 Xid 錯誤讓 GPU 當場消失。Kate 自己的腳註也說，〈Canary in the Crypto Mine〉論文宣稱 10GB 版能穩定跑 80GB，但幾乎沒有卡達成，證據稀少。</p>
+<p><strong>第二，成功率沒有百分之百。</strong> Kate 檢查的 10 張 8GB 卡中，9 張具備完整的 80GB 記憶體，剩下 1 張出廠就只有 64GB 可用，而那張卡即使解鎖成功，記憶體容量也沒有任何增加。</p>
+<p><strong>第三，NVLink 還要再動一次烙鐵。</strong> 清除 NVLink 禁用字串只是第一步，CMP 170HX 的 PCB 缺少 U11 這顆連接 PCIe 3.3V 到 NVLink 橋接腳位的 IC，量產板無法讓橋接器的參考時鐘產生器啟動，需要把該位置的兩個腳位短路跳線才能解決。Kate 提醒，這會把不同電源供應器的卡片的 3.3V 電源軌接在一起，除非其中一張卡保持 U11 不焊。PCIe 要達到 Gen4 x16 同樣需要搭配解耦電容改裝。</p>
+<h3>必須知道的價差與風險</h3>
+<p>台灣市場上，零售 A100 80GB PCIe 的價格相當透明。AUTOBUY 購物中心的客訂商品標價是 735,000 元，蝦皮與 Yahoo 拍賣的平台上，台灣公司貨報價落在 46.2 萬到 65.2 萬元之間。台灣代理商益登科技列出的 A100 80GB PCIe 規格是 80GB HBM2e、1,935 GB/s 記憶體頻寬、最大功耗 300W，採用被動散熱設計需要機箱風扇協助。</p>
+<p>對照之下，8GB 的 CMP 170HX 二手價在台灣與全球市場都已經翻漲。Tom’s Hardware 報導時的行情是 8GB 版本約 3,000 美元、10GB 版本約 2,500 美元，這已經是 2021 年那張卡上市時 5,000 美元單卡價格的六折水準。社群在 X 上追蹤的價格曲線則是去年約 200 美元、上月 1,500 美元、本月突破 3,000 美元。本站 8 月那篇報導當時記錄的數字是中國二手市場成交價約人民幣 3,000 到 4,000 元，eBay 掛牌約 1,500 美元。</p>
+<p>算下來，一張 3,000 美元的礦卡加上一套自行焊接的改裝，硬體成本大約是零售 A100 80GB 的六分之一到十分之一，代價是每張卡要花一到兩天通電、可能永久燒毀，且必須自己承擔焊接與改 BIOS 的風險。</p>
+<h3>結語</h3>
+<p>這次公開的意義在於可重現性。Kate 交出的是一份 29KB 的技術文件加上完整開源碼，內含 KiCad 原理圖、STM32G431 應用程式韌體、自訂 USB bootloader、PWMVID 主控工具、GA100 暫存器擷取引擎與 glitch 實驗流程。任何有能力焊接的人都能照著做，唯一的門檻是時間與焊接的手藝。</p>
+<p>而這也意味著 NVIDIA 的產品區隔策略出現了一個難以補上的破口。GA100 晶片上有 128 個 SM 卻只開 108 個，8GB 礦卡上封裝 80GB 記憶體卻只開放 8GB，這些都是當年為了成本控制與良率管理做的決定。當封鎖機制可以被幾百美元的設備破解，市場上每一張被降級出貨的晶片都變成了一張隱藏的高階產品。</p>
+<p>對台灣的 AI 運算使用者來說，眼前最實際的訊息是價格。零售 A100 80GB 要 46 萬到 73 萬新台幣，同時記憶體市場因為 AI 需求而持續吃緊，在這樣的供需結構下，會焊接的人手裡多了一條取得大記憶體的灰色管道。會用的人早就知道這些礦卡的存在，接下來會發生的是價格繼續往上，以及更多沒有耐心焊接的人直接買二手礦卡回去結果發現自己搞不定浪費錢的情況，我們個人不建議大家冒險嘗試。</p>
+<blockquote data-secret="pADIg5TIPM"><p><a href="https://www.kocpc.com.tw/archives/661540">最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍 — 電腦王阿達" src="about:blank" data-secret="pADIg5TIPM" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/661540/embed#?secret=kchZY2oV93#?secret=pADIg5TIPM"></iframe></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>本站之前曾報導過 CMP 170HX 這張卡<a href="https://www.kocpc.com.tw/archives/661540" target="_blank">被純軟體破解的消息</a>，當時研究團隊利用漏洞，攻破三層信任棧中最上層的簽名校驗，取得 HS 模式權限後改寫特權級掩碼，修改後 FP32 從 0.39 TFLOPS 拉高到 94 TFLOPS，約 31 倍提升，記憶體從 10GB 擴到 80GB，這也讓 170 HX 的價格在短短幾天之內爆漲好幾倍。但當時也留下三個明確的天花板：PCIe Gen3 一直無法啟用，PCB 上省略的 12 根 lane 交流耦合電容必須手動補焊 24 顆 100nF 電容才能恢復 x16 實體連線，HBM 模式暫存器與片上 ECC 也一樣被源 ID 鎖住。論文作者當時說得很謹慎，這些限制的狀態是「沒找到方法」，而非「證明不可破」。近日美國硬體研究者 Kate 在個人部落格公開了 GA100 晶片上電壓故障注入漏洞，她利用這個漏洞燒斷 NVIDIA 用來封鎖功能的熔絲，把一張原本僅有 8GB 的 CMP 170HX 礦卡改成 80GB 記憶體、120 個以上 SM 計算單元的加速卡，FP16 效能達到 85.9 TFLOPS，AI&nbsp;效能還跑贏售價兩萬美元的零售 A100。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022321_0_153f5c.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 945px) 100vw, 945px"></p>
+<p>這套方法的開源碼碼、STM32 韌體與硬體設計圖也一併公開在 GitHub，而那塊負責製造電壓脈衝的控制板，線路圖是由 GPT-6 Astra 協助設計的。</p>
+<h3><a href="https://github.com/kate-land/ga100vfi" target="_blank">GA100VFI：GA100 voltage glitch resources – GitHub</a></h3>
+<h3>從軟體解鎖到硬體攻擊</h3>
+<p>Kate 的做法直接從硬體層切入，把那三道天花板一起推過去。她發現 NVIDIA 在 GA100 上的熔絲設計有個結構性問題：GA100 的熔絲控制器含 16,384 顆 eFuse，構成 512 列乘 32 的陣列。其中有個特殊的「無熔絲熔絲」區塊，採用類似 JTAG 鏈的記錄格式，開機時由控制器依序重播來決定最終選項字串的數值。</p>
+<p>這裡的關鍵是記錄採覆蓋寫入。只要寫入一筆新的記錄指向同一個位置，舊的限制就會被清除，實體熔絲並不需要被「吹回未熔斷」。正常設計裡熔絲燒斷只能收緊權限，GA100 上燒更多反而放寬限制，Kate 用一句話總結 NVIDIA 的設計有多不安全：燒斷熔絲能給你更多功能，不是更少。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023723_0_3bc38f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p>要燒這些熔絲得先解除一道閘門。控制器有個 <code>OPT_SECURED_BURN_FEATURE_ENABLE</code> 選項字串，所有量產卡都是開啟的，開啟時只有特定範圍的熔絲能寫，無熔絲熔絲區完全鎖死。Kate 靠電壓故障注入觸發了一個她稱為 Goldilock 的 glitch 狀態，讓控制列衍生的選項字串全部讀成零，再用 <code>SENSE_CTRL</code> 指令讓它們回到熔絲原值，但保留 <code>DISABLE_SW_OVERRIDE</code> 為零，這樣就能用軟體覆寫把那道閘門關掉。</p>
+<h3>那塊由 GPT-6 Astra 協助設計的板子</h3>
+<p>整個攻擊的執行工具是一塊自己畫的 STM32G431 控制板，Kate 在文中說明，她是請 GPT-6 Astra 設計一個能接入 PWMVID 訊號的 STM32G4 板子。PWMVID 是 NVIDIA 對穩壓器的標準通訊協定，這塊板子攔截 GA100 晶片送出的 PWM 訊號，轉而餵自己的波形給 MP2888B 穩壓器驅動 IC，讓顯示卡自己的 VRM 製造出時間精準的電壓脈衝。</p>
+<p>安裝方式相當原始。整個裝置只對 PCB 做兩處連線，一條量測 NVVDD 電壓，一條接入 PWMVID 訊號，理想狀態是用磁鐵吸住的漆包線。唯一必須動烙鐵的地方，是拔掉一顆 0402 規格的 0 歐姆電阻，切斷 GA100 的 PWM 輸出腳與穩壓器之間的連線。晶片本身大約 8 美元。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023802_0_4c187f.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>每次嘗試的流程是這樣：斷電、重新上電、用比較器偵測 NVVDD 通過 225mV 的瞬間啟動計時器、依計時送出設計好的電壓波形、觀察顯示卡反應。她用 ACPI 的 S0 到 S3 再回 S0 的電源狀態切換來完成斷電與重啟，每幾秒就能循環一次。一張卡通常要 glitch 一到 48 小時才會成功。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023830_0_04fda1.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>跑贏 A100 的數字，以及它的極限</h3>
+<p>Kate 在文中附上的比較表，是這次最值得看的部分：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022808_0_2f880a.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 932px) 100vw, 932px"></p>
+<ul>
+<li><strong>8GB 版記憶體</strong>：出廠 8GB，軟體解鎖 64GB，電壓攻擊後 64 到 80GB</li>
+<li><strong>10GB 版記憶體</strong>：出廠 10GB，軟體解鎖 40GB，電壓攻擊後 40 到 48GB</li>
+<li><strong>SM 計算單元</strong>：出廠 70，軟體解鎖 70，電壓攻擊後 120 到 128</li>
+<li><strong>PCIe 世代</strong>：出廠 Gen1，軟體解鎖 Gen2，電壓攻擊後 Gen4</li>
+<li><strong>NVLink、ECC、多執行個體 GPU</strong>：前兩者皆無，電壓攻擊後開啟</li>
+</ul>
+<p>效能數字來自 ProjectPhysX 的 OpenCL 基準測試，軟體解鎖後是 50.1 TFLOPS FP16，零售 A100 是 72.5，電壓攻擊後的礦卡是 85.9，約為 A100 的 1.18 倍、軟體解鎖版的 1.7 倍。Kate 說 vLLM 與 SGLang 這類實際推理框架都能在完整的 80GB 上跑。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114023933_0_4abc10.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p><div role="region" aria-label="贊助商連結"></div>
+<p>算力能超越 A100 的原因在晶圓良率。GA100 出廠時有 128 個 SM，NVIDIA 為了確保良率，所有量產 A100 只開 108 個。這些被判定不良的 SM 在晶片上多數是好的，只是被熔絲關掉，Kate 的解鎖讓它們重新上線，數量依晶圓批次落在 120 到 126 之間。</p>
+<h3>三個限制必須講清楚</h3>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114024009_0_f35e66.jpg" alt="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" title="CMP 170HX 礦卡變 80GB A100 還跑贏原版！研究者用 GPT-6 Astra 設計的板子破解 NVIDIA 熔絲鎖 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<p><strong>第一，80GB 只適用於 8GB 版本。</strong> Kate 在腳註說明，10GB 版本封裝的是 4 組 HBM stack，8GB 版本是 6 組，這是兩種不同的實體配置。社群維護的 CMP 170HX 技術 wiki 也明確標示，8GB 卡解鎖後是 64GB 且穩定，10GB 卡解鎖後是 40GB 且穩定，兩者不能互相取代。同一份 wiki 記載，社群曾嘗試讓 10GB 卡衝到 81920 MiB，但在 40 GiB 處會發生摺疊，超過 39GB 的記憶體驗證從未能重複，會觸發 Xid 錯誤讓 GPU 當場消失。Kate 自己的腳註也說，〈Canary in the Crypto Mine〉論文宣稱 10GB 版能穩定跑 80GB，但幾乎沒有卡達成，證據稀少。</p>
+<p><strong>第二，成功率沒有百分之百。</strong> Kate 檢查的 10 張 8GB 卡中，9 張具備完整的 80GB 記憶體，剩下 1 張出廠就只有 64GB 可用，而那張卡即使解鎖成功，記憶體容量也沒有任何增加。</p>
+<p><strong>第三，NVLink 還要再動一次烙鐵。</strong> 清除 NVLink 禁用字串只是第一步，CMP 170HX 的 PCB 缺少 U11 這顆連接 PCIe 3.3V 到 NVLink 橋接腳位的 IC，量產板無法讓橋接器的參考時鐘產生器啟動，需要把該位置的兩個腳位短路跳線才能解決。Kate 提醒，這會把不同電源供應器的卡片的 3.3V 電源軌接在一起，除非其中一張卡保持 U11 不焊。PCIe 要達到 Gen4 x16 同樣需要搭配解耦電容改裝。</p>
+<h3>必須知道的價差與風險</h3>
+<p>台灣市場上，零售 A100 80GB PCIe 的價格相當透明。AUTOBUY 購物中心的客訂商品標價是 735,000 元，蝦皮與 Yahoo 拍賣的平台上，台灣公司貨報價落在 46.2 萬到 65.2 萬元之間。台灣代理商益登科技列出的 A100 80GB PCIe 規格是 80GB HBM2e、1,935 GB/s 記憶體頻寬、最大功耗 300W，採用被動散熱設計需要機箱風扇協助。</p>
+<p>對照之下，8GB 的 CMP 170HX 二手價在台灣與全球市場都已經翻漲。Tom’s Hardware 報導時的行情是 8GB 版本約 3,000 美元、10GB 版本約 2,500 美元，這已經是 2021 年那張卡上市時 5,000 美元單卡價格的六折水準。社群在 X 上追蹤的價格曲線則是去年約 200 美元、上月 1,500 美元、本月突破 3,000 美元。本站 8 月那篇報導當時記錄的數字是中國二手市場成交價約人民幣 3,000 到 4,000 元，eBay 掛牌約 1,500 美元。</p>
+<p>算下來，一張 3,000 美元的礦卡加上一套自行焊接的改裝，硬體成本大約是零售 A100 80GB 的六分之一到十分之一，代價是每張卡要花一到兩天通電、可能永久燒毀，且必須自己承擔焊接與改 BIOS 的風險。</p>
+<h3>結語</h3>
+<p>這次公開的意義在於可重現性。Kate 交出的是一份 29KB 的技術文件加上完整開源碼，內含 KiCad 原理圖、STM32G431 應用程式韌體、自訂 USB bootloader、PWMVID 主控工具、GA100 暫存器擷取引擎與 glitch 實驗流程。任何有能力焊接的人都能照著做，唯一的門檻是時間與焊接的手藝。</p>
+<p>而這也意味著 NVIDIA 的產品區隔策略出現了一個難以補上的破口。GA100 晶片上有 128 個 SM 卻只開 108 個，8GB 礦卡上封裝 80GB 記憶體卻只開放 8GB，這些都是當年為了成本控制與良率管理做的決定。當封鎖機制可以被幾百美元的設備破解，市場上每一張被降級出貨的晶片都變成了一張隱藏的高階產品。</p>
+<p>對台灣的 AI 運算使用者來說，眼前最實際的訊息是價格。零售 A100 80GB 要 46 萬到 73 萬新台幣，同時記憶體市場因為 AI 需求而持續吃緊，在這樣的供需結構下，會焊接的人手裡多了一條取得大記憶體的灰色管道。會用的人早就知道這些礦卡的存在，接下來會發生的是價格繼續往上，以及更多沒有耐心焊接的人直接買二手礦卡回去結果發現自己搞不定浪費錢的情況，我們個人不建議大家冒險嘗試。</p>
+<blockquote data-secret="pADIg5TIPM"><p><a href="https://www.kocpc.com.tw/archives/661540">最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍</a></p></blockquote>
+<p><iframe sandbox="allow-scripts" security="restricted" title="最超值魔改 AI 卡現身！NVIDIA CMP 170HX 礦卡遭破解，最高可解鎖 80GB 顯存、算力提升31倍 — 電腦王阿達" src="about:blank" data-secret="pADIg5TIPM" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" data-rocket-lazyload="fitvidscompatible" data-lazy-src="https://www.kocpc.com.tw/archives/661540/embed#?secret=kchZY2oV93#?secret=pADIg5TIPM"></iframe></p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022321_0_153f5c.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261114022321_0_153f5c.jpg" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 18:43:20 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據]]></title>
+    <link>https://www.kocpc.com.tw/archives/703300</link>
+    <itunes:title><![CDATA[黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>輝達（NVIDIA）創辦人兼執行長黃仁勳在 11 月 12 日辭去職務，結束 33 年領導生涯。董事會同時宣布由財務長克雷斯（Colette Kress）暫代執行長，並啟動新任執行長遴選程序。辭職消息公布後，加州聖塔克拉拉總部外出現幾束白色雛菊與白蠟燭，氣氛像告別式；公司內部則有超過 97% 的參與者在一項員工自發投票中，希望他繼續擔任執行長。自相關指控曝光以來，輝達市值已蒸發 1 兆美元，約新台幣 31.5 兆元，股價從上週五收盤至週四累計重挫 13%。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185230_0_55a857.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達"><figcaption>Source：路透社</figcaption>
+<h3>意見箱貼文 1,600 則留言，多數要他回來</h3>
+<p>內部通訊顯示，一名在輝達工作多年的工程師在黃仁勳辭職前，於公司內部「意見箱」提交貼文，敦促董事會在採取任何行動前先考慮員工情緒。這則貼文後來累積超過 1,600 則留言，其中多則要求董事會設法讓黃仁勳回任。一則匿名留言寫道：「如果你相信這個使命，就把老闆帶回來。」另一則寫：「我們都是人，都會犯錯。黃仁勳做了那麼多好事，他需要第二次機會。」</p>
+<p>一項由員工自發組織的內部投票顯示，超過 97% 的參與者希望黃仁勳繼續擔任執行長，多名員工表示難以接受這項人事變動。一名在輝達任職數年的員工表示，要求黃仁勳回歸的意願在公司內部相當普遍，他擔心公司失去創辦人掌舵最終將付出代價，董事會必須讓他回來：「輝達之所以是輝達，就是因為黃仁勳。」</p>
+<blockquote>
+<p dir="ltr" lang="en">BREAKING: hundreds of NVIDIA employees have signed an internal letter demanding the reinstatement of Jensen Huang as CEO and the resignation of the board https://t.co/yEQMKAajh3</p>
+<p>— zack (@zack_overflow) <a href="https://x.com/zack_overflow/status/2121092676510695723?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<h3>全公司郵件要求說明離職透明度</h3>
+<p>另有員工向全公司發送電子郵件，要求說明黃仁勳離職的透明度。該員工在信中寫「我支持黃仁勳」，並承認任何人都可能犯錯，但無法接受堅持公平就意味著要與一位對公司意義重大的領導者保持距離。他在信中還寫道：「如果美國辜負了那個幫助建設其未來的人，那麼這個世界不配擁有黃仁勳。」</p>
+<p>辭職消息公布後數小時內，約二十名員工在 LinkedIn 發文支持黃仁勳，其中一人稱對其領導力的信任「毫不動搖」；WIRED 表示，同一段時間內找不到任何輝達員工發文支持他辭職。輝達與新任董事會主席、投資人哈維·瓊斯（Harvey Jones）未立即回應置評請求，發信員工未能取得聯繫，發起意見箱貼文的工程師則拒絕置評。</p>
+<h3>門牌旁的白色雛菊與玻璃罐蠟燭</h3>
+<p>媒體在週四於輝達總部前方的公司招牌旁，拍到數束鮮花靠放在招牌下，還有一名男子在現場擺上裝在玻璃罐裡的白色蠟燭，引來路過女子側目。星島日報寫得更細：門牌「2788」的左右兩側分別直立靠放兩束白色雛菊花束，中間地面還橫躺一束小白花，肅穆景象宛如追思會現場。目前無法確認擺放鮮花與蠟燭的人是公司員工、支持者還是路過民眾。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185808_0_2647a8.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" data-lazy-sizes="(max-width: 1024px) 100vw, 1024px"><figcaption>Source：路透社</figcaption>
+<p>儘管總部外氣氛哀戚，許多佩戴輝達綠色識別證與背包的員工當天仍神情如常進入公司上班。不過受訪員工坦言公司內部氣氛「很難過」，也有人對股價及未來發展感到擔憂。網路上的反應更直接，有人留言「他們在輝達總部招牌前獻花，搞得好像是墳墓一樣」，也有人寫「死的不是黃仁勳，是輝達」。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">Flowers were laid outside Nvidia’s headquarters in Santa Clara as CEO Jensen Huang resigned under a cloud of scandal. Huang, who co-founded Nvidia and is its fourth-largest investor ‌with a stake of about 3.61%, will exit the board as well https://t.co/LE6IZBWwSL https://t.co/L5MJt7ijhK</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2120957222192832692?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<h3>辭職前最後幾小時：頻說「隨便」，自嘲「我是坨屎」</h3>
+<p>彭博社 11 月 13 日刊出的報導披露辭職內幕。知情人士稱，黃仁勳在經歷數週否認婚外情指控、並努力保住執行長職位後，最終在 11 月 11 日深夜接受辭職的結果。他失去原本掌控公司大小事的強勢態度，頻繁以「Whatever」「I don’t care」回應周遭人士。近日曾與他接觸的人士透露，他陷入強烈自責，並自嘲「I’m a piece of sh**」。</p>
+<p>黃仁勳在 11 月 8 日向員工發信承認「對妻子不忠」，並表示「沒有任何藉口」。11 月 11 日又接連傳出其他婚外情指控，董事會徹夜召開會議，最終決定讓他離開公司。他的辭職發生在第二起與直屬部屬有關的婚外情報導之後，<a href="https://www.forbes.com/sites/alisondurkee/2026/11/12/jensen-huang-had-a-third-affair-with-another-nvidia-employee-report-says/" target="_blank">Forbes</a> 隨後又報導他與另一名輝達員工的關係。自週日以來，黃仁勳未再就婚外情一事作出回應。</p>
+<h3>情報調查：黃樂與 Megaspeed 的晶片流向</h3>
+<p>婚外情風波之外，黃仁勳與黃樂（Alice Huang）的往來也引來情報調查。CNN 引述多名知情人士報導，美國情報部門仍在調查這名中國商界人士與中國政府的關係，但目前掌握的情報不足以證明她曾受中國國家安全部招募、為北京從事間諜活動。美國官員看法分歧：國家情報總監辦公室與中情局部分官員認為，把她直接稱為中國間諜可能過於誇大；另一些川普政府官員則認為，她與黃仁勳關係密切，又在中國商業環境擁有影響力，很難相信她與政府毫無聯繫。</p>
+<blockquote>
+<p dir="ltr" lang="en">US Justice Department has not concluded Alice Huang was Chinese spy, Blanche says https://t.co/zDUfZ9hVkt</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2121017723459096670?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<p>FBI 至少一年來持續調查此事。知情人士透露，情報部門曾截獲一些通訊內容，似乎顯示有人利用與黃仁勳及輝達的密切接觸，把資訊傳入中國情報管道，但目前沒有公開證據把這名資訊來源明確指向黃樂，也沒有證據證明她明知自己在向北京傳遞情報。FBI 關注的因素包括她從中國官方電視台記者轉入商業領域、迅速進入金融與科技圈，以及她在晶片採購方面展現的影響力。</p>
+<blockquote>
+<p dir="ltr" lang="en">The US intelligence community is still working to understand the relationship between a Chinese businesswoman who had an affair with Nvidia CEO Jensen Huang and the Chinese government, with multiple sources telling CNN that the intelligence collected on her to date does not prove that she was acting as a spy for Beijing. https://t.co/FZbzUrNyOP</p>
+<p>— CNN (@CNN) <a href="https://x.com/CNN/status/2121090715941835030?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<p>晶片流向是另一個爭議點。黃樂曾在新加坡註冊的 Megaspeed 任職，該公司是輝達晶片的重要買家。美國司法部與商務部 2024 年開始調查 Megaspeed 及關聯企業，方向包括受限制的輝達晶片是否被轉供中國。白宮內部有人質疑商務部為何沒有在調查期間把 Megaspeed 列入限制貿易的實體清單；一名前商務部官員則認為，晶片流向中國的風險可能來自監管漏洞與企業本身的商業利益，不一定需要間諜行動才能解釋。</p>
+<p>美國司法部長托德·布蘭奇 11 月 12 日表示，司法部、他本人與 FBI 局長卡什·帕特爾都尚未就黃樂是否為間諜得出結論，相關調查仍在進行。川普當天也說，他不知道美國是否已經確認她是間諜。中國政府否認相關間諜指控；新加坡表示對黃樂的調查涉及可能的違法行為，但不涉及間諜活動。輝達董事會已啟動獨立調查，核查黃仁勳是否成為外國情報行動的目標，情報機構尚未認定輝達商業機密遭竊取。</p>
+<h3>誰來接班</h3>
+<p>董事會任命前新思科技執行長哈維·瓊斯為董事會主席，輝達董事會主要由早期投資者與黃仁勳的長期親信組成。目前由克雷斯暫代執行長，公司同時啟動新任執行長遴選程序。黃仁勳現年 63 歲，自 1993 年輝達成立起便一直領導這家公司。</p>
+<p>外部聲援也陸續出現。《要塞英雄》開發商 Epic Games 老闆提姆·史威尼公開支持黃仁勳；馬斯克表示，如果能聘請黃仁勳到 SpaceX，是他的榮幸。晶片出口管制是否進一步收緊，以及美國國會與 FBI 的調查如何推進，都還在進行中。</p>
+<p>對員工來說，最難接受的是時間點。許多人原本認為董事會調查得出結論後才會發生重大人事變動，意見箱貼文也曾呼籲董事會向員工公布調查結果，並正式徵詢員工對「黃仁勳繼續擔任執行長」的意見，他卻在調查剛啟動時離開。本週公司內部業務運轉如常，但黃仁勳的辭職讓許多員工感到震驚。<small></small></p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>輝達（NVIDIA）創辦人兼執行長黃仁勳在 11 月 12 日辭去職務，結束 33 年領導生涯。董事會同時宣布由財務長克雷斯（Colette Kress）暫代執行長，並啟動新任執行長遴選程序。辭職消息公布後，加州聖塔克拉拉總部外出現幾束白色雛菊與白蠟燭，氣氛像告別式；公司內部則有超過 97% 的參與者在一項員工自發投票中，希望他繼續擔任執行長。自相關指控曝光以來，輝達市值已蒸發 1 兆美元，約新台幣 31.5 兆元，股價從上週五收盤至週四累計重挫 13%。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185230_0_55a857.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達"><figcaption>Source：路透社</figcaption>
+<h3>意見箱貼文 1,600 則留言，多數要他回來</h3>
+<p>內部通訊顯示，一名在輝達工作多年的工程師在黃仁勳辭職前，於公司內部「意見箱」提交貼文，敦促董事會在採取任何行動前先考慮員工情緒。這則貼文後來累積超過 1,600 則留言，其中多則要求董事會設法讓黃仁勳回任。一則匿名留言寫道：「如果你相信這個使命，就把老闆帶回來。」另一則寫：「我們都是人，都會犯錯。黃仁勳做了那麼多好事，他需要第二次機會。」</p>
+<p>一項由員工自發組織的內部投票顯示，超過 97% 的參與者希望黃仁勳繼續擔任執行長，多名員工表示難以接受這項人事變動。一名在輝達任職數年的員工表示，要求黃仁勳回歸的意願在公司內部相當普遍，他擔心公司失去創辦人掌舵最終將付出代價，董事會必須讓他回來：「輝達之所以是輝達，就是因為黃仁勳。」</p>
+<blockquote>
+<p dir="ltr" lang="en">BREAKING: hundreds of NVIDIA employees have signed an internal letter demanding the reinstatement of Jensen Huang as CEO and the resignation of the board https://t.co/yEQMKAajh3</p>
+<p>— zack (@zack_overflow) <a href="https://x.com/zack_overflow/status/2121092676510695723?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<h3>全公司郵件要求說明離職透明度</h3>
+<p>另有員工向全公司發送電子郵件，要求說明黃仁勳離職的透明度。該員工在信中寫「我支持黃仁勳」，並承認任何人都可能犯錯，但無法接受堅持公平就意味著要與一位對公司意義重大的領導者保持距離。他在信中還寫道：「如果美國辜負了那個幫助建設其未來的人，那麼這個世界不配擁有黃仁勳。」</p>
+<p>辭職消息公布後數小時內，約二十名員工在 LinkedIn 發文支持黃仁勳，其中一人稱對其領導力的信任「毫不動搖」；WIRED 表示，同一段時間內找不到任何輝達員工發文支持他辭職。輝達與新任董事會主席、投資人哈維·瓊斯（Harvey Jones）未立即回應置評請求，發信員工未能取得聯繫，發起意見箱貼文的工程師則拒絕置評。</p>
+<h3>門牌旁的白色雛菊與玻璃罐蠟燭</h3>
+<p>媒體在週四於輝達總部前方的公司招牌旁，拍到數束鮮花靠放在招牌下，還有一名男子在現場擺上裝在玻璃罐裡的白色蠟燭，引來路過女子側目。星島日報寫得更細：門牌「2788」的左右兩側分別直立靠放兩束白色雛菊花束，中間地面還橫躺一束小白花，肅穆景象宛如追思會現場。目前無法確認擺放鮮花與蠟燭的人是公司員工、支持者還是路過民眾。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185808_0_2647a8.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" data-lazy-sizes="(max-width: 1024px) 100vw, 1024px"><figcaption>Source：路透社</figcaption>
+<p>儘管總部外氣氛哀戚，許多佩戴輝達綠色識別證與背包的員工當天仍神情如常進入公司上班。不過受訪員工坦言公司內部氣氛「很難過」，也有人對股價及未來發展感到擔憂。網路上的反應更直接，有人留言「他們在輝達總部招牌前獻花，搞得好像是墳墓一樣」，也有人寫「死的不是黃仁勳，是輝達」。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">Flowers were laid outside Nvidia’s headquarters in Santa Clara as CEO Jensen Huang resigned under a cloud of scandal. Huang, who co-founded Nvidia and is its fourth-largest investor ‌with a stake of about 3.61%, will exit the board as well https://t.co/LE6IZBWwSL https://t.co/L5MJt7ijhK</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2120957222192832692?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<h3>辭職前最後幾小時：頻說「隨便」，自嘲「我是坨屎」</h3>
+<p>彭博社 11 月 13 日刊出的報導披露辭職內幕。知情人士稱，黃仁勳在經歷數週否認婚外情指控、並努力保住執行長職位後，最終在 11 月 11 日深夜接受辭職的結果。他失去原本掌控公司大小事的強勢態度，頻繁以「Whatever」「I don’t care」回應周遭人士。近日曾與他接觸的人士透露，他陷入強烈自責，並自嘲「I’m a piece of sh**」。</p>
+<p>黃仁勳在 11 月 8 日向員工發信承認「對妻子不忠」，並表示「沒有任何藉口」。11 月 11 日又接連傳出其他婚外情指控，董事會徹夜召開會議，最終決定讓他離開公司。他的辭職發生在第二起與直屬部屬有關的婚外情報導之後，<a href="https://www.forbes.com/sites/alisondurkee/2026/11/12/jensen-huang-had-a-third-affair-with-another-nvidia-employee-report-says/" target="_blank">Forbes</a> 隨後又報導他與另一名輝達員工的關係。自週日以來，黃仁勳未再就婚外情一事作出回應。</p>
+<h3>情報調查：黃樂與 Megaspeed 的晶片流向</h3>
+<p>婚外情風波之外，黃仁勳與黃樂（Alice Huang）的往來也引來情報調查。CNN 引述多名知情人士報導，美國情報部門仍在調查這名中國商界人士與中國政府的關係，但目前掌握的情報不足以證明她曾受中國國家安全部招募、為北京從事間諜活動。美國官員看法分歧：國家情報總監辦公室與中情局部分官員認為，把她直接稱為中國間諜可能過於誇大；另一些川普政府官員則認為，她與黃仁勳關係密切，又在中國商業環境擁有影響力，很難相信她與政府毫無聯繫。</p>
+<blockquote>
+<p dir="ltr" lang="en">US Justice Department has not concluded Alice Huang was Chinese spy, Blanche says https://t.co/zDUfZ9hVkt</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2121017723459096670?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<p>FBI 至少一年來持續調查此事。知情人士透露，情報部門曾截獲一些通訊內容，似乎顯示有人利用與黃仁勳及輝達的密切接觸，把資訊傳入中國情報管道，但目前沒有公開證據把這名資訊來源明確指向黃樂，也沒有證據證明她明知自己在向北京傳遞情報。FBI 關注的因素包括她從中國官方電視台記者轉入商業領域、迅速進入金融與科技圈，以及她在晶片採購方面展現的影響力。</p>
+<blockquote>
+<p dir="ltr" lang="en">The US intelligence community is still working to understand the relationship between a Chinese businesswoman who had an affair with Nvidia CEO Jensen Huang and the Chinese government, with multiple sources telling CNN that the intelligence collected on her to date does not prove that she was acting as a spy for Beijing. https://t.co/FZbzUrNyOP</p>
+<p>— CNN (@CNN) <a href="https://x.com/CNN/status/2121090715941835030?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<p>晶片流向是另一個爭議點。黃樂曾在新加坡註冊的 Megaspeed 任職，該公司是輝達晶片的重要買家。美國司法部與商務部 2024 年開始調查 Megaspeed 及關聯企業，方向包括受限制的輝達晶片是否被轉供中國。白宮內部有人質疑商務部為何沒有在調查期間把 Megaspeed 列入限制貿易的實體清單；一名前商務部官員則認為，晶片流向中國的風險可能來自監管漏洞與企業本身的商業利益，不一定需要間諜行動才能解釋。</p>
+<p>美國司法部長托德·布蘭奇 11 月 12 日表示，司法部、他本人與 FBI 局長卡什·帕特爾都尚未就黃樂是否為間諜得出結論，相關調查仍在進行。川普當天也說，他不知道美國是否已經確認她是間諜。中國政府否認相關間諜指控；新加坡表示對黃樂的調查涉及可能的違法行為，但不涉及間諜活動。輝達董事會已啟動獨立調查，核查黃仁勳是否成為外國情報行動的目標，情報機構尚未認定輝達商業機密遭竊取。</p>
+<h3>誰來接班</h3>
+<p>董事會任命前新思科技執行長哈維·瓊斯為董事會主席，輝達董事會主要由早期投資者與黃仁勳的長期親信組成。目前由克雷斯暫代執行長，公司同時啟動新任執行長遴選程序。黃仁勳現年 63 歲，自 1993 年輝達成立起便一直領導這家公司。</p>
+<p>外部聲援也陸續出現。《要塞英雄》開發商 Epic Games 老闆提姆·史威尼公開支持黃仁勳；馬斯克表示，如果能聘請黃仁勳到 SpaceX，是他的榮幸。晶片出口管制是否進一步收緊，以及美國國會與 FBI 的調查如何推進，都還在進行中。</p>
+<p>對員工來說，最難接受的是時間點。許多人原本認為董事會調查得出結論後才會發生重大人事變動，意見箱貼文也曾呼籲董事會向員工公布調查結果，並正式徵詢員工對「黃仁勳繼續擔任執行長」的意見，他卻在調查剛啟動時離開。本週公司內部業務運轉如常，但黃仁勳的辭職讓許多員工感到震驚。<small></small></p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>輝達（NVIDIA）創辦人兼執行長黃仁勳在 11 月 12 日辭去職務，結束 33 年領導生涯。董事會同時宣布由財務長克雷斯（Colette Kress）暫代執行長，並啟動新任執行長遴選程序。辭職消息公布後，加州聖塔克拉拉總部外出現幾束白色雛菊與白蠟燭，氣氛像告別式；公司內部則有超過 97% 的參與者在一項員工自發投票中，希望他繼續擔任執行長。自相關指控曝光以來，輝達市值已蒸發 1 兆美元，約新台幣 31.5 兆元，股價從上週五收盤至週四累計重挫 13%。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185230_0_55a857.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達"><figcaption>Source：路透社</figcaption>
+<h3>意見箱貼文 1,600 則留言，多數要他回來</h3>
+<p>內部通訊顯示，一名在輝達工作多年的工程師在黃仁勳辭職前，於公司內部「意見箱」提交貼文，敦促董事會在採取任何行動前先考慮員工情緒。這則貼文後來累積超過 1,600 則留言，其中多則要求董事會設法讓黃仁勳回任。一則匿名留言寫道：「如果你相信這個使命，就把老闆帶回來。」另一則寫：「我們都是人，都會犯錯。黃仁勳做了那麼多好事，他需要第二次機會。」</p>
+<p>一項由員工自發組織的內部投票顯示，超過 97% 的參與者希望黃仁勳繼續擔任執行長，多名員工表示難以接受這項人事變動。一名在輝達任職數年的員工表示，要求黃仁勳回歸的意願在公司內部相當普遍，他擔心公司失去創辦人掌舵最終將付出代價，董事會必須讓他回來：「輝達之所以是輝達，就是因為黃仁勳。」</p>
+<blockquote>
+<p dir="ltr" lang="en">BREAKING: hundreds of NVIDIA employees have signed an internal letter demanding the reinstatement of Jensen Huang as CEO and the resignation of the board https://t.co/yEQMKAajh3</p>
+<p>— zack (@zack_overflow) <a href="https://x.com/zack_overflow/status/2121092676510695723?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<h3>全公司郵件要求說明離職透明度</h3>
+<p>另有員工向全公司發送電子郵件，要求說明黃仁勳離職的透明度。該員工在信中寫「我支持黃仁勳」，並承認任何人都可能犯錯，但無法接受堅持公平就意味著要與一位對公司意義重大的領導者保持距離。他在信中還寫道：「如果美國辜負了那個幫助建設其未來的人，那麼這個世界不配擁有黃仁勳。」</p>
+<p>辭職消息公布後數小時內，約二十名員工在 LinkedIn 發文支持黃仁勳，其中一人稱對其領導力的信任「毫不動搖」；WIRED 表示，同一段時間內找不到任何輝達員工發文支持他辭職。輝達與新任董事會主席、投資人哈維·瓊斯（Harvey Jones）未立即回應置評請求，發信員工未能取得聯繫，發起意見箱貼文的工程師則拒絕置評。</p>
+<h3>門牌旁的白色雛菊與玻璃罐蠟燭</h3>
+<p>媒體在週四於輝達總部前方的公司招牌旁，拍到數束鮮花靠放在招牌下，還有一名男子在現場擺上裝在玻璃罐裡的白色蠟燭，引來路過女子側目。星島日報寫得更細：門牌「2788」的左右兩側分別直立靠放兩束白色雛菊花束，中間地面還橫躺一束小白花，肅穆景象宛如追思會現場。目前無法確認擺放鮮花與蠟燭的人是公司員工、支持者還是路過民眾。</p>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185808_0_2647a8.jpg" alt="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" title="黃仁勳辭職首日：內部 97% 投票要他回任，美國政府沒有女方是中國間諜證據 - 電腦王阿達" data-lazy-sizes="(max-width: 1024px) 100vw, 1024px"><figcaption>Source：路透社</figcaption>
+<p>儘管總部外氣氛哀戚，許多佩戴輝達綠色識別證與背包的員工當天仍神情如常進入公司上班。不過受訪員工坦言公司內部氣氛「很難過」，也有人對股價及未來發展感到擔憂。網路上的反應更直接，有人留言「他們在輝達總部招牌前獻花，搞得好像是墳墓一樣」，也有人寫「死的不是黃仁勳，是輝達」。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">Flowers were laid outside Nvidia’s headquarters in Santa Clara as CEO Jensen Huang resigned under a cloud of scandal. Huang, who co-founded Nvidia and is its fourth-largest investor ‌with a stake of about 3.61%, will exit the board as well https://t.co/LE6IZBWwSL https://t.co/L5MJt7ijhK</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2120957222192832692?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<h3>辭職前最後幾小時：頻說「隨便」，自嘲「我是坨屎」</h3>
+<p>彭博社 11 月 13 日刊出的報導披露辭職內幕。知情人士稱，黃仁勳在經歷數週否認婚外情指控、並努力保住執行長職位後，最終在 11 月 11 日深夜接受辭職的結果。他失去原本掌控公司大小事的強勢態度，頻繁以「Whatever」「I don’t care」回應周遭人士。近日曾與他接觸的人士透露，他陷入強烈自責，並自嘲「I’m a piece of sh**」。</p>
+<p>黃仁勳在 11 月 8 日向員工發信承認「對妻子不忠」，並表示「沒有任何藉口」。11 月 11 日又接連傳出其他婚外情指控，董事會徹夜召開會議，最終決定讓他離開公司。他的辭職發生在第二起與直屬部屬有關的婚外情報導之後，<a href="https://www.forbes.com/sites/alisondurkee/2026/11/12/jensen-huang-had-a-third-affair-with-another-nvidia-employee-report-says/" target="_blank">Forbes</a> 隨後又報導他與另一名輝達員工的關係。自週日以來，黃仁勳未再就婚外情一事作出回應。</p>
+<h3>情報調查：黃樂與 Megaspeed 的晶片流向</h3>
+<p>婚外情風波之外，黃仁勳與黃樂（Alice Huang）的往來也引來情報調查。CNN 引述多名知情人士報導，美國情報部門仍在調查這名中國商界人士與中國政府的關係，但目前掌握的情報不足以證明她曾受中國國家安全部招募、為北京從事間諜活動。美國官員看法分歧：國家情報總監辦公室與中情局部分官員認為，把她直接稱為中國間諜可能過於誇大；另一些川普政府官員則認為，她與黃仁勳關係密切，又在中國商業環境擁有影響力，很難相信她與政府毫無聯繫。</p>
+<blockquote>
+<p dir="ltr" lang="en">US Justice Department has not concluded Alice Huang was Chinese spy, Blanche says https://t.co/zDUfZ9hVkt</p>
+<p>— Reuters (@Reuters) <a href="https://x.com/Reuters/status/2121017723459096670?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
+<p>FBI 至少一年來持續調查此事。知情人士透露，情報部門曾截獲一些通訊內容，似乎顯示有人利用與黃仁勳及輝達的密切接觸，把資訊傳入中國情報管道，但目前沒有公開證據把這名資訊來源明確指向黃樂，也沒有證據證明她明知自己在向北京傳遞情報。FBI 關注的因素包括她從中國官方電視台記者轉入商業領域、迅速進入金融與科技圈，以及她在晶片採購方面展現的影響力。</p>
+<blockquote>
+<p dir="ltr" lang="en">The US intelligence community is still working to understand the relationship between a Chinese businesswoman who had an affair with Nvidia CEO Jensen Huang and the Chinese government, with multiple sources telling CNN that the intelligence collected on her to date does not prove that she was acting as a spy for Beijing. https://t.co/FZbzUrNyOP</p>
+<p>— CNN (@CNN) <a href="https://x.com/CNN/status/2121090715941835030?ref_src=twsrc%5Etfw">November 13, 2026</a></p></blockquote>
+<p>晶片流向是另一個爭議點。黃樂曾在新加坡註冊的 Megaspeed 任職，該公司是輝達晶片的重要買家。美國司法部與商務部 2024 年開始調查 Megaspeed 及關聯企業，方向包括受限制的輝達晶片是否被轉供中國。白宮內部有人質疑商務部為何沒有在調查期間把 Megaspeed 列入限制貿易的實體清單；一名前商務部官員則認為，晶片流向中國的風險可能來自監管漏洞與企業本身的商業利益，不一定需要間諜行動才能解釋。</p>
+<p>美國司法部長托德·布蘭奇 11 月 12 日表示，司法部、他本人與 FBI 局長卡什·帕特爾都尚未就黃樂是否為間諜得出結論，相關調查仍在進行。川普當天也說，他不知道美國是否已經確認她是間諜。中國政府否認相關間諜指控；新加坡表示對黃樂的調查涉及可能的違法行為，但不涉及間諜活動。輝達董事會已啟動獨立調查，核查黃仁勳是否成為外國情報行動的目標，情報機構尚未認定輝達商業機密遭竊取。</p>
+<h3>誰來接班</h3>
+<p>董事會任命前新思科技執行長哈維·瓊斯為董事會主席，輝達董事會主要由早期投資者與黃仁勳的長期親信組成。目前由克雷斯暫代執行長，公司同時啟動新任執行長遴選程序。黃仁勳現年 63 歲，自 1993 年輝達成立起便一直領導這家公司。</p>
+<p>外部聲援也陸續出現。《要塞英雄》開發商 Epic Games 老闆提姆·史威尼公開支持黃仁勳；馬斯克表示，如果能聘請黃仁勳到 SpaceX，是他的榮幸。晶片出口管制是否進一步收緊，以及美國國會與 FBI 的調查如何推進，都還在進行中。</p>
+<p>對員工來說，最難接受的是時間點。許多人原本認為董事會調查得出結論後才會發生重大人事變動，意見箱貼文也曾呼籲董事會向員工公布調查結果，並正式徵詢員工對「黃仁勳繼續擔任執行長」的意見，他卻在調查剛啟動時離開。本週公司內部業務運轉如常，但黃仁勳的辭職讓許多員工感到震驚。<small></small></p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185230_0_55a857.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113185230_0_55a857.jpg" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 11:16:28 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補]]></title>
+    <link>https://www.kocpc.com.tw/archives/703282</link>
+    <itunes:title><![CDATA[快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>在這 AI 時代，每隔幾天就會聽到某某公司、網站的客戶資料遭竊，或被駭客入侵的新聞，大家的安全防護意識真的要提高。如果你是 Chrome 用戶，一定要盡快升級到最新版本，因此這個版本修復官方已經確認有攻擊者在真實環境中拿來利用的「零日漏洞」，雖然不知道影響範圍有多大，但還是建議現在就花 30 秒確認沒有更新完成。</p>
+<p>這也已經是 2026 年 Chrome 的第 8 個零日漏洞，Windows、macOS、Linux 三個平台都有修補版本。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155147_0_f77876.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達"><br>
+<span>圖片來源：Bleeping Computer</span></p>
+<h2>Chrome 今年第 8 個零日漏洞！Google 證實已遭駭客利用，Windows、Mac、Linux 快檢查更新</h2>
+<p>根據外媒 <a href="https://www.bleepingcomputer.com/news/security/google-patches-eighth-chrome-zero-day-exploited-in-attacks-this-year/" target="_blank">Bleeping Computer</a> 報導，Google 幾天前在 Chrome Releases 官方部落格發布「桌面版穩定通道更新」，Windows 與 macOS 版本為 157.0.8103.50／.51，Linux 版本則是 157.0.8103.50，一共修補 9 個安全問題。其中編號 CVE-2026-125350 的漏洞被 Google 評為 High（高風險），官方在公告中直接寫明，Google 已經知道 CVE-2026-125350 的漏洞利用程式「存在於真實環境中」。</p>
+<p>所謂的零日漏洞，是在廠商推出修補之前，攻擊者就已經在利用，開發者能反應的時間只有零天。所以這類漏洞的修補，比一般安全更新更有急迫性。</p>
+<p>CVE-2026-125350 是 Chrome 的 XML 元件。XML 是一種用標籤整理資料的文字格式，網頁裡的 SVG 向量圖、RSS 訂閱內容，還有不少網站與網路服務之間交換資料，都會使用到它。而瀏覽器內建的 XML 解析器，就負責把這些內容讀進來、整理成程式能處理的結構，等於是每天都會工作的基礎元件。</p>
+<p>漏洞類型是 Use-After-Free（釋放後使用，簡稱 UAF），屬於記憶體安全問題。</p>
+<p>那實際上會怎麼被攻擊？常見的手法是準備一個特製網頁，或把特製內容藏在網頁、廣告、連結裡，誘導目標用 Chrome 開啟，藉此觸發記憶體錯誤。而記憶體錯誤被觸發之後，大致會出現以下幾種情況。</p>
+<p>最輕微的是分頁或瀏覽器直接當掉，攻擊沒有成功，使用者頂多覺得網頁怪怪的。但如果攻擊者把記憶體內容安排得剛好，就能讓 Chrome 執行他準備好的程式碼，這時候就有機會讀取該網頁處理中的資料，例如你正在輸入的內容或登入狀態。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155356_0_890b3e.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 1590px) 100vw, 1590px"></p>
+<p>再往下一步，攻擊者如果再搭配一個「逃出沙盒」的漏洞，就可能在你的電腦上安裝間諜軟體或其他惡意程式，而且整個過程使用者通常不會察覺。</p>
+<p>至於是誰在利用、攻擊了哪些人、受害規模多大、用什麼方式觸發，Google 目前都沒有公布。</p>
+<p>不過這也是 Google 處理遭利用漏洞時的固定做法，漏洞細節與相關連結會先保留，等大多數使用者完成更新後才會公開。這原因也很簡單，就是為了避免細節曝光之後，被更多攻擊者利用。</p>
+<p>這次更新還另外修補了 WebGL、檔案系統、畫面合成（Compositing）、GPU、V8 引擎等元件的漏洞。大部分都是 Google 內部發現，只有 CVE-2026-125350 被標註為已遭利用。</p>
+<p>打開設定 -&gt; 關於 Chrome，就會自動檢查更新，接著重新啟動 Chrome：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_d1d5e9.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 849px) 100vw, 849px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>我是 Mac 版，只要確認是 157.0.8103.51 以後的版本就沒問題了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_30ee64.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 939px) 100vw, 939px"></p>
+<p>下方是 Chrome 今年已修補 8 個遭利用的零日漏洞：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>月份</th>
+<th>漏洞編號</th>
+<th>受影響元件</th>
+<th>漏洞類型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 月</td>
+<td>CVE-2026-2441</td>
+<td>CSS（字型功能相關）</td>
+<td>迭代器失效</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3909</td>
+<td>Skia 2D 繪圖函式庫</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3910</td>
+<td>V8 JavaScript／WebAssembly 引擎</td>
+<td>實作不當</td>
+</tr>
+<tr>
+<td>4 月</td>
+<td>CVE-2026-5281</td>
+<td>Dawn（WebGPU 實作）</td>
+<td>釋放後使用</td>
+</tr>
+<tr>
+<td>6 月</td>
+<td>CVE-2026-11645</td>
+<td>V8 引擎</td>
+<td>越界讀取與寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-87491</td>
+<td>V8 引擎</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-85046</td>
+<td>V8 引擎</td>
+<td>類型混淆</td>
+</tr>
+<tr>
+<td><strong>11 月</strong></td>
+<td><strong>CVE-2026-125350</strong></td>
+<td><strong>XML 解析器</strong></td>
+<td><strong>釋放後使用</strong></td>
+</tr>
+</tbody>
+</table>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>在這 AI 時代，每隔幾天就會聽到某某公司、網站的客戶資料遭竊，或被駭客入侵的新聞，大家的安全防護意識真的要提高。如果你是 Chrome 用戶，一定要盡快升級到最新版本，因此這個版本修復官方已經確認有攻擊者在真實環境中拿來利用的「零日漏洞」，雖然不知道影響範圍有多大，但還是建議現在就花 30 秒確認沒有更新完成。</p>
+<p>這也已經是 2026 年 Chrome 的第 8 個零日漏洞，Windows、macOS、Linux 三個平台都有修補版本。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155147_0_f77876.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達"><br>
+<span>圖片來源：Bleeping Computer</span></p>
+<h2>Chrome 今年第 8 個零日漏洞！Google 證實已遭駭客利用，Windows、Mac、Linux 快檢查更新</h2>
+<p>根據外媒 <a href="https://www.bleepingcomputer.com/news/security/google-patches-eighth-chrome-zero-day-exploited-in-attacks-this-year/" target="_blank">Bleeping Computer</a> 報導，Google 幾天前在 Chrome Releases 官方部落格發布「桌面版穩定通道更新」，Windows 與 macOS 版本為 157.0.8103.50／.51，Linux 版本則是 157.0.8103.50，一共修補 9 個安全問題。其中編號 CVE-2026-125350 的漏洞被 Google 評為 High（高風險），官方在公告中直接寫明，Google 已經知道 CVE-2026-125350 的漏洞利用程式「存在於真實環境中」。</p>
+<p>所謂的零日漏洞，是在廠商推出修補之前，攻擊者就已經在利用，開發者能反應的時間只有零天。所以這類漏洞的修補，比一般安全更新更有急迫性。</p>
+<p>CVE-2026-125350 是 Chrome 的 XML 元件。XML 是一種用標籤整理資料的文字格式，網頁裡的 SVG 向量圖、RSS 訂閱內容，還有不少網站與網路服務之間交換資料，都會使用到它。而瀏覽器內建的 XML 解析器，就負責把這些內容讀進來、整理成程式能處理的結構，等於是每天都會工作的基礎元件。</p>
+<p>漏洞類型是 Use-After-Free（釋放後使用，簡稱 UAF），屬於記憶體安全問題。</p>
+<p>那實際上會怎麼被攻擊？常見的手法是準備一個特製網頁，或把特製內容藏在網頁、廣告、連結裡，誘導目標用 Chrome 開啟，藉此觸發記憶體錯誤。而記憶體錯誤被觸發之後，大致會出現以下幾種情況。</p>
+<p>最輕微的是分頁或瀏覽器直接當掉，攻擊沒有成功，使用者頂多覺得網頁怪怪的。但如果攻擊者把記憶體內容安排得剛好，就能讓 Chrome 執行他準備好的程式碼，這時候就有機會讀取該網頁處理中的資料，例如你正在輸入的內容或登入狀態。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155356_0_890b3e.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 1590px) 100vw, 1590px"></p>
+<p>再往下一步，攻擊者如果再搭配一個「逃出沙盒」的漏洞，就可能在你的電腦上安裝間諜軟體或其他惡意程式，而且整個過程使用者通常不會察覺。</p>
+<p>至於是誰在利用、攻擊了哪些人、受害規模多大、用什麼方式觸發，Google 目前都沒有公布。</p>
+<p>不過這也是 Google 處理遭利用漏洞時的固定做法，漏洞細節與相關連結會先保留，等大多數使用者完成更新後才會公開。這原因也很簡單，就是為了避免細節曝光之後，被更多攻擊者利用。</p>
+<p>這次更新還另外修補了 WebGL、檔案系統、畫面合成（Compositing）、GPU、V8 引擎等元件的漏洞。大部分都是 Google 內部發現，只有 CVE-2026-125350 被標註為已遭利用。</p>
+<p>打開設定 -&gt; 關於 Chrome，就會自動檢查更新，接著重新啟動 Chrome：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_d1d5e9.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 849px) 100vw, 849px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>我是 Mac 版，只要確認是 157.0.8103.51 以後的版本就沒問題了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_30ee64.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 939px) 100vw, 939px"></p>
+<p>下方是 Chrome 今年已修補 8 個遭利用的零日漏洞：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>月份</th>
+<th>漏洞編號</th>
+<th>受影響元件</th>
+<th>漏洞類型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 月</td>
+<td>CVE-2026-2441</td>
+<td>CSS（字型功能相關）</td>
+<td>迭代器失效</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3909</td>
+<td>Skia 2D 繪圖函式庫</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3910</td>
+<td>V8 JavaScript／WebAssembly 引擎</td>
+<td>實作不當</td>
+</tr>
+<tr>
+<td>4 月</td>
+<td>CVE-2026-5281</td>
+<td>Dawn（WebGPU 實作）</td>
+<td>釋放後使用</td>
+</tr>
+<tr>
+<td>6 月</td>
+<td>CVE-2026-11645</td>
+<td>V8 引擎</td>
+<td>越界讀取與寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-87491</td>
+<td>V8 引擎</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-85046</td>
+<td>V8 引擎</td>
+<td>類型混淆</td>
+</tr>
+<tr>
+<td><strong>11 月</strong></td>
+<td><strong>CVE-2026-125350</strong></td>
+<td><strong>XML 解析器</strong></td>
+<td><strong>釋放後使用</strong></td>
+</tr>
+</tbody>
+</table>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<p>在這 AI 時代，每隔幾天就會聽到某某公司、網站的客戶資料遭竊，或被駭客入侵的新聞，大家的安全防護意識真的要提高。如果你是 Chrome 用戶，一定要盡快升級到最新版本，因此這個版本修復官方已經確認有攻擊者在真實環境中拿來利用的「零日漏洞」，雖然不知道影響範圍有多大，但還是建議現在就花 30 秒確認沒有更新完成。</p>
+<p>這也已經是 2026 年 Chrome 的第 8 個零日漏洞，Windows、macOS、Linux 三個平台都有修補版本。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155147_0_f77876.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達"><br>
+<span>圖片來源：Bleeping Computer</span></p>
+<h2>Chrome 今年第 8 個零日漏洞！Google 證實已遭駭客利用，Windows、Mac、Linux 快檢查更新</h2>
+<p>根據外媒 <a href="https://www.bleepingcomputer.com/news/security/google-patches-eighth-chrome-zero-day-exploited-in-attacks-this-year/" target="_blank">Bleeping Computer</a> 報導，Google 幾天前在 Chrome Releases 官方部落格發布「桌面版穩定通道更新」，Windows 與 macOS 版本為 157.0.8103.50／.51，Linux 版本則是 157.0.8103.50，一共修補 9 個安全問題。其中編號 CVE-2026-125350 的漏洞被 Google 評為 High（高風險），官方在公告中直接寫明，Google 已經知道 CVE-2026-125350 的漏洞利用程式「存在於真實環境中」。</p>
+<p>所謂的零日漏洞，是在廠商推出修補之前，攻擊者就已經在利用，開發者能反應的時間只有零天。所以這類漏洞的修補，比一般安全更新更有急迫性。</p>
+<p>CVE-2026-125350 是 Chrome 的 XML 元件。XML 是一種用標籤整理資料的文字格式，網頁裡的 SVG 向量圖、RSS 訂閱內容，還有不少網站與網路服務之間交換資料，都會使用到它。而瀏覽器內建的 XML 解析器，就負責把這些內容讀進來、整理成程式能處理的結構，等於是每天都會工作的基礎元件。</p>
+<p>漏洞類型是 Use-After-Free（釋放後使用，簡稱 UAF），屬於記憶體安全問題。</p>
+<p>那實際上會怎麼被攻擊？常見的手法是準備一個特製網頁，或把特製內容藏在網頁、廣告、連結裡，誘導目標用 Chrome 開啟，藉此觸發記憶體錯誤。而記憶體錯誤被觸發之後，大致會出現以下幾種情況。</p>
+<p>最輕微的是分頁或瀏覽器直接當掉，攻擊沒有成功，使用者頂多覺得網頁怪怪的。但如果攻擊者把記憶體內容安排得剛好，就能讓 Chrome 執行他準備好的程式碼，這時候就有機會讀取該網頁處理中的資料，例如你正在輸入的內容或登入狀態。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155356_0_890b3e.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 1590px) 100vw, 1590px"></p>
+<p>再往下一步，攻擊者如果再搭配一個「逃出沙盒」的漏洞，就可能在你的電腦上安裝間諜軟體或其他惡意程式，而且整個過程使用者通常不會察覺。</p>
+<p>至於是誰在利用、攻擊了哪些人、受害規模多大、用什麼方式觸發，Google 目前都沒有公布。</p>
+<p>不過這也是 Google 處理遭利用漏洞時的固定做法，漏洞細節與相關連結會先保留，等大多數使用者完成更新後才會公開。這原因也很簡單，就是為了避免細節曝光之後，被更多攻擊者利用。</p>
+<p>這次更新還另外修補了 WebGL、檔案系統、畫面合成（Compositing）、GPU、V8 引擎等元件的漏洞。大部分都是 Google 內部發現，只有 CVE-2026-125350 被標註為已遭利用。</p>
+<p>打開設定 -&gt; 關於 Chrome，就會自動檢查更新，接著重新啟動 Chrome：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_d1d5e9.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 849px) 100vw, 849px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<p>我是 Mac 版，只要確認是 157.0.8103.51 以後的版本就沒問題了：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113154524_0_30ee64.jpg" alt="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" title="快檢查更新！Chrome 爆出高危零日漏洞，已遭駭客實際利用，官方緊急釋出更新修補 - 電腦王阿達" data-lazy-sizes="(max-width: 939px) 100vw, 939px"></p>
+<p>下方是 Chrome 今年已修補 8 個遭利用的零日漏洞：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>月份</th>
+<th>漏洞編號</th>
+<th>受影響元件</th>
+<th>漏洞類型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 月</td>
+<td>CVE-2026-2441</td>
+<td>CSS（字型功能相關）</td>
+<td>迭代器失效</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3909</td>
+<td>Skia 2D 繪圖函式庫</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>3 月</td>
+<td>CVE-2026-3910</td>
+<td>V8 JavaScript／WebAssembly 引擎</td>
+<td>實作不當</td>
+</tr>
+<tr>
+<td>4 月</td>
+<td>CVE-2026-5281</td>
+<td>Dawn（WebGPU 實作）</td>
+<td>釋放後使用</td>
+</tr>
+<tr>
+<td>6 月</td>
+<td>CVE-2026-11645</td>
+<td>V8 引擎</td>
+<td>越界讀取與寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-87491</td>
+<td>V8 引擎</td>
+<td>越界寫入</td>
+</tr>
+<tr>
+<td>9 月</td>
+<td>CVE-2026-85046</td>
+<td>V8 引擎</td>
+<td>類型混淆</td>
+</tr>
+<tr>
+<td><strong>11 月</strong></td>
+<td><strong>CVE-2026-125350</strong></td>
+<td><strong>XML 解析器</strong></td>
+<td><strong>釋放後使用</strong></td>
+</tr>
+</tbody>
+</table>
+</div>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155147_0_f77876.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113155147_0_f77876.jpg" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 07:58:40 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄]]></title>
+    <link>https://www.kocpc.com.tw/archives/703194</link>
+    <itunes:title><![CDATA[WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>Google AI Studio 的產品與設計主管 Ammaar Reshi 近日公開展示一個名為「WindowsiOS」的開源專案，宣稱已讓完整的 Windows 11 24H2 桌面系統在 Apple 摺疊機 iPhone Duo 上原生運行，且全程不需要越獄。他在 X（Twitter）上發文表示，整個 bring-up 過程是用 Google 最新的 Gemini 4 Carbon 模型協助完成，並附上實際操作影片與 GitHub 程式碼庫。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141352_0_ba7be8.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>WindowsiOS 專案本體：非越獄 iPhone 上的完整 Windows&nbsp;體驗</h3>
+<p>根據 GitHub 上的 WindowsiOS 儲存庫描述，這套系統在非越獄的現代 iOS 裝置上，以接近原生的速度運行完整的 Microsoft Windows 11 24H2 ARM64（Build 26100）。專案在 iPhone Duo（型號 iPhone19,4、Apple A20 Pro 晶片、iOS 27）上完成了端到端驗證，全程沒有使用 Apple 的 Hypervisor.framework。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141510_0_08ab2b.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 895px) 100vw, 895px"></p>
+<p>儲存庫展示的畫面中，Microsoft Edge 能載入即時的 HTTPS 網頁，Antigravity 2.31.0 以原生 ARM64 應用程式的身分在系統內運行，x86-64 的舊程式則透過 Windows 11 內建的 Prism 模擬層執行。音訊部分支援全雙工的喇叭與麥克風，網路透過 VirtIO 乙太網路卡連接，顯示輸出以 120Hz 的更新率呈現。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141607_0_6ca65f.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 850px) 100vw, 850px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>技術核心：採二進位轉譯架構</h3>
+<p>WindowsiOS 不是傳統意義上的硬體虛擬化客戶端，它的引擎把 Windows 的 ARM64 程式碼動態轉譯成 iPhone 能執行的 ARM64 指令，並搭配一套軟體記憶體管理單元（MMU）。之所以需要這種做法，是因為 Apple 從 iOS 16.4 起在一般 iOS 裝置上限制了 Hypervisor.framework 的硬體 EL2 虛擬化能力，讓過去依賴此框架的 UTM HV 這類虛擬機在非越獄 iPhone 上無法運作。</p>
+<p>專案建立在多個開源專案的基礎上，包括先前在 iPhone 上運行 macOS 的 Henge、ARM64 二進位轉譯架構的 Husk、提供 iOS 除錯器附加能力的 StikDebug／StikJIT，以及 libslirp、TianoCore EDK2 韌體與 Red Hat 的 virtio-win 驅動。開發者並未把整套堆疊宣稱為完全原創。</p>
+<p>Windows 11 對底層環境的要求比先前 iPhone 模擬工作更嚴格。Windows 需要 4KB 記憶體分頁，而 Henge 原本鎖定的是 16KB 分頁的 macOS 客戶端；Windows 對程序位址空間識別碼（ASID）的放置方式也與 Linux、macOS 不同；此外 Prism 使用未對齊的記憶體排序指令，iPhone 主機原本會對這些指令產生錯誤，因此引擎要透過軟體輔助處理。Windows 拒絕以 device-tree 方式開機，所以專案必須提供 UEFI、ACPI、NVMe、USB 3.0 xHCI、Intel HD Audio 與 VirtIO 網路這套完整的 PC 級平台。</p>
+<h3>摺疊機的互動設計</h3>
+<p>WindowsiOS 會配合 iPhone Duo 的轉軸改變版面配置。闔起來像筆電時，上半螢幕顯示 Windows 桌面，下半螢幕變成鍵盤與觸控板；展開時則切換成全螢幕模式。登入 Antigravity 的 Google 帳號時，系統透過一個名為 WinIOSBrowser.exe 的小輔助程式，把登入流程交給 iOS 的 Safari 登入表單，因此能沿用既有的 Safari 登入狀態、Passkey 與 Face ID，也可以在 App 內切換成用 Edge 登入。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">I used Gemini 4 Carbon to get Windows 11 running on my iPhone Duo! 💻 Unfold the screen and it’s a pocket PC, including Antigravity running coding agents on my phone. This is the actual desktop ARM OS running locally with touch controls. Demo + repo below! https://t.co/LVdeqvvOU1</p>
+<p>— Ammaar Reshi (@ammaar) <a href="https://x.com/ammaar/status/2120605420066595029?ref_src=twsrc%5Etfw">November 11, 2026</a></p></blockquote>
+<p>相較於過去必須透過 App Store 或側載的模擬器，這套做法最大的差異落在速度上。WindowsiOS 的說明指出，像 UTM SE 這類退回到 QEMU TCG 直譯器（TCI）的模擬器，在直譯模式下要花上數十分鐘才能到達 Windows 11 桌面，也無法順暢驅動 Microsoft Edge 或 Antigravity 這類多程序的 Chromium／Electron 架構軟體，而 WindowsiOS&nbsp;完全沒有這些問題。</p>
+<h3>專案現況與授權</h3>
+<p>截至報導時，WindowsiOS 儲存庫只有六次 commit，第一次在 11 月 8 日，最近一次在 11 月 11 日，新增了一個一鍵啟動 Microsoft Paint 的啟動器。程式碼採用 GPL-2.0-or-later 授權，但 Windows 本身不隨專案發行，使用者需自行準備零售安裝媒體，因此微軟的正常授權仍適用於該安裝。開發者也在儲存庫中註明，整個 bring-up 是使用 Gemini 4 Carbon 模型完成。</p>
+<h3><strong><a href="https://github.com/ammaarreshi/WindowsiOS" target="_blank">WindowsiOS – GitHub</a></strong></h3>
+<h3>結語</h3>
+<p>WindowsiOS 是一個架構完整、文件詳盡的技術展示，背後有紮實的工程投入。它證明了在手機晶片上能模擬出多少 Windows 平台元件，包括 UEFI、ACPI、Prism 與 Chromium 架構的應用程式。不過對一般使用者來說，它目前仍是開發者的玩具，距離人人可用的口袋電腦還有一段距離。依賴除錯器與 TXM 特定行為的設計，也意味著 Apple 未來若調整系統，這套方法可能隨時被關上門。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>Google AI Studio 的產品與設計主管 Ammaar Reshi 近日公開展示一個名為「WindowsiOS」的開源專案，宣稱已讓完整的 Windows 11 24H2 桌面系統在 Apple 摺疊機 iPhone Duo 上原生運行，且全程不需要越獄。他在 X（Twitter）上發文表示，整個 bring-up 過程是用 Google 最新的 Gemini 4 Carbon 模型協助完成，並附上實際操作影片與 GitHub 程式碼庫。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141352_0_ba7be8.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>WindowsiOS 專案本體：非越獄 iPhone 上的完整 Windows&nbsp;體驗</h3>
+<p>根據 GitHub 上的 WindowsiOS 儲存庫描述，這套系統在非越獄的現代 iOS 裝置上，以接近原生的速度運行完整的 Microsoft Windows 11 24H2 ARM64（Build 26100）。專案在 iPhone Duo（型號 iPhone19,4、Apple A20 Pro 晶片、iOS 27）上完成了端到端驗證，全程沒有使用 Apple 的 Hypervisor.framework。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141510_0_08ab2b.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 895px) 100vw, 895px"></p>
+<p>儲存庫展示的畫面中，Microsoft Edge 能載入即時的 HTTPS 網頁，Antigravity 2.31.0 以原生 ARM64 應用程式的身分在系統內運行，x86-64 的舊程式則透過 Windows 11 內建的 Prism 模擬層執行。音訊部分支援全雙工的喇叭與麥克風，網路透過 VirtIO 乙太網路卡連接，顯示輸出以 120Hz 的更新率呈現。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141607_0_6ca65f.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 850px) 100vw, 850px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>技術核心：採二進位轉譯架構</h3>
+<p>WindowsiOS 不是傳統意義上的硬體虛擬化客戶端，它的引擎把 Windows 的 ARM64 程式碼動態轉譯成 iPhone 能執行的 ARM64 指令，並搭配一套軟體記憶體管理單元（MMU）。之所以需要這種做法，是因為 Apple 從 iOS 16.4 起在一般 iOS 裝置上限制了 Hypervisor.framework 的硬體 EL2 虛擬化能力，讓過去依賴此框架的 UTM HV 這類虛擬機在非越獄 iPhone 上無法運作。</p>
+<p>專案建立在多個開源專案的基礎上，包括先前在 iPhone 上運行 macOS 的 Henge、ARM64 二進位轉譯架構的 Husk、提供 iOS 除錯器附加能力的 StikDebug／StikJIT，以及 libslirp、TianoCore EDK2 韌體與 Red Hat 的 virtio-win 驅動。開發者並未把整套堆疊宣稱為完全原創。</p>
+<p>Windows 11 對底層環境的要求比先前 iPhone 模擬工作更嚴格。Windows 需要 4KB 記憶體分頁，而 Henge 原本鎖定的是 16KB 分頁的 macOS 客戶端；Windows 對程序位址空間識別碼（ASID）的放置方式也與 Linux、macOS 不同；此外 Prism 使用未對齊的記憶體排序指令，iPhone 主機原本會對這些指令產生錯誤，因此引擎要透過軟體輔助處理。Windows 拒絕以 device-tree 方式開機，所以專案必須提供 UEFI、ACPI、NVMe、USB 3.0 xHCI、Intel HD Audio 與 VirtIO 網路這套完整的 PC 級平台。</p>
+<h3>摺疊機的互動設計</h3>
+<p>WindowsiOS 會配合 iPhone Duo 的轉軸改變版面配置。闔起來像筆電時，上半螢幕顯示 Windows 桌面，下半螢幕變成鍵盤與觸控板；展開時則切換成全螢幕模式。登入 Antigravity 的 Google 帳號時，系統透過一個名為 WinIOSBrowser.exe 的小輔助程式，把登入流程交給 iOS 的 Safari 登入表單，因此能沿用既有的 Safari 登入狀態、Passkey 與 Face ID，也可以在 App 內切換成用 Edge 登入。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">I used Gemini 4 Carbon to get Windows 11 running on my iPhone Duo! 💻 Unfold the screen and it’s a pocket PC, including Antigravity running coding agents on my phone. This is the actual desktop ARM OS running locally with touch controls. Demo + repo below! https://t.co/LVdeqvvOU1</p>
+<p>— Ammaar Reshi (@ammaar) <a href="https://x.com/ammaar/status/2120605420066595029?ref_src=twsrc%5Etfw">November 11, 2026</a></p></blockquote>
+<p>相較於過去必須透過 App Store 或側載的模擬器，這套做法最大的差異落在速度上。WindowsiOS 的說明指出，像 UTM SE 這類退回到 QEMU TCG 直譯器（TCI）的模擬器，在直譯模式下要花上數十分鐘才能到達 Windows 11 桌面，也無法順暢驅動 Microsoft Edge 或 Antigravity 這類多程序的 Chromium／Electron 架構軟體，而 WindowsiOS&nbsp;完全沒有這些問題。</p>
+<h3>專案現況與授權</h3>
+<p>截至報導時，WindowsiOS 儲存庫只有六次 commit，第一次在 11 月 8 日，最近一次在 11 月 11 日，新增了一個一鍵啟動 Microsoft Paint 的啟動器。程式碼採用 GPL-2.0-or-later 授權，但 Windows 本身不隨專案發行，使用者需自行準備零售安裝媒體，因此微軟的正常授權仍適用於該安裝。開發者也在儲存庫中註明，整個 bring-up 是使用 Gemini 4 Carbon 模型完成。</p>
+<h3><strong><a href="https://github.com/ammaarreshi/WindowsiOS" target="_blank">WindowsiOS – GitHub</a></strong></h3>
+<h3>結語</h3>
+<p>WindowsiOS 是一個架構完整、文件詳盡的技術展示，背後有紮實的工程投入。它證明了在手機晶片上能模擬出多少 Windows 平台元件，包括 UEFI、ACPI、Prism 與 Chromium 架構的應用程式。不過對一般使用者來說，它目前仍是開發者的玩具，距離人人可用的口袋電腦還有一段距離。依賴除錯器與 TXM 特定行為的設計，也意味著 Apple 未來若調整系統，這套方法可能隨時被關上門。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>Google AI Studio 的產品與設計主管 Ammaar Reshi 近日公開展示一個名為「WindowsiOS」的開源專案，宣稱已讓完整的 Windows 11 24H2 桌面系統在 Apple 摺疊機 iPhone Duo 上原生運行，且全程不需要越獄。他在 X（Twitter）上發文表示，整個 bring-up 過程是用 Google 最新的 Gemini 4 Carbon 模型協助完成，並附上實際操作影片與 GitHub 程式碼庫。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141352_0_ba7be8.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
+<h3>WindowsiOS 專案本體：非越獄 iPhone 上的完整 Windows&nbsp;體驗</h3>
+<p>根據 GitHub 上的 WindowsiOS 儲存庫描述，這套系統在非越獄的現代 iOS 裝置上，以接近原生的速度運行完整的 Microsoft Windows 11 24H2 ARM64（Build 26100）。專案在 iPhone Duo（型號 iPhone19,4、Apple A20 Pro 晶片、iOS 27）上完成了端到端驗證，全程沒有使用 Apple 的 Hypervisor.framework。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141510_0_08ab2b.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 895px) 100vw, 895px"></p>
+<p>儲存庫展示的畫面中，Microsoft Edge 能載入即時的 HTTPS 網頁，Antigravity 2.31.0 以原生 ARM64 應用程式的身分在系統內運行，x86-64 的舊程式則透過 Windows 11 內建的 Prism 模擬層執行。音訊部分支援全雙工的喇叭與麥克風，網路透過 VirtIO 乙太網路卡連接，顯示輸出以 120Hz 的更新率呈現。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141607_0_6ca65f.jpg" alt="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" title="WindowsiOS：能讓 iPhone Duo 上原生運行 Windows 11，使用 Gemini 4 Carbon 開發，無需越獄 - 電腦王阿達" data-lazy-sizes="(max-width: 850px) 100vw, 850px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
+<h3>技術核心：採二進位轉譯架構</h3>
+<p>WindowsiOS 不是傳統意義上的硬體虛擬化客戶端，它的引擎把 Windows 的 ARM64 程式碼動態轉譯成 iPhone 能執行的 ARM64 指令，並搭配一套軟體記憶體管理單元（MMU）。之所以需要這種做法，是因為 Apple 從 iOS 16.4 起在一般 iOS 裝置上限制了 Hypervisor.framework 的硬體 EL2 虛擬化能力，讓過去依賴此框架的 UTM HV 這類虛擬機在非越獄 iPhone 上無法運作。</p>
+<p>專案建立在多個開源專案的基礎上，包括先前在 iPhone 上運行 macOS 的 Henge、ARM64 二進位轉譯架構的 Husk、提供 iOS 除錯器附加能力的 StikDebug／StikJIT，以及 libslirp、TianoCore EDK2 韌體與 Red Hat 的 virtio-win 驅動。開發者並未把整套堆疊宣稱為完全原創。</p>
+<p>Windows 11 對底層環境的要求比先前 iPhone 模擬工作更嚴格。Windows 需要 4KB 記憶體分頁，而 Henge 原本鎖定的是 16KB 分頁的 macOS 客戶端；Windows 對程序位址空間識別碼（ASID）的放置方式也與 Linux、macOS 不同；此外 Prism 使用未對齊的記憶體排序指令，iPhone 主機原本會對這些指令產生錯誤，因此引擎要透過軟體輔助處理。Windows 拒絕以 device-tree 方式開機，所以專案必須提供 UEFI、ACPI、NVMe、USB 3.0 xHCI、Intel HD Audio 與 VirtIO 網路這套完整的 PC 級平台。</p>
+<h3>摺疊機的互動設計</h3>
+<p>WindowsiOS 會配合 iPhone Duo 的轉軸改變版面配置。闔起來像筆電時，上半螢幕顯示 Windows 桌面，下半螢幕變成鍵盤與觸控板；展開時則切換成全螢幕模式。登入 Antigravity 的 Google 帳號時，系統透過一個名為 WinIOSBrowser.exe 的小輔助程式，把登入流程交給 iOS 的 Safari 登入表單，因此能沿用既有的 Safari 登入狀態、Passkey 與 Face ID，也可以在 App 內切換成用 Edge 登入。</p>
+<blockquote data-status="hidden">
+<p dir="ltr" lang="en">I used Gemini 4 Carbon to get Windows 11 running on my iPhone Duo! 💻 Unfold the screen and it’s a pocket PC, including Antigravity running coding agents on my phone. This is the actual desktop ARM OS running locally with touch controls. Demo + repo below! https://t.co/LVdeqvvOU1</p>
+<p>— Ammaar Reshi (@ammaar) <a href="https://x.com/ammaar/status/2120605420066595029?ref_src=twsrc%5Etfw">November 11, 2026</a></p></blockquote>
+<p>相較於過去必須透過 App Store 或側載的模擬器，這套做法最大的差異落在速度上。WindowsiOS 的說明指出，像 UTM SE 這類退回到 QEMU TCG 直譯器（TCI）的模擬器，在直譯模式下要花上數十分鐘才能到達 Windows 11 桌面，也無法順暢驅動 Microsoft Edge 或 Antigravity 這類多程序的 Chromium／Electron 架構軟體，而 WindowsiOS&nbsp;完全沒有這些問題。</p>
+<h3>專案現況與授權</h3>
+<p>截至報導時，WindowsiOS 儲存庫只有六次 commit，第一次在 11 月 8 日，最近一次在 11 月 11 日，新增了一個一鍵啟動 Microsoft Paint 的啟動器。程式碼採用 GPL-2.0-or-later 授權，但 Windows 本身不隨專案發行，使用者需自行準備零售安裝媒體，因此微軟的正常授權仍適用於該安裝。開發者也在儲存庫中註明，整個 bring-up 是使用 Gemini 4 Carbon 模型完成。</p>
+<h3><strong><a href="https://github.com/ammaarreshi/WindowsiOS" target="_blank">WindowsiOS – GitHub</a></strong></h3>
+<h3>結語</h3>
+<p>WindowsiOS 是一個架構完整、文件詳盡的技術展示，背後有紮實的工程投入。它證明了在手機晶片上能模擬出多少 Windows 平台元件，包括 UEFI、ACPI、Prism 與 Chromium 架構的應用程式。不過對一般使用者來說，它目前仍是開發者的玩具，距離人人可用的口袋電腦還有一段距離。依賴除錯器與 TXM 特定行為的設計，也意味著 Apple 未來若調整系統，這套方法可能隨時被關上門。</p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141352_0_ba7be8.jpg"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141352_0_ba7be8.jpg" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 06:24:20 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議]]></title>
+    <link>https://www.kocpc.com.tw/archives/703254</link>
+    <itunes:title><![CDATA[中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p>今年 9 月就曾出現過由深圳碩橋智能科技上架的 <a href="https://www.kocpc.com.tw/archives/668699" target="_blank">RTX 5090 96GB 記憶體魔改版</a>，售價 3,888 美元，不過商品照沒有內部，甚至把記憶體寫成 GDDR6X，跟 RTX 5090 使用的 GDDR7 完全對不上，因此很難讓人相信是真的。兩個月後，近日中國拍賣平台又冒出新的 RTX 5090 96GB，跟上次不一樣的是，賣家還附上疑似實體 PCB 的照片，GPU 型號、記憶體晶片編號都很清楚。更特別的是，還只接受企業客戶下訂，而且得先簽保密協議。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141001_0_1ecb0b.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<h2>RTX 5090 96GB 魔改卡又出現了！這次連 PCB 照片都有，但只賣企業還得簽保密協議</h2>
+<p><a href="https://videocardz.com/newz/alleged-geforce-rtx-5090-with-96gb-listed-for-sale-in-china" target="_blank">根據 VideoCardz 報導</a>，俄羅斯知名硬體維修達人 VIK-on 把閒魚上的一則商品資訊分享給他們，從截圖可以看到，賣家宣稱提供 RTX 5090 96GB 的改裝方案，而且是以整台電腦系統的形式刊登，不是單賣一張顯卡：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141108_0_dd1f7e.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1694px) 100vw, 1694px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>而照片裡的 PCB 正中央是 NVIDIA GB202-300-A1，也就是 RTX 5090 使用的 GPU。周圍一圈則是三星 K4VCF325ZC-SC28 GDDR7 記憶體，單顆容量 3GB、標示速度 28Gbps：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140958_0_b35b7a.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><br>
+<span>圖片來源：VideoCardz</span>
+<p>一般的 RTX 5090 是在 GPU 周圍放 16 顆 2GB 的 GDDR7，總共 32GB，走 512-bit 記憶體匯流排。這次照片裡的 PCB 正面同樣是 16 顆，但換成單顆 3GB 的版本，正面加起來就有 48GB。而要做到賣家宣稱的 96GB，PCB 背面還得再塞 16 顆一樣的晶片。</p>
+<p>不過賣家沒有展示 PCB 背面，因此 VideoCardz 表示，這張照片只能證明確實有一張用 3GB GDDR7 改裝的 RTX 5090 PCB，至少 48GB 是成立的，但 96GB 到底有沒有做到，無法從照片確認。</p>
+<p>VIK-on 認為，這張 PCB 很可能是拿 RTX PRO 6000 Blackwell Max-Q 的設計來改：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140959_0_c8b9ad.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 2078px) 100vw, 2078px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>RTX PRO 6000 Blackwell 是 NVIDIA 給專業工作站用的顯示卡，跟 RTX 5090 使用一樣 GB202 晶片，不過這張顯卡原廠就配備 96GB GDDR7。既然同一顆晶片在原廠設計上就支援 96GB，在技術上並不是不可能。因此，真正困難之處不是 PCB，而是修改 VBIOS。</p>
+<p>此外，照片中的 GPU 上也印有「2532」的日期代碼，代表 2025 年第 32 週生產，這已經是 RTX 5090 正式上市半年後。外媒推測這顆晶片很可能是從既有的零售版顯卡拆下來，然後再重新上板。</p>
+<p>賣家也在說明中表示，只接受企業客戶洽談，買家必須簽署保密協議（NDA）。商品頁上標示的 648 萬人民幣價格，只是佔位用的數字，不是真正售價，有興趣的企業需要私下聯絡賣家才能拿到報價。</p>
+<p>一張改裝顯卡竟然還要簽保密才能交易？有點不太可思議，不過這筆交易屬於企業對企業的完整方案，內容除了改裝好的硬體，很可能還有 PCB 線路圖與一份改過的 VBIOS。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p>今年 9 月就曾出現過由深圳碩橋智能科技上架的 <a href="https://www.kocpc.com.tw/archives/668699" target="_blank">RTX 5090 96GB 記憶體魔改版</a>，售價 3,888 美元，不過商品照沒有內部，甚至把記憶體寫成 GDDR6X，跟 RTX 5090 使用的 GDDR7 完全對不上，因此很難讓人相信是真的。兩個月後，近日中國拍賣平台又冒出新的 RTX 5090 96GB，跟上次不一樣的是，賣家還附上疑似實體 PCB 的照片，GPU 型號、記憶體晶片編號都很清楚。更特別的是，還只接受企業客戶下訂，而且得先簽保密協議。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141001_0_1ecb0b.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<h2>RTX 5090 96GB 魔改卡又出現了！這次連 PCB 照片都有，但只賣企業還得簽保密協議</h2>
+<p><a href="https://videocardz.com/newz/alleged-geforce-rtx-5090-with-96gb-listed-for-sale-in-china" target="_blank">根據 VideoCardz 報導</a>，俄羅斯知名硬體維修達人 VIK-on 把閒魚上的一則商品資訊分享給他們，從截圖可以看到，賣家宣稱提供 RTX 5090 96GB 的改裝方案，而且是以整台電腦系統的形式刊登，不是單賣一張顯卡：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141108_0_dd1f7e.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1694px) 100vw, 1694px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>而照片裡的 PCB 正中央是 NVIDIA GB202-300-A1，也就是 RTX 5090 使用的 GPU。周圍一圈則是三星 K4VCF325ZC-SC28 GDDR7 記憶體，單顆容量 3GB、標示速度 28Gbps：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140958_0_b35b7a.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><br>
+<span>圖片來源：VideoCardz</span>
+<p>一般的 RTX 5090 是在 GPU 周圍放 16 顆 2GB 的 GDDR7，總共 32GB，走 512-bit 記憶體匯流排。這次照片裡的 PCB 正面同樣是 16 顆，但換成單顆 3GB 的版本，正面加起來就有 48GB。而要做到賣家宣稱的 96GB，PCB 背面還得再塞 16 顆一樣的晶片。</p>
+<p>不過賣家沒有展示 PCB 背面，因此 VideoCardz 表示，這張照片只能證明確實有一張用 3GB GDDR7 改裝的 RTX 5090 PCB，至少 48GB 是成立的，但 96GB 到底有沒有做到，無法從照片確認。</p>
+<p>VIK-on 認為，這張 PCB 很可能是拿 RTX PRO 6000 Blackwell Max-Q 的設計來改：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140959_0_c8b9ad.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 2078px) 100vw, 2078px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>RTX PRO 6000 Blackwell 是 NVIDIA 給專業工作站用的顯示卡，跟 RTX 5090 使用一樣 GB202 晶片，不過這張顯卡原廠就配備 96GB GDDR7。既然同一顆晶片在原廠設計上就支援 96GB，在技術上並不是不可能。因此，真正困難之處不是 PCB，而是修改 VBIOS。</p>
+<p>此外，照片中的 GPU 上也印有「2532」的日期代碼，代表 2025 年第 32 週生產，這已經是 RTX 5090 正式上市半年後。外媒推測這顆晶片很可能是從既有的零售版顯卡拆下來，然後再重新上板。</p>
+<p>賣家也在說明中表示，只接受企業客戶洽談，買家必須簽署保密協議（NDA）。商品頁上標示的 648 萬人民幣價格，只是佔位用的數字，不是真正售價，有興趣的企業需要私下聯絡賣家才能拿到報價。</p>
+<p>一張改裝顯卡竟然還要簽保密才能交易？有點不太可思議，不過這筆交易屬於企業對企業的完整方案，內容除了改裝好的硬體，很可能還有 PCB 線路圖與一份改過的 VBIOS。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p>今年 9 月就曾出現過由深圳碩橋智能科技上架的 <a href="https://www.kocpc.com.tw/archives/668699" target="_blank">RTX 5090 96GB 記憶體魔改版</a>，售價 3,888 美元，不過商品照沒有內部，甚至把記憶體寫成 GDDR6X，跟 RTX 5090 使用的 GDDR7 完全對不上，因此很難讓人相信是真的。兩個月後，近日中國拍賣平台又冒出新的 RTX 5090 96GB，跟上次不一樣的是，賣家還附上疑似實體 PCB 的照片，GPU 型號、記憶體晶片編號都很清楚。更特別的是，還只接受企業客戶下訂，而且得先簽保密協議。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141001_0_1ecb0b.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<h2>RTX 5090 96GB 魔改卡又出現了！這次連 PCB 照片都有，但只賣企業還得簽保密協議</h2>
+<p><a href="https://videocardz.com/newz/alleged-geforce-rtx-5090-with-96gb-listed-for-sale-in-china" target="_blank">根據 VideoCardz 報導</a>，俄羅斯知名硬體維修達人 VIK-on 把閒魚上的一則商品資訊分享給他們，從截圖可以看到，賣家宣稱提供 RTX 5090 96GB 的改裝方案，而且是以整台電腦系統的形式刊登，不是單賣一張顯卡：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141108_0_dd1f7e.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1694px) 100vw, 1694px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>而照片裡的 PCB 正中央是 NVIDIA GB202-300-A1，也就是 RTX 5090 使用的 GPU。周圍一圈則是三星 K4VCF325ZC-SC28 GDDR7 記憶體，單顆容量 3GB、標示速度 28Gbps：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140958_0_b35b7a.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 1200px) 100vw, 1200px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div><br>
+<span>圖片來源：VideoCardz</span>
+<p>一般的 RTX 5090 是在 GPU 周圍放 16 顆 2GB 的 GDDR7，總共 32GB，走 512-bit 記憶體匯流排。這次照片裡的 PCB 正面同樣是 16 顆，但換成單顆 3GB 的版本，正面加起來就有 48GB。而要做到賣家宣稱的 96GB，PCB 背面還得再塞 16 顆一樣的晶片。</p>
+<p>不過賣家沒有展示 PCB 背面，因此 VideoCardz 表示，這張照片只能證明確實有一張用 3GB GDDR7 改裝的 RTX 5090 PCB，至少 48GB 是成立的，但 96GB 到底有沒有做到，無法從照片確認。</p>
+<p>VIK-on 認為，這張 PCB 很可能是拿 RTX PRO 6000 Blackwell Max-Q 的設計來改：<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113140959_0_c8b9ad.webp" alt="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" title="中國拍賣平台出現 RTX 5090 96GB 魔改版，PCB 實拍照曝光！只賣企業客戶還得簽保密協議 - 電腦王阿達" data-lazy-sizes="(max-width: 2078px) 100vw, 2078px"><br>
+<span>圖片來源：VideoCardz</span></p>
+<p>RTX PRO 6000 Blackwell 是 NVIDIA 給專業工作站用的顯示卡，跟 RTX 5090 使用一樣 GB202 晶片，不過這張顯卡原廠就配備 96GB GDDR7。既然同一顆晶片在原廠設計上就支援 96GB，在技術上並不是不可能。因此，真正困難之處不是 PCB，而是修改 VBIOS。</p>
+<p>此外，照片中的 GPU 上也印有「2532」的日期代碼，代表 2025 年第 32 週生產，這已經是 RTX 5090 正式上市半年後。外媒推測這顆晶片很可能是從既有的零售版顯卡拆下來，然後再重新上板。</p>
+<p>賣家也在說明中表示，只接受企業客戶洽談，買家必須簽署保密協議（NDA）。商品頁上標示的 648 萬人民幣價格，只是佔位用的數字，不是真正售價，有興趣的企業需要私下聯絡賣家才能拿到報價。</p>
+<p>一張改裝顯卡竟然還要簽保密才能交易？有點不太可思議，不過這筆交易屬於企業對企業的完整方案，內容除了改裝好的硬體，很可能還有 PCB 線路圖與一份改過的 VBIOS。</p>]]></content:encoded>
+    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141001_0_1ecb0b.webp"/>
+          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113141001_0_1ecb0b.webp" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 06:14:39 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有]]></title>
+    <link>https://www.kocpc.com.tw/archives/703243</link>
+    <itunes:title><![CDATA[Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有]]></itunes:title>
+    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/4f7VamjPHaM" target="_blank"><img src="https://www.youtube.com/embed/4f7VamjPHaM" /></a></p>
+<p>今年 3 月 Google 就已經推出 Gemini 的手機「畫面自動操作」 功能，不過一開始支援的 Apps 不多，實用性說真的不大，很多人一定都期待有更多 Apps 支援。最近外媒 Android Authority 最新挖到一份 Google 從來沒公開過的目標 App 名單，多達 134 款 App，除了外送、叫車和購物平台，連 Word、Excel、Slack，以及台灣人每天都在用的 LINE 都有。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113125940_0_26a84c.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
+<h2>Google 未公開的 Gemini 自動操作名單曝光：134 款 App 入列，Word、Excel、LINE、Slack 都在裡面</h2>
+<p><a href="https://www.androidauthority.com/google-gemini-task-automation-target-apps-list-3734443/" target="_blank">Android Authority</a> 稍早的獨家報導指出，Android 17 QPR2 正式版裡藏著一份由 Google 伺服器下發的「目標 App 清單」，截至 11 月 12 日共收錄 114 款 App。而且兩天前的 11 月 10 日（當時還是 Android 17 QPR1）只有 106 款，短短兩天就多了 8 款。而在 Android Canary 2611 測試版上，這份清單又額外多出 20 款測試項目，總數來到 134 款。這增加的速度可說令人相當期待。</p>
+<p>下方是各類別的代表 App 整理，完整名單可以閱讀 Android Authority 的文章：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>App 類別</th>
+<th>代表 App</th>
+<th>出現在哪份名單</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>辦公、生產力</strong></td>
+<td><strong>Word、Excel、Outlook、OneNote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td><strong>團隊協作</strong></td>
+<td><strong>Teams、Slack、Evernote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td>通訊與社群</td>
+<td>LINE、KakaoTalk、Reddit、X</td>
+<td>Canary 額外 20 款</td>
+</tr>
+<tr>
+<td>購物</td>
+<td>eBay、Temu、AliExpress、SHEIN、Etsy（正式）；Shopee、Mercado Libre、Costco（Canary）</td>
+<td>兩份都有</td>
+</tr>
+<tr>
+<td>旅遊、交通</td>
+<td>Uber、Booking.com、Airbnb、Trip.com、Expedia、Skyscanner</td>
+<td>114 款正式名單</td>
+</tr>
+<tr>
+<td>健身與健康</td>
+<td>Strava、MyFitnessPal、Peloton、AllTrails</td>
+<td>Canary 額外 20 款</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既然有了名單，那現在已經能用了嗎？Android Authority 有使用自己的 Galaxy S26 Ultra 實際測了一輪，結果是否定的。</p>
+<ul dir="ltr">
+<li>Zomato（外送）：成功。Gemini 打開 App 後，先自己跳過一個深色模式的切換畫面，接著搜尋指定餐廳、找到餐點、選對份量並加入購物車（還順便拿到一份免費甜點），最後停下來請使用者自己付款。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130029_0_34de02.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 437px) 100vw, 437px"></li>
+<li>Blinkit（生鮮雜貨）：成功。要求加一公升牛奶，Gemini 搜尋後選了 1 公升裝，直接帶到購物車頁面。</li>
+<li>印度星巴克：成功，一路操作到結帳前一步。</li>
+<li>Swiggy、Zepto：直接被拒絕，Gemini 回應「這個 App 無法使用自動操作」。</li>
+<li>Microsoft Word：失敗。要求編輯文件時，Gemini 表示沒辦法直接編輯裝置上 Word App 裡的檔案；要它分享 Word 檔，它說沒有 Word 的存取權；要它開啟最近的文件，只會把 Word 打開（但不會打開文件），或是跳出一個開啟 App 的按鈕。<br>
+&nbsp;<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130007_0_e6b0b7.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 440px) 100vw, 440px"></li>
+<li>Outlook：失敗。 Gemini 沒有實際操作 App，而是給了一個撰寫郵件的連結。</li>
+</ul>
+<p>所以說，已經列入名單不代表真的支援，最多只能說 Google 已經在為它鋪路。</p>
+<p>對於 Gemini 畫面自動操作功能，很多人可能還不太知道，這邊也快速說明一下。</p>
+<div><div data-alt="Introducing Gemini Intelligence"></div></div>
+<p>這是 Google 為 Android 裝置推出的 AI 自動化功能，讓 Gemini 不再只是回答問題或提供操作建議，而是能直接代替使用者操作手機上的 App。透過 AI 理解畫面內容，模擬真人點擊、滑動、輸入文字等操作，只要用自然語言交代任務，Gemini 就能自動執行多個步驟。</p>
+<p>整個過程會在手機上的獨立虛擬環境中執行，使用者可以查看進度、停止任務，部分操作也需要人工確認。</p>
+<p>不過目前這功能還處於 Beta 測試階段，且只有支援特定 Android 裝置、地區、語言及 App，尚未全面開放。</p>
+<ul dir="ltr">
+<li><strong>支援地區：</strong>美國、英國、印度、日本和南韓。其中 Pixel 10 系列在南韓不支援。</li>
+<li><strong>支援語言：</strong>英文、日文和韓文，而且只限部分 App。</li>
+<li><strong>使用資格：</strong>年滿 18 歲，並使用個人 Google 帳號；工作、學校和受監護帳號都不能用。</li>
+<li><strong>開放方式：</strong>逐步推出，所以就算手機符合條件，也可能還沒收到。</li>
+</ul>
+<p>支援的 Android 裝置：</p>
+<ul>
+<li>Google Pixel：Pixel 10、Pixel 10 Pro、Pixel 10 Pro XL，以及 Pixel 11、Pixel 11 Pro、Pixel 11 Pro XL、Pixel 11 Pro Fold。</li>
+<li>三星：Galaxy S26 系列、Galaxy Z Flip 8、Galaxy Z Fold 8 和 Galaxy Tab S12 系列。</li>
+</ul>
+<p>至於台灣什麼時候會推出，這就還不知道了。</p>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<p><a href="https://www.youtube.com/embed/4f7VamjPHaM" target="_blank"><img src="https://www.youtube.com/embed/4f7VamjPHaM" /></a></p>
+<p>今年 3 月 Google 就已經推出 Gemini 的手機「畫面自動操作」 功能，不過一開始支援的 Apps 不多，實用性說真的不大，很多人一定都期待有更多 Apps 支援。最近外媒 Android Authority 最新挖到一份 Google 從來沒公開過的目標 App 名單，多達 134 款 App，除了外送、叫車和購物平台，連 Word、Excel、Slack，以及台灣人每天都在用的 LINE 都有。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113125940_0_26a84c.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
+<h2>Google 未公開的 Gemini 自動操作名單曝光：134 款 App 入列，Word、Excel、LINE、Slack 都在裡面</h2>
+<p><a href="https://www.androidauthority.com/google-gemini-task-automation-target-apps-list-3734443/" target="_blank">Android Authority</a> 稍早的獨家報導指出，Android 17 QPR2 正式版裡藏著一份由 Google 伺服器下發的「目標 App 清單」，截至 11 月 12 日共收錄 114 款 App。而且兩天前的 11 月 10 日（當時還是 Android 17 QPR1）只有 106 款，短短兩天就多了 8 款。而在 Android Canary 2611 測試版上，這份清單又額外多出 20 款測試項目，總數來到 134 款。這增加的速度可說令人相當期待。</p>
+<p>下方是各類別的代表 App 整理，完整名單可以閱讀 Android Authority 的文章：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>App 類別</th>
+<th>代表 App</th>
+<th>出現在哪份名單</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>辦公、生產力</strong></td>
+<td><strong>Word、Excel、Outlook、OneNote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td><strong>團隊協作</strong></td>
+<td><strong>Teams、Slack、Evernote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td>通訊與社群</td>
+<td>LINE、KakaoTalk、Reddit、X</td>
+<td>Canary 額外 20 款</td>
+</tr>
+<tr>
+<td>購物</td>
+<td>eBay、Temu、AliExpress、SHEIN、Etsy（正式）；Shopee、Mercado Libre、Costco（Canary）</td>
+<td>兩份都有</td>
+</tr>
+<tr>
+<td>旅遊、交通</td>
+<td>Uber、Booking.com、Airbnb、Trip.com、Expedia、Skyscanner</td>
+<td>114 款正式名單</td>
+</tr>
+<tr>
+<td>健身與健康</td>
+<td>Strava、MyFitnessPal、Peloton、AllTrails</td>
+<td>Canary 額外 20 款</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既然有了名單，那現在已經能用了嗎？Android Authority 有使用自己的 Galaxy S26 Ultra 實際測了一輪，結果是否定的。</p>
+<ul dir="ltr">
+<li>Zomato（外送）：成功。Gemini 打開 App 後，先自己跳過一個深色模式的切換畫面，接著搜尋指定餐廳、找到餐點、選對份量並加入購物車（還順便拿到一份免費甜點），最後停下來請使用者自己付款。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130029_0_34de02.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 437px) 100vw, 437px"></li>
+<li>Blinkit（生鮮雜貨）：成功。要求加一公升牛奶，Gemini 搜尋後選了 1 公升裝，直接帶到購物車頁面。</li>
+<li>印度星巴克：成功，一路操作到結帳前一步。</li>
+<li>Swiggy、Zepto：直接被拒絕，Gemini 回應「這個 App 無法使用自動操作」。</li>
+<li>Microsoft Word：失敗。要求編輯文件時，Gemini 表示沒辦法直接編輯裝置上 Word App 裡的檔案；要它分享 Word 檔，它說沒有 Word 的存取權；要它開啟最近的文件，只會把 Word 打開（但不會打開文件），或是跳出一個開啟 App 的按鈕。<br>
+&nbsp;<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130007_0_e6b0b7.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 440px) 100vw, 440px"></li>
+<li>Outlook：失敗。 Gemini 沒有實際操作 App，而是給了一個撰寫郵件的連結。</li>
+</ul>
+<p>所以說，已經列入名單不代表真的支援，最多只能說 Google 已經在為它鋪路。</p>
+<p>對於 Gemini 畫面自動操作功能，很多人可能還不太知道，這邊也快速說明一下。</p>
+<div><div data-alt="Introducing Gemini Intelligence"></div></div>
+<p>這是 Google 為 Android 裝置推出的 AI 自動化功能，讓 Gemini 不再只是回答問題或提供操作建議，而是能直接代替使用者操作手機上的 App。透過 AI 理解畫面內容，模擬真人點擊、滑動、輸入文字等操作，只要用自然語言交代任務，Gemini 就能自動執行多個步驟。</p>
+<p>整個過程會在手機上的獨立虛擬環境中執行，使用者可以查看進度、停止任務，部分操作也需要人工確認。</p>
+<p>不過目前這功能還處於 Beta 測試階段，且只有支援特定 Android 裝置、地區、語言及 App，尚未全面開放。</p>
+<ul dir="ltr">
+<li><strong>支援地區：</strong>美國、英國、印度、日本和南韓。其中 Pixel 10 系列在南韓不支援。</li>
+<li><strong>支援語言：</strong>英文、日文和韓文，而且只限部分 App。</li>
+<li><strong>使用資格：</strong>年滿 18 歲，並使用個人 Google 帳號；工作、學校和受監護帳號都不能用。</li>
+<li><strong>開放方式：</strong>逐步推出，所以就算手機符合條件，也可能還沒收到。</li>
+</ul>
+<p>支援的 Android 裝置：</p>
+<ul>
+<li>Google Pixel：Pixel 10、Pixel 10 Pro、Pixel 10 Pro XL，以及 Pixel 11、Pixel 11 Pro、Pixel 11 Pro XL、Pixel 11 Pro Fold。</li>
+<li>三星：Galaxy S26 系列、Galaxy Z Flip 8、Galaxy Z Fold 8 和 Galaxy Tab S12 系列。</li>
+</ul>
+<p>至於台灣什麼時候會推出，這就還不知道了。</p>]]>
+    </description>
+    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/4f7VamjPHaM" target="_blank"><img src="https://www.youtube.com/embed/4f7VamjPHaM" /></a></p>
+<p>今年 3 月 Google 就已經推出 Gemini 的手機「畫面自動操作」 功能，不過一開始支援的 Apps 不多，實用性說真的不大，很多人一定都期待有更多 Apps 支援。最近外媒 Android Authority 最新挖到一份 Google 從來沒公開過的目標 App 名單，多達 134 款 App，除了外送、叫車和購物平台，連 Word、Excel、Slack，以及台灣人每天都在用的 LINE 都有。</p>
+<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113125940_0_26a84c.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
+<h2>Google 未公開的 Gemini 自動操作名單曝光：134 款 App 入列，Word、Excel、LINE、Slack 都在裡面</h2>
+<p><a href="https://www.androidauthority.com/google-gemini-task-automation-target-apps-list-3734443/" target="_blank">Android Authority</a> 稍早的獨家報導指出，Android 17 QPR2 正式版裡藏著一份由 Google 伺服器下發的「目標 App 清單」，截至 11 月 12 日共收錄 114 款 App。而且兩天前的 11 月 10 日（當時還是 Android 17 QPR1）只有 106 款，短短兩天就多了 8 款。而在 Android Canary 2611 測試版上，這份清單又額外多出 20 款測試項目，總數來到 134 款。這增加的速度可說令人相當期待。</p>
+<p>下方是各類別的代表 App 整理，完整名單可以閱讀 Android Authority 的文章：</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>App 類別</th>
+<th>代表 App</th>
+<th>出現在哪份名單</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>辦公、生產力</strong></td>
+<td><strong>Word、Excel、Outlook、OneNote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td><strong>團隊協作</strong></td>
+<td><strong>Teams、Slack、Evernote</strong></td>
+<td>114 款目標清單</td>
+</tr>
+<tr>
+<td>通訊與社群</td>
+<td>LINE、KakaoTalk、Reddit、X</td>
+<td>Canary 額外 20 款</td>
+</tr>
+<tr>
+<td>購物</td>
+<td>eBay、Temu、AliExpress、SHEIN、Etsy（正式）；Shopee、Mercado Libre、Costco（Canary）</td>
+<td>兩份都有</td>
+</tr>
+<tr>
+<td>旅遊、交通</td>
+<td>Uber、Booking.com、Airbnb、Trip.com、Expedia、Skyscanner</td>
+<td>114 款正式名單</td>
+</tr>
+<tr>
+<td>健身與健康</td>
+<td>Strava、MyFitnessPal、Peloton、AllTrails</td>
+<td>Canary 額外 20 款</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>既然有了名單，那現在已經能用了嗎？Android Authority 有使用自己的 Galaxy S26 Ultra 實際測了一輪，結果是否定的。</p>
+<ul dir="ltr">
+<li>Zomato（外送）：成功。Gemini 打開 App 後，先自己跳過一個深色模式的切換畫面，接著搜尋指定餐廳、找到餐點、選對份量並加入購物車（還順便拿到一份免費甜點），最後停下來請使用者自己付款。<br>
+<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130029_0_34de02.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 437px) 100vw, 437px"></li>
+<li>Blinkit（生鮮雜貨）：成功。要求加一公升牛奶，Gemini 搜尋後選了 1 公升裝，直接帶到購物車頁面。</li>
+<li>印度星巴克：成功，一路操作到結帳前一步。</li>
+<li>Swiggy、Zepto：直接被拒絕，Gemini 回應「這個 App 無法使用自動操作」。</li>
+<li>Microsoft Word：失敗。要求編輯文件時，Gemini 表示沒辦法直接編輯裝置上 Word App 裡的檔案；要它分享 Word 檔，它說沒有 Word 的存取權；要它開啟最近的文件，只會把 Word 打開（但不會打開文件），或是跳出一個開啟 App 的按鈕。<br>
+&nbsp;<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113130007_0_e6b0b7.webp" alt="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" title="Google Gemini 手機自動操作功能持續擴大，134 款 App 名單曝光，連 Word、Excel、LINE 都有 - 電腦王阿達" data-lazy-sizes="(max-width: 440px) 100vw, 440px"></li>
+<li>Outlook：失敗。 Gemini 沒有實際操作 App，而是給了一個撰寫郵件的連結。</li>
+</ul>
+<p>所以說，已經列入名單不代表真的支援，最多只能說 Google 已經在為它鋪路。</p>
+<p>對於 Gemini 畫面自動操作功能，很多人可能還不太知道，這邊也快速說明一下。</p>
+<div><div data-alt="Introducing Gemini Intelligence"></div></div>
+<p>這是 Google 為 Android 裝置推出的 AI 自動化功能，讓 Gemini 不再只是回答問題或提供操作建議，而是能直接代替使用者操作手機上的 App。透過 AI 理解畫面內容，模擬真人點擊、滑動、輸入文字等操作，只要用自然語言交代任務，Gemini 就能自動執行多個步驟。</p>
+<p>整個過程會在手機上的獨立虛擬環境中執行，使用者可以查看進度、停止任務，部分操作也需要人工確認。</p>
+<p>不過目前這功能還處於 Beta 測試階段，且只有支援特定 Android 裝置、地區、語言及 App，尚未全面開放。</p>
+<ul dir="ltr">
+<li><strong>支援地區：</strong>美國、英國、印度、日本和南韓。其中 Pixel 10 系列在南韓不支援。</li>
+<li><strong>支援語言：</strong>英文、日文和韓文，而且只限部分 App。</li>
+<li><strong>使用資格：</strong>年滿 18 歲，並使用個人 Google 帳號；工作、學校和受監護帳號都不能用。</li>
+<li><strong>開放方式：</strong>逐步推出，所以就算手機符合條件，也可能還沒收到。</li>
+</ul>
+<p>支援的 Android 裝置：</p>
+<ul>
+<li>Google Pixel：Pixel 10、Pixel 10 Pro、Pixel 10 Pro XL，以及 Pixel 11、Pixel 11 Pro、Pixel 11 Pro XL、Pixel 11 Pro Fold。</li>
+<li>三星：Galaxy S26 系列、Galaxy Z Flip 8、Galaxy Z Fold 8 和 Galaxy Tab S12 系列。</li>
+</ul>
+<p>至於台灣什麼時候會推出，這就還不知道了。</p>]]></content:encoded>
+    <itunes:image href="https://www.youtube.com/embed/4f7VamjPHaM"/>
+          <media:content url="https://www.youtube.com/embed/4f7VamjPHaM" medium="image"/>
+    <pubDate>Fri, 13 Nov 2026 05:04:39 +0000</pubDate>
+  </item><item>
     <title><![CDATA[Windows 11 搜尋功能大升級！在搜尋中輸入需求就能調整系統設定，免開設定 App]]></title>
     <link>https://www.kocpc.com.tw/archives/703214</link>
     <itunes:title><![CDATA[Windows 11 搜尋功能大升級！在搜尋中輸入需求就能調整系統設定，免開設定 App]]></itunes:title>
@@ -587,575 +1502,5 @@
     <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113080610_0_250ba2.jpg"/>
           <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113080610_0_250ba2.jpg" medium="image"/>
     <pubDate>Fri, 13 Nov 2026 00:08:28 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace]]></title>
-    <link>https://www.kocpc.com.tw/archives/703195</link>
-    <itunes:title><![CDATA[Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/Iy9LEGlreC0" target="_blank"><img src="https://www.youtube.com/embed/Iy9LEGlreC0" /></a></p>
-<p>Google 旗下的 Gemini 團隊近期在模型迭代上展現出驚人的節奏。繼幾週前推出主打深度、長遠推理的「Gemini 4 Carbon」與「Gemini 4 Argon」後，Google 今日正式發布了該系列的全新成員「Gemini 4 Hydrogen」。官方在部落格中將其定位為「日常智能體（Agent）工作流程的主力軍」，在維持輕量與高效率的同時，為龐大的高頻率任務提供算力支撐。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074104_0_c35a1b.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達"></p>
-<h2>Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace</h2>
-<p>與前代主力 Gemini 3.8 Flash 相比，Gemini 4 Hydrogen 在預設設定下的任務執行速度提升了 2.5 倍，且模型最令人頭痛的「幻覺（虛假資訊）」問題減少了 5 倍以上。針對企業端最在意的推論成本，Google 指出，在涉及複雜圖表、SQL 查詢與資料密集型工作負載的合作夥伴實測中，Hydrogen 不僅展現出高達 2.8 倍的速度優勢，同時還減少了高達 23% 的 Token 消耗，性價比極具競爭力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074122_0_7c3c49.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>在官方公布的基準測試（Benchmark）中，Gemini 4 Hydrogen 在智能體編碼（Agentic Coding）領域表現亮眼，並在知識型測試與圖像、影音等多模態理解任務上，成功超車 OpenAI 的 GPT 6.1 Terra 與 Anthropic 的 Claude Sonnet 5.5。不過在純粹的科學數學運算、電腦操作（Computer Use）以及 Terminal-Bench 4.1 測試中，Hydrogen 仍以極微小的差距落後於上述兩大對手，顯示出 Google 在產品線上的精準切割——將重度邏輯推理留給 Carbon 與 Argon，讓 Hydrogen 專注於速度與多模態處理。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini 4 Hydrogen: built for rapid coding, multimodal synthesis, and everyday workflows. It finishes tasks 2.5x faster than 3.8 Flash and surpasses Argon on the @ArtificialAnlys Intelligence Index.</p>
-<p>— Google DeepMind (@GoogleDeepMind) <a href="https://x.com/GoogleDeepMind/status/2120940338869055788?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
-<div><div data-alt="YouTube Video to Slides: Gemini 4 Hydrogen"></div></div>
-<p>在功能層面，Hydrogen 大幅強化了多模態知識消化能力，能快速解析 PDF、電子表格，甚至將錄製的音訊與影片直接轉化為結構化報告。開發者與進階用戶現在可以在四種「思維等級（Thinking Levels）」之間自由切換，其中 xhigh 為本次新增的最高思考強度選項。此外，針對智能體在執行任務時可能失控的風險，Google 強調 Hydrogen 在安全性上做出重大突破：不僅將 AI 在代理任務中「過度干預」的情況降低了 81%，在任務受阻時試圖繞過權限邊界的機率也降低了 2 倍。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074307_0_2454b6.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>隨著新模型發布，Google 也同步啟動了全生態系的部署計畫：</p>
-<ul>
-<li>一般用戶與搜尋： 即日起在 Gemini App 全面上線，免費用戶在輸入適合的提示詞時系統將自動調用，付費訂閱戶則可手動切換。同時，Hydrogen 也已整合至全球 Google 搜尋中，帶來更精準的意圖理解、豐富的視覺回饋與更廣泛的網頁連結推薦。</li>
-<li>Workspace 整合： 率先向 Google AI Pro 與 Ultra 訂閱用戶開放 Google Sheets 內的 Gemini 支援；在 Gemini App 中也能更流暢地串接 Gmail 與 Google Drive 提取上下文，協助處理日常文書與研究。</li>
-<li>開發者與企業： 全面開放透過 Gemini API、Android Studio、各級別 Google AI Studio 以及 Google Antigravity 調用；企業客戶亦可在 Gemini Enterprise 的模型選單中直接選用。</li>
-</ul>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/Iy9LEGlreC0" target="_blank"><img src="https://www.youtube.com/embed/Iy9LEGlreC0" /></a></p>
-<p>Google 旗下的 Gemini 團隊近期在模型迭代上展現出驚人的節奏。繼幾週前推出主打深度、長遠推理的「Gemini 4 Carbon」與「Gemini 4 Argon」後，Google 今日正式發布了該系列的全新成員「Gemini 4 Hydrogen」。官方在部落格中將其定位為「日常智能體（Agent）工作流程的主力軍」，在維持輕量與高效率的同時，為龐大的高頻率任務提供算力支撐。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074104_0_c35a1b.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達"></p>
-<h2>Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace</h2>
-<p>與前代主力 Gemini 3.8 Flash 相比，Gemini 4 Hydrogen 在預設設定下的任務執行速度提升了 2.5 倍，且模型最令人頭痛的「幻覺（虛假資訊）」問題減少了 5 倍以上。針對企業端最在意的推論成本，Google 指出，在涉及複雜圖表、SQL 查詢與資料密集型工作負載的合作夥伴實測中，Hydrogen 不僅展現出高達 2.8 倍的速度優勢，同時還減少了高達 23% 的 Token 消耗，性價比極具競爭力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074122_0_7c3c49.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>在官方公布的基準測試（Benchmark）中，Gemini 4 Hydrogen 在智能體編碼（Agentic Coding）領域表現亮眼，並在知識型測試與圖像、影音等多模態理解任務上，成功超車 OpenAI 的 GPT 6.1 Terra 與 Anthropic 的 Claude Sonnet 5.5。不過在純粹的科學數學運算、電腦操作（Computer Use）以及 Terminal-Bench 4.1 測試中，Hydrogen 仍以極微小的差距落後於上述兩大對手，顯示出 Google 在產品線上的精準切割——將重度邏輯推理留給 Carbon 與 Argon，讓 Hydrogen 專注於速度與多模態處理。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini 4 Hydrogen: built for rapid coding, multimodal synthesis, and everyday workflows. It finishes tasks 2.5x faster than 3.8 Flash and surpasses Argon on the @ArtificialAnlys Intelligence Index.</p>
-<p>— Google DeepMind (@GoogleDeepMind) <a href="https://x.com/GoogleDeepMind/status/2120940338869055788?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
-<div><div data-alt="YouTube Video to Slides: Gemini 4 Hydrogen"></div></div>
-<p>在功能層面，Hydrogen 大幅強化了多模態知識消化能力，能快速解析 PDF、電子表格，甚至將錄製的音訊與影片直接轉化為結構化報告。開發者與進階用戶現在可以在四種「思維等級（Thinking Levels）」之間自由切換，其中 xhigh 為本次新增的最高思考強度選項。此外，針對智能體在執行任務時可能失控的風險，Google 強調 Hydrogen 在安全性上做出重大突破：不僅將 AI 在代理任務中「過度干預」的情況降低了 81%，在任務受阻時試圖繞過權限邊界的機率也降低了 2 倍。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074307_0_2454b6.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>隨著新模型發布，Google 也同步啟動了全生態系的部署計畫：</p>
-<ul>
-<li>一般用戶與搜尋： 即日起在 Gemini App 全面上線，免費用戶在輸入適合的提示詞時系統將自動調用，付費訂閱戶則可手動切換。同時，Hydrogen 也已整合至全球 Google 搜尋中，帶來更精準的意圖理解、豐富的視覺回饋與更廣泛的網頁連結推薦。</li>
-<li>Workspace 整合： 率先向 Google AI Pro 與 Ultra 訂閱用戶開放 Google Sheets 內的 Gemini 支援；在 Gemini App 中也能更流暢地串接 Gmail 與 Google Drive 提取上下文，協助處理日常文書與研究。</li>
-<li>開發者與企業： 全面開放透過 Gemini API、Android Studio、各級別 Google AI Studio 以及 Google Antigravity 調用；企業客戶亦可在 Gemini Enterprise 的模型選單中直接選用。</li>
-</ul>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/Iy9LEGlreC0" target="_blank"><img src="https://www.youtube.com/embed/Iy9LEGlreC0" /></a></p>
-<p>Google 旗下的 Gemini 團隊近期在模型迭代上展現出驚人的節奏。繼幾週前推出主打深度、長遠推理的「Gemini 4 Carbon」與「Gemini 4 Argon」後，Google 今日正式發布了該系列的全新成員「Gemini 4 Hydrogen」。官方在部落格中將其定位為「日常智能體（Agent）工作流程的主力軍」，在維持輕量與高效率的同時，為龐大的高頻率任務提供算力支撐。</p>
-<p><img fetchpriority="high" src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074104_0_c35a1b.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達"></p>
-<h2>Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace</h2>
-<p>與前代主力 Gemini 3.8 Flash 相比，Gemini 4 Hydrogen 在預設設定下的任務執行速度提升了 2.5 倍，且模型最令人頭痛的「幻覺（虛假資訊）」問題減少了 5 倍以上。針對企業端最在意的推論成本，Google 指出，在涉及複雜圖表、SQL 查詢與資料密集型工作負載的合作夥伴實測中，Hydrogen 不僅展現出高達 2.8 倍的速度優勢，同時還減少了高達 23% 的 Token 消耗，性價比極具競爭力。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074122_0_7c3c49.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>在官方公布的基準測試（Benchmark）中，Gemini 4 Hydrogen 在智能體編碼（Agentic Coding）領域表現亮眼，並在知識型測試與圖像、影音等多模態理解任務上，成功超車 OpenAI 的 GPT 6.1 Terra 與 Anthropic 的 Claude Sonnet 5.5。不過在純粹的科學數學運算、電腦操作（Computer Use）以及 Terminal-Bench 4.1 測試中，Hydrogen 仍以極微小的差距落後於上述兩大對手，顯示出 Google 在產品線上的精準切割——將重度邏輯推理留給 Carbon 與 Argon，讓 Hydrogen 專注於速度與多模態處理。</p>
-<blockquote>
-<p dir="ltr" lang="en">Meet Gemini 4 Hydrogen: built for rapid coding, multimodal synthesis, and everyday workflows. It finishes tasks 2.5x faster than 3.8 Flash and surpasses Argon on the @ArtificialAnlys Intelligence Index.</p>
-<p>— Google DeepMind (@GoogleDeepMind) <a href="https://x.com/GoogleDeepMind/status/2120940338869055788?ref_src=twsrc%5Etfw">November 12, 2026</a></p></blockquote>
-<div><div data-alt="YouTube Video to Slides: Gemini 4 Hydrogen"></div></div>
-<p>在功能層面，Hydrogen 大幅強化了多模態知識消化能力，能快速解析 PDF、電子表格，甚至將錄製的音訊與影片直接轉化為結構化報告。開發者與進階用戶現在可以在四種「思維等級（Thinking Levels）」之間自由切換，其中 xhigh 為本次新增的最高思考強度選項。此外，針對智能體在執行任務時可能失控的風險，Google 強調 Hydrogen 在安全性上做出重大突破：不僅將 AI 在代理任務中「過度干預」的情況降低了 81%，在任務受阻時試圖繞過權限邊界的機率也降低了 2 倍。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261113074307_0_2454b6.jpg" alt="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" title="Google 新模型 Gemini 4 Hydrogen 登場：Token 省 23%、全面導入搜尋與 Workspace - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>隨著新模型發布，Google 也同步啟動了全生態系的部署計畫：</p>
-<ul>
-<li>一般用戶與搜尋： 即日起在 Gemini App 全面上線，免費用戶在輸入適合的提示詞時系統將自動調用，付費訂閱戶則可手動切換。同時，Hydrogen 也已整合至全球 Google 搜尋中，帶來更精準的意圖理解、豐富的視覺回饋與更廣泛的網頁連結推薦。</li>
-<li>Workspace 整合： 率先向 Google AI Pro 與 Ultra 訂閱用戶開放 Google Sheets 內的 Gemini 支援；在 Gemini App 中也能更流暢地串接 Gmail 與 Google Drive 提取上下文，協助處理日常文書與研究。</li>
-<li>開發者與企業： 全面開放透過 Gemini API、Android Studio、各級別 Google AI Studio 以及 Google Antigravity 調用；企業客戶亦可在 Gemini Enterprise 的模型選單中直接選用。</li>
-</ul>]]></content:encoded>
-    <itunes:image href="https://www.youtube.com/embed/Iy9LEGlreC0"/>
-          <media:content url="https://www.youtube.com/embed/Iy9LEGlreC0" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 23:45:05 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩]]></title>
-    <link>https://www.kocpc.com.tw/archives/703162</link>
-    <itunes:title><![CDATA[國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/SsSKJA0EHD4" target="_blank"><img src="https://www.youtube.com/embed/SsSKJA0EHD4" /></a></p>
-<p>隨著 Fable 5.2 推出，網路上陸陸續續出現一些很強的作品，而且使用的提示詞非常短。除了昨天我們介紹的<a href="https://www.kocpc.com.tw/archives/702977" target="_blank">《戰爭機器》遊戲克隆版</a>，這篇再來推薦一個「Turbo Tails」類似瑪利歐賽車的網頁遊戲，由 Peter Yang 製作，而且有開放給大家免費玩，用瀏覽器就能玩，網址也會附在下方，有興趣的人可以看一下介紹。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152503_0_ec358e.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1979px) 100vw, 1979px"></p>
-<h2>「Turbo Tails」類似瑪利歐賽車的免費網頁遊戲</h2>
-<p>「Turbo Tails」這款遊戲是由 Peter Yang 製作，他也不算是一般網友，有經營 YouTube 頻道，訂閱數已破 10 萬，他在影片中分享許多他透過 Fable 5.2 的作品，這就是其中一個。</p>
-<p>Peter Yang 雖然也是給很短的提示詞（如下圖），但他讓兩個模型（Opus 5.5 和 Fable 5.2）各自製作這款遊戲後，要求它們自行檢查成果、提出改善建議，並進行第二輪修改。隨後 Peter Yang 為了測試 Fable 5.2 究竟能把遊戲完善到什麼程度，他又要求額外進行三輪優化，每一輪都是讓模型先評估自己的作品、找出可以改善的地方，再根據評估結果繼續修改。也就是說，「Turbo Tails」最終是經過五輪製作與優化才完成：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152144_0_7a37d7.png" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>完整影片就放到最後，直接來看這款遊戲。</p>
-<p><a href="https://turbo-tails.vercel.app/" target="_blank">前往「Turbo Tails」</a></p>
-<p>按上方連結進到 TURBO TAILS 後，左下方可以選擇要單人遊玩還是多人遊玩，右側則是角色，共有 6 個：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152456_0_005529.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1994px) 100vw, 1994px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>選別的角色時，上方也會跟著換：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152457_0_f28818.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1088px) 100vw, 1088px"></p>
-<p>一場比賽有 6 個玩家一起玩，因此多人模式應該也是最多 6 人，沒滿會用電腦來替代：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152458_0_00d1af.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1731px) 100vw, 1731px"></p>
-<p>把 INVITE LINK 貼給對方加入，就會進到房間了：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152455_0_a0d424.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1465px) 100vw, 1465px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>地圖部分共有 4 張：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152459_0_d44b61.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1441px) 100vw, 1441px"></p>
-<p>操作方式很簡單，如果你是用鍵盤，那就用方向鍵來移動，E 是使用道具，Shift 則是加速：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_75be9b.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1240px) 100vw, 1240px"></p>
-<p>為了截這張圖，電腦都先跑光了（笑）。不得不說，畫面真的很不錯：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_7c3d40.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1974px) 100vw, 1974px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>玩起來超級順，也能干擾和影響其他玩家：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152501_0_412de8.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2022px) 100vw, 2022px"></p>
-<p>跟瑪利歐賽車一樣，會有道具讓你吃，然後上方會隨機選擇你可以使用的道具：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152504_0_309262.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2026px) 100vw, 2026px"></p>
-<p>電腦還蠻厲害的，我跑了幾次都沒辦法跑到第一：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152509_0_9fe713.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1272px) 100vw, 1272px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>Peter Yang 並沒有說明總共花了多少 Tokens 才完成這遊戲，但從精緻程度來看，應該也不便宜。</p>
-<p>此外，Opus 5.5 其實也同樣能使用幾行的提示詞，就製作出可玩的類瑪利歐賽車遊戲，只是 Fable 5.2 在角色建模、動畫細節、場景豐富度及後續打磨方面更加突出。</p>
-<p>完整影片，大概從 03:04 開始介紹這款遊戲：</p>
-<div><div data-alt="I Tested Fable 5.2 vs Opus 5.5 (Full Breakdown)"></div></div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><a href="https://www.youtube.com/embed/SsSKJA0EHD4" target="_blank"><img src="https://www.youtube.com/embed/SsSKJA0EHD4" /></a></p>
-<p>隨著 Fable 5.2 推出，網路上陸陸續續出現一些很強的作品，而且使用的提示詞非常短。除了昨天我們介紹的<a href="https://www.kocpc.com.tw/archives/702977" target="_blank">《戰爭機器》遊戲克隆版</a>，這篇再來推薦一個「Turbo Tails」類似瑪利歐賽車的網頁遊戲，由 Peter Yang 製作，而且有開放給大家免費玩，用瀏覽器就能玩，網址也會附在下方，有興趣的人可以看一下介紹。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152503_0_ec358e.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1979px) 100vw, 1979px"></p>
-<h2>「Turbo Tails」類似瑪利歐賽車的免費網頁遊戲</h2>
-<p>「Turbo Tails」這款遊戲是由 Peter Yang 製作，他也不算是一般網友，有經營 YouTube 頻道，訂閱數已破 10 萬，他在影片中分享許多他透過 Fable 5.2 的作品，這就是其中一個。</p>
-<p>Peter Yang 雖然也是給很短的提示詞（如下圖），但他讓兩個模型（Opus 5.5 和 Fable 5.2）各自製作這款遊戲後，要求它們自行檢查成果、提出改善建議，並進行第二輪修改。隨後 Peter Yang 為了測試 Fable 5.2 究竟能把遊戲完善到什麼程度，他又要求額外進行三輪優化，每一輪都是讓模型先評估自己的作品、找出可以改善的地方，再根據評估結果繼續修改。也就是說，「Turbo Tails」最終是經過五輪製作與優化才完成：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152144_0_7a37d7.png" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>完整影片就放到最後，直接來看這款遊戲。</p>
-<p><a href="https://turbo-tails.vercel.app/" target="_blank">前往「Turbo Tails」</a></p>
-<p>按上方連結進到 TURBO TAILS 後，左下方可以選擇要單人遊玩還是多人遊玩，右側則是角色，共有 6 個：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152456_0_005529.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1994px) 100vw, 1994px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>選別的角色時，上方也會跟著換：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152457_0_f28818.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1088px) 100vw, 1088px"></p>
-<p>一場比賽有 6 個玩家一起玩，因此多人模式應該也是最多 6 人，沒滿會用電腦來替代：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152458_0_00d1af.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1731px) 100vw, 1731px"></p>
-<p>把 INVITE LINK 貼給對方加入，就會進到房間了：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152455_0_a0d424.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1465px) 100vw, 1465px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>地圖部分共有 4 張：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152459_0_d44b61.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1441px) 100vw, 1441px"></p>
-<p>操作方式很簡單，如果你是用鍵盤，那就用方向鍵來移動，E 是使用道具，Shift 則是加速：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_75be9b.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1240px) 100vw, 1240px"></p>
-<p>為了截這張圖，電腦都先跑光了（笑）。不得不說，畫面真的很不錯：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_7c3d40.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1974px) 100vw, 1974px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>玩起來超級順，也能干擾和影響其他玩家：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152501_0_412de8.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2022px) 100vw, 2022px"></p>
-<p>跟瑪利歐賽車一樣，會有道具讓你吃，然後上方會隨機選擇你可以使用的道具：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152504_0_309262.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2026px) 100vw, 2026px"></p>
-<p>電腦還蠻厲害的，我跑了幾次都沒辦法跑到第一：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152509_0_9fe713.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1272px) 100vw, 1272px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>Peter Yang 並沒有說明總共花了多少 Tokens 才完成這遊戲，但從精緻程度來看，應該也不便宜。</p>
-<p>此外，Opus 5.5 其實也同樣能使用幾行的提示詞，就製作出可玩的類瑪利歐賽車遊戲，只是 Fable 5.2 在角色建模、動畫細節、場景豐富度及後續打磨方面更加突出。</p>
-<p>完整影片，大概從 03:04 開始介紹這款遊戲：</p>
-<div><div data-alt="I Tested Fable 5.2 vs Opus 5.5 (Full Breakdown)"></div></div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><a href="https://www.youtube.com/embed/SsSKJA0EHD4" target="_blank"><img src="https://www.youtube.com/embed/SsSKJA0EHD4" /></a></p>
-<p>隨著 Fable 5.2 推出，網路上陸陸續續出現一些很強的作品，而且使用的提示詞非常短。除了昨天我們介紹的<a href="https://www.kocpc.com.tw/archives/702977" target="_blank">《戰爭機器》遊戲克隆版</a>，這篇再來推薦一個「Turbo Tails」類似瑪利歐賽車的網頁遊戲，由 Peter Yang 製作，而且有開放給大家免費玩，用瀏覽器就能玩，網址也會附在下方，有興趣的人可以看一下介紹。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152503_0_ec358e.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1979px) 100vw, 1979px"></p>
-<h2>「Turbo Tails」類似瑪利歐賽車的免費網頁遊戲</h2>
-<p>「Turbo Tails」這款遊戲是由 Peter Yang 製作，他也不算是一般網友，有經營 YouTube 頻道，訂閱數已破 10 萬，他在影片中分享許多他透過 Fable 5.2 的作品，這就是其中一個。</p>
-<p>Peter Yang 雖然也是給很短的提示詞（如下圖），但他讓兩個模型（Opus 5.5 和 Fable 5.2）各自製作這款遊戲後，要求它們自行檢查成果、提出改善建議，並進行第二輪修改。隨後 Peter Yang 為了測試 Fable 5.2 究竟能把遊戲完善到什麼程度，他又要求額外進行三輪優化，每一輪都是讓模型先評估自己的作品、找出可以改善的地方，再根據評估結果繼續修改。也就是說，「Turbo Tails」最終是經過五輪製作與優化才完成：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152144_0_7a37d7.png" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>完整影片就放到最後，直接來看這款遊戲。</p>
-<p><a href="https://turbo-tails.vercel.app/" target="_blank">前往「Turbo Tails」</a></p>
-<p>按上方連結進到 TURBO TAILS 後，左下方可以選擇要單人遊玩還是多人遊玩，右側則是角色，共有 6 個：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152456_0_005529.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1994px) 100vw, 1994px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>選別的角色時，上方也會跟著換：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152457_0_f28818.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1088px) 100vw, 1088px"></p>
-<p>一場比賽有 6 個玩家一起玩，因此多人模式應該也是最多 6 人，沒滿會用電腦來替代：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152458_0_00d1af.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1731px) 100vw, 1731px"></p>
-<p>把 INVITE LINK 貼給對方加入，就會進到房間了：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152455_0_a0d424.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1465px) 100vw, 1465px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>地圖部分共有 4 張：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152459_0_d44b61.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1441px) 100vw, 1441px"></p>
-<p>操作方式很簡單，如果你是用鍵盤，那就用方向鍵來移動，E 是使用道具，Shift 則是加速：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_75be9b.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1240px) 100vw, 1240px"></p>
-<p>為了截這張圖，電腦都先跑光了（笑）。不得不說，畫面真的很不錯：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152500_0_7c3d40.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1974px) 100vw, 1974px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>玩起來超級順，也能干擾和影響其他玩家：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152501_0_412de8.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2022px) 100vw, 2022px"></p>
-<p>跟瑪利歐賽車一樣，會有道具讓你吃，然後上方會隨機選擇你可以使用的道具：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152504_0_309262.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 2026px) 100vw, 2026px"></p>
-<p>電腦還蠻厲害的，我跑了幾次都沒辦法跑到第一：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112152509_0_9fe713.jpg" alt="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" title="國外網友用 Fable 5.2 製作出類似瑪利歐賽車免費遊戲，打開瀏覽器就能玩 - 電腦王阿達" data-lazy-sizes="(max-width: 1272px) 100vw, 1272px"></p><div role="region" aria-label="贊助商連結"></div>
-<p>Peter Yang 並沒有說明總共花了多少 Tokens 才完成這遊戲，但從精緻程度來看，應該也不便宜。</p>
-<p>此外，Opus 5.5 其實也同樣能使用幾行的提示詞，就製作出可玩的類瑪利歐賽車遊戲，只是 Fable 5.2 在角色建模、動畫細節、場景豐富度及後續打磨方面更加突出。</p>
-<p>完整影片，大概從 03:04 開始介紹這款遊戲：</p>
-<div><div data-alt="I Tested Fable 5.2 vs Opus 5.5 (Full Breakdown)"></div></div>]]></content:encoded>
-    <itunes:image href="https://www.youtube.com/embed/SsSKJA0EHD4"/>
-          <media:content url="https://www.youtube.com/embed/SsSKJA0EHD4" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 07:36:54 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動]]></title>
-    <link>https://www.kocpc.com.tw/archives/703160</link>
-    <itunes:title><![CDATA[全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>隨著生成式 AI 技術的蓬勃發展，越來越多民間開發者都開始針對特定遊戲進行逆向工程，將一些平台限定的作品移植到其他新平台上，可想而知的是，這背後存在著相當嚴重的版權問題。而在萬眾矚目的《俠盜獵車手 6》即將正式上市之際，開發商母公司 Take-Two 執行長 Strauss Zelnick 也首度針對這個趨勢發表了回應，強調他們將會全面將強防禦措施，甚至在有必要時採取法律行動，藉此防止遊戲遭到非法複製與移植。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145256_0_e75b82.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>過去這段時間，玩家社群中開始出現大量利用 AI 技術複製或移植知名遊戲的案例，像是在上個月，還有玩家成功讓 Rockstar Games 的《俠盜獵車手 5》搬上網頁瀏覽器中，但立刻就遭到 Take-Two 官方出手下架。為了緩解類似的問題，Anthropic 還針對旗下 AI 模型 Claude 推出一波更新，針對複製他人遊戲內容的行為施加限制，但這似乎仍然無法徹底斷絕這方面的應用。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145320_0_edfa92-scaled.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>以目前來說，《俠盜獵車手 6》只會登上 PS5 與 Xbox 兩大主機平台，至於 PC 版本的相關消息則尚未公開。因此，一些等不及的玩家很有可能將會試圖利用 AI 自行移植。即使外界對當前的 AI 技術是否真的能複製如此龐大的遊戲仍然存疑，而前 Rockstar 技術總監則認為就算為此燒掉上萬美元的 Token，最終的成品也不一定順暢，但這確實有可能迫使開發團隊加快 PC 版本的開發。</p>
-<p>而對於這個議題，Take-Two 執行長 Strauss Zelnick 也在近期接受《<a href="https://www.ign.com/articles/take-two-boss-strauss-zelnick-on-gta-6-expectations-gta-online-and-the-decade-to-come" target="_blank">IGN</a>》網站的訪談時給出了回應，表示公司內部正在密切關注這項威脅，但也強調即使真的有玩家做出了非官方的《俠盜獵車手 6》PC 移植版，大部份的玩家仍然會選擇等待由 Rockstar Games 開發的正式版本。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260829104521_0_d697e1.png" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>此外，在最新一期的財報會議投資人問答環節中，Zelnick 也多次被問及「AI 輔助逆向工程」可能公司旗下各大遊戲開發商的作品帶來什麼樣的影響，而對於這個議題，這位高層則強調他們已經注意到這點，接下來將會持續強化技術上的防禦措施，並在有必要的時候加強法律層面的行動，絕對不會掉以輕心。</p>
-<p>隨著 AI 模型的能力持續提升，這場攻防戰的風險也進一步升高，而對 Rockstar 與 Take-Two 而言，《俠盜獵車手 6》不僅是公司最重要的商業作品之一，更可能成為 AI 技術與遊戲防盜機制正面交鋒的重要戰場。即使如此，這款令玩家們期待 13 年的作品其實已經創下了極為驚人的銷售成績，光是預購量就已經突破了 1000 萬套，並創下了 10 億美元以上的營收，成為有史以來預購表現最佳的遊戲。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>隨著生成式 AI 技術的蓬勃發展，越來越多民間開發者都開始針對特定遊戲進行逆向工程，將一些平台限定的作品移植到其他新平台上，可想而知的是，這背後存在著相當嚴重的版權問題。而在萬眾矚目的《俠盜獵車手 6》即將正式上市之際，開發商母公司 Take-Two 執行長 Strauss Zelnick 也首度針對這個趨勢發表了回應，強調他們將會全面將強防禦措施，甚至在有必要時採取法律行動，藉此防止遊戲遭到非法複製與移植。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145256_0_e75b82.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>過去這段時間，玩家社群中開始出現大量利用 AI 技術複製或移植知名遊戲的案例，像是在上個月，還有玩家成功讓 Rockstar Games 的《俠盜獵車手 5》搬上網頁瀏覽器中，但立刻就遭到 Take-Two 官方出手下架。為了緩解類似的問題，Anthropic 還針對旗下 AI 模型 Claude 推出一波更新，針對複製他人遊戲內容的行為施加限制，但這似乎仍然無法徹底斷絕這方面的應用。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145320_0_edfa92-scaled.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>以目前來說，《俠盜獵車手 6》只會登上 PS5 與 Xbox 兩大主機平台，至於 PC 版本的相關消息則尚未公開。因此，一些等不及的玩家很有可能將會試圖利用 AI 自行移植。即使外界對當前的 AI 技術是否真的能複製如此龐大的遊戲仍然存疑，而前 Rockstar 技術總監則認為就算為此燒掉上萬美元的 Token，最終的成品也不一定順暢，但這確實有可能迫使開發團隊加快 PC 版本的開發。</p>
-<p>而對於這個議題，Take-Two 執行長 Strauss Zelnick 也在近期接受《<a href="https://www.ign.com/articles/take-two-boss-strauss-zelnick-on-gta-6-expectations-gta-online-and-the-decade-to-come" target="_blank">IGN</a>》網站的訪談時給出了回應，表示公司內部正在密切關注這項威脅，但也強調即使真的有玩家做出了非官方的《俠盜獵車手 6》PC 移植版，大部份的玩家仍然會選擇等待由 Rockstar Games 開發的正式版本。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260829104521_0_d697e1.png" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>此外，在最新一期的財報會議投資人問答環節中，Zelnick 也多次被問及「AI 輔助逆向工程」可能公司旗下各大遊戲開發商的作品帶來什麼樣的影響，而對於這個議題，這位高層則強調他們已經注意到這點，接下來將會持續強化技術上的防禦措施，並在有必要的時候加強法律層面的行動，絕對不會掉以輕心。</p>
-<p>隨著 AI 模型的能力持續提升，這場攻防戰的風險也進一步升高，而對 Rockstar 與 Take-Two 而言，《俠盜獵車手 6》不僅是公司最重要的商業作品之一，更可能成為 AI 技術與遊戲防盜機制正面交鋒的重要戰場。即使如此，這款令玩家們期待 13 年的作品其實已經創下了極為驚人的銷售成績，光是預購量就已經突破了 1000 萬套，並創下了 10 億美元以上的營收，成為有史以來預購表現最佳的遊戲。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>隨著生成式 AI 技術的蓬勃發展，越來越多民間開發者都開始針對特定遊戲進行逆向工程，將一些平台限定的作品移植到其他新平台上，可想而知的是，這背後存在著相當嚴重的版權問題。而在萬眾矚目的《俠盜獵車手 6》即將正式上市之際，開發商母公司 Take-Two 執行長 Strauss Zelnick 也首度針對這個趨勢發表了回應，強調他們將會全面將強防禦措施，甚至在有必要時採取法律行動，藉此防止遊戲遭到非法複製與移植。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145256_0_e75b82.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>過去這段時間，玩家社群中開始出現大量利用 AI 技術複製或移植知名遊戲的案例，像是在上個月，還有玩家成功讓 Rockstar Games 的《俠盜獵車手 5》搬上網頁瀏覽器中，但立刻就遭到 Take-Two 官方出手下架。為了緩解類似的問題，Anthropic 還針對旗下 AI 模型 Claude 推出一波更新，針對複製他人遊戲內容的行為施加限制，但這似乎仍然無法徹底斷絕這方面的應用。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145320_0_edfa92-scaled.jpg" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>以目前來說，《俠盜獵車手 6》只會登上 PS5 與 Xbox 兩大主機平台，至於 PC 版本的相關消息則尚未公開。因此，一些等不及的玩家很有可能將會試圖利用 AI 自行移植。即使外界對當前的 AI 技術是否真的能複製如此龐大的遊戲仍然存疑，而前 Rockstar 技術總監則認為就算為此燒掉上萬美元的 Token，最終的成品也不一定順暢，但這確實有可能迫使開發團隊加快 PC 版本的開發。</p>
-<p>而對於這個議題，Take-Two 執行長 Strauss Zelnick 也在近期接受《<a href="https://www.ign.com/articles/take-two-boss-strauss-zelnick-on-gta-6-expectations-gta-online-and-the-decade-to-come" target="_blank">IGN</a>》網站的訪談時給出了回應，表示公司內部正在密切關注這項威脅，但也強調即使真的有玩家做出了非官方的《俠盜獵車手 6》PC 移植版，大部份的玩家仍然會選擇等待由 Rockstar Games 開發的正式版本。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/08/20260829104521_0_d697e1.png" alt="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" title="全面防堵 AI 逆向工程！《GTA 6》母公司執行長：有必要將採取法律行動 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>此外，在最新一期的財報會議投資人問答環節中，Zelnick 也多次被問及「AI 輔助逆向工程」可能公司旗下各大遊戲開發商的作品帶來什麼樣的影響，而對於這個議題，這位高層則強調他們已經注意到這點，接下來將會持續強化技術上的防禦措施，並在有必要的時候加強法律層面的行動，絕對不會掉以輕心。</p>
-<p>隨著 AI 模型的能力持續提升，這場攻防戰的風險也進一步升高，而對 Rockstar 與 Take-Two 而言，《俠盜獵車手 6》不僅是公司最重要的商業作品之一，更可能成為 AI 技術與遊戲防盜機制正面交鋒的重要戰場。即使如此，這款令玩家們期待 13 年的作品其實已經創下了極為驚人的銷售成績，光是預購量就已經突破了 1000 萬套，並創下了 10 億美元以上的營收，成為有史以來預購表現最佳的遊戲。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145256_0_e75b82.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/09/20260908145256_0_e75b82.jpg" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 07:00:54 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲”品質”與”創意”取捨的訪談]]></title>
-    <link>https://www.kocpc.com.tw/archives/703154</link>
-    <itunes:title><![CDATA[《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲”品質”與”創意”取捨的訪談]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>任天堂於 1998 年推出於 N64 主機的《薩爾達傳說：時之笛》一直以來都被視為電玩史上最具重要的作品之一，而當重製版於本月上市後，這款經典之作又再次成為了討論焦點。然而，早在 1996 年的一場訪談中，任天堂資深開發者宮本茂就曾表示當時的任天堂陷入了在「創新」與「製作品質」之間的取捨，甚至開始擔心團隊會太過專注在品質，而疏忽了遊戲本身的趣味性。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2024/07/20240707113859_0_ca845b.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>當時任天堂才剛剛推出了同樣極為重要的里程碑之作《超級瑪利歐64》，而在那段時期接受遊戲開發者 Keni Eno 的訪談時，宮本茂被問到了他對於任天堂旗下遊戲在品質與複雜程度上開始提高有何看法，以及這些作品是否將繼續為玩家提供一種逃避現實的管道。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144747_0_41b6d9.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>對此，宮本茂表示由於《瑪利歐》與《薩爾達傳說》系列的開發工作是在同一時期進行，兩個系列之間原本存在的「界線」也開始逐漸消失。而在後續的訪談中，Eno 也提到了一些《超級瑪利歐 64》在早期展示版本與正式上市版本之間的差異。而根據宮本茂的說法，早期展示的版本或許看起來更具創新元素，但正式版則在整體完成度與品質方面帶來更加出色的呈現。即使如此，他也強調任天堂不應只滿足於遊戲在商業化上的完成度。</p>
-<p>「如果你想問我，任天堂是否只要確保作品具有很高的商業化完成度就該感到滿足，我並不會那麼認為。因為遊戲有兩種類型，一種是製作品質精良的遊戲，另一種則是有趣的遊戲。而大眾對任天堂遊戲的印象，已經逐漸從『有趣』轉變成『製作品質精良』。結果就是，我們將大量心力都投入在後者身上。」他表示</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144902_0_9c9526.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>他接著表示，在《超級瑪利歐 64》取得成功之後，任天堂團隊也證明了自己有能力打造出品質穩定的 3D 動作遊戲，因此，他們接下來應該能夠嘗試製作一些更有趣，且更加具創意的作品。雖然當時宮本茂並沒有明確透露接下來的計劃，但在那之後的兩年內，任天堂團隊就端出了《薩爾達傳說：時之笛》這款對後世所有 3D 動作遊戲帶來深遠影響的重要作品，並成功在 Metacritic 平台上拿下了 99 分的頂級高分，至今仍穩座「史上最好評遊戲」寶座。</p>
-<p>而在相繼以《超級瑪利歐 64》和《時之笛》震撼整個遊戲產業後，任天堂的 N64 主機也迎來了一段輝煌的全盛時期，並在之後的幾年內陸續推出了《瑪利歐賽車 64》、《星戰火狐 64》、《咚奇剛 64》、《瑪利歐派對》以及《任天堂明星大亂鬥》等一票同樣受到許多好評的強作，無論在創意和品質上都帶來了令玩家感到極為滿意的成果。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144939_0_31c90c.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>至於本月稍早推出的《薩爾達傳說：時之笛》，任天堂也特地採用了許多新世代的開發者，其中甚至還有不少人從未接觸過原版《時之笛》，並由《薩爾達傳說》系列資深製作人青沼英二擔任製作總監，藉此在保留原版創意的同時，帶來更加現代化的製作品質。而在正式上市後，本作也在 Metacritic 平台上榮獲了高達 96 分的超高評價，並在上市的四天內創下 520 萬套的銷售佳績，證明了即使以現代最高品質的製作技術呈現，當年的創意至今依然能夠觸及玩家。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>任天堂於 1998 年推出於 N64 主機的《薩爾達傳說：時之笛》一直以來都被視為電玩史上最具重要的作品之一，而當重製版於本月上市後，這款經典之作又再次成為了討論焦點。然而，早在 1996 年的一場訪談中，任天堂資深開發者宮本茂就曾表示當時的任天堂陷入了在「創新」與「製作品質」之間的取捨，甚至開始擔心團隊會太過專注在品質，而疏忽了遊戲本身的趣味性。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2024/07/20240707113859_0_ca845b.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>當時任天堂才剛剛推出了同樣極為重要的里程碑之作《超級瑪利歐64》，而在那段時期接受遊戲開發者 Keni Eno 的訪談時，宮本茂被問到了他對於任天堂旗下遊戲在品質與複雜程度上開始提高有何看法，以及這些作品是否將繼續為玩家提供一種逃避現實的管道。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144747_0_41b6d9.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>對此，宮本茂表示由於《瑪利歐》與《薩爾達傳說》系列的開發工作是在同一時期進行，兩個系列之間原本存在的「界線」也開始逐漸消失。而在後續的訪談中，Eno 也提到了一些《超級瑪利歐 64》在早期展示版本與正式上市版本之間的差異。而根據宮本茂的說法，早期展示的版本或許看起來更具創新元素，但正式版則在整體完成度與品質方面帶來更加出色的呈現。即使如此，他也強調任天堂不應只滿足於遊戲在商業化上的完成度。</p>
-<p>「如果你想問我，任天堂是否只要確保作品具有很高的商業化完成度就該感到滿足，我並不會那麼認為。因為遊戲有兩種類型，一種是製作品質精良的遊戲，另一種則是有趣的遊戲。而大眾對任天堂遊戲的印象，已經逐漸從『有趣』轉變成『製作品質精良』。結果就是，我們將大量心力都投入在後者身上。」他表示</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144902_0_9c9526.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>他接著表示，在《超級瑪利歐 64》取得成功之後，任天堂團隊也證明了自己有能力打造出品質穩定的 3D 動作遊戲，因此，他們接下來應該能夠嘗試製作一些更有趣，且更加具創意的作品。雖然當時宮本茂並沒有明確透露接下來的計劃，但在那之後的兩年內，任天堂團隊就端出了《薩爾達傳說：時之笛》這款對後世所有 3D 動作遊戲帶來深遠影響的重要作品，並成功在 Metacritic 平台上拿下了 99 分的頂級高分，至今仍穩座「史上最好評遊戲」寶座。</p>
-<p>而在相繼以《超級瑪利歐 64》和《時之笛》震撼整個遊戲產業後，任天堂的 N64 主機也迎來了一段輝煌的全盛時期，並在之後的幾年內陸續推出了《瑪利歐賽車 64》、《星戰火狐 64》、《咚奇剛 64》、《瑪利歐派對》以及《任天堂明星大亂鬥》等一票同樣受到許多好評的強作，無論在創意和品質上都帶來了令玩家感到極為滿意的成果。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144939_0_31c90c.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>至於本月稍早推出的《薩爾達傳說：時之笛》，任天堂也特地採用了許多新世代的開發者，其中甚至還有不少人從未接觸過原版《時之笛》，並由《薩爾達傳說》系列資深製作人青沼英二擔任製作總監，藉此在保留原版創意的同時，帶來更加現代化的製作品質。而在正式上市後，本作也在 Metacritic 平台上榮獲了高達 96 分的超高評價，並在上市的四天內創下 520 萬套的銷售佳績，證明了即使以現代最高品質的製作技術呈現，當年的創意至今依然能夠觸及玩家。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>任天堂於 1998 年推出於 N64 主機的《薩爾達傳說：時之笛》一直以來都被視為電玩史上最具重要的作品之一，而當重製版於本月上市後，這款經典之作又再次成為了討論焦點。然而，早在 1996 年的一場訪談中，任天堂資深開發者宮本茂就曾表示當時的任天堂陷入了在「創新」與「製作品質」之間的取捨，甚至開始擔心團隊會太過專注在品質，而疏忽了遊戲本身的趣味性。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2024/07/20240707113859_0_ca845b.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1280px) 100vw, 1280px"></p>
-<p>當時任天堂才剛剛推出了同樣極為重要的里程碑之作《超級瑪利歐64》，而在那段時期接受遊戲開發者 Keni Eno 的訪談時，宮本茂被問到了他對於任天堂旗下遊戲在品質與複雜程度上開始提高有何看法，以及這些作品是否將繼續為玩家提供一種逃避現實的管道。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144747_0_41b6d9.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>對此，宮本茂表示由於《瑪利歐》與《薩爾達傳說》系列的開發工作是在同一時期進行，兩個系列之間原本存在的「界線」也開始逐漸消失。而在後續的訪談中，Eno 也提到了一些《超級瑪利歐 64》在早期展示版本與正式上市版本之間的差異。而根據宮本茂的說法，早期展示的版本或許看起來更具創新元素，但正式版則在整體完成度與品質方面帶來更加出色的呈現。即使如此，他也強調任天堂不應只滿足於遊戲在商業化上的完成度。</p>
-<p>「如果你想問我，任天堂是否只要確保作品具有很高的商業化完成度就該感到滿足，我並不會那麼認為。因為遊戲有兩種類型，一種是製作品質精良的遊戲，另一種則是有趣的遊戲。而大眾對任天堂遊戲的印象，已經逐漸從『有趣』轉變成『製作品質精良』。結果就是，我們將大量心力都投入在後者身上。」他表示</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144902_0_9c9526.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>他接著表示，在《超級瑪利歐 64》取得成功之後，任天堂團隊也證明了自己有能力打造出品質穩定的 3D 動作遊戲，因此，他們接下來應該能夠嘗試製作一些更有趣，且更加具創意的作品。雖然當時宮本茂並沒有明確透露接下來的計劃，但在那之後的兩年內，任天堂團隊就端出了《薩爾達傳說：時之笛》這款對後世所有 3D 動作遊戲帶來深遠影響的重要作品，並成功在 Metacritic 平台上拿下了 99 分的頂級高分，至今仍穩座「史上最好評遊戲」寶座。</p>
-<p>而在相繼以《超級瑪利歐 64》和《時之笛》震撼整個遊戲產業後，任天堂的 N64 主機也迎來了一段輝煌的全盛時期，並在之後的幾年內陸續推出了《瑪利歐賽車 64》、《星戰火狐 64》、《咚奇剛 64》、《瑪利歐派對》以及《任天堂明星大亂鬥》等一票同樣受到許多好評的強作，無論在創意和品質上都帶來了令玩家感到極為滿意的成果。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112144939_0_31c90c.jpg" alt="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" title="《時之笛》重製大獲好評！粉絲挖出宮本茂 30 年前談遊戲&quot;品質&quot;與&quot;創意&quot;取捨的訪談 - 電腦王阿達" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px"></p>
-<p>至於本月稍早推出的《薩爾達傳說：時之笛》，任天堂也特地採用了許多新世代的開發者，其中甚至還有不少人從未接觸過原版《時之笛》，並由《薩爾達傳說》系列資深製作人青沼英二擔任製作總監，藉此在保留原版創意的同時，帶來更加現代化的製作品質。而在正式上市後，本作也在 Metacritic 平台上榮獲了高達 96 分的超高評價，並在上市的四天內創下 520 萬套的銷售佳績，證明了即使以現代最高品質的製作技術呈現，當年的創意至今依然能夠觸及玩家。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2024/07/20240707113859_0_ca845b.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2024/07/20240707113859_0_ca845b.jpg" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 06:52:35 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型]]></title>
-    <link>https://www.kocpc.com.tw/archives/703127</link>
-    <itunes:title><![CDATA[Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>這兩年 Mac 可說是 AI 圈的首選之一，很多人買 Mac mini、Mac Studio 不是為了剪片，而是看上它的統一記憶體夠大，非常適合跑本地大型語言模型，許多 AI 工具也有針對 Mac 優化。現在，Apple 也開始加強本地端 AI 應用的發展了。</p>
-<p>根據最新爆料，Apple 正在測試一款叫 Harbor 的 Mac App，除了能把單台 Mac 變成本地 AI 伺服器之外，還支援透過 Thunderbolt 5 把多台 Mac 串在一起，解決單機記憶體塞不下大模型的問題，可說令人相當期待。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133206_0_9af1a8.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<h2>Apple 新工具 Harbor 曝光：多台 Mac 串接變身私人 AI 伺服器，不用命令列也能跑大型模型</h2>
-<p>爆料者 Aaron Perris 在 X 上貼出一款名為 Harbor 的 Mac App 介紹內容，Harbor 目前是使用 Claris 品牌進行私人預覽，Claris 是 Apple 旗下的軟體子公司。</p>
-<blockquote>
-<p dir="ltr" lang="en">Apple is working on a new app called Harbor Harbor turns your Mac into a private AI inference server. Run open-weight models locally on Apple silicon—your data never leaves your hardware, and nothing reaches the cloud. Connect multiple Mac computers over Thunderbolt 5 to pool unified memory, enabling large models and higher concurrency that a single computer can handle alone. Set up in minutes, not hours Harbor automatically detects your devices over Thunderbolt 5 to form a cluster. Plug in, start, and you’re running—no manual configuration, no command line, no infrastructure expertise required. Download and run models directly Browse, download, and load open-weight models from within the app. Harbor handles model management so you can focus on the work, not the setup. Cluster for scale Connect two or more Thunderbolt 5-capable Mac computers and Harbor pools their unified memory into a single inference resource. Run models that exceed any single computer’s capacity, or serve more concurrent requests across your cluster. Harbor is currently in a private preview under the Claris brand.</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2120229190477992162?ref_src=twsrc%5Etfw">November 10, 2026</a></p></blockquote>
-<p>Perris 提到，Harbor 會把用戶的 Mac 變成私人 AI 推論伺服器，可在 Apple silicon 直接執行開放權重模型，資料不會離開硬體，也不會傳到雲端。同時還支援叢集功能，透過 Thunderbolt 5 即可連接多台 Mac、匯集統一記憶體，就能運行單台電腦跑不動的大型模型，也能承接更多同時湧入的請求：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133124_0_47f767.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>舉個簡單例子：假設你有兩台各配備 64GB 統一記憶體的 Mac，單台只有 64GB，但兩台合計有 128GB 的實體記憶體資源。透過 Harbor 的叢集功能，就有機會把一個需要 100GB 左右的大型模型拆成兩半，分別放在兩台電腦上執行。</p>
-<p>不過這裡要特別提醒，這不代表兩台 Mac 的記憶體會直接變成一台 128GB 電腦，也不表示效能一定加倍。每台 Mac 都還要保留一部分記憶體給系統本身，模型切開後，兩台機器之間也得透過 Thunderbolt 5 不停交換資料，這些傳輸過程都會吃掉一部分效能。Claris 目前沒有公布任何 Harbor 的效能數據，實際可用容量和速度都還要等實測。</p>
-<p>設定上也很簡單，幾分鐘就能搞定。Harbor 會透過 Thunderbolt 5 自動偵測連上的裝置並組成叢集，接上線、按下開始就能運作：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133140_0_0bdb02.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>瀏覽、下載和載入開放權重模型也都在 App 裡完成，模型管理交給 Harbor 處理，使用者可以把心力放在自己的工作上，而不是花時間架環境：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133008_0_78c93c.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>叢集需要每台都支援 Thunderbolt 5，像是 M4 Pro、M4 Max、M3 Ultra，以及 M5 Pro Mac mini、Mac Studio 都符合，但新推出的 M6 Mac mini 用的是 Thunderbolt 4，就沒辦法加入這種叢集。</p>
-<p>Harbor 其實不是第一個名字。Perris 在回覆網友時確認，這款 App 原本叫 Fabric，後來才改名。</p>
-<p>有些人可能會想，如果未來有 Harbor 了，那是不是不需要使用 LM Studio 或 Ollama？以下是幾款知名工具的特色表格</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>工具</th>
-<th>主要定位</th>
-<th>特色</th>
-<th>多台 Mac 串接</th>
-<th>價格</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Harbor</strong></td>
-<td>本地 AI 伺服器與多機叢集</td>
-<td>Thunderbolt 5 自動組叢集、整合統一記憶體、圖形化模型管理</td>
-<td>支援</td>
-<td>尚未公布</td>
-</tr>
-<tr>
-<td>LM Studio</td>
-<td>圖形化本地 AI 工具</td>
-<td>模型下載、管理、對話，也能開本地伺服器</td>
-<td>以單機為主</td>
-<td>免費</td>
-</tr>
-<tr>
-<td>Ollama</td>
-<td>本地 AI 模型運行平台</td>
-<td>命令列與 API 起家，開發工具整合多，也有桌面 App</td>
-<td>以單機為主</td>
-<td>免費開源</td>
-</tr>
-<tr>
-<td>Exo</td>
-<td>開源多裝置叢集工具</td>
-<td>自動偵測裝置、支援 RDMA over Thunderbolt 5</td>
-<td>支援</td>
-<td>免費開源</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>簡單說，LM Studio 和 Ollama 的強項都在單台電腦。LM Studio 介面友善，適合想直接下載模型來聊天的人。Ollama 則受到開發者喜愛，很多程式工具和 AI 代理都能直接接它的 API。</p>
-<p>如果你只有一台 Mac，這兩款已經很夠用，Harbor 不見得能帶來明顯差別。</p>
-<p>跟 Harbor 定位最接近的，其實是開源工具 Exo。Exo 早在 macOS 26.2 推出時就支援 RDMA over Thunderbolt 5，同樣能自動偵測裝置、把多台 Mac 組成叢集，也提供 macOS App。</p>
-<p>至於 Harbor 什麼時候會推出？目前還不知道，外媒 9to5Mac 認為 Harbor 有機會在未來幾週到幾個月內公開亮相。</p>
-<p>有興趣的讀者，可以到 <a href="https://content.claris.com/local-ai-server-get-started" target="_blank">Claris Harbor 官方預覽資訊與登記頁面</a>留下資料等後續消息。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>這兩年 Mac 可說是 AI 圈的首選之一，很多人買 Mac mini、Mac Studio 不是為了剪片，而是看上它的統一記憶體夠大，非常適合跑本地大型語言模型，許多 AI 工具也有針對 Mac 優化。現在，Apple 也開始加強本地端 AI 應用的發展了。</p>
-<p>根據最新爆料，Apple 正在測試一款叫 Harbor 的 Mac App，除了能把單台 Mac 變成本地 AI 伺服器之外，還支援透過 Thunderbolt 5 把多台 Mac 串在一起，解決單機記憶體塞不下大模型的問題，可說令人相當期待。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133206_0_9af1a8.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<h2>Apple 新工具 Harbor 曝光：多台 Mac 串接變身私人 AI 伺服器，不用命令列也能跑大型模型</h2>
-<p>爆料者 Aaron Perris 在 X 上貼出一款名為 Harbor 的 Mac App 介紹內容，Harbor 目前是使用 Claris 品牌進行私人預覽，Claris 是 Apple 旗下的軟體子公司。</p>
-<blockquote>
-<p dir="ltr" lang="en">Apple is working on a new app called Harbor Harbor turns your Mac into a private AI inference server. Run open-weight models locally on Apple silicon—your data never leaves your hardware, and nothing reaches the cloud. Connect multiple Mac computers over Thunderbolt 5 to pool unified memory, enabling large models and higher concurrency that a single computer can handle alone. Set up in minutes, not hours Harbor automatically detects your devices over Thunderbolt 5 to form a cluster. Plug in, start, and you’re running—no manual configuration, no command line, no infrastructure expertise required. Download and run models directly Browse, download, and load open-weight models from within the app. Harbor handles model management so you can focus on the work, not the setup. Cluster for scale Connect two or more Thunderbolt 5-capable Mac computers and Harbor pools their unified memory into a single inference resource. Run models that exceed any single computer’s capacity, or serve more concurrent requests across your cluster. Harbor is currently in a private preview under the Claris brand.</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2120229190477992162?ref_src=twsrc%5Etfw">November 10, 2026</a></p></blockquote>
-<p>Perris 提到，Harbor 會把用戶的 Mac 變成私人 AI 推論伺服器，可在 Apple silicon 直接執行開放權重模型，資料不會離開硬體，也不會傳到雲端。同時還支援叢集功能，透過 Thunderbolt 5 即可連接多台 Mac、匯集統一記憶體，就能運行單台電腦跑不動的大型模型，也能承接更多同時湧入的請求：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133124_0_47f767.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>舉個簡單例子：假設你有兩台各配備 64GB 統一記憶體的 Mac，單台只有 64GB，但兩台合計有 128GB 的實體記憶體資源。透過 Harbor 的叢集功能，就有機會把一個需要 100GB 左右的大型模型拆成兩半，分別放在兩台電腦上執行。</p>
-<p>不過這裡要特別提醒，這不代表兩台 Mac 的記憶體會直接變成一台 128GB 電腦，也不表示效能一定加倍。每台 Mac 都還要保留一部分記憶體給系統本身，模型切開後，兩台機器之間也得透過 Thunderbolt 5 不停交換資料，這些傳輸過程都會吃掉一部分效能。Claris 目前沒有公布任何 Harbor 的效能數據，實際可用容量和速度都還要等實測。</p>
-<p>設定上也很簡單，幾分鐘就能搞定。Harbor 會透過 Thunderbolt 5 自動偵測連上的裝置並組成叢集，接上線、按下開始就能運作：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133140_0_0bdb02.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>瀏覽、下載和載入開放權重模型也都在 App 裡完成，模型管理交給 Harbor 處理，使用者可以把心力放在自己的工作上，而不是花時間架環境：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133008_0_78c93c.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>叢集需要每台都支援 Thunderbolt 5，像是 M4 Pro、M4 Max、M3 Ultra，以及 M5 Pro Mac mini、Mac Studio 都符合，但新推出的 M6 Mac mini 用的是 Thunderbolt 4，就沒辦法加入這種叢集。</p>
-<p>Harbor 其實不是第一個名字。Perris 在回覆網友時確認，這款 App 原本叫 Fabric，後來才改名。</p>
-<p>有些人可能會想，如果未來有 Harbor 了，那是不是不需要使用 LM Studio 或 Ollama？以下是幾款知名工具的特色表格</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>工具</th>
-<th>主要定位</th>
-<th>特色</th>
-<th>多台 Mac 串接</th>
-<th>價格</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Harbor</strong></td>
-<td>本地 AI 伺服器與多機叢集</td>
-<td>Thunderbolt 5 自動組叢集、整合統一記憶體、圖形化模型管理</td>
-<td>支援</td>
-<td>尚未公布</td>
-</tr>
-<tr>
-<td>LM Studio</td>
-<td>圖形化本地 AI 工具</td>
-<td>模型下載、管理、對話，也能開本地伺服器</td>
-<td>以單機為主</td>
-<td>免費</td>
-</tr>
-<tr>
-<td>Ollama</td>
-<td>本地 AI 模型運行平台</td>
-<td>命令列與 API 起家，開發工具整合多，也有桌面 App</td>
-<td>以單機為主</td>
-<td>免費開源</td>
-</tr>
-<tr>
-<td>Exo</td>
-<td>開源多裝置叢集工具</td>
-<td>自動偵測裝置、支援 RDMA over Thunderbolt 5</td>
-<td>支援</td>
-<td>免費開源</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>簡單說，LM Studio 和 Ollama 的強項都在單台電腦。LM Studio 介面友善，適合想直接下載模型來聊天的人。Ollama 則受到開發者喜愛，很多程式工具和 AI 代理都能直接接它的 API。</p>
-<p>如果你只有一台 Mac，這兩款已經很夠用，Harbor 不見得能帶來明顯差別。</p>
-<p>跟 Harbor 定位最接近的，其實是開源工具 Exo。Exo 早在 macOS 26.2 推出時就支援 RDMA over Thunderbolt 5，同樣能自動偵測裝置、把多台 Mac 組成叢集，也提供 macOS App。</p>
-<p>至於 Harbor 什麼時候會推出？目前還不知道，外媒 9to5Mac 認為 Harbor 有機會在未來幾週到幾個月內公開亮相。</p>
-<p>有興趣的讀者，可以到 <a href="https://content.claris.com/local-ai-server-get-started" target="_blank">Claris Harbor 官方預覽資訊與登記頁面</a>留下資料等後續消息。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>這兩年 Mac 可說是 AI 圈的首選之一，很多人買 Mac mini、Mac Studio 不是為了剪片，而是看上它的統一記憶體夠大，非常適合跑本地大型語言模型，許多 AI 工具也有針對 Mac 優化。現在，Apple 也開始加強本地端 AI 應用的發展了。</p>
-<p>根據最新爆料，Apple 正在測試一款叫 Harbor 的 Mac App，除了能把單台 Mac 變成本地 AI 伺服器之外，還支援透過 Thunderbolt 5 把多台 Mac 串在一起，解決單機記憶體塞不下大模型的問題，可說令人相當期待。</p>
-<p><img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133206_0_9af1a8.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<h2>Apple 新工具 Harbor 曝光：多台 Mac 串接變身私人 AI 伺服器，不用命令列也能跑大型模型</h2>
-<p>爆料者 Aaron Perris 在 X 上貼出一款名為 Harbor 的 Mac App 介紹內容，Harbor 目前是使用 Claris 品牌進行私人預覽，Claris 是 Apple 旗下的軟體子公司。</p>
-<blockquote>
-<p dir="ltr" lang="en">Apple is working on a new app called Harbor Harbor turns your Mac into a private AI inference server. Run open-weight models locally on Apple silicon—your data never leaves your hardware, and nothing reaches the cloud. Connect multiple Mac computers over Thunderbolt 5 to pool unified memory, enabling large models and higher concurrency that a single computer can handle alone. Set up in minutes, not hours Harbor automatically detects your devices over Thunderbolt 5 to form a cluster. Plug in, start, and you’re running—no manual configuration, no command line, no infrastructure expertise required. Download and run models directly Browse, download, and load open-weight models from within the app. Harbor handles model management so you can focus on the work, not the setup. Cluster for scale Connect two or more Thunderbolt 5-capable Mac computers and Harbor pools their unified memory into a single inference resource. Run models that exceed any single computer’s capacity, or serve more concurrent requests across your cluster. Harbor is currently in a private preview under the Claris brand.</p>
-<p>— Aaron (@aaronp613) <a href="https://x.com/aaronp613/status/2120229190477992162?ref_src=twsrc%5Etfw">November 10, 2026</a></p></blockquote>
-<p>Perris 提到，Harbor 會把用戶的 Mac 變成私人 AI 推論伺服器，可在 Apple silicon 直接執行開放權重模型，資料不會離開硬體，也不會傳到雲端。同時還支援叢集功能，透過 Thunderbolt 5 即可連接多台 Mac、匯集統一記憶體，就能運行單台電腦跑不動的大型模型，也能承接更多同時湧入的請求：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133124_0_47f767.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>舉個簡單例子：假設你有兩台各配備 64GB 統一記憶體的 Mac，單台只有 64GB，但兩台合計有 128GB 的實體記憶體資源。透過 Harbor 的叢集功能，就有機會把一個需要 100GB 左右的大型模型拆成兩半，分別放在兩台電腦上執行。</p>
-<p>不過這裡要特別提醒，這不代表兩台 Mac 的記憶體會直接變成一台 128GB 電腦，也不表示效能一定加倍。每台 Mac 都還要保留一部分記憶體給系統本身，模型切開後，兩台機器之間也得透過 Thunderbolt 5 不停交換資料，這些傳輸過程都會吃掉一部分效能。Claris 目前沒有公布任何 Harbor 的效能數據，實際可用容量和速度都還要等實測。</p>
-<p>設定上也很簡單，幾分鐘就能搞定。Harbor 會透過 Thunderbolt 5 自動偵測連上的裝置並組成叢集，接上線、按下開始就能運作：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133140_0_0bdb02.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1920px) 100vw, 1920px"></p><div role="region" aria-label="贊助商連結"></div><div role="region" aria-label="贊助商連結"></div>
-<p>瀏覽、下載和載入開放權重模型也都在 App 裡完成，模型管理交給 Harbor 處理，使用者可以把心力放在自己的工作上，而不是花時間架環境：<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133008_0_78c93c.jpeg" alt="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" title="Apple 全新 Harbor 本地 AI 工具曝光！可串接多台 Mac 運行大型 AI 模型 - 電腦王阿達" data-lazy-sizes="(max-width: 1286px) 100vw, 1286px"></p>
-<p>叢集需要每台都支援 Thunderbolt 5，像是 M4 Pro、M4 Max、M3 Ultra，以及 M5 Pro Mac mini、Mac Studio 都符合，但新推出的 M6 Mac mini 用的是 Thunderbolt 4，就沒辦法加入這種叢集。</p>
-<p>Harbor 其實不是第一個名字。Perris 在回覆網友時確認，這款 App 原本叫 Fabric，後來才改名。</p>
-<p>有些人可能會想，如果未來有 Harbor 了，那是不是不需要使用 LM Studio 或 Ollama？以下是幾款知名工具的特色表格</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>工具</th>
-<th>主要定位</th>
-<th>特色</th>
-<th>多台 Mac 串接</th>
-<th>價格</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Harbor</strong></td>
-<td>本地 AI 伺服器與多機叢集</td>
-<td>Thunderbolt 5 自動組叢集、整合統一記憶體、圖形化模型管理</td>
-<td>支援</td>
-<td>尚未公布</td>
-</tr>
-<tr>
-<td>LM Studio</td>
-<td>圖形化本地 AI 工具</td>
-<td>模型下載、管理、對話，也能開本地伺服器</td>
-<td>以單機為主</td>
-<td>免費</td>
-</tr>
-<tr>
-<td>Ollama</td>
-<td>本地 AI 模型運行平台</td>
-<td>命令列與 API 起家，開發工具整合多，也有桌面 App</td>
-<td>以單機為主</td>
-<td>免費開源</td>
-</tr>
-<tr>
-<td>Exo</td>
-<td>開源多裝置叢集工具</td>
-<td>自動偵測裝置、支援 RDMA over Thunderbolt 5</td>
-<td>支援</td>
-<td>免費開源</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>簡單說，LM Studio 和 Ollama 的強項都在單台電腦。LM Studio 介面友善，適合想直接下載模型來聊天的人。Ollama 則受到開發者喜愛，很多程式工具和 AI 代理都能直接接它的 API。</p>
-<p>如果你只有一台 Mac，這兩款已經很夠用，Harbor 不見得能帶來明顯差別。</p>
-<p>跟 Harbor 定位最接近的，其實是開源工具 Exo。Exo 早在 macOS 26.2 推出時就支援 RDMA over Thunderbolt 5，同樣能自動偵測裝置、把多台 Mac 組成叢集，也提供 macOS App。</p>
-<p>至於 Harbor 什麼時候會推出？目前還不知道，外媒 9to5Mac 認為 Harbor 有機會在未來幾週到幾個月內公開亮相。</p>
-<p>有興趣的讀者，可以到 <a href="https://content.claris.com/local-ai-server-get-started" target="_blank">Claris Harbor 官方預覽資訊與登記頁面</a>留下資料等後續消息。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133206_0_9af1a8.jpeg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112133206_0_9af1a8.jpeg" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 05:39:03 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2]]></title>
-    <link>https://www.kocpc.com.tw/archives/703126</link>
-    <itunes:title><![CDATA[黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2]]></itunes:title>
-    <itunes:author><![CDATA[電腦王阿達[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p>蘋果從 macOS 27 開始正式停止對 Intel 處理器的支援，這也讓「黑蘋果」這種玩法正式走入歷史。不過在 11 月 11 日，一名開發者在 X 上公布 Stela v0.1.0，這套工具讓蘋果 M 系列 ARM 架構處理器版本的 macOS 在不經修改的狀態下就能在 Intel 與 AMD 的 x86 電腦上運行，即時把 arm64 指令翻譯成 x86-64，作者甚至自幹了一套 NVIDIA 的 Metal 顯示卡驅動程式。他貼出的截圖裡，機器配備 Ryzen 7 9800X3D 與 RTX 5080，macOS 把這台電腦認成一台 M2 版的 Mac mini。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131539_0_916a33.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<h3>這不是 Hackintosh</h3>
-<p>首先要釐清的是，Stela 走的路線跟傳統 Hackintosh 完全不同。傳統 Hackintosh 是把 x86 版本的 macOS 強行裝到非蘋果硬體上，靠 OpenCore 引導載入器與一堆 kext 驅動程式補洞。Stela 裡沒有 OpenCore，也沒有 kext，它是一個 UEFI 開機程式，載入的是<strong>未經修改的 arm64 版 macOS</strong>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131847_0_9e614e.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<p>也就是說，Stela 的做法是在 x86 硬體上模擬出一台蘋果矽晶片 Mac。macOS 看到的是一台 M2 Mac mini，它完全不知道自己跑在哪裡。作者在 Reddit 的說明裡提到另一個同類專案 nullmoth 的做法：把 macOS 核心裡殘留的 x86 部分拼湊起來。他認為那條路走不通，因為蘋果哪天把那些殘留程式碼拿掉就會出問題，所以自己選擇了模擬蘋果硬體行為的方向。</p>
-<blockquote><p><a href="https://www.reddit.com/r/hackintosh/comments/1xt9bhp/stela_a_generalpurpose_apple_silicon_layer_for_pc/" target="_blank">Stela: A general-purpose Apple Silicon layer for PC (yes, macOS 27)</a><br> by<a href="https://www.reddit.com/user/AuspiciousCracker/" target="_blank">u/AuspiciousCracker</a> in<a href="https://www.reddit.com/r/hackintosh/" target="_blank">hackintosh</a></p></blockquote>
-<h3>翻譯三萬多個指令編碼</h3>
-<p>核心技術是 arm64e 到 x86-64 的指令翻譯器，採用超前編譯（AOT）加上即時編譯（JIT）兩種機制。官方文件寫明它涵蓋超過 3,000 個 AArch64 指令編碼，並做了幾項最佳化：把客體暫存器映射到宿主暫存器，以及快取已翻譯的程式碼，避免重複翻譯。執行門檻是任何 x86-64-v2 等級的處理器，Intel 或 AMD 都行，大約涵蓋 2011 年以後的機器。</p>
-<p>作者的長期目標是把效能拉到蘋果自家 Rosetta 2 那種水準。Rosetta 2 是蘋果做的工具，讓 Intel 應用程式能在 Apple M 系列處理器上跑。Stela 走的是相反方向，但技術挑戰同級。</p>
-<h3>自己寫的 NVIDIA Metal 驅動</h3>
-<p>另一個技術重點是顯示卡。蘋果多年前就不再支援 NVIDIA 顯示卡，要在 NVIDIA 硬體上跑 Metal 就得自己來。Stela 的 Metal 驅動支援 GTX 16 與 RTX 20 系列以後的顯示卡。做法是把 AIR（Metal 的著色器中介碼）直接編譯成 NIR（Mesa 的中介碼），省掉同類專案繞經 SPIR-V 的那一步。目前支援 Metal3 與 Apple7 兩個 GPU 家族。</p>
-<p>作者表示這個驅動是建立在開源的 nouveau 驅動程式基礎上，所以理論上也支援 NVIDIA Optimus 這類混合顯示架構。他也確認 AMD 與 Intel 內顯的支援正在開發中，並回覆說未來希望能支援 Intel 的 Lunar Lake（Xe2）。</p>
-<h3>大部分程式碼是 AI 寫的</h3>
-<p>這可能是整件事最值得討論的部分。作者在 Reddit 貼文裡坦承：「程式碼絕大部分是 AI 寫的。」他表示自己是電腦與軟體工程師，架構上的判斷仍然比模型好，但他從沒想過能做出這種規模的東西，就算是五分之一的規模也沒想過。</p>
-<p>社群的反應很兩極。有人覺得只要作者真的懂那些程式碼就沒問題，也有人點出問題不在 AI 寫程式，而在很多人用幾個提示詞拼出能動的原型就當成完成品發布、跳過測試與除錯。也有留言直接說，不管是不是 AI 寫的，這種等級的成果就是很驚人。</p>
-<h3>硬體需求與安裝</h3>
-<p>官方列出的需求如下：</p>
-<p>處理器要是 x86-64-v2 等級（約 2011 年以後），UEFI 且關閉 Secure Boot，記憶體 8 GB 以上；顯示卡要 NVIDIA GTX 16 或 RTX 20 系列以上；一支 8 GB 以上的 USB 隨身碟；一塊至少 60 GB 的空 GPT 分割區；安裝過程需要網路，因為工具會幫你下載 macOS。</p>
-<p>安裝流程本身跨平台，可以在 Windows、Linux 或 macOS 上執行。Windows 是直接點兩下 `stela.exe`，Linux 與 macOS 則是 `sudo ./stela setup`，工具會建立開機 USB。使用者可以選擇 macOS 版本與要模擬的 Mac 機型。</p>
-<h3>作者自己說：現在不要試</h3>
-<p>這點必須放在顯眼的位置。GitHub 的 README 開頭就有警告：Stela 仍在開發中，目前成功開機的機率很低，重大硬體支援與修正正在進行。作者在 Reddit 貼文的第一句也寫著，他不建議現在就去試，只是想把原始碼放出來並公布進度。目前的狀態是作業系統與多數應用程式能啟動，但速度很慢、錯誤還很多，只有測試價值，談不上能用。</p>
-<p>不過已經能跑的東西比想像中多。有使用者問 Homebrew 這類需要 Apple 矽晶片的套件管理器能不能用，作者回說可以。社群也有人拿它跑出完整的桌面環境，包括 Finder、Safari、郵件、照片、行事曆、終端機與系統設定，活動監視器裡同時掛著四百多個行程。</p>
-<p>另外，Stela 目前模擬的是 M2 版的 Mac mini，跑 macOS 27。作者說正在更新到 M5 Ultra 的硬體模型，目標是讓所有支援該硬體的 macOS 版本都能輕鬆跑起來。</p>
-<h3><a href="https://github.com/tylertms/Stela" target="_blank">Stela&nbsp; –&nbsp; GitHub</a></h3>
-<h3>為什麼這件事有份量</h3>
-<p>蘋果在 2020 年轉向自家晶片後，Intel Mac 走向淘汰，Mac 與 x86 的連結逐年斷開。傳統 Hackintosh 的生存空間越收越窄，因為蘋果不斷移除核心裡的 x86 殘留。Stela 換了一個思路：既然回不去 x86 版 macOS，那就讓 x86 硬體假裝自己是 Apple 矽晶片。這個方向的好處是，只要蘋果還在支援某一代 Mac 硬體，對應的 macOS 版本理論上就能被 Stela 跑起來，不必去追蘋果刪掉了什麼。但現實是它現在連穩定開機都還談不上，作者自己說了「現在不要試」。這句話比任何規格數字都重要，想嘗試的人至少該等到作者改口的那一天。</p>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p>蘋果從 macOS 27 開始正式停止對 Intel 處理器的支援，這也讓「黑蘋果」這種玩法正式走入歷史。不過在 11 月 11 日，一名開發者在 X 上公布 Stela v0.1.0，這套工具讓蘋果 M 系列 ARM 架構處理器版本的 macOS 在不經修改的狀態下就能在 Intel 與 AMD 的 x86 電腦上運行，即時把 arm64 指令翻譯成 x86-64，作者甚至自幹了一套 NVIDIA 的 Metal 顯示卡驅動程式。他貼出的截圖裡，機器配備 Ryzen 7 9800X3D 與 RTX 5080，macOS 把這台電腦認成一台 M2 版的 Mac mini。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131539_0_916a33.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<h3>這不是 Hackintosh</h3>
-<p>首先要釐清的是，Stela 走的路線跟傳統 Hackintosh 完全不同。傳統 Hackintosh 是把 x86 版本的 macOS 強行裝到非蘋果硬體上，靠 OpenCore 引導載入器與一堆 kext 驅動程式補洞。Stela 裡沒有 OpenCore，也沒有 kext，它是一個 UEFI 開機程式，載入的是<strong>未經修改的 arm64 版 macOS</strong>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131847_0_9e614e.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<p>也就是說，Stela 的做法是在 x86 硬體上模擬出一台蘋果矽晶片 Mac。macOS 看到的是一台 M2 Mac mini，它完全不知道自己跑在哪裡。作者在 Reddit 的說明裡提到另一個同類專案 nullmoth 的做法：把 macOS 核心裡殘留的 x86 部分拼湊起來。他認為那條路走不通，因為蘋果哪天把那些殘留程式碼拿掉就會出問題，所以自己選擇了模擬蘋果硬體行為的方向。</p>
-<blockquote><p><a href="https://www.reddit.com/r/hackintosh/comments/1xt9bhp/stela_a_generalpurpose_apple_silicon_layer_for_pc/" target="_blank">Stela: A general-purpose Apple Silicon layer for PC (yes, macOS 27)</a><br> by<a href="https://www.reddit.com/user/AuspiciousCracker/" target="_blank">u/AuspiciousCracker</a> in<a href="https://www.reddit.com/r/hackintosh/" target="_blank">hackintosh</a></p></blockquote>
-<h3>翻譯三萬多個指令編碼</h3>
-<p>核心技術是 arm64e 到 x86-64 的指令翻譯器，採用超前編譯（AOT）加上即時編譯（JIT）兩種機制。官方文件寫明它涵蓋超過 3,000 個 AArch64 指令編碼，並做了幾項最佳化：把客體暫存器映射到宿主暫存器，以及快取已翻譯的程式碼，避免重複翻譯。執行門檻是任何 x86-64-v2 等級的處理器，Intel 或 AMD 都行，大約涵蓋 2011 年以後的機器。</p>
-<p>作者的長期目標是把效能拉到蘋果自家 Rosetta 2 那種水準。Rosetta 2 是蘋果做的工具，讓 Intel 應用程式能在 Apple M 系列處理器上跑。Stela 走的是相反方向，但技術挑戰同級。</p>
-<h3>自己寫的 NVIDIA Metal 驅動</h3>
-<p>另一個技術重點是顯示卡。蘋果多年前就不再支援 NVIDIA 顯示卡，要在 NVIDIA 硬體上跑 Metal 就得自己來。Stela 的 Metal 驅動支援 GTX 16 與 RTX 20 系列以後的顯示卡。做法是把 AIR（Metal 的著色器中介碼）直接編譯成 NIR（Mesa 的中介碼），省掉同類專案繞經 SPIR-V 的那一步。目前支援 Metal3 與 Apple7 兩個 GPU 家族。</p>
-<p>作者表示這個驅動是建立在開源的 nouveau 驅動程式基礎上，所以理論上也支援 NVIDIA Optimus 這類混合顯示架構。他也確認 AMD 與 Intel 內顯的支援正在開發中，並回覆說未來希望能支援 Intel 的 Lunar Lake（Xe2）。</p>
-<h3>大部分程式碼是 AI 寫的</h3>
-<p>這可能是整件事最值得討論的部分。作者在 Reddit 貼文裡坦承：「程式碼絕大部分是 AI 寫的。」他表示自己是電腦與軟體工程師，架構上的判斷仍然比模型好，但他從沒想過能做出這種規模的東西，就算是五分之一的規模也沒想過。</p>
-<p>社群的反應很兩極。有人覺得只要作者真的懂那些程式碼就沒問題，也有人點出問題不在 AI 寫程式，而在很多人用幾個提示詞拼出能動的原型就當成完成品發布、跳過測試與除錯。也有留言直接說，不管是不是 AI 寫的，這種等級的成果就是很驚人。</p>
-<h3>硬體需求與安裝</h3>
-<p>官方列出的需求如下：</p>
-<p>處理器要是 x86-64-v2 等級（約 2011 年以後），UEFI 且關閉 Secure Boot，記憶體 8 GB 以上；顯示卡要 NVIDIA GTX 16 或 RTX 20 系列以上；一支 8 GB 以上的 USB 隨身碟；一塊至少 60 GB 的空 GPT 分割區；安裝過程需要網路，因為工具會幫你下載 macOS。</p>
-<p>安裝流程本身跨平台，可以在 Windows、Linux 或 macOS 上執行。Windows 是直接點兩下 `stela.exe`，Linux 與 macOS 則是 `sudo ./stela setup`，工具會建立開機 USB。使用者可以選擇 macOS 版本與要模擬的 Mac 機型。</p>
-<h3>作者自己說：現在不要試</h3>
-<p>這點必須放在顯眼的位置。GitHub 的 README 開頭就有警告：Stela 仍在開發中，目前成功開機的機率很低，重大硬體支援與修正正在進行。作者在 Reddit 貼文的第一句也寫著，他不建議現在就去試，只是想把原始碼放出來並公布進度。目前的狀態是作業系統與多數應用程式能啟動，但速度很慢、錯誤還很多，只有測試價值，談不上能用。</p>
-<p>不過已經能跑的東西比想像中多。有使用者問 Homebrew 這類需要 Apple 矽晶片的套件管理器能不能用，作者回說可以。社群也有人拿它跑出完整的桌面環境，包括 Finder、Safari、郵件、照片、行事曆、終端機與系統設定，活動監視器裡同時掛著四百多個行程。</p>
-<p>另外，Stela 目前模擬的是 M2 版的 Mac mini，跑 macOS 27。作者說正在更新到 M5 Ultra 的硬體模型，目標是讓所有支援該硬體的 macOS 版本都能輕鬆跑起來。</p>
-<h3><a href="https://github.com/tylertms/Stela" target="_blank">Stela&nbsp; –&nbsp; GitHub</a></h3>
-<h3>為什麼這件事有份量</h3>
-<p>蘋果在 2020 年轉向自家晶片後，Intel Mac 走向淘汰，Mac 與 x86 的連結逐年斷開。傳統 Hackintosh 的生存空間越收越窄，因為蘋果不斷移除核心裡的 x86 殘留。Stela 換了一個思路：既然回不去 x86 版 macOS，那就讓 x86 硬體假裝自己是 Apple 矽晶片。這個方向的好處是，只要蘋果還在支援某一代 Mac 硬體，對應的 macOS 版本理論上就能被 Stela 跑起來，不必去追蘋果刪掉了什麼。但現實是它現在連穩定開機都還談不上，作者自己說了「現在不要試」。這句話比任何規格數字都重要，想嘗試的人至少該等到作者改口的那一天。</p>]]>
-    </description>
-    <content:encoded><![CDATA[<p>蘋果從 macOS 27 開始正式停止對 Intel 處理器的支援，這也讓「黑蘋果」這種玩法正式走入歷史。不過在 11 月 11 日，一名開發者在 X 上公布 Stela v0.1.0，這套工具讓蘋果 M 系列 ARM 架構處理器版本的 macOS 在不經修改的狀態下就能在 Intel 與 AMD 的 x86 電腦上運行，即時把 arm64 指令翻譯成 x86-64，作者甚至自幹了一套 NVIDIA 的 Metal 顯示卡驅動程式。他貼出的截圖裡，機器配備 Ryzen 7 9800X3D 與 RTX 5080，macOS 把這台電腦認成一台 M2 版的 Mac mini。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131539_0_916a33.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<h3>這不是 Hackintosh</h3>
-<p>首先要釐清的是，Stela 走的路線跟傳統 Hackintosh 完全不同。傳統 Hackintosh 是把 x86 版本的 macOS 強行裝到非蘋果硬體上，靠 OpenCore 引導載入器與一堆 kext 驅動程式補洞。Stela 裡沒有 OpenCore，也沒有 kext，它是一個 UEFI 開機程式，載入的是<strong>未經修改的 arm64 版 macOS</strong>。<br>
-<img src="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131847_0_9e614e.jpg" alt="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達" title="黑蘋果新希望 Stela：讓x86 電腦成功運行 ARM 版 macOS 27.2 - 電腦王阿達"></p>
-<p>也就是說，Stela 的做法是在 x86 硬體上模擬出一台蘋果矽晶片 Mac。macOS 看到的是一台 M2 Mac mini，它完全不知道自己跑在哪裡。作者在 Reddit 的說明裡提到另一個同類專案 nullmoth 的做法：把 macOS 核心裡殘留的 x86 部分拼湊起來。他認為那條路走不通，因為蘋果哪天把那些殘留程式碼拿掉就會出問題，所以自己選擇了模擬蘋果硬體行為的方向。</p>
-<blockquote><p><a href="https://www.reddit.com/r/hackintosh/comments/1xt9bhp/stela_a_generalpurpose_apple_silicon_layer_for_pc/" target="_blank">Stela: A general-purpose Apple Silicon layer for PC (yes, macOS 27)</a><br> by<a href="https://www.reddit.com/user/AuspiciousCracker/" target="_blank">u/AuspiciousCracker</a> in<a href="https://www.reddit.com/r/hackintosh/" target="_blank">hackintosh</a></p></blockquote>
-<h3>翻譯三萬多個指令編碼</h3>
-<p>核心技術是 arm64e 到 x86-64 的指令翻譯器，採用超前編譯（AOT）加上即時編譯（JIT）兩種機制。官方文件寫明它涵蓋超過 3,000 個 AArch64 指令編碼，並做了幾項最佳化：把客體暫存器映射到宿主暫存器，以及快取已翻譯的程式碼，避免重複翻譯。執行門檻是任何 x86-64-v2 等級的處理器，Intel 或 AMD 都行，大約涵蓋 2011 年以後的機器。</p>
-<p>作者的長期目標是把效能拉到蘋果自家 Rosetta 2 那種水準。Rosetta 2 是蘋果做的工具，讓 Intel 應用程式能在 Apple M 系列處理器上跑。Stela 走的是相反方向，但技術挑戰同級。</p>
-<h3>自己寫的 NVIDIA Metal 驅動</h3>
-<p>另一個技術重點是顯示卡。蘋果多年前就不再支援 NVIDIA 顯示卡，要在 NVIDIA 硬體上跑 Metal 就得自己來。Stela 的 Metal 驅動支援 GTX 16 與 RTX 20 系列以後的顯示卡。做法是把 AIR（Metal 的著色器中介碼）直接編譯成 NIR（Mesa 的中介碼），省掉同類專案繞經 SPIR-V 的那一步。目前支援 Metal3 與 Apple7 兩個 GPU 家族。</p>
-<p>作者表示這個驅動是建立在開源的 nouveau 驅動程式基礎上，所以理論上也支援 NVIDIA Optimus 這類混合顯示架構。他也確認 AMD 與 Intel 內顯的支援正在開發中，並回覆說未來希望能支援 Intel 的 Lunar Lake（Xe2）。</p>
-<h3>大部分程式碼是 AI 寫的</h3>
-<p>這可能是整件事最值得討論的部分。作者在 Reddit 貼文裡坦承：「程式碼絕大部分是 AI 寫的。」他表示自己是電腦與軟體工程師，架構上的判斷仍然比模型好，但他從沒想過能做出這種規模的東西，就算是五分之一的規模也沒想過。</p>
-<p>社群的反應很兩極。有人覺得只要作者真的懂那些程式碼就沒問題，也有人點出問題不在 AI 寫程式，而在很多人用幾個提示詞拼出能動的原型就當成完成品發布、跳過測試與除錯。也有留言直接說，不管是不是 AI 寫的，這種等級的成果就是很驚人。</p>
-<h3>硬體需求與安裝</h3>
-<p>官方列出的需求如下：</p>
-<p>處理器要是 x86-64-v2 等級（約 2011 年以後），UEFI 且關閉 Secure Boot，記憶體 8 GB 以上；顯示卡要 NVIDIA GTX 16 或 RTX 20 系列以上；一支 8 GB 以上的 USB 隨身碟；一塊至少 60 GB 的空 GPT 分割區；安裝過程需要網路，因為工具會幫你下載 macOS。</p>
-<p>安裝流程本身跨平台，可以在 Windows、Linux 或 macOS 上執行。Windows 是直接點兩下 `stela.exe`，Linux 與 macOS 則是 `sudo ./stela setup`，工具會建立開機 USB。使用者可以選擇 macOS 版本與要模擬的 Mac 機型。</p>
-<h3>作者自己說：現在不要試</h3>
-<p>這點必須放在顯眼的位置。GitHub 的 README 開頭就有警告：Stela 仍在開發中，目前成功開機的機率很低，重大硬體支援與修正正在進行。作者在 Reddit 貼文的第一句也寫著，他不建議現在就去試，只是想把原始碼放出來並公布進度。目前的狀態是作業系統與多數應用程式能啟動，但速度很慢、錯誤還很多，只有測試價值，談不上能用。</p>
-<p>不過已經能跑的東西比想像中多。有使用者問 Homebrew 這類需要 Apple 矽晶片的套件管理器能不能用，作者回說可以。社群也有人拿它跑出完整的桌面環境，包括 Finder、Safari、郵件、照片、行事曆、終端機與系統設定，活動監視器裡同時掛著四百多個行程。</p>
-<p>另外，Stela 目前模擬的是 M2 版的 Mac mini，跑 macOS 27。作者說正在更新到 M5 Ultra 的硬體模型，目標是讓所有支援該硬體的 macOS 版本都能輕鬆跑起來。</p>
-<h3><a href="https://github.com/tylertms/Stela" target="_blank">Stela&nbsp; –&nbsp; GitHub</a></h3>
-<h3>為什麼這件事有份量</h3>
-<p>蘋果在 2020 年轉向自家晶片後，Intel Mac 走向淘汰，Mac 與 x86 的連結逐年斷開。傳統 Hackintosh 的生存空間越收越窄，因為蘋果不斷移除核心裡的 x86 殘留。Stela 換了一個思路：既然回不去 x86 版 macOS，那就讓 x86 硬體假裝自己是 Apple 矽晶片。這個方向的好處是，只要蘋果還在支援某一代 Mac 硬體，對應的 macOS 版本理論上就能被 Stela 跑起來，不必去追蘋果刪掉了什麼。但現實是它現在連穩定開機都還談不上，作者自己說了「現在不要試」。這句話比任何規格數字都重要，想嘗試的人至少該等到作者改口的那一天。</p>]]></content:encoded>
-    <itunes:image href="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131539_0_916a33.jpg"/>
-          <media:content url="https://www.kocpc.com.tw/wp-content/uploads/2026/11/20261112131539_0_916a33.jpg" medium="image"/>
-    <pubDate>Thu, 12 Nov 2026 05:28:58 +0000</pubDate>
   </item></channel>
 </rss>
