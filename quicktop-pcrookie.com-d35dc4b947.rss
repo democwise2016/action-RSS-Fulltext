@@ -30,6 +30,1470 @@
     </itunes:owner>
     <itunes:image href="https://pcrookie.com/wp-content/uploads/2019/11/blog-LOGO-2.png"/>
 <item>
+    <title><![CDATA[Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤]]></title>
+    <link>https://pcrookie.com/antigravity-ssh-remote-linux-guide/</link>
+    <itunes:title><![CDATA[Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤]]></itunes:title>
+    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><p><img post-id="8628" fifu-featured="1" alt="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-cover-1200x900.png"></p>
+<p>用 AI 代理寫程式，常遇到一個麻煩是專案和執行環境其實放在另一台機器上，例如租來的 VPS、家裡的 Linux 主機或公司的開發機。以前要嘛把程式碼搬回自己電腦，要嘛在遠端裝 CLI 版從終端機操作。Google Antigravity 在 2026 年 11 月 17 日推出的 App <strong>2.33.0 版</strong>，加入了「Connect over SSH」功能，App 可以直接透過 SSH 連到遠端 Linux 主機，讓專案、代理、Git worktree 和終端機都在主機上執行。</p>
+<p>官方文件寫明，關掉視窗或讓筆電進入睡眠，主機上的代理會繼續工作，下次連回去再接上就好。不過這個功能對遠端主機有不少限制，最重要的一點是<strong>遠端只支援 64 位元 Linux</strong>，macOS 和 Windows 都不能當遠端主機。阿正老師這篇把需求、連線步驟和常見錯誤整理清楚，也提醒一下安全上要注意的地方。</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">Antigravity 的 SSH 連線是什麼？</a></li>
+<li><a href="#compare">SSH、Remote Control、Remote Agents 差在哪</a></li>
+<li><a href="#require">使用前檢查：本機與遠端主機需求</a></li>
+<li><a href="#connect">連線步驟：從 App 連到 SSH 主機</a></li>
+<li><a href="#window">SSH 視窗裡能做什麼、哪些功能不一樣</a></li>
+<li><a href="#trouble">常見錯誤碼與解法</a></li>
+<li><a href="#safety">安全提醒與移除方式</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、Antigravity 的 SSH 連線是什麼？</h2>
+<p>Antigravity 是 Google 推出的 AI 代理開發平台，有桌面 App、CLI 和各家編輯器的延伸模組。這次的 SSH 功能只在 <strong>Antigravity App</strong> 上提供。連線時，App 會透過電腦上的 OpenSSH 自動在遠端主機安裝一個伺服器程式，之後專案、AI 代理、Git worktree、終端機和各種自訂設定都直接在主機上執行，本機的 App 只負責顯示和操作。</p>
+<p>如果你平常習慣在終端機工作，官方也說明可以改在主機上安裝 Antigravity CLI，自己用 ssh 登入後使用。想了解 Windows 上的 CLI 操作，可參考站上的 <a href="https://pcrookie.com/antigravity-cli-windows-tutorial/" target="_blank">Antigravity CLI 完全教學</a>。</p>
+<img alt="Antigravity 官方文件〈Connect over SSH〉頁面開頭的功能說明" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤 2" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-shot-1.png"><figcaption>圖片來源：antigravity.google，擷取於 2026-11-20</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://antigravity.google/" target="_blank">https://antigravity.google/</a></td>
+</tr>
+<tr>
+<td>本站下載站版本</td>
+<td><span data-software-id="222">2.33.0</span>（發布日期：<span data-software-id="222">2026-11-20</span>）</td>
+</tr>
+<tr>
+<td>SSH 功能所需版本</td>
+<td>Antigravity App 2.33.0 以上（2026 年 11 月 17 日推出）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>本機 App：macOS、Windows、Linux；遠端主機：64 位元 Linux（x86_64 或 arm64）</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>未訂閱 Google AI Pro 或 Ultra 的個人帳號有每週更新的基本額度。Pro 和 Ultra 的額度較高。SSH 說明頁未標示方案限制</td>
+</tr>
+<tr>
+<td>SSH 支援的登入帳號</td>
+<td>個人 Google 帳號、Google Workspace、Pay As You Go、Gemini Enterprise</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td>[<a href="https://pcrookie.com/download/details.php?id=222" target="_blank">本站下載點</a>]。若本站版號低於 SSH 功能需求，請到官方網站取得新版</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>二、SSH、Remote Control、Remote Agents 差在哪</h2>
+<p>Antigravity 現在有三種「遠端」用法，名稱很像，用途不同。官方文件整理的差異如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>代理在哪裡執行</th>
+<th>從哪裡操作</th>
+<th>主機端要準備什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connect over SSH</td>
+<td>你的遠端 Linux 主機</td>
+<td>Antigravity App</td>
+<td>不用另外安裝，App 透過 OpenSSH 自動設定</td>
+</tr>
+<tr>
+<td>Remote Control</td>
+<td>你自己的桌機或伺服器</td>
+<td>網頁瀏覽器</td>
+<td>安裝並登入 App 或 CLI</td>
+</tr>
+<tr>
+<td>Remote Agents（Pro／Ultra）</td>
+<td>Google 代管的環境</td>
+<td>App、CLI 或網頁瀏覽器</td>
+<td>不用，附上程式庫或檔案即可</td>
+</tr>
+</tbody>
+</table></div>
+<p>簡單分辨的方式是看「程式碼和代理放在哪」。專案在自己的 Linux 主機上，想用 App 介面操作，就用 SSH；人在外面想用手機或別台電腦的瀏覽器遙控家裡正在跑的 Antigravity，用 Remote Control；不想自己準備機器，交給 Google 的環境跑，才是 Remote Agents。家裡的電腦是 Mac mini 或 Windows 的讀者，因為不能當 SSH 遠端主機，想遠端操作時要改用 Remote Control。</p>
+<hr>
+<h2>三、使用前檢查：本機與遠端主機需求</h2>
+<p>連線前，先依官方文件逐項確認本機與遠端主機的需求。</p>
+<p> <img fetchpriority="high" border="0" alt="三、使用前檢查：本機與遠端主機需求－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7A98DE59.png">   </p>
+<table>
+<tbody>
+<tr>
+<td>本機電腦</td>
+<td>Antigravity App 2.33.0 以上（macOS、Windows 或 Linux），並安裝 OpenSSH（PATH 裡找得到 ssh 或 ssh.exe，或用環境變數 ANTIGRAVITY_SSH_BIN 指定）</td>
+</tr>
+<tr>
+<td>遠端作業系統</td>
+<td>64 位元 Linux（x86_64 或 arm64），glibc 2.26 以上，例如 Ubuntu 18.04、Debian 10、RHEL 8 以後。macOS、Windows 與使用 musl 的 Linux（例如 Alpine）不支援</td>
+</tr>
+<tr>
+<td>SSH 連接埠轉送</td>
+<td>主機（以及經過的跳板主機）的 sshd_config 要允許 AllowTcpForwarding yes（或 local）</td>
+</tr>
+<tr>
+<td>儲存空間與網路</td>
+<td>主機能連外 HTTPS；家目錄可寫入、可執行，伺服器裝在 ~/.antigravity-hub-server/，代理資料放在 ~/.gemini/</td>
+</tr>
+</tbody>
+</table>
+<div>⚠️ 請只連線到你自己擁有、或已取得管理者授權的主機。公司或學校的伺服器，先確認內部規定是否允許安裝第三方伺服器程式與讓 AI 代理執行指令。     </div>
+<hr>
+<h2>四、連線步驟：從 App 連到 SSH 主機</h2>
+<p>確認需求後，在 Antigravity App 裡依下面四步連線。官方提供三種開啟 SSH 對話框的方式，挑一種習慣的就好。</p>
+<p> <img border="0" alt="四、連線步驟：從 App 連到 SSH 主機－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7E1A3B67.png">   </p>
+<p><strong>Step 1｜開啟 SSH 對話框</strong> 三種方式任選其一。側邊欄（Software Engineering 版面）點 Projects 旁的 Create New Project，選 SSH Host…；或按 Cmd＋Shift＋P（macOS）／Ctrl＋Shift＋P（Windows、Linux）開命令面板，執行 Connect to SSH Host…；也可以用參數 <code>--ssh-host=&lt;主機&gt;</code> 啟動 App。</p>
+<p><strong>Step 2｜選擇或輸入主機</strong> 清單會列出最近連過的主機（Recent）和 ~/.ssh/config 裡設定的主機（SSH Config）。也可以直接輸入主機別名、<code>[使用者@]主機[:埠號]</code> 或 <code>ssh://[使用者@]主機[:埠號]</code>。要用另一份設定檔，點 Choose File…。</p>
+<p><strong>Step 3｜連線並驗證</strong> 按 Connect。Antigravity 會自動使用你的 OpenSSH 金鑰、ssh-agent 和 ProxyJump 設定。在 macOS 和 Linux 上，主機金鑰確認、金鑰密語、密碼、兩步驟驗證碼和安全金鑰觸碰都會在 App 裡提示；Windows 如果沒有跳出這些提示，官方建議先把金鑰載入 ssh-agent，並在終端機手動執行一次 <code>ssh 主機</code>，讓 known_hosts 記錄主機。</p>
+<p><strong>Step 4｜登入 Antigravity 帳號</strong> 標題列顯示「(SSH: 主機)」的新視窗開啟後，依提示登入。登入流程在本機瀏覽器完成，憑證會存到遠端主機上。</p>
+<p>常用的主機建議先寫進 ~/.ssh/config，之後在清單裡直接點選即可。官方文件的範例格式如下（以下 IP 為文件用的範例位址，請換成自己的主機資料）。</p>
+<pre>Host devbox
+HostName 203.0.113.10
+User alice
+Port 22
+IdentityFile ~/.ssh/id_ed25519
+ProxyJump jump.example.com</pre>
+<p>寫了具體名稱的 Host（不含 *、?、! 萬用字元）才會出現在 SSH Config 清單裡；像 <code>Host *</code> 這種萬用規則連線時仍會套用。另外，Antigravity 會在連線指令上強制關閉 ForwardAgent、ForwardX11、ControlMaster 等設定，所以 config 裡這幾項不會生效。</p>
+<hr>
+<h2>五、SSH 視窗裡能做什麼、哪些功能不一樣</h2>
+<p>每台主機會開在獨立視窗，標題列和側邊欄底部都會標示「SSH: 主機」。在這個視窗裡，建立專案時瀏覽的是遠端的檔案系統；代理的工具、終端機、沙盒與權限設定也都在主機上執行。Skills、規則、hooks、MCP 伺服器與外掛，則從主機上的 ~/.gemini/ 和專案資料夾載入。</p>
+<p><img border="0" alt="五、SSH 視窗裡能做什麼、哪些功能不一樣－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_46D6A984.png"> </p>
+<p>跟本機視窗相比，下面幾個功能不一樣。</p>
+<ul>
+<li><strong>內建瀏覽器</strong> 側邊的瀏覽器面板不會出現，網址會用本機的預設瀏覽器開啟。/browser 指令連的是遠端主機上開啟遠端偵錯的 Chrome。</li>
+<li><strong>語音與媒體</strong> 語音模式和聽寫會詢問是否允許主機使用麥克風，鏡頭與螢幕存取維持停用。</li>
+<li><strong>本機檔案動作</strong> 「在 IDE 中開啟」「在 Finder（或檔案總管）中顯示」等本機操作會隱藏。</li>
+</ul>
+<p>斷線或關閉視窗後，主機上的代理會不會停，官方整理如下表。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>視窗與 SSH 通道</th>
+<th>主機上的伺服器與代理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>關閉視窗</td>
+<td>關閉並中斷 SSH</td>
+<td>繼續執行，隨時可以連回去</td>
+</tr>
+<tr>
+<td>筆電睡眠或網路中斷</td>
+<td>自動重試，或手動按 Reconnect</td>
+<td>繼續執行，恢復連線後接回</td>
+</tr>
+<tr>
+<td>重新啟動或更新 App</td>
+<td>重新開啟 SSH 視窗並連線；如果要更新忙碌中的遠端伺服器，App 會先詢問 Restart 或 Later</td>
+<td>除非為了更新而重啟，否則繼續執行</td>
+</tr>
+<tr>
+<td>執行 Stop SSH Server…</td>
+<td>關閉並中斷 SSH</td>
+<td>停止主機上的代理與伺服器</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>想回到本機工作又不想斷線，點側邊欄的「SSH: 主機」選 This Computer，或從命令面板執行 Switch to This Computer。</p>
+<hr>
+<h2>六、常見錯誤碼與解法</h2>
+<p>連線失敗時，點通知上的 Show Details 可以看到錯誤碼。主機端的伺服器紀錄放在 ~/.antigravity-hub-server/data/ 底下的 ls-*.log。官方列出的常見錯誤整理如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>錯誤碼</th>
+<th>原因</th>
+<th>處理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUTH_FAILED</td>
+<td>SSH 驗證失敗</td>
+<td>先在終端機測試 ssh 主機，檢查 IdentityFile 或用 ssh-add -l 確認金鑰</td>
+</tr>
+<tr>
+<td>HOSTKEY_REJECTED</td>
+<td>known_hosts 缺少或與主機金鑰不符</td>
+<td>先向管理者核對主機金鑰指紋。確認是預期的金鑰變更後，再用 ssh-keygen -R 主機移除舊紀錄並重新驗證</td>
+</tr>
+<tr>
+<td>FORWARDING_PROHIBITED</td>
+<td>主機關閉了連接埠轉送</td>
+<td>請目標主機與跳板主機的管理者確認 sshd_config 是否允許 AllowTcpForwarding yes 或 local</td>
+</tr>
+<tr>
+<td>UNSUPPORTED_HOST</td>
+<td>主機不是 64 位元 Linux、glibc 太舊或使用 musl</td>
+<td>換成符合需求的 Linux 主機</td>
+</tr>
+<tr>
+<td>CONNECTION_FAILED／CONNECTION_CLOSED</td>
+<td>找不到 ssh 程式、主機連不到或通道中斷</td>
+<td>檢查 ssh -V、ssh 主機，再按 Reconnect</td>
+</tr>
+<tr>
+<td>INSTALL_FAILED</td>
+<td>遠端伺服器安裝失敗</td>
+<td>用 df -h ~ 檢查空間、確認家目錄不是 noexec，並讓 ~/.bashrc 在非互動模式下不輸出文字</td>
+</tr>
+<tr>
+<td>SSH_CONFIG_INVALID</td>
+<td>設定檔有錯、權限不安全或編碼不對</td>
+<td>修正提示的那一行；自訂設定檔在 macOS、Linux 上用 chmod 600</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>官方文件另外列了 INVALID_DESTINATION（主機格式錯誤）、SHARED_HOME_UNSUPPORTED（另一台共用同一個網路家目錄的主機已在執行遠端伺服器）、LS_START_FAILED 等錯誤碼，遇到時可以到官方〈Connect over SSH〉頁面的 Troubleshooting 段落查詢。</p>
+<hr>
+<h2>七、安全提醒與移除方式</h2>
+<p>透過 SSH 連線後，AI 代理執行的指令會直接作用在遠端主機上，而且關掉視窗後代理還會繼續跑。阿正老師建議注意以下幾點。</p>
+<ul>
+<li>先用測試機或不含正式資料的主機熟悉操作，不要一開始就連正式環境的伺服器。</li>
+<li>確認 Antigravity 的權限與終端機沙盒設定，需要時讓代理在執行指令前先徵求同意。</li>
+<li>用完確定不再需要代理運作時，執行 Stop SSH Server… 停止主機上的伺服器與代理，不要只關視窗。</li>
+<li>登入憑證會存在遠端主機上，多人共用的主機要特別留意帳號權限。</li>
+</ul>
+<p>如果之後不想用了，官方說明的移除方式是先執行 Stop SSH Server…，再刪除主機上的 ~/.antigravity-hub-server 資料夾；要連同儲存的對話和設定一起刪掉，再刪除 ~/.gemini。</p>
+<div>
+<br>⚠️ ~/.gemini 也可能存放同一台主機上 Antigravity CLI 的設定與資料，刪除前先確認裡面沒有還要用的內容。 
+</div>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<div>
+<p> 專案放在自己的 Linux 主機或 VPS，想用 App 介面讓 AI 代理工作</p>
+<p>→ <strong>Connect over SSH</strong>。App 更新到 2.33.0 以上，連線前確認遠端主機和 SSH 設定符合需求。</p>
+</div>
+<div>
+<p> 家裡是 Mac 或 Windows 電腦，人在外面想遙控</p>
+<p>→ <strong>Remote Control</strong>。這兩種系統不能當 SSH 遠端主機，改用瀏覽器遙控。</p>
+</div>
+<div>
+<p> 習慣在終端機裡工作</p>
+<p>→ 在主機上裝 <strong>Antigravity CLI</strong>，自己 ssh 登入使用即可。</p>
+</div>
+<p>想多了解 Antigravity 目前的模型與分工方式，可以接著看站上的 <a href="https://pcrookie.com/antigravity-orchestrator-argon-guide/" target="_blank">Gemini Orchestrator 教學</a>；同時用 Antigravity、Claude Code、Codex 的讀者，也可以參考 <a href="https://pcrookie.com/t3-code-guide/" target="_blank">T3 Code 介紹</a>。</p>
+<hr>
+<div>
+<p> 小結：先確認主機是 64 位元 Linux，再談遠端開發</p>
+<p>Antigravity 的 SSH 連線讓程式碼和代理留在主機上，本機只負責操作，關閉 App 的 SSH 視窗或讓本機進入睡眠時，遠端主機上正在執行的代理會繼續工作。連線前請參考第三節，確認遠端系統和連接埠轉送設定。也別忘了，代理在主機上執行的每個指令都是真的，權限設定要先想清楚。</p>
+<p>你會把 Antigravity 連到哪一台主機上用呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><p><img post-id="8628" fifu-featured="1" alt="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-cover-1200x900.png"></p>
+<p>用 AI 代理寫程式，常遇到一個麻煩是專案和執行環境其實放在另一台機器上，例如租來的 VPS、家裡的 Linux 主機或公司的開發機。以前要嘛把程式碼搬回自己電腦，要嘛在遠端裝 CLI 版從終端機操作。Google Antigravity 在 2026 年 11 月 17 日推出的 App <strong>2.33.0 版</strong>，加入了「Connect over SSH」功能，App 可以直接透過 SSH 連到遠端 Linux 主機，讓專案、代理、Git worktree 和終端機都在主機上執行。</p>
+<p>官方文件寫明，關掉視窗或讓筆電進入睡眠，主機上的代理會繼續工作，下次連回去再接上就好。不過這個功能對遠端主機有不少限制，最重要的一點是<strong>遠端只支援 64 位元 Linux</strong>，macOS 和 Windows 都不能當遠端主機。阿正老師這篇把需求、連線步驟和常見錯誤整理清楚，也提醒一下安全上要注意的地方。</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">Antigravity 的 SSH 連線是什麼？</a></li>
+<li><a href="#compare">SSH、Remote Control、Remote Agents 差在哪</a></li>
+<li><a href="#require">使用前檢查：本機與遠端主機需求</a></li>
+<li><a href="#connect">連線步驟：從 App 連到 SSH 主機</a></li>
+<li><a href="#window">SSH 視窗裡能做什麼、哪些功能不一樣</a></li>
+<li><a href="#trouble">常見錯誤碼與解法</a></li>
+<li><a href="#safety">安全提醒與移除方式</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、Antigravity 的 SSH 連線是什麼？</h2>
+<p>Antigravity 是 Google 推出的 AI 代理開發平台，有桌面 App、CLI 和各家編輯器的延伸模組。這次的 SSH 功能只在 <strong>Antigravity App</strong> 上提供。連線時，App 會透過電腦上的 OpenSSH 自動在遠端主機安裝一個伺服器程式，之後專案、AI 代理、Git worktree、終端機和各種自訂設定都直接在主機上執行，本機的 App 只負責顯示和操作。</p>
+<p>如果你平常習慣在終端機工作，官方也說明可以改在主機上安裝 Antigravity CLI，自己用 ssh 登入後使用。想了解 Windows 上的 CLI 操作，可參考站上的 <a href="https://pcrookie.com/antigravity-cli-windows-tutorial/" target="_blank">Antigravity CLI 完全教學</a>。</p>
+<img alt="Antigravity 官方文件〈Connect over SSH〉頁面開頭的功能說明" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤 2" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-shot-1.png"><figcaption>圖片來源：antigravity.google，擷取於 2026-11-20</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://antigravity.google/" target="_blank">https://antigravity.google/</a></td>
+</tr>
+<tr>
+<td>本站下載站版本</td>
+<td><span data-software-id="222">2.33.0</span>（發布日期：<span data-software-id="222">2026-11-20</span>）</td>
+</tr>
+<tr>
+<td>SSH 功能所需版本</td>
+<td>Antigravity App 2.33.0 以上（2026 年 11 月 17 日推出）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>本機 App：macOS、Windows、Linux；遠端主機：64 位元 Linux（x86_64 或 arm64）</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>未訂閱 Google AI Pro 或 Ultra 的個人帳號有每週更新的基本額度。Pro 和 Ultra 的額度較高。SSH 說明頁未標示方案限制</td>
+</tr>
+<tr>
+<td>SSH 支援的登入帳號</td>
+<td>個人 Google 帳號、Google Workspace、Pay As You Go、Gemini Enterprise</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td>[<a href="https://pcrookie.com/download/details.php?id=222" target="_blank">本站下載點</a>]。若本站版號低於 SSH 功能需求，請到官方網站取得新版</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>二、SSH、Remote Control、Remote Agents 差在哪</h2>
+<p>Antigravity 現在有三種「遠端」用法，名稱很像，用途不同。官方文件整理的差異如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>代理在哪裡執行</th>
+<th>從哪裡操作</th>
+<th>主機端要準備什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connect over SSH</td>
+<td>你的遠端 Linux 主機</td>
+<td>Antigravity App</td>
+<td>不用另外安裝，App 透過 OpenSSH 自動設定</td>
+</tr>
+<tr>
+<td>Remote Control</td>
+<td>你自己的桌機或伺服器</td>
+<td>網頁瀏覽器</td>
+<td>安裝並登入 App 或 CLI</td>
+</tr>
+<tr>
+<td>Remote Agents（Pro／Ultra）</td>
+<td>Google 代管的環境</td>
+<td>App、CLI 或網頁瀏覽器</td>
+<td>不用，附上程式庫或檔案即可</td>
+</tr>
+</tbody>
+</table></div>
+<p>簡單分辨的方式是看「程式碼和代理放在哪」。專案在自己的 Linux 主機上，想用 App 介面操作，就用 SSH；人在外面想用手機或別台電腦的瀏覽器遙控家裡正在跑的 Antigravity，用 Remote Control；不想自己準備機器，交給 Google 的環境跑，才是 Remote Agents。家裡的電腦是 Mac mini 或 Windows 的讀者，因為不能當 SSH 遠端主機，想遠端操作時要改用 Remote Control。</p>
+<hr>
+<h2>三、使用前檢查：本機與遠端主機需求</h2>
+<p>連線前，先依官方文件逐項確認本機與遠端主機的需求。</p>
+<p> <img fetchpriority="high" border="0" alt="三、使用前檢查：本機與遠端主機需求－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7A98DE59.png">   </p>
+<table>
+<tbody>
+<tr>
+<td>本機電腦</td>
+<td>Antigravity App 2.33.0 以上（macOS、Windows 或 Linux），並安裝 OpenSSH（PATH 裡找得到 ssh 或 ssh.exe，或用環境變數 ANTIGRAVITY_SSH_BIN 指定）</td>
+</tr>
+<tr>
+<td>遠端作業系統</td>
+<td>64 位元 Linux（x86_64 或 arm64），glibc 2.26 以上，例如 Ubuntu 18.04、Debian 10、RHEL 8 以後。macOS、Windows 與使用 musl 的 Linux（例如 Alpine）不支援</td>
+</tr>
+<tr>
+<td>SSH 連接埠轉送</td>
+<td>主機（以及經過的跳板主機）的 sshd_config 要允許 AllowTcpForwarding yes（或 local）</td>
+</tr>
+<tr>
+<td>儲存空間與網路</td>
+<td>主機能連外 HTTPS；家目錄可寫入、可執行，伺服器裝在 ~/.antigravity-hub-server/，代理資料放在 ~/.gemini/</td>
+</tr>
+</tbody>
+</table>
+<div>⚠️ 請只連線到你自己擁有、或已取得管理者授權的主機。公司或學校的伺服器，先確認內部規定是否允許安裝第三方伺服器程式與讓 AI 代理執行指令。     </div>
+<hr>
+<h2>四、連線步驟：從 App 連到 SSH 主機</h2>
+<p>確認需求後，在 Antigravity App 裡依下面四步連線。官方提供三種開啟 SSH 對話框的方式，挑一種習慣的就好。</p>
+<p> <img border="0" alt="四、連線步驟：從 App 連到 SSH 主機－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7E1A3B67.png">   </p>
+<p><strong>Step 1｜開啟 SSH 對話框</strong> 三種方式任選其一。側邊欄（Software Engineering 版面）點 Projects 旁的 Create New Project，選 SSH Host…；或按 Cmd＋Shift＋P（macOS）／Ctrl＋Shift＋P（Windows、Linux）開命令面板，執行 Connect to SSH Host…；也可以用參數 <code>--ssh-host=&lt;主機&gt;</code> 啟動 App。</p>
+<p><strong>Step 2｜選擇或輸入主機</strong> 清單會列出最近連過的主機（Recent）和 ~/.ssh/config 裡設定的主機（SSH Config）。也可以直接輸入主機別名、<code>[使用者@]主機[:埠號]</code> 或 <code>ssh://[使用者@]主機[:埠號]</code>。要用另一份設定檔，點 Choose File…。</p>
+<p><strong>Step 3｜連線並驗證</strong> 按 Connect。Antigravity 會自動使用你的 OpenSSH 金鑰、ssh-agent 和 ProxyJump 設定。在 macOS 和 Linux 上，主機金鑰確認、金鑰密語、密碼、兩步驟驗證碼和安全金鑰觸碰都會在 App 裡提示；Windows 如果沒有跳出這些提示，官方建議先把金鑰載入 ssh-agent，並在終端機手動執行一次 <code>ssh 主機</code>，讓 known_hosts 記錄主機。</p>
+<p><strong>Step 4｜登入 Antigravity 帳號</strong> 標題列顯示「(SSH: 主機)」的新視窗開啟後，依提示登入。登入流程在本機瀏覽器完成，憑證會存到遠端主機上。</p>
+<p>常用的主機建議先寫進 ~/.ssh/config，之後在清單裡直接點選即可。官方文件的範例格式如下（以下 IP 為文件用的範例位址，請換成自己的主機資料）。</p>
+<pre>Host devbox
+HostName 203.0.113.10
+User alice
+Port 22
+IdentityFile ~/.ssh/id_ed25519
+ProxyJump jump.example.com</pre>
+<p>寫了具體名稱的 Host（不含 *、?、! 萬用字元）才會出現在 SSH Config 清單裡；像 <code>Host *</code> 這種萬用規則連線時仍會套用。另外，Antigravity 會在連線指令上強制關閉 ForwardAgent、ForwardX11、ControlMaster 等設定，所以 config 裡這幾項不會生效。</p>
+<hr>
+<h2>五、SSH 視窗裡能做什麼、哪些功能不一樣</h2>
+<p>每台主機會開在獨立視窗，標題列和側邊欄底部都會標示「SSH: 主機」。在這個視窗裡，建立專案時瀏覽的是遠端的檔案系統；代理的工具、終端機、沙盒與權限設定也都在主機上執行。Skills、規則、hooks、MCP 伺服器與外掛，則從主機上的 ~/.gemini/ 和專案資料夾載入。</p>
+<p><img border="0" alt="五、SSH 視窗裡能做什麼、哪些功能不一樣－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_46D6A984.png"> </p>
+<p>跟本機視窗相比，下面幾個功能不一樣。</p>
+<ul>
+<li><strong>內建瀏覽器</strong> 側邊的瀏覽器面板不會出現，網址會用本機的預設瀏覽器開啟。/browser 指令連的是遠端主機上開啟遠端偵錯的 Chrome。</li>
+<li><strong>語音與媒體</strong> 語音模式和聽寫會詢問是否允許主機使用麥克風，鏡頭與螢幕存取維持停用。</li>
+<li><strong>本機檔案動作</strong> 「在 IDE 中開啟」「在 Finder（或檔案總管）中顯示」等本機操作會隱藏。</li>
+</ul>
+<p>斷線或關閉視窗後，主機上的代理會不會停，官方整理如下表。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>視窗與 SSH 通道</th>
+<th>主機上的伺服器與代理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>關閉視窗</td>
+<td>關閉並中斷 SSH</td>
+<td>繼續執行，隨時可以連回去</td>
+</tr>
+<tr>
+<td>筆電睡眠或網路中斷</td>
+<td>自動重試，或手動按 Reconnect</td>
+<td>繼續執行，恢復連線後接回</td>
+</tr>
+<tr>
+<td>重新啟動或更新 App</td>
+<td>重新開啟 SSH 視窗並連線；如果要更新忙碌中的遠端伺服器，App 會先詢問 Restart 或 Later</td>
+<td>除非為了更新而重啟，否則繼續執行</td>
+</tr>
+<tr>
+<td>執行 Stop SSH Server…</td>
+<td>關閉並中斷 SSH</td>
+<td>停止主機上的代理與伺服器</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>想回到本機工作又不想斷線，點側邊欄的「SSH: 主機」選 This Computer，或從命令面板執行 Switch to This Computer。</p>
+<hr>
+<h2>六、常見錯誤碼與解法</h2>
+<p>連線失敗時，點通知上的 Show Details 可以看到錯誤碼。主機端的伺服器紀錄放在 ~/.antigravity-hub-server/data/ 底下的 ls-*.log。官方列出的常見錯誤整理如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>錯誤碼</th>
+<th>原因</th>
+<th>處理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUTH_FAILED</td>
+<td>SSH 驗證失敗</td>
+<td>先在終端機測試 ssh 主機，檢查 IdentityFile 或用 ssh-add -l 確認金鑰</td>
+</tr>
+<tr>
+<td>HOSTKEY_REJECTED</td>
+<td>known_hosts 缺少或與主機金鑰不符</td>
+<td>先向管理者核對主機金鑰指紋。確認是預期的金鑰變更後，再用 ssh-keygen -R 主機移除舊紀錄並重新驗證</td>
+</tr>
+<tr>
+<td>FORWARDING_PROHIBITED</td>
+<td>主機關閉了連接埠轉送</td>
+<td>請目標主機與跳板主機的管理者確認 sshd_config 是否允許 AllowTcpForwarding yes 或 local</td>
+</tr>
+<tr>
+<td>UNSUPPORTED_HOST</td>
+<td>主機不是 64 位元 Linux、glibc 太舊或使用 musl</td>
+<td>換成符合需求的 Linux 主機</td>
+</tr>
+<tr>
+<td>CONNECTION_FAILED／CONNECTION_CLOSED</td>
+<td>找不到 ssh 程式、主機連不到或通道中斷</td>
+<td>檢查 ssh -V、ssh 主機，再按 Reconnect</td>
+</tr>
+<tr>
+<td>INSTALL_FAILED</td>
+<td>遠端伺服器安裝失敗</td>
+<td>用 df -h ~ 檢查空間、確認家目錄不是 noexec，並讓 ~/.bashrc 在非互動模式下不輸出文字</td>
+</tr>
+<tr>
+<td>SSH_CONFIG_INVALID</td>
+<td>設定檔有錯、權限不安全或編碼不對</td>
+<td>修正提示的那一行；自訂設定檔在 macOS、Linux 上用 chmod 600</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>官方文件另外列了 INVALID_DESTINATION（主機格式錯誤）、SHARED_HOME_UNSUPPORTED（另一台共用同一個網路家目錄的主機已在執行遠端伺服器）、LS_START_FAILED 等錯誤碼，遇到時可以到官方〈Connect over SSH〉頁面的 Troubleshooting 段落查詢。</p>
+<hr>
+<h2>七、安全提醒與移除方式</h2>
+<p>透過 SSH 連線後，AI 代理執行的指令會直接作用在遠端主機上，而且關掉視窗後代理還會繼續跑。阿正老師建議注意以下幾點。</p>
+<ul>
+<li>先用測試機或不含正式資料的主機熟悉操作，不要一開始就連正式環境的伺服器。</li>
+<li>確認 Antigravity 的權限與終端機沙盒設定，需要時讓代理在執行指令前先徵求同意。</li>
+<li>用完確定不再需要代理運作時，執行 Stop SSH Server… 停止主機上的伺服器與代理，不要只關視窗。</li>
+<li>登入憑證會存在遠端主機上，多人共用的主機要特別留意帳號權限。</li>
+</ul>
+<p>如果之後不想用了，官方說明的移除方式是先執行 Stop SSH Server…，再刪除主機上的 ~/.antigravity-hub-server 資料夾；要連同儲存的對話和設定一起刪掉，再刪除 ~/.gemini。</p>
+<div>
+<br>⚠️ ~/.gemini 也可能存放同一台主機上 Antigravity CLI 的設定與資料，刪除前先確認裡面沒有還要用的內容。 
+</div>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<div>
+<p> 專案放在自己的 Linux 主機或 VPS，想用 App 介面讓 AI 代理工作</p>
+<p>→ <strong>Connect over SSH</strong>。App 更新到 2.33.0 以上，連線前確認遠端主機和 SSH 設定符合需求。</p>
+</div>
+<div>
+<p> 家裡是 Mac 或 Windows 電腦，人在外面想遙控</p>
+<p>→ <strong>Remote Control</strong>。這兩種系統不能當 SSH 遠端主機，改用瀏覽器遙控。</p>
+</div>
+<div>
+<p> 習慣在終端機裡工作</p>
+<p>→ 在主機上裝 <strong>Antigravity CLI</strong>，自己 ssh 登入使用即可。</p>
+</div>
+<p>想多了解 Antigravity 目前的模型與分工方式，可以接著看站上的 <a href="https://pcrookie.com/antigravity-orchestrator-argon-guide/" target="_blank">Gemini Orchestrator 教學</a>；同時用 Antigravity、Claude Code、Codex 的讀者，也可以參考 <a href="https://pcrookie.com/t3-code-guide/" target="_blank">T3 Code 介紹</a>。</p>
+<hr>
+<div>
+<p> 小結：先確認主機是 64 位元 Linux，再談遠端開發</p>
+<p>Antigravity 的 SSH 連線讓程式碼和代理留在主機上，本機只負責操作，關閉 App 的 SSH 視窗或讓本機進入睡眠時，遠端主機上正在執行的代理會繼續工作。連線前請參考第三節，確認遠端系統和連接埠轉送設定。也別忘了，代理在主機上執行的每個指令都是真的，權限設定要先想清楚。</p>
+<p>你會把 Antigravity 連到哪一台主機上用呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><p><img post-id="8628" fifu-featured="1" alt="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-cover-1200x900.png"></p>
+<p>用 AI 代理寫程式，常遇到一個麻煩是專案和執行環境其實放在另一台機器上，例如租來的 VPS、家裡的 Linux 主機或公司的開發機。以前要嘛把程式碼搬回自己電腦，要嘛在遠端裝 CLI 版從終端機操作。Google Antigravity 在 2026 年 11 月 17 日推出的 App <strong>2.33.0 版</strong>，加入了「Connect over SSH」功能，App 可以直接透過 SSH 連到遠端 Linux 主機，讓專案、代理、Git worktree 和終端機都在主機上執行。</p>
+<p>官方文件寫明，關掉視窗或讓筆電進入睡眠，主機上的代理會繼續工作，下次連回去再接上就好。不過這個功能對遠端主機有不少限制，最重要的一點是<strong>遠端只支援 64 位元 Linux</strong>，macOS 和 Windows 都不能當遠端主機。阿正老師這篇把需求、連線步驟和常見錯誤整理清楚，也提醒一下安全上要注意的地方。</p>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">Antigravity 的 SSH 連線是什麼？</a></li>
+<li><a href="#compare">SSH、Remote Control、Remote Agents 差在哪</a></li>
+<li><a href="#require">使用前檢查：本機與遠端主機需求</a></li>
+<li><a href="#connect">連線步驟：從 App 連到 SSH 主機</a></li>
+<li><a href="#window">SSH 視窗裡能做什麼、哪些功能不一樣</a></li>
+<li><a href="#trouble">常見錯誤碼與解法</a></li>
+<li><a href="#safety">安全提醒與移除方式</a></li>
+<li><a href="#summary">阿正老師的總結</a></li>
+</ol></div>
+<hr>
+<h2>一、Antigravity 的 SSH 連線是什麼？</h2>
+<p>Antigravity 是 Google 推出的 AI 代理開發平台，有桌面 App、CLI 和各家編輯器的延伸模組。這次的 SSH 功能只在 <strong>Antigravity App</strong> 上提供。連線時，App 會透過電腦上的 OpenSSH 自動在遠端主機安裝一個伺服器程式，之後專案、AI 代理、Git worktree、終端機和各種自訂設定都直接在主機上執行，本機的 App 只負責顯示和操作。</p>
+<p>如果你平常習慣在終端機工作，官方也說明可以改在主機上安裝 Antigravity CLI，自己用 ssh 登入後使用。想了解 Windows 上的 CLI 操作，可參考站上的 <a href="https://pcrookie.com/antigravity-cli-windows-tutorial/" target="_blank">Antigravity CLI 完全教學</a>。</p>
+<img alt="Antigravity 官方文件〈Connect over SSH〉頁面開頭的功能說明" title="Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤 2" src="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-shot-1.png"><figcaption>圖片來源：antigravity.google，擷取於 2026-11-20</figcaption>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://antigravity.google/" target="_blank">https://antigravity.google/</a></td>
+</tr>
+<tr>
+<td>本站下載站版本</td>
+<td><span data-software-id="222">2.33.0</span>（發布日期：<span data-software-id="222">2026-11-20</span>）</td>
+</tr>
+<tr>
+<td>SSH 功能所需版本</td>
+<td>Antigravity App 2.33.0 以上（2026 年 11 月 17 日推出）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>本機 App：macOS、Windows、Linux；遠端主機：64 位元 Linux（x86_64 或 arm64）</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>未訂閱 Google AI Pro 或 Ultra 的個人帳號有每週更新的基本額度。Pro 和 Ultra 的額度較高。SSH 說明頁未標示方案限制</td>
+</tr>
+<tr>
+<td>SSH 支援的登入帳號</td>
+<td>個人 Google 帳號、Google Workspace、Pay As You Go、Gemini Enterprise</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td>[<a href="https://pcrookie.com/download/details.php?id=222" target="_blank">本站下載點</a>]。若本站版號低於 SSH 功能需求，請到官方網站取得新版</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>二、SSH、Remote Control、Remote Agents 差在哪</h2>
+<p>Antigravity 現在有三種「遠端」用法，名稱很像，用途不同。官方文件整理的差異如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>代理在哪裡執行</th>
+<th>從哪裡操作</th>
+<th>主機端要準備什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connect over SSH</td>
+<td>你的遠端 Linux 主機</td>
+<td>Antigravity App</td>
+<td>不用另外安裝，App 透過 OpenSSH 自動設定</td>
+</tr>
+<tr>
+<td>Remote Control</td>
+<td>你自己的桌機或伺服器</td>
+<td>網頁瀏覽器</td>
+<td>安裝並登入 App 或 CLI</td>
+</tr>
+<tr>
+<td>Remote Agents（Pro／Ultra）</td>
+<td>Google 代管的環境</td>
+<td>App、CLI 或網頁瀏覽器</td>
+<td>不用，附上程式庫或檔案即可</td>
+</tr>
+</tbody>
+</table></div>
+<p>簡單分辨的方式是看「程式碼和代理放在哪」。專案在自己的 Linux 主機上，想用 App 介面操作，就用 SSH；人在外面想用手機或別台電腦的瀏覽器遙控家裡正在跑的 Antigravity，用 Remote Control；不想自己準備機器，交給 Google 的環境跑，才是 Remote Agents。家裡的電腦是 Mac mini 或 Windows 的讀者，因為不能當 SSH 遠端主機，想遠端操作時要改用 Remote Control。</p>
+<hr>
+<h2>三、使用前檢查：本機與遠端主機需求</h2>
+<p>連線前，先依官方文件逐項確認本機與遠端主機的需求。</p>
+<p> <img fetchpriority="high" border="0" alt="三、使用前檢查：本機與遠端主機需求－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7A98DE59.png">   </p>
+<table>
+<tbody>
+<tr>
+<td>本機電腦</td>
+<td>Antigravity App 2.33.0 以上（macOS、Windows 或 Linux），並安裝 OpenSSH（PATH 裡找得到 ssh 或 ssh.exe，或用環境變數 ANTIGRAVITY_SSH_BIN 指定）</td>
+</tr>
+<tr>
+<td>遠端作業系統</td>
+<td>64 位元 Linux（x86_64 或 arm64），glibc 2.26 以上，例如 Ubuntu 18.04、Debian 10、RHEL 8 以後。macOS、Windows 與使用 musl 的 Linux（例如 Alpine）不支援</td>
+</tr>
+<tr>
+<td>SSH 連接埠轉送</td>
+<td>主機（以及經過的跳板主機）的 sshd_config 要允許 AllowTcpForwarding yes（或 local）</td>
+</tr>
+<tr>
+<td>儲存空間與網路</td>
+<td>主機能連外 HTTPS；家目錄可寫入、可執行，伺服器裝在 ~/.antigravity-hub-server/，代理資料放在 ~/.gemini/</td>
+</tr>
+</tbody>
+</table>
+<div>⚠️ 請只連線到你自己擁有、或已取得管理者授權的主機。公司或學校的伺服器，先確認內部規定是否允許安裝第三方伺服器程式與讓 AI 代理執行指令。     </div>
+<hr>
+<h2>四、連線步驟：從 App 連到 SSH 主機</h2>
+<p>確認需求後，在 Antigravity App 裡依下面四步連線。官方提供三種開啟 SSH 對話框的方式，挑一種習慣的就好。</p>
+<p> <img border="0" alt="四、連線步驟：從 App 連到 SSH 主機－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_7E1A3B67.png">   </p>
+<p><strong>Step 1｜開啟 SSH 對話框</strong> 三種方式任選其一。側邊欄（Software Engineering 版面）點 Projects 旁的 Create New Project，選 SSH Host…；或按 Cmd＋Shift＋P（macOS）／Ctrl＋Shift＋P（Windows、Linux）開命令面板，執行 Connect to SSH Host…；也可以用參數 <code>--ssh-host=&lt;主機&gt;</code> 啟動 App。</p>
+<p><strong>Step 2｜選擇或輸入主機</strong> 清單會列出最近連過的主機（Recent）和 ~/.ssh/config 裡設定的主機（SSH Config）。也可以直接輸入主機別名、<code>[使用者@]主機[:埠號]</code> 或 <code>ssh://[使用者@]主機[:埠號]</code>。要用另一份設定檔，點 Choose File…。</p>
+<p><strong>Step 3｜連線並驗證</strong> 按 Connect。Antigravity 會自動使用你的 OpenSSH 金鑰、ssh-agent 和 ProxyJump 設定。在 macOS 和 Linux 上，主機金鑰確認、金鑰密語、密碼、兩步驟驗證碼和安全金鑰觸碰都會在 App 裡提示；Windows 如果沒有跳出這些提示，官方建議先把金鑰載入 ssh-agent，並在終端機手動執行一次 <code>ssh 主機</code>，讓 known_hosts 記錄主機。</p>
+<p><strong>Step 4｜登入 Antigravity 帳號</strong> 標題列顯示「(SSH: 主機)」的新視窗開啟後，依提示登入。登入流程在本機瀏覽器完成，憑證會存到遠端主機上。</p>
+<p>常用的主機建議先寫進 ~/.ssh/config，之後在清單裡直接點選即可。官方文件的範例格式如下（以下 IP 為文件用的範例位址，請換成自己的主機資料）。</p>
+<pre>Host devbox
+HostName 203.0.113.10
+User alice
+Port 22
+IdentityFile ~/.ssh/id_ed25519
+ProxyJump jump.example.com</pre>
+<p>寫了具體名稱的 Host（不含 *、?、! 萬用字元）才會出現在 SSH Config 清單裡；像 <code>Host *</code> 這種萬用規則連線時仍會套用。另外，Antigravity 會在連線指令上強制關閉 ForwardAgent、ForwardX11、ControlMaster 等設定，所以 config 裡這幾項不會生效。</p>
+<hr>
+<h2>五、SSH 視窗裡能做什麼、哪些功能不一樣</h2>
+<p>每台主機會開在獨立視窗，標題列和側邊欄底部都會標示「SSH: 主機」。在這個視窗裡，建立專案時瀏覽的是遠端的檔案系統；代理的工具、終端機、沙盒與權限設定也都在主機上執行。Skills、規則、hooks、MCP 伺服器與外掛，則從主機上的 ~/.gemini/ 和專案資料夾載入。</p>
+<p><img border="0" alt="五、SSH 視窗裡能做什麼、哪些功能不一樣－Antigravity 能用 SSH 連遠端 Linux 了！App 設定步驟、主機需求與常見錯誤" src="https://image.pcrookie.com/2026/11/Antigravity--SSH--Linux-App-_3A2A80D3/image_46D6A984.png"> </p>
+<p>跟本機視窗相比，下面幾個功能不一樣。</p>
+<ul>
+<li><strong>內建瀏覽器</strong> 側邊的瀏覽器面板不會出現，網址會用本機的預設瀏覽器開啟。/browser 指令連的是遠端主機上開啟遠端偵錯的 Chrome。</li>
+<li><strong>語音與媒體</strong> 語音模式和聽寫會詢問是否允許主機使用麥克風，鏡頭與螢幕存取維持停用。</li>
+<li><strong>本機檔案動作</strong> 「在 IDE 中開啟」「在 Finder（或檔案總管）中顯示」等本機操作會隱藏。</li>
+</ul>
+<p>斷線或關閉視窗後，主機上的代理會不會停，官方整理如下表。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>視窗與 SSH 通道</th>
+<th>主機上的伺服器與代理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>關閉視窗</td>
+<td>關閉並中斷 SSH</td>
+<td>繼續執行，隨時可以連回去</td>
+</tr>
+<tr>
+<td>筆電睡眠或網路中斷</td>
+<td>自動重試，或手動按 Reconnect</td>
+<td>繼續執行，恢復連線後接回</td>
+</tr>
+<tr>
+<td>重新啟動或更新 App</td>
+<td>重新開啟 SSH 視窗並連線；如果要更新忙碌中的遠端伺服器，App 會先詢問 Restart 或 Later</td>
+<td>除非為了更新而重啟，否則繼續執行</td>
+</tr>
+<tr>
+<td>執行 Stop SSH Server…</td>
+<td>關閉並中斷 SSH</td>
+<td>停止主機上的代理與伺服器</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>想回到本機工作又不想斷線，點側邊欄的「SSH: 主機」選 This Computer，或從命令面板執行 Switch to This Computer。</p>
+<hr>
+<h2>六、常見錯誤碼與解法</h2>
+<p>連線失敗時，點通知上的 Show Details 可以看到錯誤碼。主機端的伺服器紀錄放在 ~/.antigravity-hub-server/data/ 底下的 ls-*.log。官方列出的常見錯誤整理如下。</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>錯誤碼</th>
+<th>原因</th>
+<th>處理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUTH_FAILED</td>
+<td>SSH 驗證失敗</td>
+<td>先在終端機測試 ssh 主機，檢查 IdentityFile 或用 ssh-add -l 確認金鑰</td>
+</tr>
+<tr>
+<td>HOSTKEY_REJECTED</td>
+<td>known_hosts 缺少或與主機金鑰不符</td>
+<td>先向管理者核對主機金鑰指紋。確認是預期的金鑰變更後，再用 ssh-keygen -R 主機移除舊紀錄並重新驗證</td>
+</tr>
+<tr>
+<td>FORWARDING_PROHIBITED</td>
+<td>主機關閉了連接埠轉送</td>
+<td>請目標主機與跳板主機的管理者確認 sshd_config 是否允許 AllowTcpForwarding yes 或 local</td>
+</tr>
+<tr>
+<td>UNSUPPORTED_HOST</td>
+<td>主機不是 64 位元 Linux、glibc 太舊或使用 musl</td>
+<td>換成符合需求的 Linux 主機</td>
+</tr>
+<tr>
+<td>CONNECTION_FAILED／CONNECTION_CLOSED</td>
+<td>找不到 ssh 程式、主機連不到或通道中斷</td>
+<td>檢查 ssh -V、ssh 主機，再按 Reconnect</td>
+</tr>
+<tr>
+<td>INSTALL_FAILED</td>
+<td>遠端伺服器安裝失敗</td>
+<td>用 df -h ~ 檢查空間、確認家目錄不是 noexec，並讓 ~/.bashrc 在非互動模式下不輸出文字</td>
+</tr>
+<tr>
+<td>SSH_CONFIG_INVALID</td>
+<td>設定檔有錯、權限不安全或編碼不對</td>
+<td>修正提示的那一行；自訂設定檔在 macOS、Linux 上用 chmod 600</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>官方文件另外列了 INVALID_DESTINATION（主機格式錯誤）、SHARED_HOME_UNSUPPORTED（另一台共用同一個網路家目錄的主機已在執行遠端伺服器）、LS_START_FAILED 等錯誤碼，遇到時可以到官方〈Connect over SSH〉頁面的 Troubleshooting 段落查詢。</p>
+<hr>
+<h2>七、安全提醒與移除方式</h2>
+<p>透過 SSH 連線後，AI 代理執行的指令會直接作用在遠端主機上，而且關掉視窗後代理還會繼續跑。阿正老師建議注意以下幾點。</p>
+<ul>
+<li>先用測試機或不含正式資料的主機熟悉操作，不要一開始就連正式環境的伺服器。</li>
+<li>確認 Antigravity 的權限與終端機沙盒設定，需要時讓代理在執行指令前先徵求同意。</li>
+<li>用完確定不再需要代理運作時，執行 Stop SSH Server… 停止主機上的伺服器與代理，不要只關視窗。</li>
+<li>登入憑證會存在遠端主機上，多人共用的主機要特別留意帳號權限。</li>
+</ul>
+<p>如果之後不想用了，官方說明的移除方式是先執行 Stop SSH Server…，再刪除主機上的 ~/.antigravity-hub-server 資料夾；要連同儲存的對話和設定一起刪掉，再刪除 ~/.gemini。</p>
+<div>
+<br>⚠️ ~/.gemini 也可能存放同一台主機上 Antigravity CLI 的設定與資料，刪除前先確認裡面沒有還要用的內容。 
+</div>
+<hr>
+<h2>八、阿正老師的總結</h2>
+<div>
+<p> 專案放在自己的 Linux 主機或 VPS，想用 App 介面讓 AI 代理工作</p>
+<p>→ <strong>Connect over SSH</strong>。App 更新到 2.33.0 以上，連線前確認遠端主機和 SSH 設定符合需求。</p>
+</div>
+<div>
+<p> 家裡是 Mac 或 Windows 電腦，人在外面想遙控</p>
+<p>→ <strong>Remote Control</strong>。這兩種系統不能當 SSH 遠端主機，改用瀏覽器遙控。</p>
+</div>
+<div>
+<p> 習慣在終端機裡工作</p>
+<p>→ 在主機上裝 <strong>Antigravity CLI</strong>，自己 ssh 登入使用即可。</p>
+</div>
+<p>想多了解 Antigravity 目前的模型與分工方式，可以接著看站上的 <a href="https://pcrookie.com/antigravity-orchestrator-argon-guide/" target="_blank">Gemini Orchestrator 教學</a>；同時用 Antigravity、Claude Code、Codex 的讀者，也可以參考 <a href="https://pcrookie.com/t3-code-guide/" target="_blank">T3 Code 介紹</a>。</p>
+<hr>
+<div>
+<p> 小結：先確認主機是 64 位元 Linux，再談遠端開發</p>
+<p>Antigravity 的 SSH 連線讓程式碼和代理留在主機上，本機只負責操作，關閉 App 的 SSH 視窗或讓本機進入睡眠時，遠端主機上正在執行的代理會繼續工作。連線前請參考第三節，確認遠端系統和連接埠轉送設定。也別忘了，代理在主機上執行的每個指令都是真的，權限設定要先想清楚。</p>
+<p>你會把 Antigravity 連到哪一台主機上用呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]></content:encoded>
+    <itunes:image href="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-cover-1200x900.png"/>
+          <media:content url="https://image.pcrookie.com/2026/11/antigravity-ssh-remote-linux-guide/antigravity-ssh-remote-linux-guide-cover-1200x900.png" medium="image"/>
+    <pubDate>Thu, 19 Nov 2026 16:00:00 +0000</pubDate>
+  </item><item>
+    <title><![CDATA[WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用]]></title>
+    <link>https://pcrookie.com/wiztree-disk-space-analyzer-guide-2026/</link>
+    <itunes:title><![CDATA[WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用]]></itunes:title>
+    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
+    <itunes:summary>
+      <![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><img post-id="7664" fifu-featured="1" alt="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" title="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/wiztree-disk-space-analyzer-guide-2026/wiztree-disk-space-analyzer-guide-2026-cover.png">
+<p>  </p>
+<p>C 槽突然變紅、跳出「磁碟空間不足」，打開檔案總管一個資料夾一個資料夾點進去看容量，點了半天還是找不到元兇。這時候需要的是一款「磁碟空間分析器」，把整顆硬碟的資料夾和檔案依大小排好，誰在佔空間就一目了然。阿正老師這篇要介紹的 <strong>WizTree</strong>，就是這類工具裡以掃描速度出名的一款。</p>
+<p>WizTree 在 2026 年 11 月 17 日推出 <strong>4.34 版</strong>，官方更新日誌列出幾個實用改進，包括出現在 Windows 11 新版右鍵選單、可以只重新掃描選取的資料夾，以及重複檔案比對與 CSV 匯出入加速。官方同一天也更新了 Mac 版 <strong>WizTreeMac</strong>，並首次推出 Linux 版 <strong>WizTreeNix</strong>，以前「WizTree 只有 Windows 版」的說法已經不成立了。</p>
+<div>&nbsp; </div>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">WizTree 是什麼？為什麼掃描這麼快</a></li>
+<li><a href="#new">4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</a></li>
+<li><a href="#mac-linux">Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</a></li>
+<li><a href="#install">下載、安裝與切換繁體中文</a></li>
+<li><a href="#howto">實戰：三步驟找出佔空間的大檔案</a></li>
+<li><a href="#pros">優缺點整理</a></li>
+<li><a href="#faq">常見問題</a></li>
+<li><a href="#summary">阿正老師的總結與建議</a></li>
+</ol></div>
+<hr>
+<h2>一、WizTree 是什麼？為什麼掃描這麼快</h2>
+<p>WizTree 是英國 Antibody Software 開發的磁碟空間分析工具。掃描完會用<strong>樹狀清單</strong>（Tree View）把資料夾由大到小排好，下方再用<strong>彩色方塊圖</strong>（Treemap）呈現，方塊面積越大代表佔用空間越多。另外還有<strong>檔案檢視</strong>（File View），可以把整顆硬碟所有檔案攤平排序，直接找出最大的單一檔案。</p>
+<p>速度快的原因在於掃描方式。官方說明 Windows 版在有管理員權限時，會直接讀取 NTFS 磁碟的<strong>主檔表（MFT）</strong>，等於直接翻硬碟的「檔案總目錄」，不必一個資料夾一個資料夾去加總大小；沒有管理員權限或不是 NTFS 的磁碟，則改用一般的 Windows API 掃描。這跟站上介紹過的檔案搜尋工具 <a href="https://pcrookie.com/everything/" target="_blank">Everything</a> 用的是同一類原理。</p>
+<p> <img fetchpriority="high" border="0" alt="一、WizTree 是什麼？為什麼掃描這麼快－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_5FADB93F.png">    </p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://diskanalyzer.com/" target="_blank">https://diskanalyzer.com/</a></td>
+</tr>
+<tr>
+<td>本站下載站收錄版本（Windows）</td>
+<td><span data-software-id="163">4.34</span>（發布日期：<span data-software-id="163">2026-11-17</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows XP 以後各版本（32／64 位元，Windows on Arm 透過 Prism 模擬執行）；Mac 版 WizTreeMac 需 macOS 12 以上；Linux 版 WizTreeNix 支援 x86_64 與 aarch64</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>個人使用免費；商業使用需購買 Supporter Code（依員工數 25～500 美元），大型組織另有 750 美元的 Enterprise 授權（官方價格，查證於 2026-11-20）</td>
+</tr>
+<tr>
+<td>介面語言</td>
+<td>多國語言，在 Options → Language 切換；官方語言代碼表列有 Chinese – Traditional（zh_CHT）</td>
+</tr>
+<tr>
+<td>安裝方式</td>
+<td>Windows 有安裝版與免安裝 Portable 版；Mac 為 DMG；Linux 為單一 AppImage 檔</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://diskanalyzer.com/download" target="_blank">官方下載（Windows 4.34、Mac、Linux）</a> ／ <a href="https://pcrookie.com/download/details.php?id=163" target="_blank">本站下載點（Windows）</a></td>
+</tr>
+</tbody>
+</table>
+<div> WizTree 和 Everything 都靠讀 NTFS 主檔表加速，但用途不同。Everything 用檔名找檔案，WizTree 看誰佔了最多空間。想兩套一起學，可以看站上的 <a href="https://pcrookie.com/everything-wiztree-guide-2026/" target="_blank">Everything＋WizTree 完整教學</a>。 </div>
+<hr>
+<h2>二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</h2>
+<p>4.34 是 Windows 版在 2026 年 11 月 17 日推出的更新。阿正老師把官方更新日誌裡跟一般使用者最相關的項目挑出來整理如下。</p>
+<p> <img border="0" alt="二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_4351FD0F.png">      </p>
+<table>
+<tbody>
+<tr>
+<td>Windows 11 新右鍵選單</td>
+<td>4.34 支援 Windows 11 檔案總管的新版右鍵選單。「使用 WizTree 掃描」是選用功能</td>
+</tr>
+<tr>
+<td>只重掃選取資料夾</td>
+<td>樹狀清單右鍵新增「Rescan selected folder」，快捷鍵 Ctrl+F5（以前 Ctrl+F5 跟 F5 一樣是全部重掃）。只更新選取的資料夾和總計，中途取消會維持原本的結果</td>
+</tr>
+<tr>
+<td>掃描與比對加速</td>
+<td>MFT 掃描與解碼加速；File View 分頁的重複檔案偵測（依檔名、大小、日期）加速；CSV 匯入、匯出都變快</td>
+</tr>
+<tr>
+<td>傳統硬碟減少執行緒</td>
+<td>掃描機械式硬碟時會減少同時使用的執行緒，官方說明是避免讀寫頭來回移動反而拖慢速度</td>
+</tr>
+<tr>
+<td>方塊圖縮放動畫</td>
+<td>方塊圖放大縮小改成動畫，不喜歡可到 Options → Tweaks → Animate treemap zoom 關掉</td>
+</tr>
+<tr>
+<td>容量單位可選</td>
+<td>Options → Tweaks 可以選 1 KB 等於 1024 位元組（預設，Windows 算法）或 1000 位元組（Mac 算法）</td>
+</tr>
+<tr>
+<td>其他修正</td>
+<td>修正顯示數百萬個檔案時可能卡頓的問題；讀取受損裝置時的錯誤處理更完善；匯入 Mac、Linux 版產生的 CSV 時的問題也一併修正</td>
+</tr>
+</tbody>
+</table>
+<p>「只重掃選取資料夾」對清理硬碟很實用。以前刪掉一批檔案後想確認空間有沒有釋放，只能整顆重掃；現在選好剛清理的資料夾按 Ctrl+F5，就只更新那一塊。</p>
+<p>  </p>
+<hr>
+<h2>三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</h2>
+<p>官方在 2026 年 9 月 16 日推出 Mac 版 WizTreeMac 1.00，11 月 17 日再更新到 1.01，同一天也推出 Linux 版 WizTreeNix 1.01。這兩個版本有自己的版本編號，官方說明目前功能以 Windows 版 4.34 為基礎，大部分功能都有，<strong>已購買的 Supporter Code 在 Windows、Mac、Linux 三個版本都能用</strong>，不必另外再買。</p>
+<p> <img border="0" alt="三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_02E06DC3.png">    </p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>WizTree（Windows）</th>
+<th>WizTreeMac</th>
+<th>WizTreeNix（Linux）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系統需求</td>
+<td>Windows XP 以後，32／64 位元</td>
+<td>macOS 12 以上，Apple Silicon 與 Intel 通用</td>
+<td>64 位元 x86_64 或 aarch64</td>
+</tr>
+<tr>
+<td>安裝形式</td>
+<td>安裝版、免安裝 zip</td>
+<td>簽署並經公證的 DMG</td>
+<td>單一 AppImage</td>
+</tr>
+<tr>
+<td>快速掃描</td>
+<td>讀 NTFS 主檔表（需管理員）</td>
+<td>macOS 原生多執行緒列舉；NTFS 磁碟可讀主檔表（需管理員）</td>
+<td>NTFS、ext2/3/4、Btrfs 可直接讀檔案表（需 root）</td>
+</tr>
+<tr>
+<td>右鍵選單整合</td>
+<td>檔案總管右鍵選單（選用）</td>
+<td>尚未支援</td>
+<td>GNOME Files、Dolphin、Nemo、Caja、Thunar</td>
+</tr>
+<tr>
+<td>掃描手機（MTP）</td>
+<td>可掃描 Android 手機等 MTP 裝置</td>
+<td>尚未支援</td>
+<td>尚未支援</td>
+</tr>
+<tr>
+<td>預設容量單位</td>
+<td>1 KB＝1024 位元組</td>
+<td>1 KB＝1000 位元組</td>
+<td>1 KB＝1024 位元組</td>
+</tr>
+</tbody>
+</table></div>
+<p>Mac 用戶要注意權限分成兩層。讀取受保護的資料夾需要到「系統設定」給 WizTreeMac「完整磁碟取用權限」，要用管理員身分掃描則另外從掃描按鈕旁的下拉箭頭選擇。另外，官方說明 WizTreeMac 1.01 改用內建的 SMB 函式庫直接讀取網路共用資料夾，官方測試一個 32 萬個檔案的共用資料夾，掃描時間從約 4 分鐘降到約 12 秒，家裡有 NAS 的讀者可以留意這項改進。</p>
+<div>⚠️ 本站下載點收錄的是 Windows 版。Mac、Linux 版請到官方下載頁 <a href="https://diskanalyzer.com/download" target="_blank">diskanalyzer.com/download</a> 取得，官方另提供 Homebrew 安裝指令。 </div>
+<hr>
+<h2>四、下載、安裝與切換繁體中文</h2>
+<p>Windows 版有安裝版和免安裝 Portable 版兩種，想跳過安裝程序可以選 Portable 版。已經裝了舊版的人，官方說明直接執行新版安裝程式即可，不用先移除舊版；Portable 版則把新的 zip 解壓縮覆蓋舊檔案。</p>
+<p> <img border="0" alt="四、下載、安裝與切換繁體中文－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_7391D8B7.png">    </p>
+<p><strong>Step 1｜下載</strong> 要下載 Windows 4.34，請使用<a href="https://diskanalyzer.com/download" target="_blank">官方下載頁</a>。習慣用指令安裝的人，官方下載頁也列出 Windows 套件管理工具的指令 <code>winget install -e --id AntibodySoftware.WizTree</code>。</p>
+<p><strong>Step 2｜安裝或解壓縮</strong> 安裝版依畫面完成安裝；Portable 版解壓縮後直接執行。要用最快的主檔表掃描，需要以管理員身分執行，Windows 跳出「使用者帳戶控制（UAC）」時按「是」。</p>
+<p><strong>Step 3｜切換語言</strong> 點上方選單 Options → Language，切換介面語言。官方 4.34 Portable 壓縮檔包含繁體中文翻譯（zh_CHT），選單中的實際名稱請以畫面為準。</p>
+<div>⚠️ 網路上有不少名稱相近的第三方網站，下載前請認明官方網域 <strong>diskanalyzer.com</strong>，或使用本站下載點，避免下載到被修改過的版本。 </div>
+<hr>
+<h2>五、實戰：三步驟找出佔空間的大檔案</h2>
+<p>WizTree 的操作很單純，照下面三步就能找出佔空間的資料夾與檔案。</p>
+<p> <img border="0" alt="五、實戰：三步驟找出佔空間的大檔案－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_60299374.png">    </p>
+<p><strong>Step 1｜選磁碟、按掃描</strong> 左上角下拉選單選擇要分析的磁碟（例如 C:），按下 Scan（掃描）。4.34 起 WizTree 也會出現在 Windows 11 檔案總管的新版右鍵選單裡；官方比較頁說明這個右鍵項目屬於選用功能，實際出現位置與是否要先在設定中開啟，請以畫面為準。</p>
+<p><strong>Step 2｜看樹狀清單找大資料夾</strong> 掃完後上方的樹狀清單已經由大到小排好，一層一層展開就能找到佔空間的資料夾。常見的大戶有下載資料夾裡忘了刪的安裝檔、影片、遊戲，以及各種暫存資料夾。</p>
+<p><strong>Step 3｜切到檔案檢視找單一大檔</strong> 切到 File View，整顆硬碟的檔案會攤平排序，最大的單一檔案一眼就看到。這個分頁也能找重複檔案，4.34 版官方說明比對速度加快。下方方塊圖則用面積呈現大小，滑鼠移過去會顯示檔名。確認不需要的檔案可以直接在 WizTree 裡按右鍵刪除，刪完選取該資料夾按 Ctrl+F5 重掃，確認空間有沒有釋放。</p>
+<div>⚠️ WizTree 會把系統檔一起列出來。Windows、Program Files 底下不認識的大檔不要隨手刪，像是分頁檔、休眠檔這類系統檔案，應該透過 Windows 設定調整。不確定用途的檔案先查清楚再動手；想清系統暫存與瀏覽器快取，可以搭配站上介紹的 <a href="https://pcrookie.com/bleachbit/" target="_blank">BleachBit</a>。 </div>
+<hr>
+<h2>六、優缺點整理</h2>
+<p>WizTree 的強項和限制都很明確，以下依官方資料整理。</p>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>NTFS 磁碟直接讀主檔表，不必逐一加總資料夾</li>
+<li>樹狀清單、方塊圖、檔案檢視三種方式找大檔</li>
+<li>個人使用免費，Windows 有免安裝版</li>
+<li>4.34 支援 Windows 11 新右鍵選單與 Ctrl+F5 局部重掃</li>
+<li>Windows、Mac、Linux 都有官方版本，授權碼三平台通用</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>最快的掃描方式需要管理員權限</li>
+<li>商業使用需付費購買 Supporter 或 Enterprise 授權</li>
+<li>免費版會顯示贊助按鈕，匯出檔含贊助訊息</li>
+<li>Mac 版尚無 Finder 右鍵整合，Mac、Linux 版都還不能掃 MTP 手機</li>
+</ul></div>
+</div>
+<div> <strong>阿正老師點評：</strong>WizTree 屬於平常用不到、硬碟一滿就很需要的工具。4.34 的 Ctrl+F5 局部重掃，正好補上「刪完檔案要整顆重掃」這個小麻煩。家裡同時有 Windows 和 Mac 的讀者，現在兩邊都能用同一套工具，操作邏輯不用重學。清出空間後想把不常用的資料壓縮收好，可以交給 <a href="https://pcrookie.com/7-zip/" target="_blank">7-Zip</a>。 </div>
+<hr>
+<h2>七、常見問題</h2>
+<p><strong>Q1：WizTree 真的免費嗎？公司電腦可以用嗎？</strong>    <br>個人使用免費。官方定價頁寫明免費版「不允許商業使用」，公司或營利用途要購買 Supporter Code，價格依員工人數從 25 美元到 500 美元（1 到 100 位員工），大型組織另有 750 美元的 Enterprise 授權。以上為 2026-11-20 查證的官方價格，購買前請以官網為準。</p>
+<p><strong>Q2：Ctrl+F5 跟 F5 有什麼不同？</strong>    <br>4.34 起，F5 是整顆重掃，Ctrl+F5 只重掃選取的資料夾（或選取檔案所在的資料夾），並更新那一部分的大小與總計。以前的版本兩個快捷鍵都是全部重掃。</p>
+<p><strong>Q3：沒有用管理員身分執行可以嗎？</strong>    <br>可以用，只是官方說明在沒有管理員權限時，Windows 版會改用一般 API 掃描，不會讀主檔表，速度會慢一些，部分受保護的資料夾也可能讀不到。</p>
+<p><strong>Q4：Mac 版和 Windows 版的授權要分開買嗎？</strong>    <br>不用。官方說明 Supporter Code 在 Windows、Mac、Linux 三個版本都能使用。</p>
+<hr>
+<h2>八、阿正老師的總結與建議</h2>
+<div>
+<p> C 槽空間不足、想找出誰在佔空間</p>
+<p>→ <strong>WizTree</strong>。掃描完依大小排序，搭配 4.34 的局部重掃，清理前後的變化看得很清楚。</p>
+</div>
+<div>
+<p> Mac 或 Linux 也想看磁碟空間分布</p>
+<p>→ <strong>WizTreeMac／WizTreeNix</strong>。到官方下載頁取得，已有 Supporter Code 的人可以直接沿用。</p>
+</div>
+<div>
+<p> 想用檔名快速找到某個檔案</p>
+<p>→ 那要用的是 <strong><a href="https://pcrookie.com/everything/" target="_blank">Everything</a></strong>，跟 WizTree 一起裝，一個找檔案、一個看空間。</p>
+</div>
+<hr>
+<div>
+<p> 小結：先看清楚空間去哪，再決定要刪什麼</p>
+<p>與其急著買更大的硬碟，不如先用 WizTree 掃一次，看看空間到底被什麼佔走。已經在用舊版的讀者，這次更新最值得試的是 Windows 11 右鍵選單和 Ctrl+F5 局部重掃；用 Mac 的讀者，也終於有官方版本可以裝了。</p>
+<p>你的硬碟最常被什麼塞爆呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </itunes:summary>
+    <description>
+      <![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><img post-id="7664" fifu-featured="1" alt="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" title="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/wiztree-disk-space-analyzer-guide-2026/wiztree-disk-space-analyzer-guide-2026-cover.png">
+<p>  </p>
+<p>C 槽突然變紅、跳出「磁碟空間不足」，打開檔案總管一個資料夾一個資料夾點進去看容量，點了半天還是找不到元兇。這時候需要的是一款「磁碟空間分析器」，把整顆硬碟的資料夾和檔案依大小排好，誰在佔空間就一目了然。阿正老師這篇要介紹的 <strong>WizTree</strong>，就是這類工具裡以掃描速度出名的一款。</p>
+<p>WizTree 在 2026 年 11 月 17 日推出 <strong>4.34 版</strong>，官方更新日誌列出幾個實用改進，包括出現在 Windows 11 新版右鍵選單、可以只重新掃描選取的資料夾，以及重複檔案比對與 CSV 匯出入加速。官方同一天也更新了 Mac 版 <strong>WizTreeMac</strong>，並首次推出 Linux 版 <strong>WizTreeNix</strong>，以前「WizTree 只有 Windows 版」的說法已經不成立了。</p>
+<div>&nbsp; </div>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">WizTree 是什麼？為什麼掃描這麼快</a></li>
+<li><a href="#new">4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</a></li>
+<li><a href="#mac-linux">Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</a></li>
+<li><a href="#install">下載、安裝與切換繁體中文</a></li>
+<li><a href="#howto">實戰：三步驟找出佔空間的大檔案</a></li>
+<li><a href="#pros">優缺點整理</a></li>
+<li><a href="#faq">常見問題</a></li>
+<li><a href="#summary">阿正老師的總結與建議</a></li>
+</ol></div>
+<hr>
+<h2>一、WizTree 是什麼？為什麼掃描這麼快</h2>
+<p>WizTree 是英國 Antibody Software 開發的磁碟空間分析工具。掃描完會用<strong>樹狀清單</strong>（Tree View）把資料夾由大到小排好，下方再用<strong>彩色方塊圖</strong>（Treemap）呈現，方塊面積越大代表佔用空間越多。另外還有<strong>檔案檢視</strong>（File View），可以把整顆硬碟所有檔案攤平排序，直接找出最大的單一檔案。</p>
+<p>速度快的原因在於掃描方式。官方說明 Windows 版在有管理員權限時，會直接讀取 NTFS 磁碟的<strong>主檔表（MFT）</strong>，等於直接翻硬碟的「檔案總目錄」，不必一個資料夾一個資料夾去加總大小；沒有管理員權限或不是 NTFS 的磁碟，則改用一般的 Windows API 掃描。這跟站上介紹過的檔案搜尋工具 <a href="https://pcrookie.com/everything/" target="_blank">Everything</a> 用的是同一類原理。</p>
+<p> <img fetchpriority="high" border="0" alt="一、WizTree 是什麼？為什麼掃描這麼快－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_5FADB93F.png">    </p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://diskanalyzer.com/" target="_blank">https://diskanalyzer.com/</a></td>
+</tr>
+<tr>
+<td>本站下載站收錄版本（Windows）</td>
+<td><span data-software-id="163">4.34</span>（發布日期：<span data-software-id="163">2026-11-17</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows XP 以後各版本（32／64 位元，Windows on Arm 透過 Prism 模擬執行）；Mac 版 WizTreeMac 需 macOS 12 以上；Linux 版 WizTreeNix 支援 x86_64 與 aarch64</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>個人使用免費；商業使用需購買 Supporter Code（依員工數 25～500 美元），大型組織另有 750 美元的 Enterprise 授權（官方價格，查證於 2026-11-20）</td>
+</tr>
+<tr>
+<td>介面語言</td>
+<td>多國語言，在 Options → Language 切換；官方語言代碼表列有 Chinese – Traditional（zh_CHT）</td>
+</tr>
+<tr>
+<td>安裝方式</td>
+<td>Windows 有安裝版與免安裝 Portable 版；Mac 為 DMG；Linux 為單一 AppImage 檔</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://diskanalyzer.com/download" target="_blank">官方下載（Windows 4.34、Mac、Linux）</a> ／ <a href="https://pcrookie.com/download/details.php?id=163" target="_blank">本站下載點（Windows）</a></td>
+</tr>
+</tbody>
+</table>
+<div> WizTree 和 Everything 都靠讀 NTFS 主檔表加速，但用途不同。Everything 用檔名找檔案，WizTree 看誰佔了最多空間。想兩套一起學，可以看站上的 <a href="https://pcrookie.com/everything-wiztree-guide-2026/" target="_blank">Everything＋WizTree 完整教學</a>。 </div>
+<hr>
+<h2>二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</h2>
+<p>4.34 是 Windows 版在 2026 年 11 月 17 日推出的更新。阿正老師把官方更新日誌裡跟一般使用者最相關的項目挑出來整理如下。</p>
+<p> <img border="0" alt="二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_4351FD0F.png">      </p>
+<table>
+<tbody>
+<tr>
+<td>Windows 11 新右鍵選單</td>
+<td>4.34 支援 Windows 11 檔案總管的新版右鍵選單。「使用 WizTree 掃描」是選用功能</td>
+</tr>
+<tr>
+<td>只重掃選取資料夾</td>
+<td>樹狀清單右鍵新增「Rescan selected folder」，快捷鍵 Ctrl+F5（以前 Ctrl+F5 跟 F5 一樣是全部重掃）。只更新選取的資料夾和總計，中途取消會維持原本的結果</td>
+</tr>
+<tr>
+<td>掃描與比對加速</td>
+<td>MFT 掃描與解碼加速；File View 分頁的重複檔案偵測（依檔名、大小、日期）加速；CSV 匯入、匯出都變快</td>
+</tr>
+<tr>
+<td>傳統硬碟減少執行緒</td>
+<td>掃描機械式硬碟時會減少同時使用的執行緒，官方說明是避免讀寫頭來回移動反而拖慢速度</td>
+</tr>
+<tr>
+<td>方塊圖縮放動畫</td>
+<td>方塊圖放大縮小改成動畫，不喜歡可到 Options → Tweaks → Animate treemap zoom 關掉</td>
+</tr>
+<tr>
+<td>容量單位可選</td>
+<td>Options → Tweaks 可以選 1 KB 等於 1024 位元組（預設，Windows 算法）或 1000 位元組（Mac 算法）</td>
+</tr>
+<tr>
+<td>其他修正</td>
+<td>修正顯示數百萬個檔案時可能卡頓的問題；讀取受損裝置時的錯誤處理更完善；匯入 Mac、Linux 版產生的 CSV 時的問題也一併修正</td>
+</tr>
+</tbody>
+</table>
+<p>「只重掃選取資料夾」對清理硬碟很實用。以前刪掉一批檔案後想確認空間有沒有釋放，只能整顆重掃；現在選好剛清理的資料夾按 Ctrl+F5，就只更新那一塊。</p>
+<p>  </p>
+<hr>
+<h2>三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</h2>
+<p>官方在 2026 年 9 月 16 日推出 Mac 版 WizTreeMac 1.00，11 月 17 日再更新到 1.01，同一天也推出 Linux 版 WizTreeNix 1.01。這兩個版本有自己的版本編號，官方說明目前功能以 Windows 版 4.34 為基礎，大部分功能都有，<strong>已購買的 Supporter Code 在 Windows、Mac、Linux 三個版本都能用</strong>，不必另外再買。</p>
+<p> <img border="0" alt="三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_02E06DC3.png">    </p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>WizTree（Windows）</th>
+<th>WizTreeMac</th>
+<th>WizTreeNix（Linux）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系統需求</td>
+<td>Windows XP 以後，32／64 位元</td>
+<td>macOS 12 以上，Apple Silicon 與 Intel 通用</td>
+<td>64 位元 x86_64 或 aarch64</td>
+</tr>
+<tr>
+<td>安裝形式</td>
+<td>安裝版、免安裝 zip</td>
+<td>簽署並經公證的 DMG</td>
+<td>單一 AppImage</td>
+</tr>
+<tr>
+<td>快速掃描</td>
+<td>讀 NTFS 主檔表（需管理員）</td>
+<td>macOS 原生多執行緒列舉；NTFS 磁碟可讀主檔表（需管理員）</td>
+<td>NTFS、ext2/3/4、Btrfs 可直接讀檔案表（需 root）</td>
+</tr>
+<tr>
+<td>右鍵選單整合</td>
+<td>檔案總管右鍵選單（選用）</td>
+<td>尚未支援</td>
+<td>GNOME Files、Dolphin、Nemo、Caja、Thunar</td>
+</tr>
+<tr>
+<td>掃描手機（MTP）</td>
+<td>可掃描 Android 手機等 MTP 裝置</td>
+<td>尚未支援</td>
+<td>尚未支援</td>
+</tr>
+<tr>
+<td>預設容量單位</td>
+<td>1 KB＝1024 位元組</td>
+<td>1 KB＝1000 位元組</td>
+<td>1 KB＝1024 位元組</td>
+</tr>
+</tbody>
+</table></div>
+<p>Mac 用戶要注意權限分成兩層。讀取受保護的資料夾需要到「系統設定」給 WizTreeMac「完整磁碟取用權限」，要用管理員身分掃描則另外從掃描按鈕旁的下拉箭頭選擇。另外，官方說明 WizTreeMac 1.01 改用內建的 SMB 函式庫直接讀取網路共用資料夾，官方測試一個 32 萬個檔案的共用資料夾，掃描時間從約 4 分鐘降到約 12 秒，家裡有 NAS 的讀者可以留意這項改進。</p>
+<div>⚠️ 本站下載點收錄的是 Windows 版。Mac、Linux 版請到官方下載頁 <a href="https://diskanalyzer.com/download" target="_blank">diskanalyzer.com/download</a> 取得，官方另提供 Homebrew 安裝指令。 </div>
+<hr>
+<h2>四、下載、安裝與切換繁體中文</h2>
+<p>Windows 版有安裝版和免安裝 Portable 版兩種，想跳過安裝程序可以選 Portable 版。已經裝了舊版的人，官方說明直接執行新版安裝程式即可，不用先移除舊版；Portable 版則把新的 zip 解壓縮覆蓋舊檔案。</p>
+<p> <img border="0" alt="四、下載、安裝與切換繁體中文－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_7391D8B7.png">    </p>
+<p><strong>Step 1｜下載</strong> 要下載 Windows 4.34，請使用<a href="https://diskanalyzer.com/download" target="_blank">官方下載頁</a>。習慣用指令安裝的人，官方下載頁也列出 Windows 套件管理工具的指令 <code>winget install -e --id AntibodySoftware.WizTree</code>。</p>
+<p><strong>Step 2｜安裝或解壓縮</strong> 安裝版依畫面完成安裝；Portable 版解壓縮後直接執行。要用最快的主檔表掃描，需要以管理員身分執行，Windows 跳出「使用者帳戶控制（UAC）」時按「是」。</p>
+<p><strong>Step 3｜切換語言</strong> 點上方選單 Options → Language，切換介面語言。官方 4.34 Portable 壓縮檔包含繁體中文翻譯（zh_CHT），選單中的實際名稱請以畫面為準。</p>
+<div>⚠️ 網路上有不少名稱相近的第三方網站，下載前請認明官方網域 <strong>diskanalyzer.com</strong>，或使用本站下載點，避免下載到被修改過的版本。 </div>
+<hr>
+<h2>五、實戰：三步驟找出佔空間的大檔案</h2>
+<p>WizTree 的操作很單純，照下面三步就能找出佔空間的資料夾與檔案。</p>
+<p> <img border="0" alt="五、實戰：三步驟找出佔空間的大檔案－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_60299374.png">    </p>
+<p><strong>Step 1｜選磁碟、按掃描</strong> 左上角下拉選單選擇要分析的磁碟（例如 C:），按下 Scan（掃描）。4.34 起 WizTree 也會出現在 Windows 11 檔案總管的新版右鍵選單裡；官方比較頁說明這個右鍵項目屬於選用功能，實際出現位置與是否要先在設定中開啟，請以畫面為準。</p>
+<p><strong>Step 2｜看樹狀清單找大資料夾</strong> 掃完後上方的樹狀清單已經由大到小排好，一層一層展開就能找到佔空間的資料夾。常見的大戶有下載資料夾裡忘了刪的安裝檔、影片、遊戲，以及各種暫存資料夾。</p>
+<p><strong>Step 3｜切到檔案檢視找單一大檔</strong> 切到 File View，整顆硬碟的檔案會攤平排序，最大的單一檔案一眼就看到。這個分頁也能找重複檔案，4.34 版官方說明比對速度加快。下方方塊圖則用面積呈現大小，滑鼠移過去會顯示檔名。確認不需要的檔案可以直接在 WizTree 裡按右鍵刪除，刪完選取該資料夾按 Ctrl+F5 重掃，確認空間有沒有釋放。</p>
+<div>⚠️ WizTree 會把系統檔一起列出來。Windows、Program Files 底下不認識的大檔不要隨手刪，像是分頁檔、休眠檔這類系統檔案，應該透過 Windows 設定調整。不確定用途的檔案先查清楚再動手；想清系統暫存與瀏覽器快取，可以搭配站上介紹的 <a href="https://pcrookie.com/bleachbit/" target="_blank">BleachBit</a>。 </div>
+<hr>
+<h2>六、優缺點整理</h2>
+<p>WizTree 的強項和限制都很明確，以下依官方資料整理。</p>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>NTFS 磁碟直接讀主檔表，不必逐一加總資料夾</li>
+<li>樹狀清單、方塊圖、檔案檢視三種方式找大檔</li>
+<li>個人使用免費，Windows 有免安裝版</li>
+<li>4.34 支援 Windows 11 新右鍵選單與 Ctrl+F5 局部重掃</li>
+<li>Windows、Mac、Linux 都有官方版本，授權碼三平台通用</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>最快的掃描方式需要管理員權限</li>
+<li>商業使用需付費購買 Supporter 或 Enterprise 授權</li>
+<li>免費版會顯示贊助按鈕，匯出檔含贊助訊息</li>
+<li>Mac 版尚無 Finder 右鍵整合，Mac、Linux 版都還不能掃 MTP 手機</li>
+</ul></div>
+</div>
+<div> <strong>阿正老師點評：</strong>WizTree 屬於平常用不到、硬碟一滿就很需要的工具。4.34 的 Ctrl+F5 局部重掃，正好補上「刪完檔案要整顆重掃」這個小麻煩。家裡同時有 Windows 和 Mac 的讀者，現在兩邊都能用同一套工具，操作邏輯不用重學。清出空間後想把不常用的資料壓縮收好，可以交給 <a href="https://pcrookie.com/7-zip/" target="_blank">7-Zip</a>。 </div>
+<hr>
+<h2>七、常見問題</h2>
+<p><strong>Q1：WizTree 真的免費嗎？公司電腦可以用嗎？</strong>    <br>個人使用免費。官方定價頁寫明免費版「不允許商業使用」，公司或營利用途要購買 Supporter Code，價格依員工人數從 25 美元到 500 美元（1 到 100 位員工），大型組織另有 750 美元的 Enterprise 授權。以上為 2026-11-20 查證的官方價格，購買前請以官網為準。</p>
+<p><strong>Q2：Ctrl+F5 跟 F5 有什麼不同？</strong>    <br>4.34 起，F5 是整顆重掃，Ctrl+F5 只重掃選取的資料夾（或選取檔案所在的資料夾），並更新那一部分的大小與總計。以前的版本兩個快捷鍵都是全部重掃。</p>
+<p><strong>Q3：沒有用管理員身分執行可以嗎？</strong>    <br>可以用，只是官方說明在沒有管理員權限時，Windows 版會改用一般 API 掃描，不會讀主檔表，速度會慢一些，部分受保護的資料夾也可能讀不到。</p>
+<p><strong>Q4：Mac 版和 Windows 版的授權要分開買嗎？</strong>    <br>不用。官方說明 Supporter Code 在 Windows、Mac、Linux 三個版本都能使用。</p>
+<hr>
+<h2>八、阿正老師的總結與建議</h2>
+<div>
+<p> C 槽空間不足、想找出誰在佔空間</p>
+<p>→ <strong>WizTree</strong>。掃描完依大小排序，搭配 4.34 的局部重掃，清理前後的變化看得很清楚。</p>
+</div>
+<div>
+<p> Mac 或 Linux 也想看磁碟空間分布</p>
+<p>→ <strong>WizTreeMac／WizTreeNix</strong>。到官方下載頁取得，已有 Supporter Code 的人可以直接沿用。</p>
+</div>
+<div>
+<p> 想用檔名快速找到某個檔案</p>
+<p>→ 那要用的是 <strong><a href="https://pcrookie.com/everything/" target="_blank">Everything</a></strong>，跟 WizTree 一起裝，一個找檔案、一個看空間。</p>
+</div>
+<hr>
+<div>
+<p> 小結：先看清楚空間去哪，再決定要刪什麼</p>
+<p>與其急著買更大的硬碟，不如先用 WizTree 掃一次，看看空間到底被什麼佔走。已經在用舊版的讀者，這次更新最值得試的是 Windows 11 右鍵選單和 Ctrl+F5 局部重掃；用 Mac 的讀者，也終於有官方版本可以裝了。</p>
+<p>你的硬碟最常被什麼塞爆呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]>
+    </description>
+    <content:encoded><![CDATA[<div>
+<div aria-label="廣告">
+<div>廣告</div>
+</div></div><img post-id="7664" fifu-featured="1" alt="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" title="WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/wiztree-disk-space-analyzer-guide-2026/wiztree-disk-space-analyzer-guide-2026-cover.png">
+<p>  </p>
+<p>C 槽突然變紅、跳出「磁碟空間不足」，打開檔案總管一個資料夾一個資料夾點進去看容量，點了半天還是找不到元兇。這時候需要的是一款「磁碟空間分析器」，把整顆硬碟的資料夾和檔案依大小排好，誰在佔空間就一目了然。阿正老師這篇要介紹的 <strong>WizTree</strong>，就是這類工具裡以掃描速度出名的一款。</p>
+<p>WizTree 在 2026 年 11 月 17 日推出 <strong>4.34 版</strong>，官方更新日誌列出幾個實用改進，包括出現在 Windows 11 新版右鍵選單、可以只重新掃描選取的資料夾，以及重複檔案比對與 CSV 匯出入加速。官方同一天也更新了 Mac 版 <strong>WizTreeMac</strong>，並首次推出 Linux 版 <strong>WizTreeNix</strong>，以前「WizTree 只有 Windows 版」的說法已經不成立了。</p>
+<div>&nbsp; </div>
+<hr>
+<div>
+<p> 文章目錄</p>
+<ol>
+<li><a href="#what">WizTree 是什麼？為什麼掃描這麼快</a></li>
+<li><a href="#new">4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</a></li>
+<li><a href="#mac-linux">Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</a></li>
+<li><a href="#install">下載、安裝與切換繁體中文</a></li>
+<li><a href="#howto">實戰：三步驟找出佔空間的大檔案</a></li>
+<li><a href="#pros">優缺點整理</a></li>
+<li><a href="#faq">常見問題</a></li>
+<li><a href="#summary">阿正老師的總結與建議</a></li>
+</ol></div>
+<hr>
+<h2>一、WizTree 是什麼？為什麼掃描這麼快</h2>
+<p>WizTree 是英國 Antibody Software 開發的磁碟空間分析工具。掃描完會用<strong>樹狀清單</strong>（Tree View）把資料夾由大到小排好，下方再用<strong>彩色方塊圖</strong>（Treemap）呈現，方塊面積越大代表佔用空間越多。另外還有<strong>檔案檢視</strong>（File View），可以把整顆硬碟所有檔案攤平排序，直接找出最大的單一檔案。</p>
+<p>速度快的原因在於掃描方式。官方說明 Windows 版在有管理員權限時，會直接讀取 NTFS 磁碟的<strong>主檔表（MFT）</strong>，等於直接翻硬碟的「檔案總目錄」，不必一個資料夾一個資料夾去加總大小；沒有管理員權限或不是 NTFS 的磁碟，則改用一般的 Windows API 掃描。這跟站上介紹過的檔案搜尋工具 <a href="https://pcrookie.com/everything/" target="_blank">Everything</a> 用的是同一類原理。</p>
+<p> <img fetchpriority="high" border="0" alt="一、WizTree 是什麼？為什麼掃描這麼快－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_5FADB93F.png">    </p>
+<table>
+<tbody>
+<tr>
+<td>官方網站</td>
+<td><a href="https://diskanalyzer.com/" target="_blank">https://diskanalyzer.com/</a></td>
+</tr>
+<tr>
+<td>本站下載站收錄版本（Windows）</td>
+<td><span data-software-id="163">4.34</span>（發布日期：<span data-software-id="163">2026-11-17</span>）</td>
+</tr>
+<tr>
+<td>支援系統</td>
+<td>Windows XP 以後各版本（32／64 位元，Windows on Arm 透過 Prism 模擬執行）；Mac 版 WizTreeMac 需 macOS 12 以上；Linux 版 WizTreeNix 支援 x86_64 與 aarch64</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>個人使用免費；商業使用需購買 Supporter Code（依員工數 25～500 美元），大型組織另有 750 美元的 Enterprise 授權（官方價格，查證於 2026-11-20）</td>
+</tr>
+<tr>
+<td>介面語言</td>
+<td>多國語言，在 Options → Language 切換；官方語言代碼表列有 Chinese – Traditional（zh_CHT）</td>
+</tr>
+<tr>
+<td>安裝方式</td>
+<td>Windows 有安裝版與免安裝 Portable 版；Mac 為 DMG；Linux 為單一 AppImage 檔</td>
+</tr>
+<tr>
+<td>軟體下載</td>
+<td><a href="https://diskanalyzer.com/download" target="_blank">官方下載（Windows 4.34、Mac、Linux）</a> ／ <a href="https://pcrookie.com/download/details.php?id=163" target="_blank">本站下載點（Windows）</a></td>
+</tr>
+</tbody>
+</table>
+<div> WizTree 和 Everything 都靠讀 NTFS 主檔表加速，但用途不同。Everything 用檔名找檔案，WizTree 看誰佔了最多空間。想兩套一起學，可以看站上的 <a href="https://pcrookie.com/everything-wiztree-guide-2026/" target="_blank">Everything＋WizTree 完整教學</a>。 </div>
+<hr>
+<h2>二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾</h2>
+<p>4.34 是 Windows 版在 2026 年 11 月 17 日推出的更新。阿正老師把官方更新日誌裡跟一般使用者最相關的項目挑出來整理如下。</p>
+<p> <img border="0" alt="二、4.34 更新重點：Windows 11 右鍵選單、只重掃選取資料夾－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_4351FD0F.png">      </p>
+<table>
+<tbody>
+<tr>
+<td>Windows 11 新右鍵選單</td>
+<td>4.34 支援 Windows 11 檔案總管的新版右鍵選單。「使用 WizTree 掃描」是選用功能</td>
+</tr>
+<tr>
+<td>只重掃選取資料夾</td>
+<td>樹狀清單右鍵新增「Rescan selected folder」，快捷鍵 Ctrl+F5（以前 Ctrl+F5 跟 F5 一樣是全部重掃）。只更新選取的資料夾和總計，中途取消會維持原本的結果</td>
+</tr>
+<tr>
+<td>掃描與比對加速</td>
+<td>MFT 掃描與解碼加速；File View 分頁的重複檔案偵測（依檔名、大小、日期）加速；CSV 匯入、匯出都變快</td>
+</tr>
+<tr>
+<td>傳統硬碟減少執行緒</td>
+<td>掃描機械式硬碟時會減少同時使用的執行緒，官方說明是避免讀寫頭來回移動反而拖慢速度</td>
+</tr>
+<tr>
+<td>方塊圖縮放動畫</td>
+<td>方塊圖放大縮小改成動畫，不喜歡可到 Options → Tweaks → Animate treemap zoom 關掉</td>
+</tr>
+<tr>
+<td>容量單位可選</td>
+<td>Options → Tweaks 可以選 1 KB 等於 1024 位元組（預設，Windows 算法）或 1000 位元組（Mac 算法）</td>
+</tr>
+<tr>
+<td>其他修正</td>
+<td>修正顯示數百萬個檔案時可能卡頓的問題；讀取受損裝置時的錯誤處理更完善；匯入 Mac、Linux 版產生的 CSV 時的問題也一併修正</td>
+</tr>
+</tbody>
+</table>
+<p>「只重掃選取資料夾」對清理硬碟很實用。以前刪掉一批檔案後想確認空間有沒有釋放，只能整顆重掃；現在選好剛清理的資料夾按 Ctrl+F5，就只更新那一塊。</p>
+<p>  </p>
+<hr>
+<h2>三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix</h2>
+<p>官方在 2026 年 9 月 16 日推出 Mac 版 WizTreeMac 1.00，11 月 17 日再更新到 1.01，同一天也推出 Linux 版 WizTreeNix 1.01。這兩個版本有自己的版本編號，官方說明目前功能以 Windows 版 4.34 為基礎，大部分功能都有，<strong>已購買的 Supporter Code 在 Windows、Mac、Linux 三個版本都能用</strong>，不必另外再買。</p>
+<p> <img border="0" alt="三、Mac、Linux 版也來了：WizTreeMac 與 WizTreeNix－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_02E06DC3.png">    </p>
+<div>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>WizTree（Windows）</th>
+<th>WizTreeMac</th>
+<th>WizTreeNix（Linux）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系統需求</td>
+<td>Windows XP 以後，32／64 位元</td>
+<td>macOS 12 以上，Apple Silicon 與 Intel 通用</td>
+<td>64 位元 x86_64 或 aarch64</td>
+</tr>
+<tr>
+<td>安裝形式</td>
+<td>安裝版、免安裝 zip</td>
+<td>簽署並經公證的 DMG</td>
+<td>單一 AppImage</td>
+</tr>
+<tr>
+<td>快速掃描</td>
+<td>讀 NTFS 主檔表（需管理員）</td>
+<td>macOS 原生多執行緒列舉；NTFS 磁碟可讀主檔表（需管理員）</td>
+<td>NTFS、ext2/3/4、Btrfs 可直接讀檔案表（需 root）</td>
+</tr>
+<tr>
+<td>右鍵選單整合</td>
+<td>檔案總管右鍵選單（選用）</td>
+<td>尚未支援</td>
+<td>GNOME Files、Dolphin、Nemo、Caja、Thunar</td>
+</tr>
+<tr>
+<td>掃描手機（MTP）</td>
+<td>可掃描 Android 手機等 MTP 裝置</td>
+<td>尚未支援</td>
+<td>尚未支援</td>
+</tr>
+<tr>
+<td>預設容量單位</td>
+<td>1 KB＝1024 位元組</td>
+<td>1 KB＝1000 位元組</td>
+<td>1 KB＝1024 位元組</td>
+</tr>
+</tbody>
+</table></div>
+<p>Mac 用戶要注意權限分成兩層。讀取受保護的資料夾需要到「系統設定」給 WizTreeMac「完整磁碟取用權限」，要用管理員身分掃描則另外從掃描按鈕旁的下拉箭頭選擇。另外，官方說明 WizTreeMac 1.01 改用內建的 SMB 函式庫直接讀取網路共用資料夾，官方測試一個 32 萬個檔案的共用資料夾，掃描時間從約 4 分鐘降到約 12 秒，家裡有 NAS 的讀者可以留意這項改進。</p>
+<div>⚠️ 本站下載點收錄的是 Windows 版。Mac、Linux 版請到官方下載頁 <a href="https://diskanalyzer.com/download" target="_blank">diskanalyzer.com/download</a> 取得，官方另提供 Homebrew 安裝指令。 </div>
+<hr>
+<h2>四、下載、安裝與切換繁體中文</h2>
+<p>Windows 版有安裝版和免安裝 Portable 版兩種，想跳過安裝程序可以選 Portable 版。已經裝了舊版的人，官方說明直接執行新版安裝程式即可，不用先移除舊版；Portable 版則把新的 zip 解壓縮覆蓋舊檔案。</p>
+<p> <img border="0" alt="四、下載、安裝與切換繁體中文－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/11/WizTree-2026_24084603/image_7391D8B7.png">    </p>
+<p><strong>Step 1｜下載</strong> 要下載 Windows 4.34，請使用<a href="https://diskanalyzer.com/download" target="_blank">官方下載頁</a>。習慣用指令安裝的人，官方下載頁也列出 Windows 套件管理工具的指令 <code>winget install -e --id AntibodySoftware.WizTree</code>。</p>
+<p><strong>Step 2｜安裝或解壓縮</strong> 安裝版依畫面完成安裝；Portable 版解壓縮後直接執行。要用最快的主檔表掃描，需要以管理員身分執行，Windows 跳出「使用者帳戶控制（UAC）」時按「是」。</p>
+<p><strong>Step 3｜切換語言</strong> 點上方選單 Options → Language，切換介面語言。官方 4.34 Portable 壓縮檔包含繁體中文翻譯（zh_CHT），選單中的實際名稱請以畫面為準。</p>
+<div>⚠️ 網路上有不少名稱相近的第三方網站，下載前請認明官方網域 <strong>diskanalyzer.com</strong>，或使用本站下載點，避免下載到被修改過的版本。 </div>
+<hr>
+<h2>五、實戰：三步驟找出佔空間的大檔案</h2>
+<p>WizTree 的操作很單純，照下面三步就能找出佔空間的資料夾與檔案。</p>
+<p> <img border="0" alt="五、實戰：三步驟找出佔空間的大檔案－WizTree 4.34 免費下載教學！C 槽被什麼塞滿一眼看穿，Windows、Mac、Linux 都能用" src="https://image.pcrookie.com/2026/07/WizTree-2026_24084603/image_60299374.png">    </p>
+<p><strong>Step 1｜選磁碟、按掃描</strong> 左上角下拉選單選擇要分析的磁碟（例如 C:），按下 Scan（掃描）。4.34 起 WizTree 也會出現在 Windows 11 檔案總管的新版右鍵選單裡；官方比較頁說明這個右鍵項目屬於選用功能，實際出現位置與是否要先在設定中開啟，請以畫面為準。</p>
+<p><strong>Step 2｜看樹狀清單找大資料夾</strong> 掃完後上方的樹狀清單已經由大到小排好，一層一層展開就能找到佔空間的資料夾。常見的大戶有下載資料夾裡忘了刪的安裝檔、影片、遊戲，以及各種暫存資料夾。</p>
+<p><strong>Step 3｜切到檔案檢視找單一大檔</strong> 切到 File View，整顆硬碟的檔案會攤平排序，最大的單一檔案一眼就看到。這個分頁也能找重複檔案，4.34 版官方說明比對速度加快。下方方塊圖則用面積呈現大小，滑鼠移過去會顯示檔名。確認不需要的檔案可以直接在 WizTree 裡按右鍵刪除，刪完選取該資料夾按 Ctrl+F5 重掃，確認空間有沒有釋放。</p>
+<div>⚠️ WizTree 會把系統檔一起列出來。Windows、Program Files 底下不認識的大檔不要隨手刪，像是分頁檔、休眠檔這類系統檔案，應該透過 Windows 設定調整。不確定用途的檔案先查清楚再動手；想清系統暫存與瀏覽器快取，可以搭配站上介紹的 <a href="https://pcrookie.com/bleachbit/" target="_blank">BleachBit</a>。 </div>
+<hr>
+<h2>六、優缺點整理</h2>
+<p>WizTree 的強項和限制都很明確，以下依官方資料整理。</p>
+<div>
+<div>
+<p>✅ 優點</p>
+<ul>
+<li>NTFS 磁碟直接讀主檔表，不必逐一加總資料夾</li>
+<li>樹狀清單、方塊圖、檔案檢視三種方式找大檔</li>
+<li>個人使用免費，Windows 有免安裝版</li>
+<li>4.34 支援 Windows 11 新右鍵選單與 Ctrl+F5 局部重掃</li>
+<li>Windows、Mac、Linux 都有官方版本，授權碼三平台通用</li>
+</ul></div>
+<div>
+<p>⚠️ 缺點</p>
+<ul>
+<li>最快的掃描方式需要管理員權限</li>
+<li>商業使用需付費購買 Supporter 或 Enterprise 授權</li>
+<li>免費版會顯示贊助按鈕，匯出檔含贊助訊息</li>
+<li>Mac 版尚無 Finder 右鍵整合，Mac、Linux 版都還不能掃 MTP 手機</li>
+</ul></div>
+</div>
+<div> <strong>阿正老師點評：</strong>WizTree 屬於平常用不到、硬碟一滿就很需要的工具。4.34 的 Ctrl+F5 局部重掃，正好補上「刪完檔案要整顆重掃」這個小麻煩。家裡同時有 Windows 和 Mac 的讀者，現在兩邊都能用同一套工具，操作邏輯不用重學。清出空間後想把不常用的資料壓縮收好，可以交給 <a href="https://pcrookie.com/7-zip/" target="_blank">7-Zip</a>。 </div>
+<hr>
+<h2>七、常見問題</h2>
+<p><strong>Q1：WizTree 真的免費嗎？公司電腦可以用嗎？</strong>    <br>個人使用免費。官方定價頁寫明免費版「不允許商業使用」，公司或營利用途要購買 Supporter Code，價格依員工人數從 25 美元到 500 美元（1 到 100 位員工），大型組織另有 750 美元的 Enterprise 授權。以上為 2026-11-20 查證的官方價格，購買前請以官網為準。</p>
+<p><strong>Q2：Ctrl+F5 跟 F5 有什麼不同？</strong>    <br>4.34 起，F5 是整顆重掃，Ctrl+F5 只重掃選取的資料夾（或選取檔案所在的資料夾），並更新那一部分的大小與總計。以前的版本兩個快捷鍵都是全部重掃。</p>
+<p><strong>Q3：沒有用管理員身分執行可以嗎？</strong>    <br>可以用，只是官方說明在沒有管理員權限時，Windows 版會改用一般 API 掃描，不會讀主檔表，速度會慢一些，部分受保護的資料夾也可能讀不到。</p>
+<p><strong>Q4：Mac 版和 Windows 版的授權要分開買嗎？</strong>    <br>不用。官方說明 Supporter Code 在 Windows、Mac、Linux 三個版本都能使用。</p>
+<hr>
+<h2>八、阿正老師的總結與建議</h2>
+<div>
+<p> C 槽空間不足、想找出誰在佔空間</p>
+<p>→ <strong>WizTree</strong>。掃描完依大小排序，搭配 4.34 的局部重掃，清理前後的變化看得很清楚。</p>
+</div>
+<div>
+<p> Mac 或 Linux 也想看磁碟空間分布</p>
+<p>→ <strong>WizTreeMac／WizTreeNix</strong>。到官方下載頁取得，已有 Supporter Code 的人可以直接沿用。</p>
+</div>
+<div>
+<p> 想用檔名快速找到某個檔案</p>
+<p>→ 那要用的是 <strong><a href="https://pcrookie.com/everything/" target="_blank">Everything</a></strong>，跟 WizTree 一起裝，一個找檔案、一個看空間。</p>
+</div>
+<hr>
+<div>
+<p> 小結：先看清楚空間去哪，再決定要刪什麼</p>
+<p>與其急著買更大的硬碟，不如先用 WizTree 掃一次，看看空間到底被什麼佔走。已經在用舊版的讀者，這次更新最值得試的是 Windows 11 右鍵選單和 Ctrl+F5 局部重掃；用 Mac 的讀者，也終於有官方版本可以裝了。</p>
+<p>你的硬碟最常被什麼塞爆呢？歡迎在下面留言跟阿正老師分享！</p>
+</div>]]></content:encoded>
+    <itunes:image href="https://image.pcrookie.com/2026/07/wiztree-disk-space-analyzer-guide-2026/wiztree-disk-space-analyzer-guide-2026-cover.png"/>
+          <media:content url="https://image.pcrookie.com/2026/07/wiztree-disk-space-analyzer-guide-2026/wiztree-disk-space-analyzer-guide-2026-cover.png" medium="image"/>
+    <pubDate>Thu, 19 Nov 2026 15:06:00 +0000</pubDate>
+  </item><item>
     <title><![CDATA[Gemini 4 Neon 是什麼？AI Pro 就能用的新模型，跟 Hydrogen、Carbon 差在哪一次看懂]]></title>
     <link>https://pcrookie.com/gemini-4-neon-guide/</link>
     <itunes:title><![CDATA[Gemini 4 Neon 是什麼？AI Pro 就能用的新模型，跟 Hydrogen、Carbon 差在哪一次看懂]]></itunes:title>
@@ -8525,1088 +9989,5 @@ gputaskman</code></pre>
     <itunes:image href="https://image.pcrookie.com/2026/11/iphone-permanently-deleted-photos-recovery/iphone-permanently-deleted-photos-recovery-cover.png"/>
           <media:content url="https://image.pcrookie.com/2026/11/iphone-permanently-deleted-photos-recovery/iphone-permanently-deleted-photos-recovery-cover.png" medium="image"/>
     <pubDate>Tue, 10 Nov 2026 12:00:00 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）]]></title>
-    <link>https://pcrookie.com/claude-fable-5-2-mythos-5-2-guide/</link>
-    <itunes:title><![CDATA[Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）]]></itunes:title>
-    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><meta charset="UTF-8">    <br>&nbsp; <img post-id="8567" fifu-featured="1" alt="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" title="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/11/claude-fable-5-2-mythos-5-2-guide/claude-fable-5-2-mythos-5-2-guide-cover-v3.png"></p>
-<p>Anthropic 在 2026 年 11 月 9 日發表 Claude Fable 5.2 與 Claude Mythos 5.2。官方說這一代在寫程式、推理與視覺都有進步，輸出速度比 5.1 最多快 30%，API 單價也降了。</p>
-<p>你可能想問：Fable 跟 Mythos 到底差在哪？一般用戶用得到嗎？本文為官方資料整理，並經阿正老師實測，跑分則是 Anthropic 自己公布的數據。</p>
-<p>前一代的整理可看 <a href="https://pcrookie.com/claude-fable-5-1-update-2026/" target="_blank">Claude Fable 5.1 更新</a>，兩款模型的關係可看 <a href="https://pcrookie.com/claude-mythos-5-vs-fable-5-deep-dive-2026/" target="_blank">Mythos 5 與 Fable 5 深入比較</a>。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Fable 5.2 與 Mythos 5.2 是什麼？</a></li>
-<li><a href="#price">價格與 Fast mode</a></li>
-<li><a href="#access">誰用得到？</a></li>
-<li><a href="#score">官方自報跑分與限制</a></li>
-<li><a href="#proscon">優缺點</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Fable 5.2 與 Mythos 5.2 是什麼？</h2>
-<p>官方原文寫得很直接。Claude Fable 與 Claude Mythos 是同一個底層模型。差別在 Fable 加上較強的資安與生物領域安全防護，Mythos 則是降低這些限制的版本，只開放給通過驗證的組織。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Fable 5.2 與 Mythos 5.2 是什麼？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_038A7F88.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://www.anthropic.com/claude-fable-and-mythos-5-2" target="_blank">https://www.anthropic.com/claude-fable-and-mythos-5-2</a></td>
-</tr>
-<tr>
-<td>發表日期</td>
-<td>2026-11-09（Anthropic 新聞頁標示）</td>
-</tr>
-<tr>
-<td>API 模型 ID</td>
-<td>Fable：claude-fable-5-2；Mythos：claude-mythos-5-2（需通過官方驗證計畫，見<a href="https://platform.claude.com/docs/en/models/mythos-5-2/overview" target="_blank">Mythos 5.2 模型頁</a>）</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>API 每百萬 token 輸入 8 美元、輸出 40 美元（官方）；訂閱方案額度見第三章</td>
-</tr>
-<tr>
-<td>繁體中文／台灣可用性</td>
-<td>可用</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>多數人能選到的是 Fable；Mythos 要由從事資安或生物醫學研究的組織，通過官方驗證計畫申請。想比較差異可以把它們當成同一個大腦、不同安全設定。     </div>
-<hr>
-<h2>二、價格與 Fast mode</h2>
-<p>官方寫到，5.2 輸出最多比 5.1 快 30%，標準價格是每百萬 token 輸入 8 美元、輸出 40 美元。Fast mode 可把生成速度提高到最多 2.5 倍，價格是輸入 16 美元、輸出 80 美元。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每百萬 token）</th>
-<th>5.1</th>
-<th>5.2</th>
-<th>來源</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>標準 輸入／輸出</td>
-<td>10／50 美元</td>
-<td>8／40 美元</td>
-<td><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank">官方 API 價格頁</a></td>
-</tr>
-<tr>
-<td>Fast mode 輸入／輸出</td>
-<td>未列</td>
-<td>16／80 美元</td>
-<td>官方</td>
-</tr>
-</tbody>
-</table></div>
-<div>⚠️ 降兩成是每百萬 token 的牌價降幅（10／50 美元降到 8／40 美元），不代表每個任務一定更便宜。實際花費要看你的任務用掉多少 token，請用自己的用量評估。     </div>
-<hr>
-<h2>三、誰用得到？</h2>
-<ul>
-<li><strong>付費 Claude 方案</strong>：依<a href="https://claude.com/pricing" target="_blank">官方方案價格頁</a>，Pro 用 usage credits 使用 Fable；Max、Ultra 與 Team 進階席位可用到每週用量上限的 50%。另有<a href="https://support.claude.com/en/articles/17506494-claude-fable-5-2-launch-offers" target="_blank">上市限時優惠</a>：2026-11-09 起到 2026-11-16 23:59（美西時間 PT），Pro 與 Team 標準席位可在每週用量上限的 50% 內使用 Fable；優惠結束後回到 usage credits 計費。</li>
-<li><strong>API 開發者</strong>：模型 ID 是 claude-fable-5-2，官方發表文寫明可從 AWS、Google Cloud、Microsoft Azure 取得，各平台的模型 ID 見<a href="https://platform.claude.com/docs/en/models/overview" target="_blank">官方模型總覽</a>。</li>
-<li><strong>免費用戶</strong>：官方方案價格頁的 Free 欄位標示不含 Fable，上市優惠也不適用 Free 方案。</li>
-<li><strong>Mythos 5.2</strong>：官方說，從事資安或生物醫學研究等有益用途的組織，可透過 Cyber Verification Program 或 Life Sciences Verification Program 申請；API 文件註明只開放給通過驗證計畫的組織，能否申請請依官方計畫條件判斷。</li>
-</ul>
-<p> <img border="0" alt="三、誰用得到？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_3AE868B8.png">   </p>
-<p>官方建議，多數寫程式與知識工作先從 Claude Opus 5.5 開始，需要時再換模型。Fable 與 Mythos 則適合長流程、開放式的技術任務。Opus 5.5 的整理可看阿正老師的 <a href="https://pcrookie.com/claude-opus-5-5-intro-2026/" target="_blank">Claude Opus 5.5 介紹</a>。</p>
-<hr>
-<h2>四、官方自報跑分與限制</h2>
-<p>下表是官方比較表中 Fable 5.2 對比 5.1、Opus 5.5、GPT-6 Astra 與 Gemini 4 Carbon 的部分成績，都是 Anthropic 自己公布。官方註明 Fable 5.2、Fable 5.1、Opus 5.5 是在安全防護開啟下測得；除另外註明外，各模型都用可用的最高推理強度。</p>
-<p>&nbsp;&nbsp; <img title="claude-fable-5-2-benchmarks-zh-TW" border="0" alt="claude-fable-5-2-benchmarks-zh-TW" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/claude-fable-5-2-benchmarks-zh-TW.png">    </p>
-<div>
-<table>
-<thead>
-<tr>
-<th>測試項目</th>
-<th>Fable 5.2</th>
-<th>Fable 5.1</th>
-<th>Opus 5.5</th>
-<th>GPT-6 Astra</th>
-<th>Gemini 4 Carbon</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>FrontierCode 2.0</td>
-<td>49.1%（Xhigh）</td>
-<td>32.4%（Xhigh）</td>
-<td>45.5%</td>
-<td>42.8%</td>
-<td>41.1%（Medium）</td>
-</tr>
-<tr>
-<td>AutomationBench</td>
-<td>51.4%</td>
-<td>31.4%</td>
-<td>42.5%</td>
-<td>41.4%</td>
-<td>53.9%</td>
-</tr>
-<tr>
-<td>OSWorld 2.1（離線題組，部分給分）</td>
-<td>89.3%</td>
-<td>83.5%</td>
-<td>87.2%</td>
-<td>79.5%</td>
-<td>81.5%</td>
-</tr>
-</tbody>
-</table></div>
-<ul>
-<li>AutomationBench 這一項，Gemini 4 Carbon 的 53.9% 高於 Fable 5.2。</li>
-<li>官方的 AA-Briefcase v1.1 中，Fable 5.2 的評分標準分數領先 Opus 5.5（66.1% 對 61.2%），但 Elo 是 Opus 5.5 較高（1800 對 1785）。</li>
-<li>官方坦承，要建立能在上線前抓出所有失敗的評測，「問題仍未解決」。官方也說兩款模型比近期模型更常表示懷疑自己正在被評測。</li>
-<li>Mythos 5.2 在官方內部資安評測 CVE Rediscovery 的成績是 89.6%。這項評測是給模型漏洞修補前的專案快照，看它能自己重新找出多少已公開的 CVE 漏洞。</li>
-</ul>
-<hr>
-<h2>五、優缺點</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>API 標準價降到輸入 8 美元、輸出 40 美元。</li>
-<li>輸出最多比 5.1 快 30%，另有最多 2.5 倍的 Fast mode。</li>
-<li>官方自報寫程式與電腦操作成績比 5.1 明顯提升。</li>
-<li>官方稱 5.2 的不必要攔截變少。</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>Fast mode 單價是標準的兩倍。</li>
-<li>單價降了，每個任務的實際花費仍要自己量測。</li>
-<li>Mythos 僅限通過驗證的組織。</li>
-<li>Free 方案不含 Fable；台灣帳戶實際可用性仍待查證。</li>
-</ul></div>
-</div>
-<hr>
-<h2>六、阿正老師的總結</h2>
-<div>
-<p> 付費訂閱的一般用戶</p>
-<p>→ 在模型選單看到 <strong>Fable 5.2</strong> 可以拿困難的程式或長流程技術任務試；官方建議多數寫程式與知識工作先用 Opus 5.5。</p>
-</div>
-<div>
-<p> 用 API 的開發者</p>
-<p>→ 先用自己的任務量測每個任務的實際花費，不要只看單價降了兩成。</p>
-</div>
-<div>
-<p> 資安或生命科學研究單位</p>
-<p>→ 可到官方了解 Mythos 的驗證計畫申請條件。</p>
-</div>
-<hr>
-<div>
-<p> 先拿同一個任務比用量與耗時</p>
-<p>Fable 5.2 的重點是更快、單價更低，但官方跑分都是自報。阿正老師會建議先確認自己的方案能不能選到 Fable 5.2，再觀察同一個任務的耗時和額度消耗，有沒有真的比 5.1 或 Opus 5.5 划算。</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><meta charset="UTF-8">    <br>&nbsp; <img post-id="8567" fifu-featured="1" alt="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" title="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/11/claude-fable-5-2-mythos-5-2-guide/claude-fable-5-2-mythos-5-2-guide-cover-v3.png"></p>
-<p>Anthropic 在 2026 年 11 月 9 日發表 Claude Fable 5.2 與 Claude Mythos 5.2。官方說這一代在寫程式、推理與視覺都有進步，輸出速度比 5.1 最多快 30%，API 單價也降了。</p>
-<p>你可能想問：Fable 跟 Mythos 到底差在哪？一般用戶用得到嗎？本文為官方資料整理，並經阿正老師實測，跑分則是 Anthropic 自己公布的數據。</p>
-<p>前一代的整理可看 <a href="https://pcrookie.com/claude-fable-5-1-update-2026/" target="_blank">Claude Fable 5.1 更新</a>，兩款模型的關係可看 <a href="https://pcrookie.com/claude-mythos-5-vs-fable-5-deep-dive-2026/" target="_blank">Mythos 5 與 Fable 5 深入比較</a>。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Fable 5.2 與 Mythos 5.2 是什麼？</a></li>
-<li><a href="#price">價格與 Fast mode</a></li>
-<li><a href="#access">誰用得到？</a></li>
-<li><a href="#score">官方自報跑分與限制</a></li>
-<li><a href="#proscon">優缺點</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Fable 5.2 與 Mythos 5.2 是什麼？</h2>
-<p>官方原文寫得很直接。Claude Fable 與 Claude Mythos 是同一個底層模型。差別在 Fable 加上較強的資安與生物領域安全防護，Mythos 則是降低這些限制的版本，只開放給通過驗證的組織。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Fable 5.2 與 Mythos 5.2 是什麼？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_038A7F88.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://www.anthropic.com/claude-fable-and-mythos-5-2" target="_blank">https://www.anthropic.com/claude-fable-and-mythos-5-2</a></td>
-</tr>
-<tr>
-<td>發表日期</td>
-<td>2026-11-09（Anthropic 新聞頁標示）</td>
-</tr>
-<tr>
-<td>API 模型 ID</td>
-<td>Fable：claude-fable-5-2；Mythos：claude-mythos-5-2（需通過官方驗證計畫，見<a href="https://platform.claude.com/docs/en/models/mythos-5-2/overview" target="_blank">Mythos 5.2 模型頁</a>）</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>API 每百萬 token 輸入 8 美元、輸出 40 美元（官方）；訂閱方案額度見第三章</td>
-</tr>
-<tr>
-<td>繁體中文／台灣可用性</td>
-<td>可用</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>多數人能選到的是 Fable；Mythos 要由從事資安或生物醫學研究的組織，通過官方驗證計畫申請。想比較差異可以把它們當成同一個大腦、不同安全設定。     </div>
-<hr>
-<h2>二、價格與 Fast mode</h2>
-<p>官方寫到，5.2 輸出最多比 5.1 快 30%，標準價格是每百萬 token 輸入 8 美元、輸出 40 美元。Fast mode 可把生成速度提高到最多 2.5 倍，價格是輸入 16 美元、輸出 80 美元。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每百萬 token）</th>
-<th>5.1</th>
-<th>5.2</th>
-<th>來源</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>標準 輸入／輸出</td>
-<td>10／50 美元</td>
-<td>8／40 美元</td>
-<td><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank">官方 API 價格頁</a></td>
-</tr>
-<tr>
-<td>Fast mode 輸入／輸出</td>
-<td>未列</td>
-<td>16／80 美元</td>
-<td>官方</td>
-</tr>
-</tbody>
-</table></div>
-<div>⚠️ 降兩成是每百萬 token 的牌價降幅（10／50 美元降到 8／40 美元），不代表每個任務一定更便宜。實際花費要看你的任務用掉多少 token，請用自己的用量評估。     </div>
-<hr>
-<h2>三、誰用得到？</h2>
-<ul>
-<li><strong>付費 Claude 方案</strong>：依<a href="https://claude.com/pricing" target="_blank">官方方案價格頁</a>，Pro 用 usage credits 使用 Fable；Max、Ultra 與 Team 進階席位可用到每週用量上限的 50%。另有<a href="https://support.claude.com/en/articles/17506494-claude-fable-5-2-launch-offers" target="_blank">上市限時優惠</a>：2026-11-09 起到 2026-11-16 23:59（美西時間 PT），Pro 與 Team 標準席位可在每週用量上限的 50% 內使用 Fable；優惠結束後回到 usage credits 計費。</li>
-<li><strong>API 開發者</strong>：模型 ID 是 claude-fable-5-2，官方發表文寫明可從 AWS、Google Cloud、Microsoft Azure 取得，各平台的模型 ID 見<a href="https://platform.claude.com/docs/en/models/overview" target="_blank">官方模型總覽</a>。</li>
-<li><strong>免費用戶</strong>：官方方案價格頁的 Free 欄位標示不含 Fable，上市優惠也不適用 Free 方案。</li>
-<li><strong>Mythos 5.2</strong>：官方說，從事資安或生物醫學研究等有益用途的組織，可透過 Cyber Verification Program 或 Life Sciences Verification Program 申請；API 文件註明只開放給通過驗證計畫的組織，能否申請請依官方計畫條件判斷。</li>
-</ul>
-<p> <img border="0" alt="三、誰用得到？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_3AE868B8.png">   </p>
-<p>官方建議，多數寫程式與知識工作先從 Claude Opus 5.5 開始，需要時再換模型。Fable 與 Mythos 則適合長流程、開放式的技術任務。Opus 5.5 的整理可看阿正老師的 <a href="https://pcrookie.com/claude-opus-5-5-intro-2026/" target="_blank">Claude Opus 5.5 介紹</a>。</p>
-<hr>
-<h2>四、官方自報跑分與限制</h2>
-<p>下表是官方比較表中 Fable 5.2 對比 5.1、Opus 5.5、GPT-6 Astra 與 Gemini 4 Carbon 的部分成績，都是 Anthropic 自己公布。官方註明 Fable 5.2、Fable 5.1、Opus 5.5 是在安全防護開啟下測得；除另外註明外，各模型都用可用的最高推理強度。</p>
-<p>&nbsp;&nbsp; <img title="claude-fable-5-2-benchmarks-zh-TW" border="0" alt="claude-fable-5-2-benchmarks-zh-TW" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/claude-fable-5-2-benchmarks-zh-TW.png">    </p>
-<div>
-<table>
-<thead>
-<tr>
-<th>測試項目</th>
-<th>Fable 5.2</th>
-<th>Fable 5.1</th>
-<th>Opus 5.5</th>
-<th>GPT-6 Astra</th>
-<th>Gemini 4 Carbon</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>FrontierCode 2.0</td>
-<td>49.1%（Xhigh）</td>
-<td>32.4%（Xhigh）</td>
-<td>45.5%</td>
-<td>42.8%</td>
-<td>41.1%（Medium）</td>
-</tr>
-<tr>
-<td>AutomationBench</td>
-<td>51.4%</td>
-<td>31.4%</td>
-<td>42.5%</td>
-<td>41.4%</td>
-<td>53.9%</td>
-</tr>
-<tr>
-<td>OSWorld 2.1（離線題組，部分給分）</td>
-<td>89.3%</td>
-<td>83.5%</td>
-<td>87.2%</td>
-<td>79.5%</td>
-<td>81.5%</td>
-</tr>
-</tbody>
-</table></div>
-<ul>
-<li>AutomationBench 這一項，Gemini 4 Carbon 的 53.9% 高於 Fable 5.2。</li>
-<li>官方的 AA-Briefcase v1.1 中，Fable 5.2 的評分標準分數領先 Opus 5.5（66.1% 對 61.2%），但 Elo 是 Opus 5.5 較高（1800 對 1785）。</li>
-<li>官方坦承，要建立能在上線前抓出所有失敗的評測，「問題仍未解決」。官方也說兩款模型比近期模型更常表示懷疑自己正在被評測。</li>
-<li>Mythos 5.2 在官方內部資安評測 CVE Rediscovery 的成績是 89.6%。這項評測是給模型漏洞修補前的專案快照，看它能自己重新找出多少已公開的 CVE 漏洞。</li>
-</ul>
-<hr>
-<h2>五、優缺點</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>API 標準價降到輸入 8 美元、輸出 40 美元。</li>
-<li>輸出最多比 5.1 快 30%，另有最多 2.5 倍的 Fast mode。</li>
-<li>官方自報寫程式與電腦操作成績比 5.1 明顯提升。</li>
-<li>官方稱 5.2 的不必要攔截變少。</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>Fast mode 單價是標準的兩倍。</li>
-<li>單價降了，每個任務的實際花費仍要自己量測。</li>
-<li>Mythos 僅限通過驗證的組織。</li>
-<li>Free 方案不含 Fable；台灣帳戶實際可用性仍待查證。</li>
-</ul></div>
-</div>
-<hr>
-<h2>六、阿正老師的總結</h2>
-<div>
-<p> 付費訂閱的一般用戶</p>
-<p>→ 在模型選單看到 <strong>Fable 5.2</strong> 可以拿困難的程式或長流程技術任務試；官方建議多數寫程式與知識工作先用 Opus 5.5。</p>
-</div>
-<div>
-<p> 用 API 的開發者</p>
-<p>→ 先用自己的任務量測每個任務的實際花費，不要只看單價降了兩成。</p>
-</div>
-<div>
-<p> 資安或生命科學研究單位</p>
-<p>→ 可到官方了解 Mythos 的驗證計畫申請條件。</p>
-</div>
-<hr>
-<div>
-<p> 先拿同一個任務比用量與耗時</p>
-<p>Fable 5.2 的重點是更快、單價更低，但官方跑分都是自報。阿正老師會建議先確認自己的方案能不能選到 Fable 5.2，再觀察同一個任務的耗時和額度消耗，有沒有真的比 5.1 或 Opus 5.5 划算。</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><meta charset="UTF-8">    <br>&nbsp; <img post-id="8567" fifu-featured="1" alt="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" title="Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/11/claude-fable-5-2-mythos-5-2-guide/claude-fable-5-2-mythos-5-2-guide-cover-v3.png"></p>
-<p>Anthropic 在 2026 年 11 月 9 日發表 Claude Fable 5.2 與 Claude Mythos 5.2。官方說這一代在寫程式、推理與視覺都有進步，輸出速度比 5.1 最多快 30%，API 單價也降了。</p>
-<p>你可能想問：Fable 跟 Mythos 到底差在哪？一般用戶用得到嗎？本文為官方資料整理，並經阿正老師實測，跑分則是 Anthropic 自己公布的數據。</p>
-<p>前一代的整理可看 <a href="https://pcrookie.com/claude-fable-5-1-update-2026/" target="_blank">Claude Fable 5.1 更新</a>，兩款模型的關係可看 <a href="https://pcrookie.com/claude-mythos-5-vs-fable-5-deep-dive-2026/" target="_blank">Mythos 5 與 Fable 5 深入比較</a>。</p>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">Fable 5.2 與 Mythos 5.2 是什麼？</a></li>
-<li><a href="#price">價格與 Fast mode</a></li>
-<li><a href="#access">誰用得到？</a></li>
-<li><a href="#score">官方自報跑分與限制</a></li>
-<li><a href="#proscon">優缺點</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、Fable 5.2 與 Mythos 5.2 是什麼？</h2>
-<p>官方原文寫得很直接。Claude Fable 與 Claude Mythos 是同一個底層模型。差別在 Fable 加上較強的資安與生物領域安全防護，Mythos 則是降低這些限制的版本，只開放給通過驗證的組織。</p>
-<p> <img fetchpriority="high" border="0" alt="一、Fable 5.2 與 Mythos 5.2 是什麼？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_038A7F88.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://www.anthropic.com/claude-fable-and-mythos-5-2" target="_blank">https://www.anthropic.com/claude-fable-and-mythos-5-2</a></td>
-</tr>
-<tr>
-<td>發表日期</td>
-<td>2026-11-09（Anthropic 新聞頁標示）</td>
-</tr>
-<tr>
-<td>API 模型 ID</td>
-<td>Fable：claude-fable-5-2；Mythos：claude-mythos-5-2（需通過官方驗證計畫，見<a href="https://platform.claude.com/docs/en/models/mythos-5-2/overview" target="_blank">Mythos 5.2 模型頁</a>）</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>API 每百萬 token 輸入 8 美元、輸出 40 美元（官方）；訂閱方案額度見第三章</td>
-</tr>
-<tr>
-<td>繁體中文／台灣可用性</td>
-<td>可用</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>多數人能選到的是 Fable；Mythos 要由從事資安或生物醫學研究的組織，通過官方驗證計畫申請。想比較差異可以把它們當成同一個大腦、不同安全設定。     </div>
-<hr>
-<h2>二、價格與 Fast mode</h2>
-<p>官方寫到，5.2 輸出最多比 5.1 快 30%，標準價格是每百萬 token 輸入 8 美元、輸出 40 美元。Fast mode 可把生成速度提高到最多 2.5 倍，價格是輸入 16 美元、輸出 80 美元。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每百萬 token）</th>
-<th>5.1</th>
-<th>5.2</th>
-<th>來源</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>標準 輸入／輸出</td>
-<td>10／50 美元</td>
-<td>8／40 美元</td>
-<td><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank">官方 API 價格頁</a></td>
-</tr>
-<tr>
-<td>Fast mode 輸入／輸出</td>
-<td>未列</td>
-<td>16／80 美元</td>
-<td>官方</td>
-</tr>
-</tbody>
-</table></div>
-<div>⚠️ 降兩成是每百萬 token 的牌價降幅（10／50 美元降到 8／40 美元），不代表每個任務一定更便宜。實際花費要看你的任務用掉多少 token，請用自己的用量評估。     </div>
-<hr>
-<h2>三、誰用得到？</h2>
-<ul>
-<li><strong>付費 Claude 方案</strong>：依<a href="https://claude.com/pricing" target="_blank">官方方案價格頁</a>，Pro 用 usage credits 使用 Fable；Max、Ultra 與 Team 進階席位可用到每週用量上限的 50%。另有<a href="https://support.claude.com/en/articles/17506494-claude-fable-5-2-launch-offers" target="_blank">上市限時優惠</a>：2026-11-09 起到 2026-11-16 23:59（美西時間 PT），Pro 與 Team 標準席位可在每週用量上限的 50% 內使用 Fable；優惠結束後回到 usage credits 計費。</li>
-<li><strong>API 開發者</strong>：模型 ID 是 claude-fable-5-2，官方發表文寫明可從 AWS、Google Cloud、Microsoft Azure 取得，各平台的模型 ID 見<a href="https://platform.claude.com/docs/en/models/overview" target="_blank">官方模型總覽</a>。</li>
-<li><strong>免費用戶</strong>：官方方案價格頁的 Free 欄位標示不含 Fable，上市優惠也不適用 Free 方案。</li>
-<li><strong>Mythos 5.2</strong>：官方說，從事資安或生物醫學研究等有益用途的組織，可透過 Cyber Verification Program 或 Life Sciences Verification Program 申請；API 文件註明只開放給通過驗證計畫的組織，能否申請請依官方計畫條件判斷。</li>
-</ul>
-<p> <img border="0" alt="三、誰用得到？－Claude Fable 5.2 與 Mythos 5.2 來了！API 單價降兩成、輸出最多快三成，兩者差在哪、誰用得到一次看（2026）" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/image_3AE868B8.png">   </p>
-<p>官方建議，多數寫程式與知識工作先從 Claude Opus 5.5 開始，需要時再換模型。Fable 與 Mythos 則適合長流程、開放式的技術任務。Opus 5.5 的整理可看阿正老師的 <a href="https://pcrookie.com/claude-opus-5-5-intro-2026/" target="_blank">Claude Opus 5.5 介紹</a>。</p>
-<hr>
-<h2>四、官方自報跑分與限制</h2>
-<p>下表是官方比較表中 Fable 5.2 對比 5.1、Opus 5.5、GPT-6 Astra 與 Gemini 4 Carbon 的部分成績，都是 Anthropic 自己公布。官方註明 Fable 5.2、Fable 5.1、Opus 5.5 是在安全防護開啟下測得；除另外註明外，各模型都用可用的最高推理強度。</p>
-<p>&nbsp;&nbsp; <img title="claude-fable-5-2-benchmarks-zh-TW" border="0" alt="claude-fable-5-2-benchmarks-zh-TW" src="https://image.pcrookie.com/2026/07/Claude-Fable-5.2--Mythos-5.2-API-2026_62365441/claude-fable-5-2-benchmarks-zh-TW.png">    </p>
-<div>
-<table>
-<thead>
-<tr>
-<th>測試項目</th>
-<th>Fable 5.2</th>
-<th>Fable 5.1</th>
-<th>Opus 5.5</th>
-<th>GPT-6 Astra</th>
-<th>Gemini 4 Carbon</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>FrontierCode 2.0</td>
-<td>49.1%（Xhigh）</td>
-<td>32.4%（Xhigh）</td>
-<td>45.5%</td>
-<td>42.8%</td>
-<td>41.1%（Medium）</td>
-</tr>
-<tr>
-<td>AutomationBench</td>
-<td>51.4%</td>
-<td>31.4%</td>
-<td>42.5%</td>
-<td>41.4%</td>
-<td>53.9%</td>
-</tr>
-<tr>
-<td>OSWorld 2.1（離線題組，部分給分）</td>
-<td>89.3%</td>
-<td>83.5%</td>
-<td>87.2%</td>
-<td>79.5%</td>
-<td>81.5%</td>
-</tr>
-</tbody>
-</table></div>
-<ul>
-<li>AutomationBench 這一項，Gemini 4 Carbon 的 53.9% 高於 Fable 5.2。</li>
-<li>官方的 AA-Briefcase v1.1 中，Fable 5.2 的評分標準分數領先 Opus 5.5（66.1% 對 61.2%），但 Elo 是 Opus 5.5 較高（1800 對 1785）。</li>
-<li>官方坦承，要建立能在上線前抓出所有失敗的評測，「問題仍未解決」。官方也說兩款模型比近期模型更常表示懷疑自己正在被評測。</li>
-<li>Mythos 5.2 在官方內部資安評測 CVE Rediscovery 的成績是 89.6%。這項評測是給模型漏洞修補前的專案快照，看它能自己重新找出多少已公開的 CVE 漏洞。</li>
-</ul>
-<hr>
-<h2>五、優缺點</h2>
-<div>
-<div>
-<p>✅ 優點</p>
-<ul>
-<li>API 標準價降到輸入 8 美元、輸出 40 美元。</li>
-<li>輸出最多比 5.1 快 30%，另有最多 2.5 倍的 Fast mode。</li>
-<li>官方自報寫程式與電腦操作成績比 5.1 明顯提升。</li>
-<li>官方稱 5.2 的不必要攔截變少。</li>
-</ul></div>
-<div>
-<p>⚠️ 缺點</p>
-<ul>
-<li>Fast mode 單價是標準的兩倍。</li>
-<li>單價降了，每個任務的實際花費仍要自己量測。</li>
-<li>Mythos 僅限通過驗證的組織。</li>
-<li>Free 方案不含 Fable；台灣帳戶實際可用性仍待查證。</li>
-</ul></div>
-</div>
-<hr>
-<h2>六、阿正老師的總結</h2>
-<div>
-<p> 付費訂閱的一般用戶</p>
-<p>→ 在模型選單看到 <strong>Fable 5.2</strong> 可以拿困難的程式或長流程技術任務試；官方建議多數寫程式與知識工作先用 Opus 5.5。</p>
-</div>
-<div>
-<p> 用 API 的開發者</p>
-<p>→ 先用自己的任務量測每個任務的實際花費，不要只看單價降了兩成。</p>
-</div>
-<div>
-<p> 資安或生命科學研究單位</p>
-<p>→ 可到官方了解 Mythos 的驗證計畫申請條件。</p>
-</div>
-<hr>
-<div>
-<p> 先拿同一個任務比用量與耗時</p>
-<p>Fable 5.2 的重點是更快、單價更低，但官方跑分都是自報。阿正老師會建議先確認自己的方案能不能選到 Fable 5.2，再觀察同一個任務的耗時和額度消耗，有沒有真的比 5.1 或 Opus 5.5 划算。</p>
-<p>歡迎在下面留言跟阿正老師分享！</p>
-</div>]]></content:encoded>
-    <itunes:image href="https://image.pcrookie.com/2026/11/claude-fable-5-2-mythos-5-2-guide/claude-fable-5-2-mythos-5-2-guide-cover-v3.png"/>
-          <media:content url="https://image.pcrookie.com/2026/11/claude-fable-5-2-mythos-5-2-guide/claude-fable-5-2-mythos-5-2-guide-cover-v3.png" medium="image"/>
-    <pubDate>Tue, 10 Nov 2026 07:14:54 +0000</pubDate>
-  </item><item>
-    <title><![CDATA[ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞]]></title>
-    <link>https://pcrookie.com/chatgpt-images-2-6-gif-guide/</link>
-    <itunes:title><![CDATA[ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞]]></itunes:title>
-    <itunes:author><![CDATA[軟體玩家[RSS+]]]></itunes:author>
-    <itunes:summary>
-      <![CDATA[<p><img post-id="8558" fifu-featured="1" alt="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-cover-v2.png"></p>
-<p>OpenAI 在 2026 年 11 月 4 日發表 <strong>ChatGPT Images 2.6</strong>。這次最好玩的是 ChatGPT 終於能直接做<strong>動畫 GIF</strong>，打一句話或丟一張照片，就能生出會動的循環小圖，還能調速度、改單一格畫面。</p>
-<p>另一個新功能是「參考圖」。以前想讓 AI 畫自家的貓，每開一個新對話就得重新上傳照片；現在可以把寵物、自己或自創角色的照片存起來，之後直接拿來用。距離上一版 <a href="https://pcrookie.com/chatgpt-images-2-5-intro-2026/" target="_blank">Images 2.5</a> 才兩個月，這次改了哪些地方、要不要付費、GIF 要怎麼下指令，阿正老師一次整理給大家。</p>
-<div>⚠️ 本文為官方資料整理，並經阿正老師實測，生成圖片為實際畫面。     </div>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">ChatGPT Images 2.6 是什麼？</a></li>
-<li><a href="#features">四個更新重點</a></li>
-<li><a href="#price">誰能用？要不要錢？</a></li>
-<li><a href="#gif">動畫 GIF 怎麼做</a></li>
-<li><a href="#prompts">8 組提示詞，直接複製來試</a></li>
-<li><a href="#api">給開發者：API 重點整理</a></li>
-<li><a href="#notice">使用前要注意的事</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、ChatGPT Images 2.6 是什麼？</h2>
-<p>Images 2.6 是 ChatGPT 內建生圖功能的新版本，同時更新到 Codex 和開發者用的 API。API 這邊分成兩個模型，<strong>GPT-Image-2.6 Sunburst</strong> 重畫質和多次修改後的一致性，<strong>GPT-Image-2.6 Flare</strong> 重速度。</p>
-<p>OpenAI 的系統卡（安全說明文件）寫到，新模型改善了編輯時的一致性、細節保留，以及對草圖和圖片標註的理解。簡單說，就是「改圖時比較不會把其他地方也改掉」，看懂你手畫的圈圈和箭頭的能力也比較好。</p>
-<p> <img fetchpriority="high" border="0" alt="一、ChatGPT Images 2.6 是什麼？－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_61B53E2C.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://chatgpt.com/" target="_blank">https://chatgpt.com/</a></td>
-</tr>
-<tr>
-<td>發布日期</td>
-<td>2026-11-04</td>
-</tr>
-<tr>
-<td>可用位置</td>
-<td>ChatGPT（網頁、桌面、手機）、Codex、OpenAI API</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>官方公告寫各方案都能用，免費版可以生圖；各方案的使用次數上限待查證。API 依 token 計費</td>
-</tr>
-<tr>
-<td>中文介面</td>
-<td>✅ ChatGPT 有繁體中文介面；圖片內的正體中文文字效果官方未說明，待查證</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>OpenAI <a href="https://help.openai.com/en/articles/7947663-chatgpt-supported-countries" target="_blank">支援地區名單</a>列有台灣；本文未實測登入與個別帳號功能</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>如果你已經在用 ChatGPT 生圖，這次不用另外裝任何東西，官方公告寫各方案都已提供。最值得先玩的是 GIF，做 LINE 貼圖風格的小動畫、社群貼文的動態圖都很適合。     </div>
-<hr>
-<h2>二、四個更新重點</h2>
-<p>官方公告列出的更新，阿正老師整理成四點。</p>
-<p><strong>1. 動畫 GIF</strong></p>
-<p>官方原文是「把提示詞或圖片變成動畫 GIF，調整速度、編輯單一畫格，然後循環分享」。也就是說，你可以從一句描述開始，也可以拿現有照片讓它動起來。做完覺得某一格怪怪的，可以只改那一格，不用整段重來。</p>
-<p><strong>2. 參考圖庫</strong></p>
-<p>可以把自己、寵物或角色的圖片存起來，之後在新的創作裡直接叫出來用，不用每次重新上傳。參考圖存放的位置、最多能存幾張、怎麼刪除，官方公告沒有寫清楚，阿正老師之後實際操作再補上。</p>
-<p><strong>3. 生成速度</strong></p>
-<p>OpenAI 說新模型生圖比先前快 50%，公告沒有列出詳細的測試條件。API 的速度型模型 Flare，官方寫在品質設定為 low 時最快約 6 秒出一張圖。這些都是官方公布的數據，不是阿正老師的實測。</p>
-<p><strong>4. 標註修改與 SVG 匯出</strong></p>
-<p>照片標註（markup）就是直接在圖上畫圈、寫字，告訴 AI 哪裡要改。ChatGPT 原本就有這個功能，這次是新增到 API；官方也說新模型更能看懂草圖和圖片標註。SVG 向量圖輸出是 API 這次新增的格式，適合要做 Logo 草稿、圖示的人。</p>
-<p> <iframe title="YouTube video player" allowfullscreen="allowfullscreen" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==" data-load-mode="0"></iframe>   </p>
-<hr>
-<h2>三、誰能用？要不要錢？</h2>
-<p>依 <a href="https://openai.com/index/introducing-images-2-6/" target="_blank">OpenAI 公告</a>，Images 2.6 發表當天就在全球各 ChatGPT 方案與 Codex 提供，網頁、桌面與手機版都能用。OpenAI 的 <a href="https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq" target="_blank">免費版說明</a>也寫到免費使用者可以建立圖片。各方案每天能生幾張圖、GIF 有沒有另外的次數限制，官方目前沒有公布，待查證；你的帳號裡 GIF 入口在哪裡，阿正老師實測後再補上。</p>
-<p>開發者用 API 的話，兩個 2.6 模型的價格一樣，都是依 token（AI 計算用量的單位）計費。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每 100 萬 token）</th>
-<th>輸入</th>
-<th>快取輸入</th>
-<th>輸出</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>圖片 token</td>
-<td>US$8</td>
-<td>US$2</td>
-<td>US$30</td>
-</tr>
-<tr>
-<td>文字 token</td>
-<td>US$5</td>
-<td>US$1.25</td>
-<td>不適用</td>
-</tr>
-</tbody>
-</table></div>
-<p>這組價格和 OpenAI 價格頁上的 GPT-Image-2.5 Sunburst／Flare 相同（2026-11-05 查證）。一張圖實際花多少錢要看尺寸和品質設定，官方建議用圖片生成指南裡的計算器估算。</p>
-<hr>
-<h2>四、動畫 GIF 怎麼做</h2>
-<p>依官方說法，GIF 有兩種起手方式，可以直接打文字描述，或上傳一張照片再說明要怎麼動。ChatGPT 裡的按鈕位置與選單名稱，官方說明頁目前無法讀取，待阿正老師實際操作後補上截圖。下指令時，阿正老師建議把這三件事講清楚。</p>
-<ul>
-<li><strong>誰在動、怎麼動</strong>：寫「尾巴左右擺動」比「讓貓動起來」好懂。</li>
-<li><strong>什麼不要動</strong>：例如「背景和桌子保持不動」，用來測試模型能不能只讓主角動。</li>
-<li><strong>要不要無縫循環</strong>：寫明「最後一格接回第一格」，用來測試循環播放的接點順不順。</li>
-</ul>
-<p>官方說生成後可以調整播放速度，也可以修改單一畫格。實際是用按鈕、選單還是用文字指定要改哪一格，阿正老師實測後再補上；在那之前，可以先用文字要求，例如「只改第 3 格」「播放速度放慢一點」。</p>
-<p> <img border="0" alt="四、動畫 GIF 怎麼做－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_58D4BBB5.png">      </p>
-<hr>
-<h2>五、8 組提示詞，直接複製來試</h2>
-<p>下面這 8 組提示詞，前 4 組測 GIF，第 5、6 組測參考圖，最後 2 組測靜態圖的中文字與標註修改。每組都附上「可以觀察什麼」，大家試完歡迎留言分享結果。</p>
-<p><strong>提示詞 1：文字生成 GIF（基本款）</strong></p>
-<pre>做一張動畫 GIF：一隻橘色虎斑貓趴在窗台上打瞌睡，尾巴慢慢左右擺動，偶爾耳朵抖一下。窗外下著小雨，雨滴沿著玻璃往下流。溫暖的室內燈光，插畫風格。背景和窗框保持不動，最後一格要能接回第一格，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/3d7cbcb924d4.gif"><img title="雨夜窗邊橘貓安睡動畫" alt="雨夜窗邊橘貓安睡動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb.gif"></a></p>
-<p>可以觀察：貓的外型每一格是否一致、背景有沒有跟著亂晃、循環接點會不會跳。</p>
-<p><strong>提示詞 2：照片變 GIF</strong>（先上傳一張自己拍的咖啡或熱茶照片）</p>
-<pre>把這張照片做成動畫 GIF：杯子上方的熱氣緩緩往上飄散，杯中的液面有輕微晃動。杯子、桌面和背景完全保持原樣，不要改變顏色和構圖。無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-134747b92-f5b9-4f8b-a6d2-6815c9590c98.gif"><img title="暖咖啡蒸氣與泡沫旋舞 (1)" alt="暖咖啡蒸氣與泡沫旋舞 (1)" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-1_thumb3802be04-6c51-4692-848c-4000133088f1.gif"></a></p>
-<p>可以觀察：照片原本的細節有沒有被改掉、熱氣看起來自不自然。</p>
-<p><strong>提示詞 3：正體中文文字動畫</strong></p>
-<pre>做一張動畫 GIF 標題動畫：深藍色背景上，「軟體玩家」四個正體中文字由左到右一個字一個字跳出來，每個字出現時有輕微彈跳。四個字都出現後停留一下，再全部淡出，然後重新開始。字體粗黑、白色，字要清楚正確。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/000a9e3a30c5.gif"><img title="軟體玩家彈跳淡出動畫" alt="軟體玩家彈跳淡出動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_1.gif"></a></p>
-<p>可以觀察：每一格的中文字有沒有寫錯或變形、字出現的順序對不對。這組最能看出中文字在動畫裡穩不穩。</p>
-<p><strong>提示詞 4：教學示意動畫＋單格修改</strong></p>
-<pre>做一張 4 格動畫 GIF，示意「用手機拍照後分享到 LINE」的流程：第 1 格手機相機畫面按下快門，第 2 格相簿裡選取剛拍的照片，第 3 格點分享按鈕，第 4 格出現綠色聊天視窗並送出。扁平化插畫風格，不要畫出真實 App 的 Logo，每格停留久一點。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/2e49859069ff.gif"><img title="手機照片分享流程動畫" alt="手機照片分享流程動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_2.gif"></a></p>
-<p>可以觀察：生成後挑一格，請它「只改第 3 格，把分享按鈕改成橘色」，看其他格會不會被動到。這是測試「編輯單一畫格」最直接的方法。</p>
-<p><strong>提示詞 5：存參考圖，換場景</strong>（先把自家寵物照片存成參考圖。保存方式和能不能命名待實測，下面的「小橘」只是示意，請換成你的寵物名稱或直接指定那張參考圖）</p>
-<pre>用參考圖裡的「小橘」，畫牠穿著紅色聖誕毛衣、坐在下雪的公園長椅上，背景有聖誕燈飾。保留小橘的花色、臉型和眼睛顏色，水彩風格。</pre>
-<p>可以觀察：換了場景和服裝後，寵物還認不認得出來。可以開一個新對話再叫一次，確認參考圖真的不用重新上傳。</p>
-<p><strong>提示詞 6：參考圖做 GIF</strong></p>
-<pre>用參考圖裡的「小橘」做一張動畫 GIF：小橘坐著對鏡頭眨眼，然後歪頭，再回到原本姿勢。純色淺黃背景，可愛貼圖風格，適合當聊天貼圖，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/53c593cc220e.gif"><img title="小橘貓可愛眨眼循環動畫" alt="小橘貓可愛眨眼循環動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_3.gif"></a></p>
-<p>可以觀察：參考圖和 GIF 一起用時，角色每一格長得像不像，適不適合拿來當自製貼圖。</p>
-<p><strong>提示詞 7：正體中文海報（靜態圖）</strong></p>
-<pre>設計一張直式活動海報，標題「社區電腦教室　免費報名」，副標「每週六上午　帶自己的筆電來」，下方三個小圖示分別寫「基礎操作」「網路安全」「AI 小幫手」。明亮的橘色與白色配色，正體中文，所有字都要清楚正確，不要出現簡體字。</pre>
-<p>可以觀察：中文字有沒有錯字、簡繁混用，小字是否還看得清楚。可以拿同一段提示詞跟 Images 2.5 時期的結果比較。</p>
-<p><strong>提示詞 8：標註修改</strong>（上傳一張室內照片，用畫筆在想改的地方畫圈）</p>
-<pre>我在照片上圈起來的地方，把原本的椅子換成一張淺木色的北歐風單人沙發。圈以外的地方完全不要改，光線和陰影要跟原圖一致。</pre>
-<p>可以觀察：圈外的物品有沒有被改到、新沙發的光影是否融入原照片。這是官方特別提到有改善的地方。</p>
-<div>
-<br> 如果模型選單裡有不同速度或思考程度的選項，可以拿同一組提示詞各跑一次，比較等待時間和畫面細節的差別。系統卡提到 ChatGPT 使用者可以從模型選單調整推理程度。 
-</div>
-<hr>
-<h2>六、給開發者：API 重點整理</h2>
-<p>一般使用者可以跳過這一節。要串 API 的朋友，以下是官方開發者文件寫到的重點（2026-11-05 查證）。</p>
-<ul>
-<li><strong>模型 ID</strong>：<code>gpt-image-2.6-sunburst</code>、<code>gpt-image-2.6-flare</code>。</li>
-<li><strong>支援的端點</strong>：圖片生成 <code>v1/images/generations</code> 與圖片編輯 <code>v1/images/edits</code>；Batch API（批次處理）目前不支援。</li>
-<li><strong>complexity 參數</strong>：控制模型下筆前規劃多少，可選 <code>low</code>、<code>medium</code>、<code>high</code>，不填就是 <code>high</code>，調整這個參數不另外收費。官方說較高的設定對密集文字、複雜版面有幫助，但等待時間會變長，也可能多出不想要的改動。</li>
-<li><strong>新輸出格式</strong>：兩個模型都支援動畫 GIF 與 SVG 輸出，以及用標註圖層引導的修改。</li>
-</ul>
-<p>GIF 的畫格數、每格時間等參數細節，請直接看 <a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank">OpenAI 圖片生成指南</a>。要注意的是，指南裡的範例程式碼目前還是用 2.5 的模型名稱，複製時記得改成 2.6。</p>
-<img alt="OpenAI 開發者文件 GPT-Image-2.6 Sunburst 模型頁面" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞 2" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-shot-4-v2.png"><figcaption>圖片來源：developers.openai.com，擷取於 2026-11-05</figcaption>
-<hr>
-<h2>七、使用前要注意的事</h2>
-<div>
-<br>⚠️ 用別人的照片做 GIF 或存成參考圖前，請先取得本人同意。OpenAI 系統卡把「捏造或損害真實人物形象的描繪」列為安全評估類別，相關請求可能被拒絕，系統卡也寫到檢查不一定能攔下所有違規內容。 
-</div>
-<ul>
-<li><strong>GIF 審核比較嚴</strong>：系統卡寫到，因為動畫可能透過多格畫面傳達單張圖看不出的意思，部分內容類別在 GIF 的限制比靜態圖更廣。一般題材被拒絕時，先對照 OpenAI 的使用政策確認內容沒有違規，再把描述寫得更明確。</li>
-<li><strong>圖片帶有來源標記</strong>：生成的圖片含 C2PA 來源資訊與 Google DeepMind 的 SynthID 隱形浮水印，OpenAI 提供工具檢查支援的檔案。官方沒有保證圖片經過轉傳、截圖或修改後還查得到。</li>
-<li><strong>功能入口以自己的帳號為準</strong>：官方公告寫各方案都能用，但沒有說明各功能在介面上的位置。找不到 GIF 選項時，先確認 App 已更新到最新版。</li>
-<li><strong>參考圖的隱私</strong>：存進去的是你的照片，目前官方公告沒寫保存與刪除方式，阿正老師建議先用寵物或自創角色測試，自己的臉晚點再說。</li>
-</ul>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<p>Images 2.6 的定位很清楚，就是讓 ChatGPT 的圖「動起來」和「記得住角色」。如果你還在比較其他 AI 生圖工具，可以參考 <a href="https://pcrookie.com/nano-banana-pro-gemini-3-image-guide-2026/" target="_blank">Nano Banana Pro 介紹</a>；想回顧 ChatGPT 生圖這一路的變化，可以看 <a href="https://pcrookie.com/chatgpt-images-2-guide/" target="_blank">Images 2.0 教學</a>。</p>
-<div>
-<p>想做自家寵物或角色的動態貼圖</p>
-<p>→ <strong>參考圖＋GIF</strong>。先存一張清楚的正面照，再用提示詞 6 的寫法做眨眼、揮手這類小動作。</p>
-</div>
-<div>
-<p> 經營粉專、要做社群動態圖</p>
-<p>→ <strong>文字生成 GIF</strong>。標題動畫、商品小動態都能做，記得先用提示詞 3 測中文字穩不穩。</p>
-</div>
-<div>
-<p> 開發者要批次大量生圖</p>
-<p>→ <strong>先留在 2.5</strong>。2.6 目前不支援 Batch API。如果工作不急著即時拿到結果、2.5 的畫質也夠用，2.5 的 Batch 單位費率比一般費率低。</p>
-</div>
-<hr>
-<div>
-<p> 先試一張 GIF 吧</p>
-<p>ChatGPT Images 2.6 不用安裝、免費版也能用，最快的上手方式就是複製提示詞 1，看看你的 ChatGPT 能不能把窗台上的貓做成會動的圖。阿正老師也會陸續實際測試這 8 組提示詞，補上成果截圖。</p>
-<p>你做出了什麼有趣的 GIF？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </itunes:summary>
-    <description>
-      <![CDATA[<p><img post-id="8558" fifu-featured="1" alt="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-cover-v2.png"></p>
-<p>OpenAI 在 2026 年 11 月 4 日發表 <strong>ChatGPT Images 2.6</strong>。這次最好玩的是 ChatGPT 終於能直接做<strong>動畫 GIF</strong>，打一句話或丟一張照片，就能生出會動的循環小圖，還能調速度、改單一格畫面。</p>
-<p>另一個新功能是「參考圖」。以前想讓 AI 畫自家的貓，每開一個新對話就得重新上傳照片；現在可以把寵物、自己或自創角色的照片存起來，之後直接拿來用。距離上一版 <a href="https://pcrookie.com/chatgpt-images-2-5-intro-2026/" target="_blank">Images 2.5</a> 才兩個月，這次改了哪些地方、要不要付費、GIF 要怎麼下指令，阿正老師一次整理給大家。</p>
-<div>⚠️ 本文為官方資料整理，並經阿正老師實測，生成圖片為實際畫面。     </div>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">ChatGPT Images 2.6 是什麼？</a></li>
-<li><a href="#features">四個更新重點</a></li>
-<li><a href="#price">誰能用？要不要錢？</a></li>
-<li><a href="#gif">動畫 GIF 怎麼做</a></li>
-<li><a href="#prompts">8 組提示詞，直接複製來試</a></li>
-<li><a href="#api">給開發者：API 重點整理</a></li>
-<li><a href="#notice">使用前要注意的事</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、ChatGPT Images 2.6 是什麼？</h2>
-<p>Images 2.6 是 ChatGPT 內建生圖功能的新版本，同時更新到 Codex 和開發者用的 API。API 這邊分成兩個模型，<strong>GPT-Image-2.6 Sunburst</strong> 重畫質和多次修改後的一致性，<strong>GPT-Image-2.6 Flare</strong> 重速度。</p>
-<p>OpenAI 的系統卡（安全說明文件）寫到，新模型改善了編輯時的一致性、細節保留，以及對草圖和圖片標註的理解。簡單說，就是「改圖時比較不會把其他地方也改掉」，看懂你手畫的圈圈和箭頭的能力也比較好。</p>
-<p> <img fetchpriority="high" border="0" alt="一、ChatGPT Images 2.6 是什麼？－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_61B53E2C.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://chatgpt.com/" target="_blank">https://chatgpt.com/</a></td>
-</tr>
-<tr>
-<td>發布日期</td>
-<td>2026-11-04</td>
-</tr>
-<tr>
-<td>可用位置</td>
-<td>ChatGPT（網頁、桌面、手機）、Codex、OpenAI API</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>官方公告寫各方案都能用，免費版可以生圖；各方案的使用次數上限待查證。API 依 token 計費</td>
-</tr>
-<tr>
-<td>中文介面</td>
-<td>✅ ChatGPT 有繁體中文介面；圖片內的正體中文文字效果官方未說明，待查證</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>OpenAI <a href="https://help.openai.com/en/articles/7947663-chatgpt-supported-countries" target="_blank">支援地區名單</a>列有台灣；本文未實測登入與個別帳號功能</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>如果你已經在用 ChatGPT 生圖，這次不用另外裝任何東西，官方公告寫各方案都已提供。最值得先玩的是 GIF，做 LINE 貼圖風格的小動畫、社群貼文的動態圖都很適合。     </div>
-<hr>
-<h2>二、四個更新重點</h2>
-<p>官方公告列出的更新，阿正老師整理成四點。</p>
-<p><strong>1. 動畫 GIF</strong></p>
-<p>官方原文是「把提示詞或圖片變成動畫 GIF，調整速度、編輯單一畫格，然後循環分享」。也就是說，你可以從一句描述開始，也可以拿現有照片讓它動起來。做完覺得某一格怪怪的，可以只改那一格，不用整段重來。</p>
-<p><strong>2. 參考圖庫</strong></p>
-<p>可以把自己、寵物或角色的圖片存起來，之後在新的創作裡直接叫出來用，不用每次重新上傳。參考圖存放的位置、最多能存幾張、怎麼刪除，官方公告沒有寫清楚，阿正老師之後實際操作再補上。</p>
-<p><strong>3. 生成速度</strong></p>
-<p>OpenAI 說新模型生圖比先前快 50%，公告沒有列出詳細的測試條件。API 的速度型模型 Flare，官方寫在品質設定為 low 時最快約 6 秒出一張圖。這些都是官方公布的數據，不是阿正老師的實測。</p>
-<p><strong>4. 標註修改與 SVG 匯出</strong></p>
-<p>照片標註（markup）就是直接在圖上畫圈、寫字，告訴 AI 哪裡要改。ChatGPT 原本就有這個功能，這次是新增到 API；官方也說新模型更能看懂草圖和圖片標註。SVG 向量圖輸出是 API 這次新增的格式，適合要做 Logo 草稿、圖示的人。</p>
-<p> <iframe title="YouTube video player" allowfullscreen="allowfullscreen" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==" data-load-mode="0"></iframe>   </p>
-<hr>
-<h2>三、誰能用？要不要錢？</h2>
-<p>依 <a href="https://openai.com/index/introducing-images-2-6/" target="_blank">OpenAI 公告</a>，Images 2.6 發表當天就在全球各 ChatGPT 方案與 Codex 提供，網頁、桌面與手機版都能用。OpenAI 的 <a href="https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq" target="_blank">免費版說明</a>也寫到免費使用者可以建立圖片。各方案每天能生幾張圖、GIF 有沒有另外的次數限制，官方目前沒有公布，待查證；你的帳號裡 GIF 入口在哪裡，阿正老師實測後再補上。</p>
-<p>開發者用 API 的話，兩個 2.6 模型的價格一樣，都是依 token（AI 計算用量的單位）計費。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每 100 萬 token）</th>
-<th>輸入</th>
-<th>快取輸入</th>
-<th>輸出</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>圖片 token</td>
-<td>US$8</td>
-<td>US$2</td>
-<td>US$30</td>
-</tr>
-<tr>
-<td>文字 token</td>
-<td>US$5</td>
-<td>US$1.25</td>
-<td>不適用</td>
-</tr>
-</tbody>
-</table></div>
-<p>這組價格和 OpenAI 價格頁上的 GPT-Image-2.5 Sunburst／Flare 相同（2026-11-05 查證）。一張圖實際花多少錢要看尺寸和品質設定，官方建議用圖片生成指南裡的計算器估算。</p>
-<hr>
-<h2>四、動畫 GIF 怎麼做</h2>
-<p>依官方說法，GIF 有兩種起手方式，可以直接打文字描述，或上傳一張照片再說明要怎麼動。ChatGPT 裡的按鈕位置與選單名稱，官方說明頁目前無法讀取，待阿正老師實際操作後補上截圖。下指令時，阿正老師建議把這三件事講清楚。</p>
-<ul>
-<li><strong>誰在動、怎麼動</strong>：寫「尾巴左右擺動」比「讓貓動起來」好懂。</li>
-<li><strong>什麼不要動</strong>：例如「背景和桌子保持不動」，用來測試模型能不能只讓主角動。</li>
-<li><strong>要不要無縫循環</strong>：寫明「最後一格接回第一格」，用來測試循環播放的接點順不順。</li>
-</ul>
-<p>官方說生成後可以調整播放速度，也可以修改單一畫格。實際是用按鈕、選單還是用文字指定要改哪一格，阿正老師實測後再補上；在那之前，可以先用文字要求，例如「只改第 3 格」「播放速度放慢一點」。</p>
-<p> <img border="0" alt="四、動畫 GIF 怎麼做－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_58D4BBB5.png">      </p>
-<hr>
-<h2>五、8 組提示詞，直接複製來試</h2>
-<p>下面這 8 組提示詞，前 4 組測 GIF，第 5、6 組測參考圖，最後 2 組測靜態圖的中文字與標註修改。每組都附上「可以觀察什麼」，大家試完歡迎留言分享結果。</p>
-<p><strong>提示詞 1：文字生成 GIF（基本款）</strong></p>
-<pre>做一張動畫 GIF：一隻橘色虎斑貓趴在窗台上打瞌睡，尾巴慢慢左右擺動，偶爾耳朵抖一下。窗外下著小雨，雨滴沿著玻璃往下流。溫暖的室內燈光，插畫風格。背景和窗框保持不動，最後一格要能接回第一格，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/3d7cbcb924d4.gif"><img title="雨夜窗邊橘貓安睡動畫" alt="雨夜窗邊橘貓安睡動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb.gif"></a></p>
-<p>可以觀察：貓的外型每一格是否一致、背景有沒有跟著亂晃、循環接點會不會跳。</p>
-<p><strong>提示詞 2：照片變 GIF</strong>（先上傳一張自己拍的咖啡或熱茶照片）</p>
-<pre>把這張照片做成動畫 GIF：杯子上方的熱氣緩緩往上飄散，杯中的液面有輕微晃動。杯子、桌面和背景完全保持原樣，不要改變顏色和構圖。無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-134747b92-f5b9-4f8b-a6d2-6815c9590c98.gif"><img title="暖咖啡蒸氣與泡沫旋舞 (1)" alt="暖咖啡蒸氣與泡沫旋舞 (1)" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-1_thumb3802be04-6c51-4692-848c-4000133088f1.gif"></a></p>
-<p>可以觀察：照片原本的細節有沒有被改掉、熱氣看起來自不自然。</p>
-<p><strong>提示詞 3：正體中文文字動畫</strong></p>
-<pre>做一張動畫 GIF 標題動畫：深藍色背景上，「軟體玩家」四個正體中文字由左到右一個字一個字跳出來，每個字出現時有輕微彈跳。四個字都出現後停留一下，再全部淡出，然後重新開始。字體粗黑、白色，字要清楚正確。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/000a9e3a30c5.gif"><img title="軟體玩家彈跳淡出動畫" alt="軟體玩家彈跳淡出動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_1.gif"></a></p>
-<p>可以觀察：每一格的中文字有沒有寫錯或變形、字出現的順序對不對。這組最能看出中文字在動畫裡穩不穩。</p>
-<p><strong>提示詞 4：教學示意動畫＋單格修改</strong></p>
-<pre>做一張 4 格動畫 GIF，示意「用手機拍照後分享到 LINE」的流程：第 1 格手機相機畫面按下快門，第 2 格相簿裡選取剛拍的照片，第 3 格點分享按鈕，第 4 格出現綠色聊天視窗並送出。扁平化插畫風格，不要畫出真實 App 的 Logo，每格停留久一點。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/2e49859069ff.gif"><img title="手機照片分享流程動畫" alt="手機照片分享流程動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_2.gif"></a></p>
-<p>可以觀察：生成後挑一格，請它「只改第 3 格，把分享按鈕改成橘色」，看其他格會不會被動到。這是測試「編輯單一畫格」最直接的方法。</p>
-<p><strong>提示詞 5：存參考圖，換場景</strong>（先把自家寵物照片存成參考圖。保存方式和能不能命名待實測，下面的「小橘」只是示意，請換成你的寵物名稱或直接指定那張參考圖）</p>
-<pre>用參考圖裡的「小橘」，畫牠穿著紅色聖誕毛衣、坐在下雪的公園長椅上，背景有聖誕燈飾。保留小橘的花色、臉型和眼睛顏色，水彩風格。</pre>
-<p>可以觀察：換了場景和服裝後，寵物還認不認得出來。可以開一個新對話再叫一次，確認參考圖真的不用重新上傳。</p>
-<p><strong>提示詞 6：參考圖做 GIF</strong></p>
-<pre>用參考圖裡的「小橘」做一張動畫 GIF：小橘坐著對鏡頭眨眼，然後歪頭，再回到原本姿勢。純色淺黃背景，可愛貼圖風格，適合當聊天貼圖，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/53c593cc220e.gif"><img title="小橘貓可愛眨眼循環動畫" alt="小橘貓可愛眨眼循環動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_3.gif"></a></p>
-<p>可以觀察：參考圖和 GIF 一起用時，角色每一格長得像不像，適不適合拿來當自製貼圖。</p>
-<p><strong>提示詞 7：正體中文海報（靜態圖）</strong></p>
-<pre>設計一張直式活動海報，標題「社區電腦教室　免費報名」，副標「每週六上午　帶自己的筆電來」，下方三個小圖示分別寫「基礎操作」「網路安全」「AI 小幫手」。明亮的橘色與白色配色，正體中文，所有字都要清楚正確，不要出現簡體字。</pre>
-<p>可以觀察：中文字有沒有錯字、簡繁混用，小字是否還看得清楚。可以拿同一段提示詞跟 Images 2.5 時期的結果比較。</p>
-<p><strong>提示詞 8：標註修改</strong>（上傳一張室內照片，用畫筆在想改的地方畫圈）</p>
-<pre>我在照片上圈起來的地方，把原本的椅子換成一張淺木色的北歐風單人沙發。圈以外的地方完全不要改，光線和陰影要跟原圖一致。</pre>
-<p>可以觀察：圈外的物品有沒有被改到、新沙發的光影是否融入原照片。這是官方特別提到有改善的地方。</p>
-<div>
-<br> 如果模型選單裡有不同速度或思考程度的選項，可以拿同一組提示詞各跑一次，比較等待時間和畫面細節的差別。系統卡提到 ChatGPT 使用者可以從模型選單調整推理程度。 
-</div>
-<hr>
-<h2>六、給開發者：API 重點整理</h2>
-<p>一般使用者可以跳過這一節。要串 API 的朋友，以下是官方開發者文件寫到的重點（2026-11-05 查證）。</p>
-<ul>
-<li><strong>模型 ID</strong>：<code>gpt-image-2.6-sunburst</code>、<code>gpt-image-2.6-flare</code>。</li>
-<li><strong>支援的端點</strong>：圖片生成 <code>v1/images/generations</code> 與圖片編輯 <code>v1/images/edits</code>；Batch API（批次處理）目前不支援。</li>
-<li><strong>complexity 參數</strong>：控制模型下筆前規劃多少，可選 <code>low</code>、<code>medium</code>、<code>high</code>，不填就是 <code>high</code>，調整這個參數不另外收費。官方說較高的設定對密集文字、複雜版面有幫助，但等待時間會變長，也可能多出不想要的改動。</li>
-<li><strong>新輸出格式</strong>：兩個模型都支援動畫 GIF 與 SVG 輸出，以及用標註圖層引導的修改。</li>
-</ul>
-<p>GIF 的畫格數、每格時間等參數細節，請直接看 <a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank">OpenAI 圖片生成指南</a>。要注意的是，指南裡的範例程式碼目前還是用 2.5 的模型名稱，複製時記得改成 2.6。</p>
-<img alt="OpenAI 開發者文件 GPT-Image-2.6 Sunburst 模型頁面" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞 2" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-shot-4-v2.png"><figcaption>圖片來源：developers.openai.com，擷取於 2026-11-05</figcaption>
-<hr>
-<h2>七、使用前要注意的事</h2>
-<div>
-<br>⚠️ 用別人的照片做 GIF 或存成參考圖前，請先取得本人同意。OpenAI 系統卡把「捏造或損害真實人物形象的描繪」列為安全評估類別，相關請求可能被拒絕，系統卡也寫到檢查不一定能攔下所有違規內容。 
-</div>
-<ul>
-<li><strong>GIF 審核比較嚴</strong>：系統卡寫到，因為動畫可能透過多格畫面傳達單張圖看不出的意思，部分內容類別在 GIF 的限制比靜態圖更廣。一般題材被拒絕時，先對照 OpenAI 的使用政策確認內容沒有違規，再把描述寫得更明確。</li>
-<li><strong>圖片帶有來源標記</strong>：生成的圖片含 C2PA 來源資訊與 Google DeepMind 的 SynthID 隱形浮水印，OpenAI 提供工具檢查支援的檔案。官方沒有保證圖片經過轉傳、截圖或修改後還查得到。</li>
-<li><strong>功能入口以自己的帳號為準</strong>：官方公告寫各方案都能用，但沒有說明各功能在介面上的位置。找不到 GIF 選項時，先確認 App 已更新到最新版。</li>
-<li><strong>參考圖的隱私</strong>：存進去的是你的照片，目前官方公告沒寫保存與刪除方式，阿正老師建議先用寵物或自創角色測試，自己的臉晚點再說。</li>
-</ul>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<p>Images 2.6 的定位很清楚，就是讓 ChatGPT 的圖「動起來」和「記得住角色」。如果你還在比較其他 AI 生圖工具，可以參考 <a href="https://pcrookie.com/nano-banana-pro-gemini-3-image-guide-2026/" target="_blank">Nano Banana Pro 介紹</a>；想回顧 ChatGPT 生圖這一路的變化，可以看 <a href="https://pcrookie.com/chatgpt-images-2-guide/" target="_blank">Images 2.0 教學</a>。</p>
-<div>
-<p>想做自家寵物或角色的動態貼圖</p>
-<p>→ <strong>參考圖＋GIF</strong>。先存一張清楚的正面照，再用提示詞 6 的寫法做眨眼、揮手這類小動作。</p>
-</div>
-<div>
-<p> 經營粉專、要做社群動態圖</p>
-<p>→ <strong>文字生成 GIF</strong>。標題動畫、商品小動態都能做，記得先用提示詞 3 測中文字穩不穩。</p>
-</div>
-<div>
-<p> 開發者要批次大量生圖</p>
-<p>→ <strong>先留在 2.5</strong>。2.6 目前不支援 Batch API。如果工作不急著即時拿到結果、2.5 的畫質也夠用，2.5 的 Batch 單位費率比一般費率低。</p>
-</div>
-<hr>
-<div>
-<p> 先試一張 GIF 吧</p>
-<p>ChatGPT Images 2.6 不用安裝、免費版也能用，最快的上手方式就是複製提示詞 1，看看你的 ChatGPT 能不能把窗台上的貓做成會動的圖。阿正老師也會陸續實際測試這 8 組提示詞，補上成果截圖。</p>
-<p>你做出了什麼有趣的 GIF？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]>
-    </description>
-    <content:encoded><![CDATA[<p><img post-id="8558" fifu-featured="1" alt="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-cover-v2.png"></p>
-<p>OpenAI 在 2026 年 11 月 4 日發表 <strong>ChatGPT Images 2.6</strong>。這次最好玩的是 ChatGPT 終於能直接做<strong>動畫 GIF</strong>，打一句話或丟一張照片，就能生出會動的循環小圖，還能調速度、改單一格畫面。</p>
-<p>另一個新功能是「參考圖」。以前想讓 AI 畫自家的貓，每開一個新對話就得重新上傳照片；現在可以把寵物、自己或自創角色的照片存起來，之後直接拿來用。距離上一版 <a href="https://pcrookie.com/chatgpt-images-2-5-intro-2026/" target="_blank">Images 2.5</a> 才兩個月，這次改了哪些地方、要不要付費、GIF 要怎麼下指令，阿正老師一次整理給大家。</p>
-<div>⚠️ 本文為官方資料整理，並經阿正老師實測，生成圖片為實際畫面。     </div>
-<hr>
-<div>
-<p> 文章目錄</p>
-<ol>
-<li><a href="#what">ChatGPT Images 2.6 是什麼？</a></li>
-<li><a href="#features">四個更新重點</a></li>
-<li><a href="#price">誰能用？要不要錢？</a></li>
-<li><a href="#gif">動畫 GIF 怎麼做</a></li>
-<li><a href="#prompts">8 組提示詞，直接複製來試</a></li>
-<li><a href="#api">給開發者：API 重點整理</a></li>
-<li><a href="#notice">使用前要注意的事</a></li>
-<li><a href="#summary">阿正老師的總結</a></li>
-</ol></div>
-<hr>
-<h2>一、ChatGPT Images 2.6 是什麼？</h2>
-<p>Images 2.6 是 ChatGPT 內建生圖功能的新版本，同時更新到 Codex 和開發者用的 API。API 這邊分成兩個模型，<strong>GPT-Image-2.6 Sunburst</strong> 重畫質和多次修改後的一致性，<strong>GPT-Image-2.6 Flare</strong> 重速度。</p>
-<p>OpenAI 的系統卡（安全說明文件）寫到，新模型改善了編輯時的一致性、細節保留，以及對草圖和圖片標註的理解。簡單說，就是「改圖時比較不會把其他地方也改掉」，看懂你手畫的圈圈和箭頭的能力也比較好。</p>
-<p> <img fetchpriority="high" border="0" alt="一、ChatGPT Images 2.6 是什麼？－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_61B53E2C.png">   </p>
-<table>
-<tbody>
-<tr>
-<td>官方網站</td>
-<td><a href="https://chatgpt.com/" target="_blank">https://chatgpt.com/</a></td>
-</tr>
-<tr>
-<td>發布日期</td>
-<td>2026-11-04</td>
-</tr>
-<tr>
-<td>可用位置</td>
-<td>ChatGPT（網頁、桌面、手機）、Codex、OpenAI API</td>
-</tr>
-<tr>
-<td>費用</td>
-<td>官方公告寫各方案都能用，免費版可以生圖；各方案的使用次數上限待查證。API 依 token 計費</td>
-</tr>
-<tr>
-<td>中文介面</td>
-<td>✅ ChatGPT 有繁體中文介面；圖片內的正體中文文字效果官方未說明，待查證</td>
-</tr>
-<tr>
-<td>台灣可用性</td>
-<td>OpenAI <a href="https://help.openai.com/en/articles/7947663-chatgpt-supported-countries" target="_blank">支援地區名單</a>列有台灣；本文未實測登入與個別帳號功能</td>
-</tr>
-</tbody>
-</table>
-<div><strong>阿正老師點評：</strong>如果你已經在用 ChatGPT 生圖，這次不用另外裝任何東西，官方公告寫各方案都已提供。最值得先玩的是 GIF，做 LINE 貼圖風格的小動畫、社群貼文的動態圖都很適合。     </div>
-<hr>
-<h2>二、四個更新重點</h2>
-<p>官方公告列出的更新，阿正老師整理成四點。</p>
-<p><strong>1. 動畫 GIF</strong></p>
-<p>官方原文是「把提示詞或圖片變成動畫 GIF，調整速度、編輯單一畫格，然後循環分享」。也就是說，你可以從一句描述開始，也可以拿現有照片讓它動起來。做完覺得某一格怪怪的，可以只改那一格，不用整段重來。</p>
-<p><strong>2. 參考圖庫</strong></p>
-<p>可以把自己、寵物或角色的圖片存起來，之後在新的創作裡直接叫出來用，不用每次重新上傳。參考圖存放的位置、最多能存幾張、怎麼刪除，官方公告沒有寫清楚，阿正老師之後實際操作再補上。</p>
-<p><strong>3. 生成速度</strong></p>
-<p>OpenAI 說新模型生圖比先前快 50%，公告沒有列出詳細的測試條件。API 的速度型模型 Flare，官方寫在品質設定為 low 時最快約 6 秒出一張圖。這些都是官方公布的數據，不是阿正老師的實測。</p>
-<p><strong>4. 標註修改與 SVG 匯出</strong></p>
-<p>照片標註（markup）就是直接在圖上畫圈、寫字，告訴 AI 哪裡要改。ChatGPT 原本就有這個功能，這次是新增到 API；官方也說新模型更能看懂草圖和圖片標註。SVG 向量圖輸出是 API 這次新增的格式，適合要做 Logo 草稿、圖示的人。</p>
-<p> <iframe title="YouTube video player" allowfullscreen="allowfullscreen" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==" data-load-mode="0"></iframe>   </p>
-<hr>
-<h2>三、誰能用？要不要錢？</h2>
-<p>依 <a href="https://openai.com/index/introducing-images-2-6/" target="_blank">OpenAI 公告</a>，Images 2.6 發表當天就在全球各 ChatGPT 方案與 Codex 提供，網頁、桌面與手機版都能用。OpenAI 的 <a href="https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq" target="_blank">免費版說明</a>也寫到免費使用者可以建立圖片。各方案每天能生幾張圖、GIF 有沒有另外的次數限制，官方目前沒有公布，待查證；你的帳號裡 GIF 入口在哪裡，阿正老師實測後再補上。</p>
-<p>開發者用 API 的話，兩個 2.6 模型的價格一樣，都是依 token（AI 計算用量的單位）計費。</p>
-<div>
-<table>
-<thead>
-<tr>
-<th>項目（每 100 萬 token）</th>
-<th>輸入</th>
-<th>快取輸入</th>
-<th>輸出</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>圖片 token</td>
-<td>US$8</td>
-<td>US$2</td>
-<td>US$30</td>
-</tr>
-<tr>
-<td>文字 token</td>
-<td>US$5</td>
-<td>US$1.25</td>
-<td>不適用</td>
-</tr>
-</tbody>
-</table></div>
-<p>這組價格和 OpenAI 價格頁上的 GPT-Image-2.5 Sunburst／Flare 相同（2026-11-05 查證）。一張圖實際花多少錢要看尺寸和品質設定，官方建議用圖片生成指南裡的計算器估算。</p>
-<hr>
-<h2>四、動畫 GIF 怎麼做</h2>
-<p>依官方說法，GIF 有兩種起手方式，可以直接打文字描述，或上傳一張照片再說明要怎麼動。ChatGPT 裡的按鈕位置與選單名稱，官方說明頁目前無法讀取，待阿正老師實際操作後補上截圖。下指令時，阿正老師建議把這三件事講清楚。</p>
-<ul>
-<li><strong>誰在動、怎麼動</strong>：寫「尾巴左右擺動」比「讓貓動起來」好懂。</li>
-<li><strong>什麼不要動</strong>：例如「背景和桌子保持不動」，用來測試模型能不能只讓主角動。</li>
-<li><strong>要不要無縫循環</strong>：寫明「最後一格接回第一格」，用來測試循環播放的接點順不順。</li>
-</ul>
-<p>官方說生成後可以調整播放速度，也可以修改單一畫格。實際是用按鈕、選單還是用文字指定要改哪一格，阿正老師實測後再補上；在那之前，可以先用文字要求，例如「只改第 3 格」「播放速度放慢一點」。</p>
-<p> <img border="0" alt="四、動畫 GIF 怎麼做－ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/image_58D4BBB5.png">      </p>
-<hr>
-<h2>五、8 組提示詞，直接複製來試</h2>
-<p>下面這 8 組提示詞，前 4 組測 GIF，第 5、6 組測參考圖，最後 2 組測靜態圖的中文字與標註修改。每組都附上「可以觀察什麼」，大家試完歡迎留言分享結果。</p>
-<p><strong>提示詞 1：文字生成 GIF（基本款）</strong></p>
-<pre>做一張動畫 GIF：一隻橘色虎斑貓趴在窗台上打瞌睡，尾巴慢慢左右擺動，偶爾耳朵抖一下。窗外下著小雨，雨滴沿著玻璃往下流。溫暖的室內燈光，插畫風格。背景和窗框保持不動，最後一格要能接回第一格，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/3d7cbcb924d4.gif"><img title="雨夜窗邊橘貓安睡動畫" alt="雨夜窗邊橘貓安睡動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb.gif"></a></p>
-<p>可以觀察：貓的外型每一格是否一致、背景有沒有跟著亂晃、循環接點會不會跳。</p>
-<p><strong>提示詞 2：照片變 GIF</strong>（先上傳一張自己拍的咖啡或熱茶照片）</p>
-<pre>把這張照片做成動畫 GIF：杯子上方的熱氣緩緩往上飄散，杯中的液面有輕微晃動。杯子、桌面和背景完全保持原樣，不要改變顏色和構圖。無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-134747b92-f5b9-4f8b-a6d2-6815c9590c98.gif"><img title="暖咖啡蒸氣與泡沫旋舞 (1)" alt="暖咖啡蒸氣與泡沫旋舞 (1)" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/-1_thumb3802be04-6c51-4692-848c-4000133088f1.gif"></a></p>
-<p>可以觀察：照片原本的細節有沒有被改掉、熱氣看起來自不自然。</p>
-<p><strong>提示詞 3：正體中文文字動畫</strong></p>
-<pre>做一張動畫 GIF 標題動畫：深藍色背景上，「軟體玩家」四個正體中文字由左到右一個字一個字跳出來，每個字出現時有輕微彈跳。四個字都出現後停留一下，再全部淡出，然後重新開始。字體粗黑、白色，字要清楚正確。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/000a9e3a30c5.gif"><img title="軟體玩家彈跳淡出動畫" alt="軟體玩家彈跳淡出動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_1.gif"></a></p>
-<p>可以觀察：每一格的中文字有沒有寫錯或變形、字出現的順序對不對。這組最能看出中文字在動畫裡穩不穩。</p>
-<p><strong>提示詞 4：教學示意動畫＋單格修改</strong></p>
-<pre>做一張 4 格動畫 GIF，示意「用手機拍照後分享到 LINE」的流程：第 1 格手機相機畫面按下快門，第 2 格相簿裡選取剛拍的照片，第 3 格點分享按鈕，第 4 格出現綠色聊天視窗並送出。扁平化插畫風格，不要畫出真實 App 的 Logo，每格停留久一點。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/2e49859069ff.gif"><img title="手機照片分享流程動畫" alt="手機照片分享流程動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_2.gif"></a></p>
-<p>可以觀察：生成後挑一格，請它「只改第 3 格，把分享按鈕改成橘色」，看其他格會不會被動到。這是測試「編輯單一畫格」最直接的方法。</p>
-<p><strong>提示詞 5：存參考圖，換場景</strong>（先把自家寵物照片存成參考圖。保存方式和能不能命名待實測，下面的「小橘」只是示意，請換成你的寵物名稱或直接指定那張參考圖）</p>
-<pre>用參考圖裡的「小橘」，畫牠穿著紅色聖誕毛衣、坐在下雪的公園長椅上，背景有聖誕燈飾。保留小橘的花色、臉型和眼睛顏色，水彩風格。</pre>
-<p>可以觀察：換了場景和服裝後，寵物還認不認得出來。可以開一個新對話再叫一次，確認參考圖真的不用重新上傳。</p>
-<p><strong>提示詞 6：參考圖做 GIF</strong></p>
-<pre>用參考圖裡的「小橘」做一張動畫 GIF：小橘坐著對鏡頭眨眼，然後歪頭，再回到原本姿勢。純色淺黃背景，可愛貼圖風格，適合當聊天貼圖，無縫循環。</pre>
-<p><a href="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/53c593cc220e.gif"><img title="小橘貓可愛眨眼循環動畫" alt="小橘貓可愛眨眼循環動畫" src="https://image.pcrookie.com/2026/10/ChatGPT-Images-2.6--GIF-8-_1A14CB28/_thumb_3.gif"></a></p>
-<p>可以觀察：參考圖和 GIF 一起用時，角色每一格長得像不像，適不適合拿來當自製貼圖。</p>
-<p><strong>提示詞 7：正體中文海報（靜態圖）</strong></p>
-<pre>設計一張直式活動海報，標題「社區電腦教室　免費報名」，副標「每週六上午　帶自己的筆電來」，下方三個小圖示分別寫「基礎操作」「網路安全」「AI 小幫手」。明亮的橘色與白色配色，正體中文，所有字都要清楚正確，不要出現簡體字。</pre>
-<p>可以觀察：中文字有沒有錯字、簡繁混用，小字是否還看得清楚。可以拿同一段提示詞跟 Images 2.5 時期的結果比較。</p>
-<p><strong>提示詞 8：標註修改</strong>（上傳一張室內照片，用畫筆在想改的地方畫圈）</p>
-<pre>我在照片上圈起來的地方，把原本的椅子換成一張淺木色的北歐風單人沙發。圈以外的地方完全不要改，光線和陰影要跟原圖一致。</pre>
-<p>可以觀察：圈外的物品有沒有被改到、新沙發的光影是否融入原照片。這是官方特別提到有改善的地方。</p>
-<div>
-<br> 如果模型選單裡有不同速度或思考程度的選項，可以拿同一組提示詞各跑一次，比較等待時間和畫面細節的差別。系統卡提到 ChatGPT 使用者可以從模型選單調整推理程度。 
-</div>
-<hr>
-<h2>六、給開發者：API 重點整理</h2>
-<p>一般使用者可以跳過這一節。要串 API 的朋友，以下是官方開發者文件寫到的重點（2026-11-05 查證）。</p>
-<ul>
-<li><strong>模型 ID</strong>：<code>gpt-image-2.6-sunburst</code>、<code>gpt-image-2.6-flare</code>。</li>
-<li><strong>支援的端點</strong>：圖片生成 <code>v1/images/generations</code> 與圖片編輯 <code>v1/images/edits</code>；Batch API（批次處理）目前不支援。</li>
-<li><strong>complexity 參數</strong>：控制模型下筆前規劃多少，可選 <code>low</code>、<code>medium</code>、<code>high</code>，不填就是 <code>high</code>，調整這個參數不另外收費。官方說較高的設定對密集文字、複雜版面有幫助，但等待時間會變長，也可能多出不想要的改動。</li>
-<li><strong>新輸出格式</strong>：兩個模型都支援動畫 GIF 與 SVG 輸出，以及用標註圖層引導的修改。</li>
-</ul>
-<p>GIF 的畫格數、每格時間等參數細節，請直接看 <a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank">OpenAI 圖片生成指南</a>。要注意的是，指南裡的範例程式碼目前還是用 2.5 的模型名稱，複製時記得改成 2.6。</p>
-<img alt="OpenAI 開發者文件 GPT-Image-2.6 Sunburst 模型頁面" title="ChatGPT Images 2.6 登場！動畫 GIF、參考圖庫怎麼用，附 8 組提示詞 2" src="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-shot-4-v2.png"><figcaption>圖片來源：developers.openai.com，擷取於 2026-11-05</figcaption>
-<hr>
-<h2>七、使用前要注意的事</h2>
-<div>
-<br>⚠️ 用別人的照片做 GIF 或存成參考圖前，請先取得本人同意。OpenAI 系統卡把「捏造或損害真實人物形象的描繪」列為安全評估類別，相關請求可能被拒絕，系統卡也寫到檢查不一定能攔下所有違規內容。 
-</div>
-<ul>
-<li><strong>GIF 審核比較嚴</strong>：系統卡寫到，因為動畫可能透過多格畫面傳達單張圖看不出的意思，部分內容類別在 GIF 的限制比靜態圖更廣。一般題材被拒絕時，先對照 OpenAI 的使用政策確認內容沒有違規，再把描述寫得更明確。</li>
-<li><strong>圖片帶有來源標記</strong>：生成的圖片含 C2PA 來源資訊與 Google DeepMind 的 SynthID 隱形浮水印，OpenAI 提供工具檢查支援的檔案。官方沒有保證圖片經過轉傳、截圖或修改後還查得到。</li>
-<li><strong>功能入口以自己的帳號為準</strong>：官方公告寫各方案都能用，但沒有說明各功能在介面上的位置。找不到 GIF 選項時，先確認 App 已更新到最新版。</li>
-<li><strong>參考圖的隱私</strong>：存進去的是你的照片，目前官方公告沒寫保存與刪除方式，阿正老師建議先用寵物或自創角色測試，自己的臉晚點再說。</li>
-</ul>
-<hr>
-<h2>八、阿正老師的總結</h2>
-<p>Images 2.6 的定位很清楚，就是讓 ChatGPT 的圖「動起來」和「記得住角色」。如果你還在比較其他 AI 生圖工具，可以參考 <a href="https://pcrookie.com/nano-banana-pro-gemini-3-image-guide-2026/" target="_blank">Nano Banana Pro 介紹</a>；想回顧 ChatGPT 生圖這一路的變化，可以看 <a href="https://pcrookie.com/chatgpt-images-2-guide/" target="_blank">Images 2.0 教學</a>。</p>
-<div>
-<p>想做自家寵物或角色的動態貼圖</p>
-<p>→ <strong>參考圖＋GIF</strong>。先存一張清楚的正面照，再用提示詞 6 的寫法做眨眼、揮手這類小動作。</p>
-</div>
-<div>
-<p> 經營粉專、要做社群動態圖</p>
-<p>→ <strong>文字生成 GIF</strong>。標題動畫、商品小動態都能做，記得先用提示詞 3 測中文字穩不穩。</p>
-</div>
-<div>
-<p> 開發者要批次大量生圖</p>
-<p>→ <strong>先留在 2.5</strong>。2.6 目前不支援 Batch API。如果工作不急著即時拿到結果、2.5 的畫質也夠用，2.5 的 Batch 單位費率比一般費率低。</p>
-</div>
-<hr>
-<div>
-<p> 先試一張 GIF 吧</p>
-<p>ChatGPT Images 2.6 不用安裝、免費版也能用，最快的上手方式就是複製提示詞 1，看看你的 ChatGPT 能不能把窗台上的貓做成會動的圖。阿正老師也會陸續實際測試這 8 組提示詞，補上成果截圖。</p>
-<p>你做出了什麼有趣的 GIF？歡迎在下面留言跟阿正老師分享！</p>
-</div>]]></content:encoded>
-    <itunes:image href="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-cover-v2.png"/>
-          <media:content url="https://image.pcrookie.com/2026/11/chatgpt-images-2-6-gif-guide/chatgpt-images-2-6-gif-guide-cover-v2.png" medium="image"/>
-    <pubDate>Fri, 06 Nov 2026 01:17:00 +0000</pubDate>
   </item></channel>
 </rss>
